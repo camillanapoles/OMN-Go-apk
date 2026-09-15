@@ -1,0 +1,6 @@
+• Fix Android icons
+• Fix CVE‑2026‑45022
+• Add Bookmarker manual
+• Add Java and JavaScript tests
+• Add the Log page
+• Code quality improve
