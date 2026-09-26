@@ -229,3 +229,40 @@ Use `OMN_BINARY_SIZE_WRITE=1` after the build image gets a new Go version.
 
 Two small tests run in the normal gate. `TestBinarySizeReport` checks the
 report. `TestBinarySizeBaselineFile` checks the JSON file.
+
+---
+
+## 7. The benchmarks
+
+`backend/bench_test.go` holds seven benchmarks. Each one measures a path
+that a person waits for.
+
+| Benchmark | What it measures |
+| --- | --- |
+| `BenchmarkCompileBundledNotes` | The compile of each bundled note to HTML. |
+| `BenchmarkServeCachedPage` | The answer for `/UserManual.html` from the cache. |
+| `BenchmarkSearchPage` | The search of one note. |
+| `BenchmarkSearchGlobal` | The global search of about 200 notes, with a typo in the query. |
+| `BenchmarkSearchIndexBuild` | The build of the global index of about 200 notes. |
+| `BenchmarkSQLQuery` | Two SELECT statements over 2000 rows through `/api/sql`. |
+| `BenchmarkDBBackupRestore` | A backup of 2000 rows and its restore. |
+
+**The normal gate does not run a benchmark.** It runs
+`TestBenchmarkFixtures`. That test checks that each benchmark still
+measures real data, and not an empty result or a fault page.
+
+Use the benchmarks before and after a refactor patch:
+
+1. Check out `master`.
+2. Run the benchmarks and keep the result:
+
+   ```sh
+   go test -run '^$' -bench . -benchmem -count 5 ./backend/ > before.txt
+   ```
+
+3. Apply the patch.
+4. Run the same command again. Write the result to `after.txt`.
+5. Compare the two files. A refactor patch must not make a path slower.
+
+Run both measurements on the same device. A number from one device does
+not compare with a number from another device.
