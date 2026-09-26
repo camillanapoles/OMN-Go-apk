@@ -10,6 +10,10 @@ package backend
 //
 // A record that nothing lists is hard to find. A path in a comment that
 // names no file sends the reader nowhere. The two tests below find both.
+//
+// THE DOCKER BUILD HAS NO doc/ DIRECTORY. .dockerignore excludes it, thus
+// the two tests skip in the gate of the Docker build. They run in each
+// go test of a clone. TestApiDocNamesTheRightFile does the same.
 
 import (
 	"fmt"
@@ -29,10 +33,14 @@ var decRecordNameRe = regexp.MustCompile(`^([0-9]{4})-[a-z0-9-]+\.md$`)
 var decRecordPathRe = regexp.MustCompile(`doc/decisions/[0-9]{4}-[a-z0-9-]+\.md`)
 
 // decRecords answers the file name of each record, in the order of the
-// numbers. It does not answer README.md.
+// numbers. It does not answer README.md. It skips the test when the tree
+// has no doc/decisions directory. See the banner above.
 func decRecords(t *testing.T) []string {
 	t.Helper()
 	entries, err := os.ReadDir(filepath.Join("..", "doc", "decisions"))
+	if os.IsNotExist(err) {
+		t.Skipf("doc/decisions is not in this tree: %v", err)
+	}
 	if err != nil {
 		t.Fatalf("cannot read doc/decisions: %v", err)
 	}

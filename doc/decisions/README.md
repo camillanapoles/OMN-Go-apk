@@ -46,6 +46,9 @@ Two tests in `backend/decisions_test.go` check the records:
 * `TestEachCommentNamesARealDecisionRecord` checks that each path in a
   comment names a record that exists.
 
+The Docker build does not copy `doc/`, thus both tests skip there. Run
+`go test ./backend/...` in a clone to run them.
+
 ## The format of a record
 
 * The file name is `NNNN-short-title.md`. NNNN is the next free number.
