@@ -12,17 +12,11 @@ import (
 // Why this file does NOT use html/template
 // ----------------------------------------------------------------------
 //
-// An earlier revision rendered these pages through html/template. That was
-// correct for security, and it carried a hidden cost across the whole
-// binary. html/template, through text/template, calls
-// reflect.Value.MethodByName. That call forces the Go linker to DISABLE
-// dead-code elimination for methods across the entire program. The linker
-// can no longer prove any method unreachable, thus it keeps all of them.
-//
-// The largest method surface in this binary by far is go-git, with every
-// transport, storage backend and plumbing type. Most of it is normally
-// pruned. With html/template linked, none of it was, and that is what blew
-// the binary up.
+// html/template, through text/template, calls reflect.Value.MethodByName.
+// That call forces the Go linker to DISABLE dead-code elimination for
+// methods across the entire program. go-git has by far the largest method
+// surface in this binary, and the linker would then keep all of it. See
+// doc/decisions/0008-render-the-pages-without-html-template.md.
 //
 // What html/template gave us was context-correct escaping of a few known
 // fields into a few known positions. This file keeps exactly that
@@ -44,8 +38,8 @@ import (
 // ----------------------------------------------------------------------
 
 // escapeHTML escapes a value for HTML text content or a double-quoted
-// HTML attribute. (Same rules as the old a.htmlEscape; kept as a free
-// function so this file has no receiver dependencies.)
+// HTML attribute. It is a free function, thus this file has no receiver
+// dependencies.
 func escapeHTML(s string) string {
 	s = strings.ReplaceAll(s, "&", "&amp;")
 	s = strings.ReplaceAll(s, "<", "&lt;")
@@ -267,9 +261,9 @@ func renderEditorPage(v editorPageView) string {
 // It carries NO SSH key and NO key password, and configPageView carries no
 // admin password and no guest password. A secret in a view reaches the HTML
 // of the page. The page is a file on disk, and each reader of the device
-// can open it. Since 26.09.7 the boxes are empty, and the reader
-// presses "Show passwords" to read the values from GET /api/config. See
-// revealSecrets in omn-go-sse.js.
+// can open it. The boxes are thus empty, and the reader presses "Show
+// passwords" to read the values from GET /api/config. See omn-go-config.js
+// and doc/decisions/0005-keep-each-secret-out-of-the-config-page.md.
 type gitServerView struct {
 	Index  int
 	Slot   int
@@ -669,8 +663,7 @@ type filesPageView struct {
 //
 // A page, and not the bare 401 that authMiddleware would produce. This
 // address is linkable. A refusal that names neither the reason nor the
-// remedy is a dead end. The 404 of the search page turned out to be one
-// in 26.08.2.
+// remedy is a dead end.
 //
 // The markup is static, with no interpolation. Nothing here can carry a
 // value in from a request, and no filename appears anywhere in this
@@ -858,11 +851,9 @@ func renderFilesRow(b *strings.Builder, f filesFileRow) {
 // the same rule as the rows use. Speak only when the application is
 // involved.
 //
-// 26.08.54 had this the other way round, and it marked what was NOT
-// shipped. On a real installation that is nearly every directory, such as
-// the note tree, the compiled pages and the images. The page thus carried
-// a column of words that said "ordinary". Now a directory speaks when
-// OMN-Go delivered files into it, and the count says how many.
+// A directory speaks when OMN-Go delivered files into it, and the count
+// says how many. The opposite rule would mark nearly every directory, such
+// as the note tree, the compiled pages and the images.
 func filesDirNote(tree string, d filesDirRow) (word, color string) {
 	if tree == filesTreeBundled || !d.anyShips {
 		return "", ""
@@ -943,11 +934,10 @@ func renderSnippetHTML(text string, spans [][2]int) string {
 
 // searchDisabledNotice is what the page says when global search is off.
 //
-// It used to be a 404. The reasoning was that a permanently empty results
-// page is worse than an honest miss. That was wrong about who arrives here.
-// The page is linkable, and people put a "Search" link on their Welcome
-// note. The address is thus permanent navigation, and the 404 is a dead end
-// that names neither the cause nor the cure.
+// It is a page, and not a 404. The page is linkable, and people put a
+// "Search" link on their Welcome note. The address is thus permanent
+// navigation, and a 404 would be a dead end that names neither the cause
+// nor the cure.
 //
 // The markup is static, with no interpolation. Everything here is fixed
 // text and one internal link. There is nothing to escape, and nothing that

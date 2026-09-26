@@ -78,3 +78,4 @@ the status of the old record to `replaced by NNNN`.
 | [0005](0005-keep-each-secret-out-of-the-config-page.md) | Keep each secret out of the Config page. | `config_fields.go`, `templates.go`, `omn-go-config.js` |
 | [0006](0006-replace-the-application-files-at-each-new-version.md) | Replace the application files at each new version. | `assets.go`, `MainActivity.java` |
 | [0007](0007-keep-the-application-files-in-omn-go-directories.md) | Keep the application files in OMN-Go directories. | `assets.go`, `serving.go`, `git_repo.go` |
+| [0008](0008-render-the-pages-without-html-template.md) | Render the pages without html/template. | `templates.go` |

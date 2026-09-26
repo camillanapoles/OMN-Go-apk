@@ -6,10 +6,8 @@ import "strings"
 // The single header-block ("Pelican header") parser
 // ----------------------------------------------------------------------
 //
-// This file was frontmatter.go, and parseHeaderBlock was splitFrontMatter,
-// until 26.08.42. "header block" is the name doc/TERMINOLOGY.md requires
-// the documentation to use, and the code now uses the same one. Look in the
-// history for the old names: nothing but names changed.
+// "header block" is the name that doc/TERMINOLOGY.md requires, and the
+// code uses the same one.
 //
 // A note may begin with a block of "Key: Value" metadata lines terminated
 // by a blank line, e.g.:
@@ -20,17 +18,13 @@ import "strings"
 //
 //	Body starts here.
 //
-// The decision "where does the header end and the body begin?" used to be
-// re-implemented in four places, and each one differed a little. Three were
-// in Go, in compilePageWithBody, ensureHeaderModified and handleNewPage. The
-// fourth was firstLineAfterHeader, in the JavaScript of the editor.
+// Four callers ask "where does the header end and the body begin?". They
+// are compilePageWithBody, ensureHeaderModified, handleNewPage, and
+// firstLineAfterHeader in the JavaScript of the editor. Copies of the
+// decision disagree on edge cases. A Markdown heading such as "# Head:
+// subtitle" is the classic one, because it holds a ':'.
 //
-// Those variants disagreed on edge cases. Most visibly,
-// compilePageWithBody read any first line that held a ':' as a header line.
-// A Markdown heading such as "# Head: subtitle" was thus swallowed as
-// metadata, and it did not render as a heading.
-//
-// parseHeaderBlock is now the ONE authority. Every Go caller goes through
+// parseHeaderBlock is the ONE authority. Every Go caller goes through
 // it, and the firstLineAfterHeader of the editor mirrors isHeaderFirstLine
 // exactly. See backend/frontend/html/js/OMN-Go/omn-go-editor.js.
 
@@ -90,11 +84,10 @@ func isHeaderFirstLine(line string) bool {
 //     that fails isHeaderFirstLine. Examples are "<style>" and a prose line
 //     with no colon. That line is the first BODY line, and it is kept.
 //
-// Both conditions matter. An earlier version required a blank line alone.
-// Content could follow a header at once, as a "<style>" block, a prose
-// paragraph, or a whitespace-only separator. The header then ran on until
-// the first truly empty line, and it swallowed a CSS "--var: #hex;" line as
-// bogus metadata.
+// Both conditions matter. Content can follow a header at once, as a
+// "<style>" block, a prose paragraph, or a whitespace-only separator. With
+// a blank line as the only end, the header would run on to the first truly
+// empty line. It would then read a CSS "--var: #hex;" line as metadata.
 //
 // A header with neither a blank line nor a non-header line after it is a
 // note that is only metadata. Such a note has an empty body. With no header

@@ -17,11 +17,9 @@ import (
 //   - serveHTMLPage's mtime check (md newer than html, or html missing, or an
 //     explicit ?refresh) is its ONLY invalidator.
 //
-// Before this existed, six call sites each open-coded "compilePage +
-// MkdirAll + WriteFile" against html/<name>.html (handleSaveNote,
-// handleQuickNote, handleBookmark, handleNewPage, recompileMarkdownPage,
-// precompileAllPages). They agreed by luck. To hold them here means that
-// the cache-write behavior is defined one time.
+// Six callers write a page: handleSaveNote, handleQuickNote, handleBookmark,
+// handleNewPage, recompileMarkdownPage and precompileAllPages. Each one
+// calls renderAndCache, thus the cache-write behavior is defined one time.
 //
 // The cached HTML is deliberately an INCOMPLETE template. It carries a
 // runtimeVarsMarker (see templates.go). injectRuntimeVars fills that marker

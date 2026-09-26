@@ -632,13 +632,10 @@ var commentVersionDebt = map[string]int{
 	"backend/git_sync_test.go":                                 2,
 	"backend/handlers.go":                                      2,
 	"backend/handlers_test.go":                                 2,
-	"backend/header_block.go":                                  1,
 	"backend/java_test.go":                                     4,
 	"backend/js_test.go":                                       5,
 	"backend/logger.go":                                        4,
 	"backend/logger_test.go":                                   3,
-	"backend/markdown.go":                                      2,
-	"backend/markdown_test.go":                                 1,
 	"backend/note_exchange.go":                                 2,
 	"backend/note_exchange_test.go":                            4,
 	"backend/pipelines_test.go":                                1,
@@ -649,8 +646,6 @@ var commentVersionDebt = map[string]int{
 	"backend/search_test.go":                                   8,
 	"backend/session_test.go":                                  2,
 	"backend/status_test.go":                                   2,
-	"backend/templates.go":                                     3,
-	"backend/templates_test.go":                                6,
 }
 
 // No file may hold more version numbers in its comments than the table

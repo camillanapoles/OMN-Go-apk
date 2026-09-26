@@ -67,11 +67,9 @@ func TestRewriteInternalLink(t *testing.T) {
 		{"Page#section", "Page.html#section"},
 		{"Page?x=1", "Page.html?x=1"},
 		{"Page.md#section", "Page.html#section"},
-		// 26.08.76: a note name may hold a dot. hasKnownAssetExtension
-		// decides, and ".2026" is not an extension this install serves,
-		// thus the link gets its ".html". A regular expression matched any
-		// extension-shaped tail here until then, thus a link to such a note
-		// went nowhere.
+		// A note name may hold a dot. hasKnownAssetExtension decides, and
+		// ".2026" is not an extension this install serves, thus the link
+		// gets its ".html".
 		{"Report.2026", "Report.2026.html"},
 		{"a.b.c", "a.b.c.html"},
 		{"Report.2026#part", "Report.2026.html#part"},
@@ -118,11 +116,11 @@ func TestRenderMarkdownToHTMLMathProtection(t *testing.T) {
 // block leaked "OMN_RAW_n_END" placeholder tokens into the rendered HTML.
 // Database.md is such a page.
 //
-// The old five-sequential-pass shielding matched the literal "<script>" in a
-// code span, and it paired that with a real "</script>" in a later fenced
-// example. The stored text of a placeholder then held other placeholders. A
-// restore in the randomized map-iteration order of Go left some of them
-// unrestored, thus the fault surfaced on some devices only.
+// Separate passes would match the literal "<script>" in a code span, and
+// pair it with a real "</script>" in a later fenced example. The stored
+// text of a placeholder would then hold other placeholders. A restore in
+// the randomized map-iteration order of Go would leave some of them
+// unrestored, on some devices only.
 //
 // The combined single-pass scan must never leak, deterministically.
 func TestRenderMarkdownRawNoPlaceholderLeak(t *testing.T) {

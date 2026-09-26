@@ -215,9 +215,9 @@ func TestRenderConfigPage(t *testing.T) {
 	if strings.Contains(out, "%%") {
 		t.Fatalf("unfilled placeholder left in output:\n%s", out)
 	}
-	// Stored-XSS regression: attacker-ish values must arrive escaped.
-	// The view holds no password since 26.09.7, thus the git server name
-	// carries this check now. See TestConfigPageCarriesNoSecret.
+	// Stored-XSS check: attacker-ish values must arrive escaped. The view
+	// holds no password, thus the git server name carries this check. See
+	// TestConfigPageCarriesNoSecret.
 	if !strings.Contains(out, "srv &quot;one&quot;") {
 		t.Error("git server name not HTML-escaped")
 	}
@@ -407,8 +407,8 @@ func TestNormalizeFullscreen(t *testing.T) {
 		"off":        FullscreenOff,
 		"fullscreen": FullscreenOn,
 		"immersive":  FullscreenImmersive,
-		// Empty is the important one: it is what every config.json written
-		// before this field existed contains.
+		// Empty is the important one: it is what a config.json with no
+		// android_fullscreen key gives.
 		"":          FullscreenOn,
 		"sideways":  FullscreenOn,
 		"OFF":       FullscreenOn, // case-sensitive whitelist, as normalizeTheme
@@ -473,10 +473,10 @@ func TestNormalizeTheme(t *testing.T) {
 // the style of its neighbors would be the one thing that does not run when
 // it is needed.
 //
-// The notice was an inline block of index.html until 26.08.73. It moved to
-// its own file, because the inline copy went into the compiled page of
-// every note. A <script src> element is its own parse unit, thus a
-// SyntaxError in omn-go-core.js cannot stop it. That holds while two rules
+// The notice is a file of its own, and not an inline block of index.html.
+// An inline copy would go into the compiled page of every note. A <script
+// src> element is its own parse unit, thus a SyntaxError in omn-go-core.js
+// cannot stop it. That holds while two rules
 // hold, and this test is the whole guarantee of both:
 //
 //   - the file itself is ES5, thus the old parser accepts it.
@@ -553,9 +553,8 @@ func TestCompatScriptIsFirstAndES5(t *testing.T) {
 }
 
 // TestCompiledPageShellStaysSmall exists because the shell of index.html is
-// copied into html/<name>.html for EVERY note. 26.08.73 moved 3.3 KB of
-// inline script and 133 bytes of inline style out of it for that reason.
-// A new inline block here costs the same bytes again, on disk and in every
+// copied into html/<name>.html for EVERY note. A new inline block here
+// costs the same bytes again, on disk and in every
 // git sync, multiplied by the note count.
 func TestCompiledPageShellStaysSmall(t *testing.T) {
 	const maxShellBytes = 5000
@@ -571,11 +570,9 @@ func TestCompiledPageShellStaysSmall(t *testing.T) {
 // ---------------------------------------------------------------------
 
 // TestClipboardHasOneAuthority exists because a second clipboard path
-// gives a second chance to get the Android WebView wrong. That is what
-// happened. Before 26.08.74 the Status page had its own textarea and its
-// own execCommand call. omnGoCopyText took the Clipboard API and returned
-// before its own second way. The copy on the Status page worked on
-// Android 6. The copy in the metadata panel did not.
+// gives a second chance to get the Android WebView wrong. Two paths can
+// then behave differently: one copy works on Android 6 and the other does
+// not.
 //
 // Only omn-go-core.js can call execCommand('copy'). That file holds
 // omnGoCopyText, which each other caller uses. It also holds
@@ -643,9 +640,9 @@ var documentedCoreAPI = []string{
 // note that used the name then fails in the browser of the reader, and
 // nowhere else.
 func TestDocumentedCoreAPIIsExported(t *testing.T) {
-	// It reads EVERY shipped script and not a named pair. omn-go-sse.js
-	// split into four files in 26.09.24, and a fixed list would have to
-	// grow with each such move. A name that no file exports is the fault
+	// It reads EVERY shipped script and not a named list. A script can
+	// split into several files, and a fixed list would have to grow with
+	// each such move. A name that no file exports is the fault
 	// this test looks for, and the file that holds it does not matter.
 	entries, err := staticFS.ReadDir("frontend/html/js/OMN-Go")
 	if err != nil {
@@ -688,11 +685,10 @@ func TestDocumentedCoreAPIIsExported(t *testing.T) {
 // .overlay in omn-go-core.css sets display:none. A modal of the first kind
 // is thus invisible until a rule gives it a display value again.
 //
-// 26.08.58 added #push-conflict-modal with no such rule. The modal never
-// appeared. runSync found the element, so the confirm() fallback beside it
-// did not run either. The same commit took the force checkbox off the
-// header. A rejected push then gave the reader nothing, and the only
-// report was one line in the log.
+// A modal with no such rule never appears. runSync finds the element, thus
+// the confirm() fallback beside it does not run either. A rejected push
+// then gives the reader nothing, and the only report is one line in the
+// log.
 //
 // This test reads the two files. It is a source test, because a browser is
 // what applies a CSS rule, and the test suite holds no CSS engine.

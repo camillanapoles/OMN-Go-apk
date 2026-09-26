@@ -58,9 +58,8 @@ var (
 	// stored text held OTHER placeholders.
 	//
 	// A restore of those nested placeholders in one map-iteration pass then
-	// left some of them unrestored. Go randomizes map order, thus the fault
-	// surfaced on some runs and devices and not on others. Those are exactly
-	// the leaked "OMN_RAW_n_END" tokens that this fixes.
+	// left some of them unrestored. Go randomizes map order, thus
+	// "OMN_RAW_n_END" tokens leaked into the page on some runs only.
 	//
 	// One combined scan consumes each raw region whole. A "<script>"
 	// mentioned inside a code span or a fence is thus part of the match of
@@ -265,9 +264,7 @@ func (a *App) rewriteInternalLink(href string) string {
 	// hasKnownAssetExtension (serving.go) is the one authority for the
 	// question below. It reads the LAST extension. A link to a note named
 	// "Report.2026" thus becomes "Report.2026.html", and a link to the file
-	// "draft.txt" stays as it is. Until 26.08.76 a regular expression
-	// matched any extension-shaped tail here, thus a link to a note with a
-	// dot in its name went nowhere.
+	// "draft.txt" stays as it is.
 	switch {
 	case strings.HasSuffix(base, ".md"):
 		base = strings.TrimSuffix(base, ".md") + ".html"
@@ -299,15 +296,13 @@ func (a *App) compilePage(name string, mdContent []byte) []byte {
 // dashboard and the "editing externally" wait page reuse the same page
 // shell, although neither is markdown itself.
 //
-// Editing is no longer an in-page mode: ?edit=true is served by the
-// dedicated editor page (renderEditorPage), so this function only ever
-// produces read/view shells.
+// This function produces read and view shells only. ?edit=true goes to the
+// dedicated editor page (renderEditorPage).
 func (a *App) compilePageWithBody(name string, mdContent []byte, customBody string) []byte {
 	// One header-block split for the whole backend (see header_block.go).
-	// Previously this function had its own line-by-line header scan that
-	// classified any colon-bearing line as header - swallowing e.g. a
-	// "# Head: x" Markdown heading. parseHeaderBlock uses the same
-	// first-line rule as ensureHeaderModified and handleNewPage.
+	// parseHeaderBlock uses the same first-line rule as
+	// ensureHeaderModified and handleNewPage. A "# Head: x" Markdown
+	// heading is thus body, and not a header line.
 	hb := parseHeaderBlock(string(mdContent))
 	var headers []string
 	if hb.HasHeader {
@@ -348,10 +343,9 @@ func (a *App) compilePageWithBody(name string, mdContent []byte, customBody stri
 	// note. The asset prefix below reads customBody for the same reason.
 	//
 	// A NAME ALONE CANNOT ANSWER THIS. A note named "Draft.txt" and the
-	// file html/Draft.txt carry the same name here. Before 26.08.76 this
-	// block asked whether the name held a dot, thus a note named
-	// "Report.2026" got pageExt ".2026" and IsMarkdown false. The page then
-	// lost each control that belongs to a note.
+	// file html/Draft.txt carry the same name here. A note named
+	// "Report.2026" must still get IsMarkdown true, or the page loses each
+	// control that belongs to a note.
 	pageExt := ""
 	if strings.HasSuffix(name, ".md") {
 		pageExt = ".md"
