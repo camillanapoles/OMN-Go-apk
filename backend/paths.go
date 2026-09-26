@@ -2,9 +2,26 @@ package backend
 
 import (
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
+
+// containedName makes a name from a request safe to join under a storage
+// directory. It answers a clean, slash-separated, relative name.
+//
+// A ".." element cannot climb above the root of the name. Thus
+// "../../x" gives "x", and "a/../../b" gives "b". A leading slash goes.
+// On Windows, a backslash counts as a separator before the clean.
+//
+// WHY. filepath.Join cleans its result, and a ".." in the name then
+// climbs out of the storage directory. Without this function,
+// /api/save?name=../../x wrote a file outside the storage directory.
+// /api/note read and created such a file with no login. Each path that a
+// request names must pass through this function.
+func containedName(name string) string {
+	return strings.TrimPrefix(path.Clean("/"+filepath.ToSlash(name)), "/")
+}
 
 // resolvePageName is the single place that answers two questions about a
 // "name" that comes from a user or a URL. The first is whether the name
@@ -49,12 +66,14 @@ func (a *App) resolvePageName(name string) (mdPath, htmlPath, baseName string, i
 	default:
 		// The name ends in an extension that this install serves as a
 		// file. See hasKnownAssetExtension.
-		return "", filepath.Join(a.StorageDir, "html", filepath.Clean(name)), name, false
+		name = containedName(name)
+		return "", filepath.Join(a.StorageDir, "html", filepath.FromSlash(name)), name, false
 	}
 
 	// pageHTMLPath (render_cache.go) is the single formula for a page's
 	// compiled-HTML path; use it here so the two never drift apart.
-	mdPath = filepath.Join(a.StorageDir, "md", filepath.Clean(baseName+".md"))
+	baseName = containedName(baseName)
+	mdPath = filepath.Join(a.StorageDir, "md", filepath.FromSlash(baseName+".md"))
 	htmlPath = a.pageHTMLPath(baseName)
 	return mdPath, htmlPath, baseName, true
 }

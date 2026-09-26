@@ -249,3 +249,117 @@ func TestDottedNoteCompilesAsMarkdown(t *testing.T) {
 		t.Error("a server-built view of a .js file lost its extension")
 	}
 }
+
+// containedName is the guard of each path that a request names. The
+// table holds the shapes that climb out, and the normal names that must
+// not change.
+func TestContainedName(t *testing.T) {
+	for _, tc := range []struct{ in, want string }{
+		{"Welcome", "Welcome"},
+		{"Test/OMN-Go/DBTest", "Test/OMN-Go/DBTest"},
+		{"Report.2026", "Report.2026"},
+		{"/Welcome", "Welcome"},
+		{"./a/./b", "a/b"},
+		{"a/b/../c", "a/c"},
+		{"../../x", "x"},
+		{"a/../../b", "b"},
+		{"/../../etc/x", "etc/x"},
+		{"..", ""},
+		{"", ""},
+	} {
+		if got := containedName(tc.in); got != tc.want {
+			t.Errorf("containedName(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+// pathFilesOutside answers each regular file in the parent of the storage
+// directory that is not inside the storage directory. Each test here has
+// its own parent, thus a file there came from the test.
+func pathFilesOutside(t *testing.T, a *App) []string {
+	t.Helper()
+	var out []string
+	parent := filepath.Dir(a.StorageDir)
+	filepath.Walk(parent, func(p string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		if !strings.HasPrefix(p, a.StorageDir+string(os.PathSeparator)) {
+			rel, _ := filepath.Rel(parent, p)
+			out = append(out, rel)
+		}
+		return nil
+	})
+	return out
+}
+
+// A name with ".." must not write outside the storage directory. Before
+// containedName, /api/save wrote each of these names to a file outside
+// it. A name with a known file extension could write any .js or .json
+// file on the device. The route is admin only, but a loopback caller is
+// admin.
+func TestSaveStaysInTheStorageDirectory(t *testing.T) {
+	for _, name := range []string{"../../escape", "../../escape.js", "sub/../../../escape"} {
+		// A subtest has its own temporary parent directory.
+		t.Run(name, func(t *testing.T) {
+			a := newTestApp(t)
+			rec := postForm(t, a.handleSaveNote, "/api/save", url.Values{"name": {name}, "content": {"x"}})
+			if rec.Code != http.StatusOK {
+				t.Errorf("status %d, want 200", rec.Code)
+			}
+			if out := pathFilesOutside(t, a); len(out) != 0 {
+				t.Errorf("files outside the storage directory: %v", out)
+			}
+		})
+	}
+}
+
+// /api/note needs no login. A name with ".." must not read a file outside
+// the storage directory, and it must not create one. Before containedName
+// it did both. It read an outside .txt, .json or .md file. For a missing
+// page, it wrote a new .md file outside.
+func TestGetNoteStaysInTheStorageDirectory(t *testing.T) {
+	a := newTestApp(t)
+	secret := filepath.Join(filepath.Dir(a.StorageDir), "secret.txt")
+	if err := os.WriteFile(secret, []byte("SECRET"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"../secret.txt", "../../secret.txt", "../new-page"} {
+		req := httptest.NewRequest(http.MethodGet, "/api/note?name="+url.QueryEscape(name), nil)
+		rec := httptest.NewRecorder()
+		a.handleGetNote(rec, req)
+		if strings.Contains(rec.Body.String(), "SECRET") {
+			t.Errorf("%q: the answer holds a file from outside the storage directory", name)
+		}
+	}
+	if out := pathFilesOutside(t, a); len(out) != 1 || out[0] != "secret.txt" {
+		t.Errorf("files outside the storage directory: %v, want only secret.txt", out)
+	}
+}
+
+// /api/newpage writes the target and rewrites the source. A ".." in
+// either one must stay in the md directory. Before containedName, a
+// source outside the storage directory got a new link line written into
+// it.
+func TestNewPageStaysInTheStorageDirectory(t *testing.T) {
+	a := newTestApp(t)
+	victim := filepath.Join(filepath.Dir(a.StorageDir), "victim.md")
+	if err := os.WriteFile(victim, []byte("Title: Victim\n\nbody\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	rec := postForm(t, a.handleNewPage, "/api/newpage", url.Values{
+		"source": {"../victim"}, "target": {"../../escape"}, "title": {"T"},
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200", rec.Code)
+	}
+	if got, _ := os.ReadFile(victim); string(got) != "Title: Victim\n\nbody\n" {
+		t.Errorf("the file outside the storage directory changed:\n%s", got)
+	}
+	if out := pathFilesOutside(t, a); len(out) != 1 || out[0] != "victim.md" {
+		t.Errorf("files outside the storage directory: %v, want only victim.md", out)
+	}
+	if !fileExists(filepath.Join(a.StorageDir, "md", "escape.md")) {
+		t.Error("the target is not at md/escape.md")
+	}
+}

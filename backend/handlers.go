@@ -858,7 +858,10 @@ func (a *App) handleNewPage(w http.ResponseWriter, r *http.Request) {
 	// source, unless target is itself absolute or already names a
 	// directory.
 	rawTarget := target
-	target = a.resolveNewPageTarget(source, target)
+	// Both names become file paths below. containedName keeps each one
+	// in the md directory. See paths.go.
+	target = containedName(a.resolveNewPageTarget(source, target))
+	source = containedName(source)
 
 	now := time.Now().Format("2006-01-02 15:04:05")
 

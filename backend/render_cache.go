@@ -36,7 +36,7 @@ import (
 // agree. TestPageHTMLPath guards that. renderAndCache and precompileAllPages
 // use pageHTMLPath directly, thus the path is defined in one place.
 func (a *App) pageHTMLPath(name string) string {
-	return filepath.Join(a.StorageDir, "html", filepath.Clean(name+".html"))
+	return filepath.Join(a.StorageDir, "html", filepath.FromSlash(containedName(name)+".html"))
 }
 
 // renderAndCache compiles a markdown page and writes it to its on-disk HTML
