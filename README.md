@@ -2,7 +2,7 @@
 
 **OMN-Go** is a cross-platform Markdown note application. It uses Go, HTML, and JavaScript, and it works without an internet connection.
 
-OMN-Go replaces the original [mvbasov/OMN](https://github.com/mvbasov/OMN) project. It uses a local Go web server and a native WebView to run on the desktop (Linux) and on Android. It does not use an electron framework or an external cloud service.
+OMN-Go replaces the original [mvbasov/OMN](https://github.com/mvbasov/OMN) project. It uses a local Go web server. On Android, a native WebView shows the notes. On the desktop (Linux), your default browser shows them. OMN-Go does not use an electron framework or an external cloud service.
 
 <p align="center">
 <!--
@@ -103,18 +103,17 @@ OMN-Go uses a Docker build environment. You do not need to install Go, Android S
 
 * You must install [Docker](https://docs.docker.com/get-docker/) on your device.
 
-### 1. Fetch offline assets (first time only)
+### 1. Offline assets
 
 The build puts the offline rendering libraries into the binary. These libraries
-are KaTeX (math), highlight.js (code), and their web fonts. The repository does
-not hold these files. Download them into the frontend once after a fresh clone,
-before the first build:
+are KaTeX (math), highlight.js (code), and their web fonts. The repository holds
+these files under `backend/frontend/html/`. A fresh clone needs no download.
+
+To update these vendored files, run this command:
 
 ```
 bash local/initial/offline_asset_downloader.sh
 ```
-
-Run this command again only when you want to update these vendored assets.
 
 ### 2. Compile & extract
 

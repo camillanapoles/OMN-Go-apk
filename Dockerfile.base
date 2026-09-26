@@ -55,7 +55,7 @@ ENV PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-too
 # Gradle plugin (com.android.tools.build:gradle:8.2.2 - see
 # android/build.gradle) carries a default build-tools version, and
 # android/app/build.gradle pins none. With 33.0.1 in the image, the gradle
-# step of stage 2 stopped to accept a license and to download 34.0.0 on
+# step of project_builder stopped to accept a license and to download 34.0.0 on
 # each build. That download needs the network at build time. It also
 # writes into the image, and the next build cannot use the result. The
 # SDK lives here, and not under the /root/.gradle cache mount.

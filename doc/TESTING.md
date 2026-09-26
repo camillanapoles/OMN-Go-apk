@@ -26,11 +26,14 @@ that tag passed the gate.
 
 ## 1. The three parts
 
-| Part | Count | Language of the test | Needs |
+| Part | Where | Language of the test | Needs |
 | --- | --- | --- | --- |
-| The Go application | about 380 tests | Go | nothing |
-| The Android configuration reader | 1 test class | Java | a JDK |
-| The frontend pure functions | 7 tests | JavaScript | Node |
+| The Go application | `backend/*_test.go` | Go | nothing |
+| The Android configuration reader | `android/test/` | Java | a JDK |
+| The frontend pure functions | `backend/frontend/test/*.test.js` | JavaScript | Node |
+
+This document gives no count of tests. A count in a document goes out of
+date with the next test. `go test -v ./backend/...` lists each test.
 
 The Java and the JavaScript tests are started BY a Go test. There is no
 second command and no second gate.

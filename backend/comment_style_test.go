@@ -28,9 +28,8 @@ package backend
 // number, and a new comment could never raise one.
 //
 // Eleven patches paid the table down, from 26.09.46 to 26.09.57. The
-// table is gone, and the demand for zero replaces it. See
-// claude/style-debt-plan-2026-09-06.md for the record of that work, and
-// for the traps that each batch met.
+// table is gone, and the demand for zero replaces it. The git history of
+// those versions holds the record of that work.
 //
 // WHAT IT READS.
 //

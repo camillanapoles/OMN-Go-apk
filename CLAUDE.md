@@ -79,7 +79,7 @@ Do not remove a constraint without an instruction from the maintainer.
 | Path | Contents |
 | --- | --- |
 | `main_desktop.go` | The only file in `package main`. It holds the only build tag: `//go:build !android`. |
-| `backend/` | The full Go application. One flat `package backend`. 33 files, not counting tests. |
+| `backend/` | The full Go application. One flat `package backend`. |
 | `backend/frontend/templates/` | Server-side page fragments. Embedded as `templatesFS`. Never extracted to disk. |
 | `backend/frontend/html/` | `js/`, `css/`, `css/fonts/`, `json/`, `favicon.ico`. Embedded as `staticFS`. Extracted to the storage directory on demand. The user can edit these files with `?edit=true`. |
 | `backend/frontend/md/` | The bundled system notes. Examples: `Welcome.md`, `UserManual.md`, `Database.md`, `ScriptRules.md`. Also a `Test/OMN-Go/` demonstration tree. |
@@ -94,15 +94,9 @@ Do not remove a constraint without an instruction from the maintainer.
 
 The repository does not hold `go.sum`, `output-binaries/`, `data/`, `.env`, or keystores.
 
-Two statements in the tree are wrong. Do not trust them.
-
-* The README says that the repository does not hold the offline assets. That text is
-  old. The repository holds KaTeX, highlight.js, and the web fonts under
-  `backend/frontend/html/`. Run `local/initial/offline_asset_downloader.sh` only to
-  update these files.
-* Some comments name `CODE_REVIEW.md`, `claude/note-exchange-plan.md`, and
-  `claude/tags-page-plan.md`. These files do not exist, and git history has no record
-  of them. They were AI session notes. Do not look for them.
+The repository holds the offline assets: KaTeX, highlight.js and the web fonts under
+`backend/frontend/html/`. Run `local/initial/offline_asset_downloader.sh` only to
+update these files.
 
 ---
 
@@ -120,14 +114,20 @@ Two statements in the tree are wrong. Do not trust them.
   `modernc.org/sqlite`. Keep this set small. A new dependency needs a reason and
   maintainer approval.
 * **The build generates `go.sum` inside the container.** `Dockerfile.base` writes it
-  to `/root/lockfiles`. Stage 2 of `Dockerfile` restores it. The host has no Go
+  to `/root/lockfiles`. The `test` and `project_builder` stages restore it. The host has no Go
   toolchain. Remember this before you change `go.mod`.
 * The driver is `modernc.org/sqlite`, because it is pure Go and works with
   `CGO_ENABLED=0`.
 * **Use one package.** Split the code by file and by concern, not by package.
-* **Keep the exported surface small.** Export only what gomobile or the desktop entry
-  point calls: `StartServer`, `AssetsRefreshed`, `GetServerPort`, and
-  `WaitUntilReady`. Write everything else as a lowercase method on `*App`.
+* **Keep the exported surface small.** Export only what the Android layer or the desktop
+  entry point calls. The Android layer calls `StartServer`, `AssetsRefreshed`,
+  `SetAndroidPackage` and `SetLANAddresses`. `main_desktop.go` calls `StartServer`,
+  `WaitUntilReady` and `GetServerPort`. Write everything else as a lowercase method on
+  `*App`.
+* The package also exports the types `App`, `Config`, `GitServerConfig`, `NoLockFS`,
+  `NoLockFile` and `JSLogger`, and more methods of `App`. No caller outside the
+  package uses them. gomobile still makes a Java binding for each one. Do not add an
+  exported name.
 * **Names.** Use `handleXxx` for an API endpoint. Use `serveXxx` for a page or an
   asset. Use `renderXxxPage` with an `xxxView` struct. Use `normalizeXxx` for value
   repair. Write a predicate as a question: `isLocalOnlyPath`, `fileExists`, `hasRole`.
@@ -405,9 +405,10 @@ subject line, also when it has no list.
 
 ## 8. Tests
 
-* The Go tests live in `backend/`. Each production file has one `_test.go` file
-  beside it. All tests use `package backend`, so they are white-box tests. The
-  suite holds 459 `Test*` functions.
+* The Go tests live in `backend/`. Most production files have a test file of the
+  same name beside them. Some test files hold one topic across many files. Examples
+  are `baseline_test.go`, `ports_test.go` and `pipelines_test.go`. All tests use
+  `package backend`, so they are white-box tests.
 * **Go is the one gate, and it is not the only language.** `backend/js_test.go`
   runs the JavaScript tests of `backend/frontend/test/` with `node --test`.
   `backend/java_test.go` compiles and runs `android/test/` with `javac` and
@@ -511,7 +512,7 @@ demands zero. A comment that breaks a rule fails the gate.
 
 It was a ratchet from 26.09.33 to 26.09.57. A table named `commentStyleDebt`
 held what each file owed, and eleven patches paid it down from 1070 faults to
-none. See `claude/style-debt-plan-2026-09-06.md`.
+none. The git history of those versions holds the record.
 
 **`TestEveryGoFileIsGofmtClean` in the same file** checks the formatting that
 `go vet` does not read.
