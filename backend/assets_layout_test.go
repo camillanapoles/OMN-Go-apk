@@ -14,15 +14,15 @@ import (
 // The OMN-Go asset directory
 // ----------------------------------------------------------------------
 //
-// 26.09.12 moved each app-owned asset below html/js/OMN-Go/ and
-// html/css/OMN-Go/. Three rules keep that move safe, and each one has a
-// test here:
+// Each app-owned asset is below html/js/OMN-Go/ or html/css/OMN-Go/. See
+// doc/decisions/0007-keep-the-application-files-in-omn-go-directories.md.
+// Three rules keep that layout safe, and each one has a test here:
 //
 //  1. Each app asset is under OMN-Go/, and each user file is not.
 //  2. A request for an old URL answers with the file of the new place.
 //  3. An upgrade deletes the old copy on disk. A copy that stays would
 //     become a tracked file at the next commit, because gitignorePatterns
-//     no longer names it.
+//     does not name it.
 
 // The rule of the directory, written as a test. A new asset that lands
 // beside the user files breaks this and not something far away.
@@ -272,8 +272,8 @@ func TestFdroidFetchScriptWritesUnderOMNGo(t *testing.T) {
 	}
 }
 
-// No template and no bundled note may load markdown.css. The file went
-// away in 26.09.12, and a reference to it would answer 404.
+// No template and no bundled note may load markdown.css. The build does
+// not ship the file, thus a reference to it would answer 404.
 func TestNoPageLoadsMarkdownCSS(t *testing.T) {
 	for _, tmpl := range []string{indexPageTmpl, editorPageTmpl, configPageTmpl} {
 		if strings.Contains(tmpl, "markdown.css") {

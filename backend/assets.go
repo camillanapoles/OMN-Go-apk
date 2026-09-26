@@ -45,7 +45,8 @@ import (
 // a version-dependent file finds that copy in the backup directory, and can
 // merge it back. The log carries the path. While the version stamp already
 // matches APP_VERSION, the function does cheap work and writes nothing, thus
-// nothing is touched between upgrades.
+// nothing is touched between upgrades. See
+// doc/decisions/0006-replace-the-application-files-at-each-new-version.md.
 
 // assetsVersionFilename stores the APP_VERSION that most recently refreshed
 // the extracted assets. The file sits in StorageDir, next to config.json. It
@@ -60,9 +61,8 @@ const assetsVersionFilename = "assets_version"
 // The Android WebView keeps a copy of a script and of a style sheet in
 // its own disk cache. After an update of the application the new pages
 // can use the old scripts, and some pages then do not operate correctly.
-// A user had to stop the application and clear the cache by hand. The
-// Android layer reads this value instead, and clears the cache only when
-// the assets changed. See AssetsRefreshed.
+// The Android layer reads this value, and clears the cache only when the
+// assets changed. See AssetsRefreshed.
 var assetsRefreshed atomic.Bool
 
 // AssetsRefreshed tells if this start installed or replaced a minimum of
@@ -97,7 +97,8 @@ var backupLabelSanitizer = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 //
 // The old paths are in retiredAssets below. legacyAssetURL in serving.go
 // answers a request for one of them from the new place, thus a note that
-// a person wrote before 26.09.12 keeps working.
+// names an old path keeps working. See
+// doc/decisions/0007-keep-the-application-files-in-omn-go-directories.md.
 var versionDependentAssets = []string{
 	"html/js/OMN-Go/omn-go-compat.js",
 	"html/js/OMN-Go/omn-go-core.js",
@@ -131,18 +132,17 @@ var versionDependentAssets = []string{
 // retiredAssets are the StorageDir-relative paths that this build no
 // longer owns. Two kinds of path are here:
 //
-//   - The old place of a file that moved. 26.09.12 moved each app asset
-//     into an OMN-Go directory. The two are html/js/OMN-Go/ and
-//     html/css/OMN-Go/.
+//   - The old place of a file that moved into an OMN-Go directory. The two
+//     directories are html/js/OMN-Go/ and html/css/OMN-Go/.
 //   - A file that the application dropped. html/css/markdown.css was
 //     24 899 bytes of github-markdown-css that no template and no note
 //     loaded, and the class it styles is absent from the whole tree.
 //
-// THE LIST IS APPEND-ONLY HISTORY. A path stays here after each later
-// version, because an install can skip any number of versions.
+// THE LIST ONLY GROWS. A path stays here after each later version, because
+// an install can skip any number of versions.
 //
 // removeRetiredAssets deletes the on-disk copy of each path. That is not
-// tidiness. gitignorePatterns no longer names these paths. A copy that
+// tidiness. gitignorePatterns does not name these paths. A copy that
 // stays on disk thus becomes a TRACKED file at the next commit, and it
 // reaches each other device through the sync.
 var retiredAssets = []string{
@@ -269,7 +269,7 @@ func (a *App) refreshEmbeddedAssets() {
 
 	prevLabel := prev
 	if prevLabel == "" {
-		// Installs that predate the version stamp (or a wiped stamp).
+		// An install with no version stamp, or with a wiped one.
 		prevLabel = "unknown"
 	}
 	prevLabel = backupLabelSanitizer.ReplaceAllString(prevLabel, "_")

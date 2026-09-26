@@ -1,0 +1,39 @@
+# 0007. Keep the application files in OMN-Go directories
+
+* Status: accepted
+* Version: 26.09.12
+* Code: `versionDependentAssets`, `retiredAssets` and
+  `removeRetiredAssets` in `backend/assets.go`, `legacyAssetURL` in
+  `backend/serving.go`, `gitignorePatterns` in `backend/git_repo.go`
+
+## Context
+
+The scripts and the style sheets of the application were in `html/js/`
+and `html/css/`, beside the files of the user. A reader of the storage
+directory could not tell which file belongs to whom.
+
+## Decision
+
+* Each script and style sheet of the application is in `html/js/OMN-Go/`
+  or `html/css/OMN-Go/`. The web fonts moved with the style sheets, thus
+  each `url(fonts/...)` of a vendor file still resolves.
+* The files of the user stay where they are: `omn-go-custom.js`,
+  `omn-go-custom.css` and the demo files of the Test tree.
+* `legacyAssetURL` answers a request for an old URL with the file of the
+  new place. A note that names an old path, for example
+  `md/Bookmarks.md`, thus keeps working. The server never changes a note
+  of the user.
+* At the first start of a new version, `removeRetiredAssets` deletes the
+  old copy of each moved file. A copy that a person changed goes to
+  `asset_backups` first.
+* `html/css/markdown.css` went away. No template and no note loaded it.
+
+## Consequences
+
+* `gitignorePatterns` names the new paths only. An old copy that stays
+  on disk would become a tracked file at the next commit, and the sync
+  would copy it to each device. That is why `removeRetiredAssets` must
+  delete it.
+* `retiredAssets` only grows. An install can skip any number of versions.
+* `TestEveryAppAssetIsUnderOMNGo` in `backend/assets_layout_test.go`
+  holds the rule for each new file.

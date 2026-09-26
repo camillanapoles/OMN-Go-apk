@@ -4,9 +4,7 @@ package backend
 // The first start
 // ----------------------------------------------------------------------
 //
-// initStorage held 0 of its statements under test before 26.09.45.
-//
-// It is the FIRST code that an install runs. It decides what a person
+// initStorage is the FIRST code that an install runs. It decides what a person
 // sees when they open the application for the first time.
 //
 // It also carries the upgrade path. A tree of an old version has notes

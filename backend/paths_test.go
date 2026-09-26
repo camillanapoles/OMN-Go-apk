@@ -33,8 +33,7 @@ func TestResolvePageName(t *testing.T) {
 		{"static image", "images/pic.png", "", html(filepath.Join("images", "pic.png")), "images/pic.png", false},
 		{"asset with extra dots", "js/app.min.js", "", html(filepath.Join("js", "app.min.js")), "js/app.min.js", false},
 
-		// 26.08.76: a note name may hold a dot. The LAST extension
-		// decides, and ".2026" is not an extension this install serves,
+		// A note name may hold a dot. The LAST extension decides, and ".2026" is not an extension this install serves,
 		// thus each of the three spellings is the same note.
 		{"dotted bare name", "Report.2026", md("Report.2026.md"), html("Report.2026.html"), "Report.2026", true},
 		{"dotted markdown filename", "Report.2026.md", md("Report.2026.md"), html("Report.2026.html"), "Report.2026", true},
@@ -68,12 +67,11 @@ func TestResolvePageName(t *testing.T) {
 	}
 }
 
-// The three spellings of one page must resolve to one answer. Four diverged
-// inline implementations broke this invariant before resolvePageName existed.
+// The three spellings of one page must resolve to one answer.
 //
-// A page whose name holds a dot gets the same treatment since 26.08.76. The
-// name "Welcome.md" no longer reads as a mistake: a person may name a note
-// that way, and its source is then md/Welcome.md.md.
+// A page whose name holds a dot gets the same treatment. The name
+// "Welcome.md" is not a mistake: a person may name a note that way, and
+// its source is then md/Welcome.md.md.
 func TestResolvePageNameEquivalence(t *testing.T) {
 	a := &App{StorageDir: "/store"}
 	for _, spellings := range [][]string{
@@ -137,10 +135,9 @@ func TestHasKnownAssetExtension(t *testing.T) {
 // meets: the page comes back, and a save reaches the markdown source.
 // ---------------------------------------------------------------------
 
-// TestDottedNoteNameServesAndSaves exists because /Report.2026.html gave
-// 404 until 26.08.76, and a save for a note named "Draft.txt" wrote
-// html/Draft.txt while it reported success. The note kept the old text, and
-// nothing said so.
+// TestDottedNoteNameServesAndSaves holds two rules. /Report.2026.html
+// serves the note. A save for a note named "Draft.txt" writes the markdown
+// source, and not the file html/Draft.txt.
 func TestDottedNoteNameServesAndSaves(t *testing.T) {
 	a := newTestApp(t)
 
@@ -193,10 +190,9 @@ func TestDottedNoteNameServesAndSaves(t *testing.T) {
 	}
 }
 
-// TestDottedNoteNameReachesTheEditor exists because the editor gets its
-// text from /api/note. The editor sent the bare base name until 26.08.76.
-// The editor for a note named "Draft.txt" thus asked for the file
-// html/Draft.txt, and it opened on a refusal.
+// TestDottedNoteNameReachesTheEditor holds the path of the editor. The
+// editor gets its text from /api/note. For a note named "Draft.txt" it
+// must ask for the note, and not for the file html/Draft.txt.
 func TestDottedNoteNameReachesTheEditor(t *testing.T) {
 	a := newTestApp(t)
 	baseWriteMD(t, a, "Draft.txt.md", "Title: Draft\n\nthe draft body")

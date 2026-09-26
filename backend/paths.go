@@ -45,13 +45,11 @@ func containedName(name string) string {
 //
 // hasKnownAssetExtension (serving.go) is the one authority for that
 // decision. Read its banner before you change this switch. In short: the
-// LAST extension decides, and an unknown extension is a page. Before
-// 26.08.76 this function asked whether the name held a dot, thus a note
-// named "Report.2026" was a file and /Report.2026.html gave 404.
+// LAST extension decides, and an unknown extension is a page. A note named
+// "Report.2026" is thus a page.
 //
-// This replaces four independent (and previously slightly-diverged)
-// implementations of this same decision that used to live in
-// handleGetNote, handleSaveNote, handleEditExternal and serveEditor.
+// handleGetNote, handleSaveNote, handleEditExternal and serveEditor all
+// call this function. Keep the decision here, and do not copy it.
 func (a *App) resolvePageName(name string) (mdPath, htmlPath, baseName string, isPage bool) {
 	switch {
 	case strings.HasSuffix(name, ".md"):
@@ -81,12 +79,8 @@ func (a *App) resolvePageName(name string) (mdPath, htmlPath, baseName string, i
 // fileExists reports whether p is a file that is there to be read. A
 // directory is not a file, thus a directory answers false.
 //
-// It lived in files_index.go until 26.08.55, where the file index used it to
-// find the note behind a compiled page. That state ("compiled") went away
-// when the page stopped naming the ordinary case, and the helper went with
-// it. But note_exchange.go calls it three times, and the build broke. It
-// belongs here instead. This file is about paths on disk, and no caller of
-// this helper owns it.
+// It is here because this file is about paths on disk, and no caller of
+// this helper owns it. note_exchange.go is a caller.
 func fileExists(p string) bool {
 	st, err := os.Stat(p)
 	return err == nil && !st.IsDir()
