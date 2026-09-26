@@ -811,3 +811,99 @@ func TestHandleBookmarkSplitsNotesBySemicolon(t *testing.T) {
 		t.Errorf("an empty note leaked from the trailing ';':\n%s", s)
 	}
 }
+
+// saveBlock puts a directory or a regular file at rel inside the storage
+// directory. A save that must write a file or a directory at that place
+// then fails. The block stands for a full disk or a permission fault.
+func saveBlock(t *testing.T, a *App, rel string, asDir bool) {
+	t.Helper()
+	p := filepath.Join(a.StorageDir, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
+		t.Fatal(err)
+	}
+	var err error
+	if asDir {
+		err = os.MkdirAll(p, 0755)
+	} else {
+		err = os.WriteFile(p, []byte("x"), 0644)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A save that fails must answer 500. The editor then shows "Save failed"
+// and keeps the text, thus the person does not lose the edit. The body
+// holds a general message only, because a LAN client can read it. This
+// test covers each of the four write steps of handleSaveNote.
+func TestHandleSaveNoteReportsEachWriteFault(t *testing.T) {
+	for _, tc := range []struct {
+		why   string
+		name  string
+		block string
+		asDir bool
+	}{
+		{"the directory of a note is a file", "sub/Page", "md/sub", false},
+		{"the note path is a directory", "Page", "md/Page.md", true},
+		{"the directory of a file is a file", "css/site.css", "html/css", false},
+		{"the file path is a directory", "site.css", "html/site.css", true},
+	} {
+		a := newTestApp(t)
+		saveBlock(t, a, tc.block, tc.asDir)
+		rec := postForm(t, a.handleSaveNote, "/api/save",
+			url.Values{"name": {tc.name}, "content": {"Title: T\n\nbody"}})
+		if rec.Code != http.StatusInternalServerError {
+			t.Errorf("%s: status %d, want 500", tc.why, rec.Code)
+		}
+		if got := strings.TrimSpace(rec.Body.String()); got != "Failed to save" {
+			t.Errorf("%s: body %q, want only %q", tc.why, got, "Failed to save")
+		}
+	}
+}
+
+// A browser on Windows sends CRLF line ends. The note on disk must hold
+// LF only, because git sync and the header parser expect LF. The rule
+// applies to a note and to a text file.
+func TestHandleSaveNoteStoresLFLineEnds(t *testing.T) {
+	a := newTestApp(t)
+	for _, tc := range []struct{ name, path string }{
+		{"Page", "md/Page.md"},
+		{"site.css", "html/site.css"},
+	} {
+		rec := postForm(t, a.handleSaveNote, "/api/save",
+			url.Values{"name": {tc.name}, "content": {"Title: T\r\n\r\none\r\ntwo\r\n"}})
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s: status %d, want 200", tc.name, rec.Code)
+		}
+		got, err := os.ReadFile(filepath.Join(a.StorageDir, filepath.FromSlash(tc.path)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(got), "\r") {
+			t.Errorf("%s: the file holds a CR: %q", tc.name, got)
+		}
+		if !strings.Contains(string(got), "one\ntwo\n") {
+			t.Errorf("%s: the body changed: %q", tc.name, got)
+		}
+	}
+}
+
+// A second save replaces the note. It does not add to it, and the
+// compiled page shows the new text only.
+func TestHandleSaveNoteReplacesTheNote(t *testing.T) {
+	a := newTestApp(t)
+	for _, body := range []string{"first text", "second text"} {
+		rec := postForm(t, a.handleSaveNote, "/api/save",
+			url.Values{"name": {"Page"}, "content": {"Title: Page\n\n" + body}})
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status %d, want 200", rec.Code)
+		}
+	}
+	md, _ := os.ReadFile(filepath.Join(a.StorageDir, "md", "Page.md"))
+	html, _ := os.ReadFile(filepath.Join(a.StorageDir, "html", "Page.html"))
+	for what, got := range map[string]string{"md": string(md), "html": string(html)} {
+		if strings.Contains(got, "first text") || !strings.Contains(got, "second text") {
+			t.Errorf("the %s file does not hold only the second save:\n%s", what, got)
+		}
+	}
+}
