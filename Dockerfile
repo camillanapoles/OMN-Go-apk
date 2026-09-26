@@ -1,9 +1,17 @@
-# STAGE 2: Dependency Lock
-FROM omn-go-base:latest AS project_builder
+# STAGE 2: The quality gate, then the artifacts.
+#
+# The test stage and the project_builder stage are the same as in
+# Dockerfile.ci. Keep the two files in step. project_builder is the last
+# stage, thus local/build.sh builds it. Run the gate alone with:
+#   docker buildx build --target test .
 
-ARG KEYSTORE_PASSWORD
-ARG KEY_ALIAS
-ARG KEY_PASSWORD
+# ------------------------------ test ---------------------------------
+# The quality gate: go vet and the unit tests. The JDK and Node of the
+# base image also run the Java test and the JavaScript tests. The last
+# step writes /gate-passed. project_builder copies that file, thus no
+# artifact comes from a build with a failed gate. The gate runs WITHOUT
+# the release GOFLAGS (-s -w -trimpath) of the desktop build step.
+FROM omn-go-base:latest AS test
 
 # Set to 1 to skip the test gate for an emergency build:
 #   docker build --build-arg SKIP_TESTS=1 ...
@@ -11,23 +19,16 @@ ARG SKIP_TESTS=0
 
 COPY . .
 
-# Restore the fully-resolved go.mod/go.sum stashed by Dockerfile.base at
-# /root/lockfiles, undoing whatever the host's (go.sum-less, x/mobile-less)
-# copies the COPY above just brought in. No .dockerignore trickery needed.
+# Restore the full go.mod and go.sum from /root/lockfiles. The "COPY . ."
+# above brought in the files of the host.
 RUN cp /root/lockfiles/go.mod /root/lockfiles/go.sum ./
 
-# Safety net, not a resolution step: reconciles go.mod against the now-
-# fully-present source. Should be a no-op - and touch no network - as
-# long as go.mod hasn't drifted from what the source actually imports.
+# A check, and not a resolution step. go mod tidy compares go.mod with
+# the source. It changes nothing and uses no network while go.mod agrees
+# with the imports of the source.
 RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
     go mod tidy
 
-# Quality Gate: vet + unit tests must pass before ANY artifact is built.
-# Placed after go mod tidy (deps resolved) and before the desktop/APK
-# steps, so a red test aborts the build before minutes of gomobile/gradle
-# work. Deliberately run WITHOUT the release GOFLAGS (-s -w -trimpath)
-# exported inside the desktop build step below - those strip debug info
-# tests don't want anyway.
 RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
     --mount=type=cache,target=/root/.cache/go-build,sharing=locked \
     if [ "$SKIP_TESTS" = "1" ]; then \
@@ -35,7 +36,30 @@ RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
     else \
         go vet ./backend/... && \
         go test ./backend/...; \
-    fi
+    fi && \
+    touch /gate-passed
+
+# -------------------------- project_builder --------------------------
+FROM omn-go-base:latest AS project_builder
+
+ARG KEYSTORE_PASSWORD
+ARG KEY_ALIAS
+ARG KEY_PASSWORD
+
+# This copy makes the test stage a part of each build of this stage.
+COPY --from=test /gate-passed /tmp/gate-passed
+
+COPY . .
+
+# Restore the full go.mod and go.sum from /root/lockfiles. The "COPY . ."
+# above brought in the files of the host.
+RUN cp /root/lockfiles/go.mod /root/lockfiles/go.sum ./
+
+# A check, and not a resolution step. go mod tidy compares go.mod with
+# the source. It changes nothing and uses no network while go.mod agrees
+# with the imports of the source.
+RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
+    go mod tidy
 
 # Desktop Binary (OMN-Go naming convention)
 RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \

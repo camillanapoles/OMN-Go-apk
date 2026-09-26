@@ -3,12 +3,24 @@
 This document says what is tested, where each test runs, and what no test
 reaches. Read it before you add a test or change the build.
 
-The test set has three parts. Each one runs from the same command, and the
-Docker build runs that command before it makes any artifact.
+The test set has three parts. Each one runs from the same command:
 
 ```sh
 go vet ./backend/... && go test ./backend/...
 ```
+
+The `test` stage of the Docker files runs that command. Three builds use
+that stage:
+
+| Build | When | What it makes |
+| --- | --- | --- |
+| `.github/workflows/test.yml` | Each push to `master` and each pull request | A test result only. It needs no Android tool and no secret. |
+| `.github/workflows/android-gomobile-release.yml` | Each push to `master` and each tag | The artifacts. `project_builder` waits for the `test` stage. |
+| `.gitlab-ci.yml` | Each version tag | The artifacts, the same way. |
+| `local/build.sh` | On request | The artifacts, the same way. |
+
+The F-Droid build runs no test. It builds a tag after the GitHub build of
+that tag passed the gate.
 
 ---
 

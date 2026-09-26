@@ -108,8 +108,13 @@ Two statements in the tree are wrong. Do not trust them.
 
 ## 3. Go rules
 
-* The module is `net.basov.omngo`. The language version is `go 1.25`. The toolchain
-  image is `golang:1.26-bookworm`.
+* The module is `net.basov.omngo`. The language version is `go 1.25`. go-git v5.19.2
+  needs Go 1.25 or later, thus the line cannot go lower.
+* The toolchain image is `golang:1.26.0-bookworm`. The F-Droid recipe builds with the
+  srclib `go@go1.26.0`, thus the two builds use the same compiler. Change the image,
+  the recipe and `backend/testdata/binary_size_baseline.json` together.
+* Each build fetches the newest `golang.org/x/mobile` with `go get -tool`. That
+  version needs Go 1.26.0, thus the real build uses Go 1.26 and not Go 1.25.
 * The module has three direct dependencies. Each one has its own `require` line:
   `github.com/yuin/goldmark`, `github.com/go-git/go-git/v5`, and
   `modernc.org/sqlite`. Keep this set small. A new dependency needs a reason and
@@ -436,15 +441,26 @@ subject line, also when it has no list.
 
 * The Docker build is the reference build. The host needs no Go, no Android Studio,
   and no Gradle.
-* The build has two stages. `Dockerfile.base` makes the toolchain image and stores
-  `go.sum`. `Dockerfile` then builds the artifacts. `local/build.sh` runs both stages
-  and copies the artifacts to `output-binaries/`.
-* **Quality gate.** `go vet ./backend/... && go test ./backend/...` runs after
-  `go mod tidy` and before any artifact build. `Dockerfile.base` and
-  `Dockerfile.ci` install `openjdk-17-jdk` and `nodejs`, thus that one command
-  also runs the Java test and the JavaScript tests. A failed test stops the build before
-  the gomobile and Gradle work. `--build-arg SKIP_TESTS=1` skips the gate and prints
-  a warning. Do not use that argument for work that you push.
+* The build has two files. `Dockerfile.base` makes the toolchain image and stores
+  `go.sum`. `Dockerfile` then runs the gate and builds the artifacts. `local/build.sh`
+  runs both files and copies the artifacts to `output-binaries/`. `Dockerfile.ci`
+  holds the same stages in one file for GitHub and GitLab. Keep the three in step.
+* The stages:
+  * `go_env`: Go, the JDK, Node and go.sum.
+  * `base_env`: `go_env` plus the Android SDK, the NDK, Gradle and gomobile.
+  * `test`: the quality gate.
+  * `project_builder`: the artifacts.
+  * `export`: the artifacts alone. Only `Dockerfile.ci` has this stage.
+* **Quality gate.** The `test` stage runs `go vet ./backend/... && go test ./backend/...`
+  after `go mod tidy`. The JDK and Node of `go_env` also run the Java test and the
+  JavaScript tests. `project_builder` copies `/gate-passed` from the `test` stage, thus
+  no artifact comes from a build with a failed gate. `--build-arg SKIP_TESTS=1` skips
+  the gate and prints a warning. Do not use that argument for work that you push.
+* **Two GitHub workflows.** `test.yml` builds the `test` stage alone on each push to
+  `master` and on each pull request. It needs no secret. `android-gomobile-release.yml`
+  builds the artifacts, and a tag push makes the release. Run the gate alone on a
+  device with `docker buildx build --target test .` after `local/build.sh` made the
+  base image one time.
 * Desktop targets are `linux/amd64` and `windows/amd64`. The binary name is
   `omn-go-v${VERSION}-desktop-<os>-<arch>`. A release build uses `-trimpath` and
   `-ldflags="-s -w"`.

@@ -1,0 +1,40 @@
+# The fast quality gate. It builds the test stage of Dockerfile.ci and
+# nothing else. That stage runs go vet and each test: Go, Java and
+# JavaScript. It uses the same image, the same Go version and the same
+# commands as the release build. It needs no Android tool and no secret.
+# A pull request from a fork thus gets a test result too.
+#
+# The release build (android-gomobile-release.yml) still runs the same
+# gate before it makes an artifact. A tag push starts that workflow, and
+# not this one.
+name: Test OMN-Go
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Run the quality gate
+        run: |
+          docker buildx build \
+            -f Dockerfile.ci \
+            --target test \
+            --progress plain \
+            --cache-from type=gha,scope=omngo-test \
+            --cache-to type=gha,mode=max,scope=omngo-test \
+            .

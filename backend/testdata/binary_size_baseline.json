@@ -1,13 +1,13 @@
 {
   "ref": "v26.09.62",
   "commit": "d324d21",
-  "go_version": "go1.26.8",
+  "go_version": "go1.26.0",
   "flags": "CGO_ENABLED=0 -trimpath -buildvcs=false -ldflags='-s -w'",
   "targets": {
-    "linux-386": 15835298,
-    "linux-amd64": 16679074,
+    "linux-386": 15814818,
+    "linux-amd64": 16654498,
     "linux-arm64": 15663266,
     "linux-arm7": 15990946,
-    "windows-amd64": 17235968
+    "windows-amd64": 17219584
   }
 }
