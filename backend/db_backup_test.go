@@ -403,3 +403,133 @@ func TestDBBackupHeaderIsFirstLineWithCounts(t *testing.T) {
 		t.Fatalf("header hostname empty")
 	}
 }
+
+// dbbLive answers the rows of table x in database t1 as one string. A
+// failed restore must leave this string as it was.
+func dbbLive(t *testing.T, a *App) string {
+	t.Helper()
+	h, err := a.openUserDB("t1")
+	if err != nil {
+		t.Fatalf("open t1: %v", err)
+	}
+	rows, err := h.Query(`SELECT id, a FROM x ORDER BY id`)
+	if err != nil {
+		t.Fatalf("read x: %v", err)
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id int64
+		var v string
+		if err := rows.Scan(&id, &v); err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, fmt.Sprintf("%d=%s", id, v))
+	}
+	return strings.Join(out, ",")
+}
+
+// A restore replaces the whole database. It must change all or nothing.
+// A backup file can come from a git pull. Such a file can hold a conflict
+// marker or a line from a newer version. Each case below damages one step
+// of restoreDBFromBackup. Each case must give an error. Each case must
+// also keep the live database and the database directory as they were.
+// TestDBRestoreRejectsDamagedAndForeignFiles covers the conflict marker,
+// the foreign header and the bad file name.
+func TestDBRestoreFailsWholeAtEachStep(t *testing.T) {
+	a := dbbApp(t)
+	dbbExec(t, a, "t1", `CREATE TABLE x(id INTEGER PRIMARY KEY, a TEXT NOT NULL)`)
+	dbbExec(t, a, "t1", `CREATE INDEX x_a ON x(a)`)
+	dbbExec(t, a, "t1", `INSERT INTO x VALUES (1, 'one'), (2, 'two')`)
+	raw, err := os.ReadFile(filepath.Join(a.dbBackupDir("t1"), dbbBackup(t, a, "t1")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	good := strings.TrimRight(string(raw), "\n")
+	header, body, _ := strings.Cut(good, "\n")
+	var hdr map[string]interface{}
+	if err := json.Unmarshal([]byte(header), &hdr); err != nil {
+		t.Fatalf("the header of a new backup is not JSON: %v", err)
+	}
+	hdr["version"] = 99
+	newer, _ := json.Marshal(hdr)
+
+	// The live data changes after the backup. A failed restore must keep
+	// this change.
+	dbbExec(t, a, "t1", `INSERT INTO x VALUES (3, 'three')`)
+	want := dbbLive(t, a)
+
+	for i, tc := range []struct {
+		why, content, errPart string
+	}{
+		{"an empty file", "", "empty backup file"},
+		{"a header that is not JSON", "garbage\n" + body, "bad header"},
+		{"a header of a newer format version", string(newer) + "\n" + body, "unsupported format"},
+		{"a line that is not JSON", good + "\nnot json", "line"},
+		{"an unknown kind of line", good + `
+{"kind":"what"}`, "unknown kind"},
+		{"a row for a table that the file does not create", good + `
+{"kind":"row","table":"nope","v":[1]}`, "unknown table"},
+		{"a row with too few values", good + `
+{"kind":"row","table":"x","v":[9]}`, "expected"},
+		{"a tagged value of an unknown type", good + `
+{"kind":"row","table":"x","v":[9,{"x":1}]}`, "unrecognized tagged value"},
+		{"a table statement that SQLite refuses", good + `
+{"kind":"table","name":"bad","sql":"CREATE TABLEX bad(a)","columns":["a"]}`, "create table"},
+		{"a row that breaks a constraint", good + `
+{"kind":"row","table":"x","v":[1,"again"]}`, "insert into"},
+		{"an index statement that SQLite refuses", good + `
+{"kind":"index","name":"bad","sql":"CREATE INDEX bad ON nope(a)"}`, "create index"},
+		{"a trigger statement that SQLite refuses", good + `
+{"kind":"trigger","name":"bad","sql":"CREATE TRIGGER bad"}`, "create trigger"},
+	} {
+		file := fmt.Sprintf("99991231T235959Z_case%02d.jsonl", i)
+		if err := os.WriteFile(filepath.Join(a.dbBackupDir("t1"), file), []byte(tc.content), 0644); err != nil {
+			t.Fatal(err)
+		}
+		a.dbRestoreMu.Lock()
+		err := a.restoreDBFromBackup("t1", file)
+		a.dbRestoreMu.Unlock()
+		if err == nil {
+			t.Errorf("%s: the restore gave no error", tc.why)
+		} else if !strings.Contains(err.Error(), tc.errPart) {
+			t.Errorf("%s: error %q does not name the fault %q", tc.why, err, tc.errPart)
+		}
+		if got := dbbLive(t, a); got != want {
+			t.Errorf("%s: the live data changed to %s, want %s", tc.why, got, want)
+		}
+		if fileExists(a.userDBPath("t1") + ".restoretmp") {
+			t.Errorf("%s: the temporary database is still on disk", tc.why)
+		}
+	}
+}
+
+// The restore endpoint checks the method and each name before it takes
+// the lock. Each fault gives the JSON error shape that the Database
+// Backups page reads. A valid name of a missing backup gives 500.
+func TestDBRestoreEndpointFaults(t *testing.T) {
+	a := dbbApp(t)
+	dbbExec(t, a, "t1", `CREATE TABLE x(id INTEGER PRIMARY KEY, a TEXT)`)
+	for _, tc := range []struct {
+		why, method, query string
+		code               int
+	}{
+		{"a GET", http.MethodGet, "db=t1&file=20260101T000000Z_t1.jsonl", http.StatusMethodNotAllowed},
+		{"a bad database name", http.MethodPost, "db=../t1&file=20260101T000000Z_t1.jsonl", http.StatusBadRequest},
+		{"a bad file name", http.MethodPost, "db=t1&file=../../config.json", http.StatusBadRequest},
+		{"a backup that does not exist", http.MethodPost, "db=t1&file=20260101T000000Z_t1.jsonl", http.StatusInternalServerError},
+	} {
+		rec := httptest.NewRecorder()
+		a.handleDBRestore(rec, httptest.NewRequest(tc.method, "/api/db/restore?"+tc.query, nil))
+		if rec.Code != tc.code {
+			t.Errorf("%s: status %d, want %d", tc.why, rec.Code, tc.code)
+		}
+		var resp struct {
+			Status  string `json:"status"`
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil || resp.Status != "error" || resp.Message == "" {
+			t.Errorf("%s: answer %q is not the JSON error shape", tc.why, rec.Body.String())
+		}
+	}
+}
