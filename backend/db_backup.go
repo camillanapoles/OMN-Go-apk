@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -83,9 +84,53 @@ const (
 
 // backupFileRe validates a backup filename that reaches the restore endpoint.
 // The endpoint uses that name to build a path, thus this is the traversal
-// guard. It also filters a directory listing. The lexicographic order of
-// matching names is chronological order, because the timestamp leads.
+// guard. It also filters a directory listing. For the order of the names,
+// see backupNewerThan.
 var backupFileRe = regexp.MustCompile(`^[0-9]{8}T[0-9]{6}Z(_[0-9]+)?_[A-Za-z0-9_-]{1,64}\.jsonl$`)
+
+// backupOrderRe reads the time stamp and the counter of a backup name.
+var backupOrderRe = regexp.MustCompile(`^([0-9]{8}T[0-9]{6}Z)(?:_([0-9]+))?_`)
+
+// backupNewerThan tells if backup name a is newer than backup name b.
+//
+// The time stamp decides first. In one second, the counter decides.
+// createDBBackup gives no counter to the first backup of a second, the
+// counter 2 to the second backup, 3 to the third, and so on. A name with
+// no counter thus counts as the counter 1. The full name decides last,
+// thus the order is stable.
+//
+// WHY NOT THE ORDER OF THE STRINGS. The name "..Z_2_host" sorts before
+// "..Z_host", because a digit sorts before a letter. "..Z_10_host" also
+// sorts before "..Z_9_host". The string order thus put the newest backup
+// of a second after an older one. The prune then removed the newest
+// backup, and the bootstrap of a fresh device restored an older one.
+func backupNewerThan(a, b string) bool {
+	sa, ca := backupOrder(a)
+	sb, cb := backupOrder(b)
+	if sa != sb {
+		return sa > sb
+	}
+	if ca != cb {
+		return ca > cb
+	}
+	return a > b
+}
+
+// backupOrder answers the time stamp and the counter of one backup name.
+// A name with no counter gives the counter 1.
+func backupOrder(name string) (stamp string, counter int) {
+	m := backupOrderRe.FindStringSubmatch(name)
+	if m == nil {
+		return "", 0
+	}
+	counter = 1
+	if m[2] != "" {
+		if n, err := strconv.Atoi(m[2]); err == nil {
+			counter = n
+		}
+	}
+	return m[1], counter
+}
 
 func dbBackupRoot(a *App) string {
 	return filepath.Join(a.StorageDir, "html", "db_backup")
@@ -419,7 +464,7 @@ func (a *App) listBackupFiles(name string) ([]string, error) {
 		}
 		files = append(files, e.Name())
 	}
-	sort.Sort(sort.Reverse(sort.StringSlice(files))) // timestamp prefix => lexicographic == chronological
+	sort.Slice(files, func(i, j int) bool { return backupNewerThan(files[i], files[j]) })
 	return files, nil
 }
 

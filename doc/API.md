@@ -1421,8 +1421,14 @@ Filename grammar (also the traversal guard for `file`):
 ^[0-9]{8}T[0-9]{6}Z(_[0-9]+)?_[A-Za-z0-9_-]{1,64}\.jsonl$
 ```
 
-An example is `20260727T140500Z_pixel7.jsonl`. Lexicographic order is the
-same as chronological order, so the server sorts a listing newest-first.
+An example is `20260727T140500Z_pixel7.jsonl`. The second backup in the
+same second gets the counter 2: `20260727T140500Z_2_pixel7.jsonl`. The
+third gets 3, and so on.
+
+The server lists the backups with the newest first. The time stamp
+decides first, then the counter. A name with no counter counts as the
+counter 1. The string order of the names is not the time order, because a
+digit sorts before a letter.
 
 Each file starts with a header line. After that line there is one line for
 each schema object and one line for each row:

@@ -223,10 +223,8 @@ func BenchmarkSQLQuery(b *testing.B) {
 
 // BenchmarkDBBackupRestore makes a backup of 2000 rows and restores it.
 //
-// Each loop removes its backup at the end. Without that, many backups in
-// one second get a counter in the name. The name with a counter sorts
-// before the name with no counter. The prune thus takes the newest backup
-// for an old one and removes it before the restore can read it.
+// Each loop removes its backup at the end. The backup directory thus
+// stays small, and each loop does the same work.
 func BenchmarkDBBackupRestore(b *testing.B) {
 	a := benchApp(b)
 	benchDatabase(b, a)

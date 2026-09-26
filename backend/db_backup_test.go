@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
 // This file replaces sqlite_backup_test.go. That suite tested the deleted
@@ -194,8 +193,10 @@ func TestDBBackupPruneKeepsNewest(t *testing.T) {
 	var files []string
 	for i := 0; i < 3; i++ {
 		dbbExec(t, a, "t1", `INSERT INTO x VALUES (?)`, i) // content change per backup
+		// No sleep between the backups. Before backupNewerThan, this
+		// test waited more than one second for each backup, because the
+		// prune kept the wrong files in one second.
 		files = append(files, dbbBackup(t, a, "t1"))
-		time.Sleep(1100 * time.Millisecond) // distinct timestamps
 	}
 
 	left, err := a.listBackupFiles("t1")
@@ -531,5 +532,62 @@ func TestDBRestoreEndpointFaults(t *testing.T) {
 		if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil || resp.Status != "error" || resp.Message == "" {
 			t.Errorf("%s: answer %q is not the JSON error shape", tc.why, rec.Body.String())
 		}
+	}
+}
+
+// listBackupFiles must answer the newest backup first. The bootstrap of a
+// fresh device restores the first name, and the prune keeps the first
+// names. The table holds each name that the string order put in the
+// wrong place. These are a counter, a counter of two digits, and a host
+// name that starts with a digit.
+func TestListBackupFilesNewestFirst(t *testing.T) {
+	a := dbbApp(t)
+	dir := a.dbBackupDir("t1")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"20260926T170050Z_vm.jsonl",
+		"20260926T170049Z_10_vm.jsonl",
+		"20260926T170049Z_3_vm.jsonl",
+		"20260926T170049Z_2_vm.jsonl",
+		"20260926T170049Z_vm.jsonl",
+		"20260926T170048Z_9phone.jsonl",
+	}
+	for _, name := range want {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("{}\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := a.listBackupFiles("t1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("the order is\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+// Four backups in a fast loop often fall in one second. The prune keeps
+// three. The backup that createDBBackup made last must be one of them.
+// Before backupNewerThan, the prune removed that backup when its name had
+// a counter.
+func TestDBBackupPruneKeepsTheLastBackup(t *testing.T) {
+	a := dbbApp(t)
+	dbbExec(t, a, "t1", `CREATE TABLE x(a)`)
+	a.WithConfig(func(c *Config) { c.BackupPruneDepth = 3 })
+	var last string
+	for i := 0; i < 4; i++ {
+		last = dbbBackup(t, a, "t1")
+	}
+	if !fileExists(filepath.Join(a.dbBackupDir("t1"), last)) {
+		t.Fatalf("the prune removed the last backup %s", last)
+	}
+	files, err := a.listBackupFiles("t1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 3 || files[0] != last {
+		t.Errorf("the backups are %v, want three with %s first", files, last)
 	}
 }
