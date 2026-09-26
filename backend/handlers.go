@@ -287,29 +287,38 @@ func (a *App) handleRestart(w http.ResponseWriter, r *http.Request) {
 
 	go func() {
 		time.Sleep(500 * time.Millisecond) // let the response flush
-
-		if runtime.GOOS == "android" {
-			os.Exit(0)
-		}
-
-		exe, err := os.Executable()
-		if err != nil {
-			a.logErrf(logRestart, "cannot locate own executable, not restarting: %v", err)
-			return
-		}
-		cmd := exec.Command(exe, os.Args[1:]...)
-		cmd.Env = append(os.Environ(), "OMN_GO_RESTARTED=1")
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Start(); err != nil {
-			// Failing to spawn must NOT kill the running server - a
-			// working old instance beats no instance at all.
-			a.logErrf(logRestart, "failed to start replacement process, keeping current one: %v", err)
-			return
-		}
-		a.logInfof(logRestart, "replacement process started (pid %d), exiting", cmd.Process.Pid)
-		os.Exit(0)
+		restartHook(a)
 	}()
+}
+
+// restartHook stops this process. On the desktop it first starts a new
+// process. handleRestart calls the hook after it answers. A test replaces
+// the hook, because the real hook stops the test binary too.
+var restartHook = (*App).restartProcess
+
+// restartProcess does the restart that restartHook names.
+func (a *App) restartProcess() {
+	if runtime.GOOS == "android" {
+		os.Exit(0)
+	}
+
+	exe, err := os.Executable()
+	if err != nil {
+		a.logErrf(logRestart, "cannot locate own executable, not restarting: %v", err)
+		return
+	}
+	cmd := exec.Command(exe, os.Args[1:]...)
+	cmd.Env = append(os.Environ(), "OMN_GO_RESTARTED=1")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		// Failing to spawn must NOT kill the running server - a
+		// working old instance beats no instance at all.
+		a.logErrf(logRestart, "failed to start replacement process, keeping current one: %v", err)
+		return
+	}
+	a.logInfof(logRestart, "replacement process started (pid %d), exiting", cmd.Process.Pid)
+	os.Exit(0)
 }
 
 // resolveAndroidEditName computes the name handed to the omngo://edit
