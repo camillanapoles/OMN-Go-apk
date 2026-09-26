@@ -11,10 +11,10 @@ import (
 // The secrets of the Config page
 // ----------------------------------------------------------------------
 //
-// 26.09.7 took each password and each SSH key out of the HTML of the
-// Config page. An empty box now means "keep the stored value". These
-// tests hold the two halves of that rule: the page carries no secret,
-// and a request that omits a secret changes none.
+// The HTML of the Config page holds no password and no SSH key. An empty
+// box means "keep the stored value". These tests hold the two halves of
+// that rule: the page carries no secret, and a request that omits a secret
+// changes none. See doc/decisions/0005-keep-each-secret-out-of-the-config-page.md.
 
 // secretValues are the values that the tests below plant in the
 // configuration. Each one is long and unusual, thus a match in the page
@@ -46,7 +46,7 @@ func secretsApp(t *testing.T) *App {
 
 // The compiled Config page is a file on disk in the storage directory,
 // and each reader of the device can open it. It must therefore hold no
-// password and no SSH key. Before 26.09.7 it held all four.
+// password and no SSH key.
 func TestConfigPageCarriesNoSecret(t *testing.T) {
 	a := secretsApp(t)
 	page := a.getConfigPageBody()
@@ -90,11 +90,9 @@ func TestEverySecretBoxIsMarked(t *testing.T) {
 	}
 }
 
-// THIS IS THE TEST FOR THE TRAP THAT 26.09.7 REMOVES. The old loop wrote
-// each of the four fields of a slot when a minimum of one was not empty.
-// With the key box empty in the page, a save that changed the name alone
-// wrote an empty key over the real one. The key password went the same
-// way.
+// A save that changes the name of a slot alone must keep the SSH key and
+// the key password. The page does not carry them, thus the request does
+// not carry them either.
 func TestConfigPostKeepsAnUnsentGitSecret(t *testing.T) {
 	a := secretsApp(t)
 
@@ -183,9 +181,8 @@ func TestConfigPostPasswordFollowsTheSentRule(t *testing.T) {
 // agree on the attribute name. This test reads both files and compares
 // them, the same as TestFoldTableHasAFrontendCopy.
 //
-// THE SCRIPT MOVED IN 26.09.23. It was part of omn-go-sse.js, which every
-// note loads. The Config page is the only reader of this code, thus the
-// code is now a file that only the Config page loads.
+// The code is in omn-go-config.js, and not in omn-go-sse.js, which every
+// note loads. The Config page is the only reader of this code.
 func TestSecretAttributeHasAFrontendReader(t *testing.T) {
 	const scriptPath = "frontend/html/js/OMN-Go/omn-go-config.js"
 	raw, err := staticFS.ReadFile(scriptPath)

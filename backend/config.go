@@ -9,10 +9,8 @@ import (
 )
 
 // maxGitServers is the fixed number of git-server config slots that the UI
-// shows. It used to be a literal "5" in four different places. Those are this
-// file, the POST handler of handleConfig, and getConfigPageBody. A person had
-// to keep all four in agreement by hand. One constant here makes a change of
-// the slot count a change of one line.
+// shows. This file, the POST handler of handleConfig and getConfigPageBody
+// all read it. A change of the slot count is thus a change of one line.
 const maxGitServers = 5
 
 // UI theme values accepted in Config.Theme. ThemeAuto means "follow the
@@ -25,8 +23,8 @@ const (
 )
 
 // normalizeTheme maps any input to a valid theme value. An unknown or empty
-// value becomes ThemeAuto. That includes a config written before the theme
-// field existed. The one function here keeps the config loader, the config
+// value becomes ThemeAuto. That includes a config.json with no theme key.
+// The one function here keeps the config loader, the config
 // POST handler and the page renderer in agreement about what is valid. Each
 // caller downstream, such as injectRuntimeVars and renderConfigPage, can
 // safely assume that the value is one of the three constants.
@@ -41,22 +39,21 @@ func normalizeTheme(s string) string {
 
 // Android system-bar modes accepted in Config.AndroidFullscreen.
 //
-// Note that the default is FullscreenOn, and NOT the zero value. The app has
-// always shipped Theme.NoTitleBar.Fullscreen in AndroidManifest.xml. Every
-// existing install thus already runs with the status bar hidden. A plain bool
-// would have made "field absent" mean false. That would silently change how
-// every upgraded install looks. A string enum lets normalizeFullscreen map
-// absent onto the behavior that those installs already have. That is exactly
-// how normalizeTheme maps absent onto auto.
+// Note that the default is FullscreenOn, and NOT the zero value.
+// AndroidManifest.xml sets Theme.NoTitleBar.Fullscreen, thus the status bar
+// is hidden when config.json says nothing. A plain bool would make "field
+// absent" mean false, and each install with no such key would change how it
+// looks. A string enum lets normalizeFullscreen map absent onto the manifest
+// behavior, the same as normalizeTheme maps absent onto auto.
 const (
 	FullscreenOff       = "off"        // status and navigation bars visible
-	FullscreenOn        = "fullscreen" // status bar hidden (historic behavior)
+	FullscreenOn        = "fullscreen" // status bar hidden (the default)
 	FullscreenImmersive = "immersive"  // status AND navigation bars hidden
 )
 
 // normalizeFullscreen maps any input to a valid Android fullscreen mode.
-// Unknown or empty values (including every config.json written before this
-// field existed) become FullscreenOn. Centralized for the same reason as
+// Unknown or empty values (including a config.json with no such key)
+// become FullscreenOn. Centralized for the same reason as
 // normalizeTheme - and deliberately mirrored in
 // MainActivity.readFullscreenMode(), which reads config.json natively and
 // must apply the identical default.
@@ -100,8 +97,8 @@ const (
 // normalizeSearchKinds whitelists and de-duplicates, preserving order.
 //
 // The difference between nil and empty is load-bearing and deliberate. A
-// config written before this feature existed has NO search_kinds key. It
-// unmarshals to nil, and it must get the default. A person who unticks every
+// config.json with NO search_kinds key unmarshals to nil, and it must get
+// the default. A person who unticks every
 // box gets a real empty list, which means "index nothing". The shape is the
 // same as normalizeTheme in other respects. The loader, the POST handler and
 // the renderer all go through here, thus none of them can disagree about what
@@ -142,9 +139,8 @@ var logTagsDefault = func() []string {
 
 // normalizeLogTags whitelists and de-duplicates, and keeps the order of
 // allLogTags. It is the same shape as normalizeSearchKinds above. The nil
-// rule is load-bearing for the same reason. A config.json written before this
-// field existed has no log_tags key. It unmarshals to nil, and it must get
-// every tag. A person who unticks every box gets a real empty list, which
+// rule is load-bearing for the same reason. A config.json with no log_tags
+// key unmarshals to nil, and it must get every tag. A person who unticks every box gets a real empty list, which
 // means "no debug or info line from any subsystem".
 func normalizeLogTags(tags []string) []string {
 	if tags == nil {
@@ -163,8 +159,8 @@ func normalizeLogTags(tags []string) []string {
 	return out
 }
 
-// normalizeSearchScope maps anything unrecognised - including the "" in every
-// config written before this field existed - onto SearchScopeAll.
+// normalizeSearchScope maps anything unrecognised, an empty value included,
+// onto SearchScopeAll.
 func normalizeSearchScope(s string) string {
 	if strings.ToLower(strings.TrimSpace(s)) == SearchScopePage {
 		return SearchScopePage
@@ -180,23 +176,13 @@ func normalizeSearchScope(s string) string {
 // resolveContentType reads it first. See rule 7 of CLAUDE.md section 1:
 // builtinMIME is the one authority for a content type.
 //
-// UNTIL 26.09.16 A FRESH INSTALL WROTE A MAP OF TEN ROWS INTO
-// config.json, AND THAT MAP SHADOWED THE TABLE ON EACH INSTALL. The rows
-// carried no charset, thus each install answered:
+// A FRESH INSTALL WRITES NO MAP. An older version wrote a default map, and
+// each row of it hid the table and carried no charset. See
+// doc/decisions/0003-use-one-table-for-each-content-type.md.
 //
-//	.css    text/css               and not text/css; charset=utf-8
-//	.js     application/javascript and not text/javascript; charset=utf-8
-//	.html   text/html              and not text/html; charset=utf-8
-//	.md     text/markdown          and not text/markdown; charset=utf-8
-//
-// No test saw it, because newTestApp built a Config with an empty map.
-// The table therefore answered in each test and the seed answered on
-// each device.
-//
-// One rule of the project already carries the cost of this. Point 4 of
-// TestCompatScriptIsFirstAndES5 asks each byte of omn-go-compat.js to be
-// ASCII, because the server sends that file with no charset. The rule
-// stays as a second defense, and the first defense is here.
+// Point 4 of TestCompatScriptIsFirstAndES5 asks each byte of
+// omn-go-compat.js to be ASCII. That rule stays as a second defense
+// against a missing charset.
 //
 // legacyMimeSeeds holds the two maps that an older version wrote. The
 // repair below drops a map that equals one of them EXACTLY. A person who
@@ -227,8 +213,8 @@ var legacyMimeSeeds = []map[string]string{
 // wrote, and it reports whether it changed anything. The caller then
 // writes config.json.
 //
-// A nil map is the state of a fresh install after 26.09.16, thus the
-// function answers false and writes no file.
+// A nil map is the state of a fresh install, thus the function answers
+// false and writes no file.
 func (a *App) dropLegacyMimeSeed() bool {
 	if a.Config.MimeTypes == nil {
 		return false
@@ -289,7 +275,8 @@ type Config struct {
 	// 0.0.0.0, thus another device on the network can connect. The admin and
 	// guest passwords protect that connection, through authMiddleware. A
 	// change takes effect on the next application start, because the socket
-	// is bound one time.
+	// is bound one time. See
+	// doc/decisions/0002-bind-the-loopback-address-when-lan-sharing-is-off.md.
 	ShareLAN         bool              `json:"share_lan"`
 	Hostname         string            `json:"hostname"`
 	BackupPruneDepth int               `json:"backup_prune_depth"`
@@ -342,7 +329,7 @@ type Config struct {
 	EnableTermuxIntent bool `json:"enable_termux_intent"`
 	// AndroidFullscreen selects which system bars the Android app hides.
 	// FullscreenOff hides none. FullscreenOn hides the status bar, which is
-	// the historic and default behavior. FullscreenImmersive hides the status
+	// the default. FullscreenImmersive hides the status
 	// and navigation bars, and a swipe reveals them. See normalizeFullscreen
 	// above for why this is a string and not a bool. Like the two intent
 	// toggles, MainActivity reads it natively out of config.json, and not
@@ -409,7 +396,7 @@ func (a *App) loadConfig(storageDir string) {
 
 			// NO MimeTypes MAP. The field is an override of
 			// builtinMIME, and a fresh install overrides nothing. See
-			// legacyMimeSeeds below for what a seed cost.
+			// legacyMimeSeeds.
 		}
 		data, err := json.MarshalIndent(a.Config, "", "  ")
 		if err != nil {
@@ -425,23 +412,21 @@ func (a *App) loadConfig(storageDir string) {
 			// broken config that looks intentional.
 			a.logErrf(logConfig, "loadConfig: failed to read %s: %v", configPath, readErr)
 		} else if err := json.Unmarshal(data, &a.Config); err != nil {
-			// A corrupt config.json used to be swallowed here, leaving
-			// a.Config partially or fully zeroed with no indication why.
-			// Log it clearly so a bad file is obvious instead of looking
-			// like passwords/settings mysteriously reset themselves.
+			// A corrupt config.json leaves a.Config partly or fully zeroed.
+			// Log it clearly, or the passwords and the settings seem to
+			// reset themselves with no reason.
 			a.logErrf(logConfig, "loadConfig: failed to parse %s (using defaults for any unparsed fields): %v", configPath, err)
 		}
 	}
-	// A config.json written before server_port existed, or one carrying a
-	// nonsense value, falls back the same way a fresh install does.
+	// A config.json with no server_port, or with a value below 1, falls
+	// back the same way a fresh install does.
 	if a.Config.ServerPort <= 0 {
 		a.Config.ServerPort = a.fallbackPort()
 	}
 	// Each other repair comes from the table in config_fields.go. A
 	// configuration that an older version wrote carries an empty theme and
 	// no log_tags key. Each one of those needs a value before any other
-	// code reads it. Six lines stood here until 26.09.19, and each new
-	// setting needed a seventh.
+	// code reads it.
 	//
 	// The repair is not written back at once. The next save of config.json
 	// carries it, whatever started that save.
@@ -450,12 +435,8 @@ func (a *App) loadConfig(storageDir string) {
 	// carries fewer, or a "git_servers": null that an older version
 	// wrote, gets the missing rows here.
 	//
-	// This loop stood two times in this function until 26.09.21. One copy
-	// was inside the branch that reads an existing file, and this one
-	// covers both branches. The first copy therefore ran and then ran
-	// again with nothing left to do. getConfigPageBody holds a third copy
-	// as a guard for the renderer, and that one stays: it reads a
-	// snapshot and never the field below.
+	// getConfigPageBody holds a second copy as a guard for the renderer.
+	// That copy reads a snapshot and never the field below.
 	for len(a.Config.GitServers) < maxGitServers {
 		a.Config.GitServers = append(a.Config.GitServers, GitServerConfig{Name: fmt.Sprintf("Server %d", len(a.Config.GitServers)+1)})
 	}

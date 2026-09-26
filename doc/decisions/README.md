@@ -71,3 +71,4 @@ the status of the old record to `replaced by NNNN`.
 | [0002](0002-bind-the-loopback-address-when-lan-sharing-is-off.md) | Bind the loopback address when LAN sharing is off. | `server.go`, `config.go` |
 | [0003](0003-use-one-table-for-each-content-type.md) | Use one table for each content type. | `serving.go`, `config.go` |
 | [0004](0004-tell-the-browser-to-ask-before-it-uses-a-copy.md) | Tell the browser to ask before it uses a copy. | `middleware.go` |
+| [0005](0005-keep-each-secret-out-of-the-config-page.md) | Keep each secret out of the Config page. | `config_fields.go`, `templates.go`, `omn-go-config.js` |

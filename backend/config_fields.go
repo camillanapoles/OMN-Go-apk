@@ -10,11 +10,9 @@ import (
 // One descriptor for each setting
 // ----------------------------------------------------------------------
 //
-// A setting of OMN-Go used to need an edit in many separate places. The
-// POST handler had a branch of its own. The loader had a repair line of
-// its own. The Config page carried the name of each checkbox in a
-// hand-written list. Nothing tied the three together, thus one of them
-// could go out of step with no test to say so.
+// A setting of OMN-Go touches three places: the POST handler, the loader
+// and the checkbox list of the Config page. One table ties the three
+// together, thus none of them can go out of step.
 //
 // The table below is the one authority for the form side of a setting.
 // See rule 7 of CLAUDE.md section 1. Each row says how a request writes
@@ -22,11 +20,10 @@ import (
 //
 // WHAT THE TABLE DRIVES:
 //
-//  1. applyConfigForm, which the POST handler calls in place of a chain
-//     of 150 lines.
+//  1. applyConfigForm, which the POST handler calls.
 //  2. configCheckboxFields, which fills the hidden config_fields input of
-//     the Config page. That list was hand-written until 26.09.19.
-//  3. normalizeConfig, which loadConfig calls in place of six lines.
+//     the Config page.
+//  3. normalizeConfig, which loadConfig calls.
 //
 // WHAT THE TABLE DOES NOT DRIVE. The page view and the Status page keep
 // their own typed structs. Each one is a documented shape that a reader
@@ -177,7 +174,7 @@ var configFields = []configField{
 	{
 		// An enumeration, the same shape as theme above. A value that
 		// this build does not know becomes FullscreenOn, which is the
-		// behavior that each older install already has.
+		// default.
 		Key: "android_fullscreen", Kind: cfString,
 		String:    func(c *Config) *string { return &c.AndroidFullscreen },
 		Normalize: func(c *Config) { c.AndroidFullscreen = normalizeFullscreen(c.AndroidFullscreen) },
@@ -231,9 +228,8 @@ var configFields = []configField{
 // what it governs, and a name in that list counts as sent. See
 // configFieldSent in handlers.go for the whole rule.
 //
-// The list was written by hand in config_page.html until 26.09.19. A new
-// checkbox that a person forgot to add to it could not be cleared. Only a
-// test that reads the markup found such a fault.
+// A checkbox that is not in the list cannot be cleared. The table writes
+// the list, thus a new row needs no edit of the markup.
 func configCheckboxFields() string {
 	var keys []string
 	for _, f := range configFields {
@@ -327,12 +323,10 @@ func applyConfigField(f configField, c *Config, r *http.Request, sent func(strin
 // four fields with an index in its form name. A row for each one would
 // give 21 rows that say the same thing.
 //
-// Each field follows the same sent rule as a field of the table. Until
-// 26.09.7 the loop read the four fields of a slot and wrote each one
-// when a minimum of one was not empty. That rule needed a page that
-// carries the SSH key and the key password. The Config page carries
-// neither since 26.09.7, thus a save that changed the name alone wrote
-// an empty key over the real one.
+// Each field follows the same sent rule as a field of the table. The
+// Config page does not carry the SSH key or the key password. A save that
+// changes the name alone must thus not write an empty key over the real
+// one. See doc/decisions/0005-keep-each-secret-out-of-the-config-page.md.
 func applyGitServerForm(c *Config, r *http.Request, sent func(string) bool) {
 	// The active slot is an index and not a count. Zero is a valid
 	// answer, thus this field cannot be a cfInt row of the table.

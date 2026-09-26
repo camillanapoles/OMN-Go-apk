@@ -15,10 +15,9 @@ import (
 // builtinMIME in serving.go is the one authority for a content type, and
 // Config.MimeTypes is an override that resolveContentType reads first.
 //
-// A fresh install wrote ten rows into that override until 26.09.16. The
-// rows shadowed the table on each device, and each one carried no
-// charset. The tests of this package never saw it, because newTestApp
-// builds a Config with an empty map.
+// A fresh install must write no override. Each row of an override hides
+// the table. newTestApp builds a Config with an empty map, thus it cannot
+// show that fault. See doc/decisions/0003-use-one-table-for-each-content-type.md.
 //
 // These tests measure the state of a REAL INSTALL. Each one runs
 // loadConfig against an empty directory, which is what a first start
@@ -57,8 +56,8 @@ func TestFreshInstallWritesNoMimeSeed(t *testing.T) {
 	}
 }
 
-// THIS IS THE TEST FOR THE FAULT THAT 26.09.16 REPAIRS. It fails on each
-// version before it, because the seed answered in place of the table.
+// A fresh install answers each content type with its charset. The test
+// fails when a seed answers in place of the table.
 func TestFreshInstallServesTheCharset(t *testing.T) {
 	a, _ := freshInstall(t)
 
@@ -222,8 +221,7 @@ func writeConfigWithMime(t *testing.T, path string, mime map[string]string) {
 // ----------------------------------------------------------------------
 
 // writeHTMLHeader is the one place that names the content type of a page.
-// A handler that writes the header by hand loses the charset, which is
-// the fault that 26.09.17 repaired in nine places.
+// A handler that writes the header by hand can lose the charset.
 //
 // This test scans the source, the same as TestNoDirectLogPrintf.
 func TestNoBareHTMLContentType(t *testing.T) {

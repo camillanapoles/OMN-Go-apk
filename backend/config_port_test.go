@@ -22,8 +22,8 @@ import (
 )
 
 // Each test below calls loadConfig itself, thus each one starts from an
-// App that loaded no configuration. newTestApp loads one since 26.09.18,
-// and a second load would then read the file that the first load wrote.
+// App that loaded no configuration. newTestApp loads one, and a second load
+// would then read the file that the first load wrote.
 
 func portOfConfigFile(t *testing.T, a *App) int {
 	t.Helper()
@@ -40,7 +40,7 @@ func portOfConfigFile(t *testing.T, a *App) int {
 	return onDisk.ServerPort
 }
 
-// The case that was broken: a fresh install of a flavor that asked for 8081.
+// A fresh install of a flavor that asks for 8081 gets 8081.
 func TestFreshInstallUsesTheCallerSuppliedPort(t *testing.T) {
 	a := newUnconfiguredApp(t)
 	a.defaultPort = 8081

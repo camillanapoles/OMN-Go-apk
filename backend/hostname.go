@@ -40,19 +40,14 @@ func defaultHostname() string {
 // It returns the label that the operating system gives when the stored
 // value is empty or holds no usable character. loadConfig calls it, and
 // so does the hostname row of configFields. A cleared box on the Config
-// page therefore resets the label, which is the rule that this field had
-// before the table existed.
+// page therefore resets the label.
 //
-// A request that does not carry "hostname" leaves the label alone. It
-// used to be rewritten to the default instead, thus a note that saved
-// one unrelated setting renamed the device. The name of each database
-// backup that the device writes carries that label, thus the rename did
-// not stay cosmetic.
+// A request that does not carry "hostname" leaves the label alone. The
+// name of each database backup carries the label, thus a save of an
+// unrelated setting must not rename the device.
 //
-// IT REPAIRS AT LOAD TIME SINCE 26.09.19. The value in config.json was
-// left empty until then, and displayHostname made the page show a label
-// that the file did not hold. db_backup.go held a second fallback of its
-// own for the same reason. One value now answers for all three.
+// IT REPAIRS AT LOAD TIME. config.json, the Config page and db_backup.go
+// thus read one value.
 func normalizeHostname(h string) string {
 	if s := sanitizeHostname(h); s != "" {
 		return s
@@ -64,9 +59,8 @@ func normalizeHostname(h string) string {
 // keeps. A count of zero or less keeps no backup at all, which no person
 // asks for, thus it becomes the default of three.
 //
-// The same load-time note as normalizeHostname above applies. This value
-// was repaired at display time until 26.09.19, thus config.json could
-// hold a 0 while the Config page showed a 3.
+// It also repairs at load time, the same as normalizeHostname above. The
+// Config page thus shows the value that config.json holds.
 func normalizePruneDepth(d int) int {
 	if d <= 0 {
 		return 3

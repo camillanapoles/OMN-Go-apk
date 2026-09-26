@@ -218,8 +218,7 @@ func TestIntRowsRefuseAnythingButAPositiveNumber(t *testing.T) {
 // ----------------------------------------------------------------------
 
 // A rebuild of the global index reads each note, thus a save must start
-// one only when the index is really wrong. The condition was one line of
-// three clauses inside handleConfig until 26.09.20, and no test read it.
+// one only when the index is really wrong.
 //
 // The caller tests SearchEnabled before it calls this, thus each row
 // below has search on in the new configuration.
@@ -268,10 +267,6 @@ func TestSearchIndexNeedsRebuild(t *testing.T) {
 // loadConfig must always leave maxGitServers slots, whatever the file
 // holds. Each renderer and each handler indexes that array by number, and
 // a short array is an out-of-range panic waiting for a save.
-//
-// The loop that does this stood two times in loadConfig until 26.09.21.
-// The second copy covered both branches, thus the first one was dead. A
-// test of the shape below is what makes the deletion safe.
 func TestConfigWithFewGitServersIsPadded(t *testing.T) {
 	for _, tt := range []struct{ what, file string }{
 		{"no key at all", `{"author":"Ann"}`},
