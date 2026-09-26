@@ -12,24 +12,9 @@ package backend
 // list are both hard to see and easy to count. This file counts them.
 //
 // It also holds the gofmt check. See TestEveryGoFileIsGofmtClean below.
+// The check for a version number in a comment is at the end of the file.
 //
 // THE RULE IS ZERO. A file that holds one comment style fault fails.
-//
-// IT WAS A RATCHET UNTIL 26.09.57.
-//
-// The tree carried 1070 faults in 62 files on the day of 26.09.33. A
-// test that asks for zero fails on the first run. It then stays red for
-// many patches, and a red gate teaches the reader to pass the gate by
-// hand.
-//
-// So a table named commentStyleDebt recorded what each file owed. The
-// test failed when a count went up. It also failed when a count went
-// down with no change to the table. Each style pass thus lowered a
-// number, and a new comment could never raise one.
-//
-// Eleven patches paid the table down, from 26.09.46 to 26.09.57. The
-// table is gone, and the demand for zero replaces it. The git history of
-// those versions holds the record of that work.
 //
 // WHAT IT READS.
 //
@@ -155,15 +140,12 @@ type commentParagraph struct {
 //
 // WHY A LIST ITEM IS ITS OWN UNIT. A banner of this project often ends
 // with a list, and an item of a list often ends with a comma and not a
-// period. The scan of 26.09.33 joined the whole list into one string,
-// found no period, and reported one sentence of fifty five words.
+// period. A scan that joins the whole list finds no period, and it
+// reports one long sentence.
 //
 // That is a false report. The rule of CLAUDE.md section 10 is about one
 // idea in one sentence, and each item of a list is one idea. A writer
 // who obeys the false report writes worse text, not better.
-//
-// 26.09.36 met the fault in a new file, and the writer changed a comma
-// to a period to pass the gate. The gate must not ask for that.
 func commentParagraphs(src string) []commentParagraph {
 	var out []commentParagraph
 	var cur []string
@@ -337,10 +319,9 @@ func TestNoCommentStyleFault(t *testing.T) {
 
 // Each Go file must be gofmt clean.
 //
-// go vet does not read the formatting of a file. The gate therefore let
-// backend/comment_style_test.go stay gofmt-unclean through 26.09.46,
-// 26.09.47 and 26.09.48. A key deleted from a map literal left the
-// column padding of the other keys behind, and nothing said so.
+// go vet does not read the formatting of a file. A key deleted from a map
+// literal, for example, leaves the column padding of the other keys
+// behind, and go vet says nothing.
 //
 // It uses go/format and not the gofmt command. format.Source gives the
 // canonical gofmt style, thus this test needs no binary on the path and
@@ -373,9 +354,9 @@ func TestEveryGoFileIsGofmtClean(t *testing.T) {
 // The scanner must find each of the four faults, and it must find no
 // fault in clean text.
 //
-// A scanner with a broken pattern reports zero everywhere. The table
-// above would then match, and the gate would stay green forever while
-// it guards nothing. This test holds each rule against a small example.
+// A scanner with a broken pattern reports zero everywhere. The gate
+// would then stay green forever while it guards nothing. This test holds
+// each rule against a small example.
 func TestCommentStyleScannerFindsEachRule(t *testing.T) {
 	longSentence := "// " + strings.Repeat("word ", 26) + "end."
 	edgeSentence := "// " + strings.Repeat("word ", 24) + "end."
@@ -503,16 +484,16 @@ func TestCommentStyleScannerFindsEachRule(t *testing.T) {
 
 // EVERY word of the "do not use" list must fire the rule.
 //
-// The case list above names four of the ten words. A probe removed one
-// of the other six from the pattern, and each test above stayed green.
-// A pattern is a list, and a test of a list holds each entry of it.
+// The case list above names four of the ten words. Without this test, a
+// word could leave the pattern and each test above would stay green. A
+// pattern is a list, and a test of a list holds each entry of it.
 //
 // The near misses matter as much. One word of the list sits inside the
 // word "adjust". A pattern without the word boundary would report a
 // fault on each comment that says "adjust".
 //
-// This comment cannot write the banned words themselves. The gate reads
-// this file, and it caught the first draft of this paragraph.
+// This comment cannot write the banned words themselves, because the
+// gate reads this file.
 func TestCommentStyleHoldsEachBannedWord(t *testing.T) {
 	// Section 10 of CLAUDE.md holds the list. Keep the two the same.
 	banned := []string{
@@ -577,6 +558,164 @@ func TestCommentStyleScanReachesEachTree(t *testing.T) {
 	for _, f := range files {
 		if strings.HasSuffix(f, ".min.js") {
 			t.Errorf("the scan reached the vendored script %s", f)
+		}
+	}
+}
+
+// ----------------------------------------------------------------------
+// No version number in a comment
+// ----------------------------------------------------------------------
+//
+// A comment says what the code does now and why. The git log holds the
+// history of each change, and doc/decisions holds each decision that
+// still controls the code. A version number in a comment is history.
+//
+// The scan counts each whole line comment that holds a version number of
+// this project. TestCommentVersionScannerFindsEachForm shows each form.
+// The scan uses the same files and the same comment lines as the style
+// scan above.
+//
+// THE TABLE IS A RATCHET. commentVersionDebt holds the count of each file
+// that still has such a line. The test fails when a count goes up. It
+// also fails when a count goes down and the table stays the same. Lower
+// the number in the same patch. A file that is not in the table must
+// hold no version number. The table goes away when it is empty.
+
+// commentVersionRe finds a version of this project: two digits of the
+// year, the month, and a sequence number of one to three digits. It does
+// not find an address such as 127.0.0.1 or a version such as v5.13.1.
+var commentVersionRe = regexp.MustCompile(`\bv?2[0-9]\.(0[1-9]|1[0-2])\.[0-9]{1,3}[a-z]?\b`)
+
+// countCommentVersions counts the whole line comments of src that hold a
+// version number.
+func countCommentVersions(src string) int {
+	n := 0
+	for _, line := range strings.Split(src, "\n") {
+		m := styleCommentLineRe.FindStringSubmatch(line)
+		if m != nil && commentVersionRe.MatchString(m[1]) {
+			n++
+		}
+	}
+	return n
+}
+
+// commentVersionDebt holds the version numbers that each file still
+// carries in its comments. See the banner above.
+var commentVersionDebt = map[string]int{
+	"android/app/src/main/java/net/basov/omngo/OmnConfig.java": 2,
+	"android/test/java/net/basov/omngo/OmnConfigTest.java":     1,
+	"backend/api_doc_test.go":                                  2,
+	"backend/assets.go":                                        2,
+	"backend/assets_layout_test.go":                            2,
+	"backend/baseline_test.go":                                 23,
+	"backend/binary_size_test.go":                              3,
+	"backend/bookmarker_test.go":                               3,
+	"backend/config.go":                                        4,
+	"backend/config_fields.go":                                 4,
+	"backend/config_fields_test.go":                            2,
+	"backend/config_mime_test.go":                              3,
+	"backend/config_port_test.go":                              1,
+	"backend/config_secrets_test.go":                           4,
+	"backend/files_index.go":                                   5,
+	"backend/files_index_test.go":                              8,
+	"backend/frontend/html/js/OMN-Go/Bookmarker.js":            1,
+	"backend/frontend/html/js/OMN-Go/omn-go-bookmark.js":       1,
+	"backend/frontend/html/js/OMN-Go/omn-go-config.js":         2,
+	"backend/frontend/html/js/OMN-Go/omn-go-core.js":           3,
+	"backend/frontend/html/js/OMN-Go/omn-go-editor.js":         2,
+	"backend/frontend/html/js/OMN-Go/omn-go-logs.js":           1,
+	"backend/frontend/html/js/OMN-Go/omn-go-search.js":         1,
+	"backend/frontend/html/js/OMN-Go/omn-go-sse.js":            6,
+	"backend/frontend/html/js/OMN-Go/omn-go-status.js":         2,
+	"backend/frontend/html/js/OMN-Go/omn-go-sync.js":           4,
+	"backend/frontend/test/editor.test.js":                     1,
+	"backend/frontend/test/fold.test.js":                       1,
+	"backend/frontend/test/lazy.test.js":                       2,
+	"backend/git_fs.go":                                        1,
+	"backend/git_handlers.go":                                  1,
+	"backend/git_handlers_test.go":                             2,
+	"backend/git_repo.go":                                      3,
+	"backend/git_repo_test.go":                                 1,
+	"backend/git_sync.go":                                      2,
+	"backend/git_sync_test.go":                                 2,
+	"backend/handlers.go":                                      2,
+	"backend/handlers_test.go":                                 2,
+	"backend/header_block.go":                                  1,
+	"backend/hostname.go":                                      2,
+	"backend/java_test.go":                                     4,
+	"backend/js_test.go":                                       5,
+	"backend/logger.go":                                        4,
+	"backend/logger_test.go":                                   3,
+	"backend/markdown.go":                                      2,
+	"backend/markdown_test.go":                                 1,
+	"backend/note_exchange.go":                                 2,
+	"backend/note_exchange_test.go":                            4,
+	"backend/paths.go":                                         2,
+	"backend/paths_test.go":                                    4,
+	"backend/pipelines_test.go":                                1,
+	"backend/ports_test.go":                                    4,
+	"backend/search_highlight_test.go":                         1,
+	"backend/search_index.go":                                  2,
+	"backend/search_index_test.go":                             1,
+	"backend/search_test.go":                                   8,
+	"backend/session_test.go":                                  2,
+	"backend/status_test.go":                                   2,
+	"backend/storage_init_test.go":                             1,
+	"backend/templates.go":                                     3,
+	"backend/templates_test.go":                                6,
+}
+
+// No file may hold more version numbers in its comments than the table
+// allows, and the table must follow each repair.
+func TestNoVersionNumberInComments(t *testing.T) {
+	seen := map[string]bool{}
+	for _, rel := range commentStyleFiles(t) {
+		src, err := readRepoFile(rel)
+		if err != nil {
+			t.Fatalf("cannot read %s: %v", rel, err)
+		}
+		seen[rel] = true
+		got, want := countCommentVersions(src), commentVersionDebt[rel]
+		switch {
+		case got > want:
+			t.Errorf("%s holds %d comment lines with a version number, and the table allows %d.\n"+
+				"  A comment tells no history. Remove the version number.\n"+
+				"  See doc/decisions/README.md.", rel, got, want)
+		case got < want:
+			t.Errorf("%s holds %d comment lines with a version number, and the table says %d.\n"+
+				"  Lower the entry in commentVersionDebt to %d.", rel, got, want, got)
+		}
+	}
+	for rel := range commentVersionDebt {
+		if !seen[rel] {
+			t.Errorf("commentVersionDebt names %s, and the scan does not read it. Remove the entry.", rel)
+		}
+	}
+}
+
+// The version scanner must find each form of a version of this project,
+// and it must step over each other number.
+func TestCommentVersionScannerFindsEachForm(t *testing.T) {
+	cases := []struct {
+		src  string
+		want int
+	}{
+		{"// The rule holds since 26.09.57.\n", 1},
+		{"// The F-Droid block of v26.08.82f uses it.\n", 1},
+		{"// Until 26.09.6 the value had no signature.\n", 1},
+		{"// Two versions: 26.09.1 and 26.09.2.\n", 1},
+		{"// Line one names 26.09.1.\n// Line two names 26.09.2.\n", 2},
+		{"// The server binds 127.0.0.1 and 0.0.0.0.\n", 0},
+		{"// The text of go-git v5.13.1 and Go 1.26.0.\n", 0},
+		{"// The NDK is 25.2.9519653.\n", 0},
+		{"// The date is 2026-09-26.\n", 0},
+		{"// No month 13: 26.13.1.\n", 0},
+		{"x := 1 // 26.09.1\n", 0},
+		{"s := \"26.09.1\"\n", 0},
+	}
+	for _, c := range cases {
+		if got := countCommentVersions(c.src); got != c.want {
+			t.Errorf("%q gave %d and the case wants %d", c.src, got, c.want)
 		}
 	}
 }

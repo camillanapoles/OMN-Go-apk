@@ -27,14 +27,9 @@ import (
 //     pure user content (never embedded), served straight from html/<sub>/.
 //
 // Both resolve the content-type through resolveContentType, which is the
-// ONE MIME resolver. It folds together what used to be three separate
-// sources. Those are the per-install Config.MimeTypes map, the startup
-// mime.AddExtensionType(...) registrations, and the implicit stdlib lookup
-// of http.FileServer.
+// ONE MIME resolver. See doc/decisions/0003-use-one-table-for-each-content-type.md.
 
-// builtinMIME is the canonical content-type table of OMN-Go. It supersedes
-// the startup mime.AddExtensionType(...) calls that used to seed the
-// process mime table, thus those are removed from StartServer. It carries
+// builtinMIME is the canonical content-type table of OMN-Go. It carries
 // JSON Lines, which is .jsonl and which the database backups in
 // db_backup.go use. It also keeps the web-font types explicit, for a
 // minimal container whose stdlib mime table is sparse.
@@ -59,14 +54,10 @@ var builtinMIME = map[string]string{
 	// builtinTypesLower. A phone has no /etc/mime.types for the stdlib to
 	// read at init.
 	//
-	// The missing row cost more than a guessed type. editableFileType asks
-	// this same table whether a file is text. On Android a .txt thus got
-	// no edit link, and the editor refused to open it. The identical file
-	// behaved correctly on a desktop Linux with mime-support installed.
-	//
-	// A file kept beside a note (note_files.go) is a .txt. This row is
-	// what makes such a file editable at all, on the device where it
-	// matters.
+	// editableFileType asks this same table whether a file is text.
+	// Without this row, a .txt on Android gets no edit link, and the
+	// editor refuses to open it. A file kept beside a note (note_files.go)
+	// is a .txt.
 	".txt":   "text/plain; charset=utf-8",
 	".svg":   "image/svg+xml",
 	".png":   "image/png",
@@ -84,14 +75,11 @@ var builtinMIME = map[string]string{
 // in this order:
 //
 //  1. Config.MimeTypes, the per-install override of config.json.
-//  2. builtinMIME, the canonical table of OMN-Go. It also covers what the
-//     old startup mime.AddExtensionType calls registered, and .jsonl.
+//  2. builtinMIME, the canonical table of OMN-Go.
 //  3. mime.TypeByExtension, the fallback of the Go standard library.
 //
-// THE OVERRIDE IS EMPTY ON A NEW INSTALL SINCE 26.09.16, thus the table
-// above answers in practice. An older version wrote a map of ten rows
-// into config.json, and each row shadowed this table and carried no
-// charset. See legacyMimeSeeds in config.go.
+// THE OVERRIDE IS EMPTY ON A NEW INSTALL, thus the table above answers in
+// practice. See legacyMimeSeeds in config.go.
 //
 // The answer is "" when no source knows the extension. The caller then
 // leaves the header unset and lets net/http read the content.
@@ -110,12 +98,9 @@ func (a *App) resolveContentType(path string) string {
 // that names that type, the same as resolveContentType is the one place
 // that names each other type. See rule 7 of CLAUDE.md section 1.
 //
-// The charset is part of it. Nine handlers wrote "text/html" with no
-// charset until 26.09.17, and three wrote the charset. The <meta charset>
-// element of index.html covered the difference for a compiled page. A
-// page that the server renders on its own carries no such element. The
-// browser therefore guessed the encoding of the file index and of the
-// tags page.
+// The charset is part of it. A page that the server renders on its own
+// carries no <meta charset> element. Without the charset, the browser
+// guesses the encoding.
 //
 // pageCacheWriter in middleware.go reads the prefix "text/html" of this
 // header to change no-cache into no-store. The value below still starts
@@ -134,10 +119,8 @@ const htmlContentType = "text/html; charset=utf-8"
 // asks it, and so do compilePage, rewriteInternalLink and
 // notFoundSuggestion.
 //
-// THE LAST EXTENSION DECIDES. Before 26.08.76 the application asked whether
-// the name held a dot. A note named "Report.2026" answered yes and became a
-// file under html/, thus /Report.2026.html gave 404. A note name can hold a
-// dot, and this function is what makes that true.
+// THE LAST EXTENSION DECIDES. A note name can hold a dot, for example
+// "Report.2026", and this function is what makes that true.
 //
 // The rule reads:
 //
@@ -200,8 +183,9 @@ var legacyAssetPaths = func() map[string]string {
 	return out
 }()
 
-// legacyAssetURL answers the question "did this URL name an app asset
-// before 26.09.12". It gives the new URL when the answer is yes.
+// legacyAssetURL answers the question "is this the old URL of an app
+// asset, with no OMN-Go segment". It gives the new URL when the answer is
+// yes.
 //
 // WHY THIS EXISTS. md/Bookmarks.md loads /js/Bookmarker.js and
 // /css/Bookmarker.css by an absolute path. That note is USER-OWNED, thus
@@ -223,9 +207,8 @@ func legacyAssetURL(urlPath string) (string, bool) {
 // 404, where the asset is neither on disk nor embedded. It is also false
 // when the path resolves to a directory.
 //
-// This is the ONE implementation of the lazy embed-extraction. It used to
-// be copied between the /js, /css and /json handler in server.go and the
-// root catch-all in serveStaticAsset.
+// This is the ONE implementation of the lazy embed-extraction. The /js,
+// /css and /json routes and the root catch-all all come here.
 func (a *App) materializeAsset(urlPath string) (physPath string, ok bool) {
 	clean := filepath.Clean(urlPath)
 
@@ -262,8 +245,7 @@ func (a *App) materializeAsset(urlPath string) (physPath string, ok bool) {
 // materializeAsset. It backs the /js/, /css/ and /json/ trees, and the root
 // catch-all.
 //
-// An ?edit=true request is handed to the dedicated editor page, exactly as
-// before. The /js, /css and /json routes reach this with edit intent.
+// An ?edit=true request is handed to the dedicated editor page. The /js, /css and /json routes reach this with edit intent.
 // serveFrontend already peels the edit intent off the catch-all, thus the
 // check here is a harmless no-op on that path.
 func (a *App) serveEmbeddableAsset(w http.ResponseWriter, r *http.Request, urlPath string) {
@@ -296,8 +278,8 @@ func (a *App) serveStorageSubdir(subDir, forcedType string) http.Handler {
 		// "?edit=true opens any file that OMN-Go serves" holds for these
 		// two trees as well. They have their own routes, thus an edit
 		// request here never reaches serveFrontend. The documented link
-		// "[Edit shared data](/user_json/inventory.json?edit=true)" used to
-		// serve the raw JSON instead of opening the editor.
+		// "[Edit shared data](/user_json/inventory.json?edit=true)" needs
+		// this check.
 		if r.URL.Query().Get("edit") == "true" {
 			a.serveEditor(w, r, r.URL.Path)
 			return
@@ -345,8 +327,8 @@ func wantsHTMLError(r *http.Request) bool {
 // see recompileMarkdownPage.
 //
 // The guard below asks hasKnownAssetExtension, and not whether the name has
-// an extension at all. A note may hold a dot in its name since 26.08.76,
-// thus /Report.2026 must still get its suggestion.
+// an extension at all. A note may hold a dot in its name, thus
+// /Report.2026 must still get its suggestion.
 //
 // It answers "" unless the lookup is provably safe and the note really
 // exists. The resolved path must stay inside StorageDir. A crafted request

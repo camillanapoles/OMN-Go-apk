@@ -16,20 +16,17 @@ func (a *App) isLocalConnection(r *http.Request) bool {
 
 func (a *App) connectionMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Each request goroutine reads and writes a.ActiveConns at the
-		// same time. A bare ++ or -- here was a data race. Use an atomic.
+		// Each request goroutine changes a.ActiveConns, thus the count
+		// is atomic.
 		a.ActiveConns.Add(1)
 		defer a.ActiveConns.Add(-1)
 
 		// Each response goes through this function, thus this is the one
 		// place that controls the cache of the client.
 		//
-		// The static files go out through http.ServeFile. It sends
-		// Last-Modified, but it sends no expiry time. A browser then
-		// applies its own rule and keeps the file for a part of its age.
-		// The Android WebView does the same. After an update of the
-		// application the new pages used the old omn-go-core.js for
-		// days. A user had to clear the cache by hand.
+		// http.ServeFile sends no expiry time. Without this header, a
+		// browser keeps an old file for days after an update. See
+		// doc/decisions/0004-tell-the-browser-to-ask-before-it-uses-a-copy.md.
 		//
 		// "no-cache" does not stop the cache. The client keeps the file,
 		// but it asks the server each time. The server answers 304 Not
@@ -49,11 +46,9 @@ func (a *App) connectionMiddleware(next http.Handler) http.Handler {
 //
 // "no-cache" is enough for a normal load. Chromium keeps the copy, asks
 // the server, and gets the new page. A BACK or FORWARD load is different:
-// Chromium reads the copy and does not ask the server at all. The page
-// that OMN-Go changed while the page waited in the history thus comes
-// back in its old form. The + button shows this. It writes a link into
-// the page that you started from. Back then showed that page with no
-// link. A second Back or a refresh was necessary.
+// Chromium reads the copy and does not ask the server at all. A page that
+// changed in the meantime thus comes back in its old form. The + button
+// changes the page that you started from, and Back must show that change.
 //
 // "no-store" is the only word that stops it. Chromium keeps no copy, thus
 // Back has nothing to read and must ask the server.
@@ -123,20 +118,17 @@ func (a *App) ActiveConnCount() int64 {
 // WebView and the desktop browser both arrive that way. The rule thus
 // applies to another machine on the network alone.
 //
-// It is a function because authMiddleware is not the only caller any
-// more. The file index is a PAGE that needs authorization. A page must
-// answer a refusal with a page, and not with the line of plain text
-// below. See serveFilesPage. Two responses obey one rule. The
-// alternative was two copies of this condition that move apart.
+// It is a function, and not only a part of authMiddleware. The file index
+// is a PAGE that needs authorization. A page must answer a refusal with a
+// page, and not with the line of plain text below. See serveFilesPage.
+// Two responses thus obey one rule.
 func (a *App) hasRole(r *http.Request, requireAdmin bool) bool {
 	if a.isLocalConnection(r) {
 		return true
 	}
 	// readSessionRole verifies the signature of the cookie and its expiry
 	// time. It answers "" for a cookie that this install did not write.
-	// Until 26.09.6 this function read the raw cookie value and trusted
-	// it, thus a client on the network could name its own role. See the
-	// banner of session.go.
+	// See doc/decisions/0001-sign-the-session-cookie.md.
 	role := a.readSessionRole(r)
 	if requireAdmin {
 		return role == roleAdmin

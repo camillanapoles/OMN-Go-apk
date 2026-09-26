@@ -4,23 +4,11 @@ package backend
 // The session cookie
 // ----------------------------------------------------------------------
 //
-// Until this file existed, /login wrote the cookie "session_role=admin"
-// and hasRole read that value back and trusted it. Nothing signed the
-// value, thus nothing tied it to a password.
+// A client on the network must not name its own role. The admin role
+// opens /api/sql, /api/upload, /api/import/note and /api/restart. See
+// doc/decisions/0001-sign-the-session-cookie.md.
 //
-// A client on the network could therefore set that cookie itself and get
-// the admin role with no password at all. One line in a browser console
-// was enough. The admin role opens /api/sql, /api/upload,
-// /api/import/note and /api/restart. A GET of /api/config answers with
-// the admin password and each git password in cleartext.
-//
-// Two conditions limited the exposure, and neither one closed it. The
-// listener binds 127.0.0.1 while share_lan is off, thus a remote client
-// cannot connect. A local connection is always the owner, thus the
-// device itself never read a cookie. The gate still failed for the one
-// case it exists for: a person who turns LAN sharing on.
-//
-// THE RULE NOW: the server writes the role, the time it stops, and an
+// THE RULE: the server writes the role, the time it stops, and an
 // HMAC of the two. It accepts a cookie only when it can make the same
 // HMAC with the key of this install. A client cannot make that HMAC,
 // because it does not hold the key.

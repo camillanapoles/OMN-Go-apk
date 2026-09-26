@@ -16,24 +16,11 @@ type App struct {
 	Config      Config
 	ConfigMutex sync.RWMutex // guards all reads/writes of Config
 	StorageDir  string
-	// ActiveConns is atomic.Int64 and NOT a bare int64 behind
-	// atomic.AddInt64. It was a bare int64 until 26.08.51.
-	//
-	// On a 32-bit build each request panicked with "unaligned 64-bit
-	// atomic operation". A 64-bit atomic needs an address on an 8-byte
-	// boundary. A 32-bit struct aligns to 4 bytes alone. One Go rule
-	// saves such a field: the first word of an allocated struct is on a
-	// 64-bit boundary. That rule did not reach a field below Config and
-	// a RWMutex.
-	//
-	// connectionMiddleware wraps each route, thus the first request
-	// died. Nothing worked on armeabi-v7a or on x86, and F-Droid
-	// publishes both. arm64 aligns to 8 bytes on its own and hid the
-	// fault.
-	//
-	// atomic.Int64 carries its own alignment guarantee. The field can
-	// therefore sit anywhere in this struct and stay correct. Do not
-	// make it an int64 again to save a line. See TestNoBare64BitAtomics.
+	// ActiveConns is an atomic.Int64, and not an int64 with
+	// atomic.AddInt64. A 64-bit atomic needs an address on an 8-byte
+	// boundary. On a 32-bit build, such as armeabi-v7a or x86, a bare
+	// int64 in this struct is not on one, and each request panics.
+	// atomic.Int64 carries its own alignment. See TestNoBare64BitAtomics.
 	ActiveConns atomic.Int64
 	GitMutex    sync.Mutex // serializes all on-disk git repo operations
 	Router      *http.ServeMux
@@ -52,18 +39,16 @@ type App struct {
 	search *searchIndex
 
 	// defaultPort is the per-flavor fallback StartServer was given: the port
-	// to use when config.json does not name one. 0 means "the historical
-	// 8080". It is read by loadConfig, which is the only place that can
-	// honour it - see fallbackPort.
+	// to use when config.json does not name one. 0 means 8080. It is read
+	// by loadConfig, which is the only place that can honour it - see
+	// fallbackPort.
 	defaultPort int
 
 	ready chan struct{} // closed once the HTTP listener is actually serving
 
 	// startedAt is when StartServer ran. boundAddr is what the listener
 	// bound, not what the config asked for. /api/status reports both
-	// (status.go). Until now only a log line carried the address, and the
-	// retry loop below can end on another port than the configured one.
-	// metaMu guards boundAddr. The goroutine that binds writes it, and
+	// (status.go). metaMu guards boundAddr. The goroutine that binds writes it, and
 	// request goroutines read it.
 	metaMu    sync.RWMutex
 	startedAt time.Time
@@ -110,12 +95,9 @@ func (a *App) setBoundAddress(addr string) {
 //
 // The CONFIG LOADER must apply the per-flavor default, and no code after
 // it can. loadConfig writes a full default config.json on a fresh
-// install. It also fills in a port for a config.json that has none.
-//
-// StartServer therefore resumed with a.Config.ServerPort already at a
-// positive 8080. The default of the caller could not reach it. The 8080
-// was on disk as well, thus the wrong port stayed for the life of the
-// install. DEFAULT_SERVER_PORT=8081 of the fdroid flavor never applied.
+// install. It also fills in a port for a config.json that has none. A
+// default that a later step applies thus never reaches the file. See
+// DEFAULT_SERVER_PORT in android/app/build.gradle.
 func (a *App) fallbackPort() int {
 	if a.defaultPort > 0 {
 		return a.defaultPort
@@ -139,9 +121,8 @@ func (a *App) WithConfig(fn func(c *Config)) {
 	fn(&a.Config)
 }
 
-// WaitUntilReady blocks until the HTTP server has actually started
-// listening. Replaces the previous fixed time.Sleep(500ms) hack that used
-// to live in main_desktop.go.
+// WaitUntilReady blocks until the HTTP server listens. It also returns
+// when the bind fails, thus a caller never waits for ever.
 func (a *App) WaitUntilReady() {
 	<-a.ready
 }
@@ -179,8 +160,8 @@ var templatesFS embed.FS
 // reason for storageDir: the flavor knows, and this package cannot. A
 // person can install the standard flavor and the fdroid flavor side by
 // side, thus the two must not compete for one loopback port. See
-// DEFAULT_SERVER_PORT in android/app/build.gradle. Pass 0 to keep the
-// historic default of 8080, which the desktop does.
+// DEFAULT_SERVER_PORT in android/app/build.gradle. Pass 0 for the port
+// 8080, as the desktop does.
 func StartServer(storageDir string, defaultPort int) *App {
 	a := &App{
 		Router:    http.NewServeMux(),
@@ -194,11 +175,6 @@ func StartServer(storageDir string, defaultPort int) *App {
 	a.defaultPort = defaultPort
 
 	a.initStorage(storageDir) // Execute synchronously to ensure config is loaded instantly
-
-	// One function resolves each content type now. It is
-	// resolveContentType in serving.go, and it carries the canonical
-	// table. The startup mime.AddExtensionType calls seeded that table,
-	// thus they are gone.
 
 	go func() {
 		defer func() {
@@ -222,15 +198,11 @@ func StartServer(storageDir string, defaultPort int) *App {
 			a.Config.ServerPort = a.fallbackPort()
 		}
 
-		// BEHAVIOR CHANGE against each version before ShareLAN. The
-		// server bound 0.0.0.0 at each start. It now binds the loopback
-		// address alone while the "Share on LAN" option is off.
-		//
-		// The socket is the enforcement. With sharing off, another
-		// device cannot complete a TCP handshake, whatever the
-		// authorization code says. With sharing on, authMiddleware
-		// guards each client that is not local with the admin password
-		// and the guest password.
+		// The socket decides who can connect. While "Share on LAN" is
+		// off, the listener binds the loopback address alone, and another
+		// device cannot connect. With sharing on, authMiddleware asks each
+		// client that is not local for a password. See
+		// doc/decisions/0002-bind-the-loopback-address-when-lan-sharing-is-off.md.
 		//
 		// The listener binds one time. A change of this option on the
 		// Config page therefore applies at the next start.
@@ -290,16 +262,12 @@ func (a *App) GetServerPort() int {
 // IT TAKES AN INTERFACE AND NOT A *http.ServeMux. A ServeMux satisfies
 // routeTable, thus StartServer passes a.Router below and nothing changes
 // for the application. A test passes a recorder instead, and it then reads
-// the pattern of each route that this function really registers.
-//
-// WHY THAT MATTERS. TestBaseline_RouteSet read the SOURCE of server.go
-// with a regular expression until 26.09.32. It proved what the file says
-// and not what the mux holds. This block also sat inside the goroutine
-// that binds the socket, thus no test could reach it without a real port.
+// the pattern of each route that this function really registers. The
+// baseline test thus checks the routes of the mux, and not the text of a
+// source file.
 //
 // EVERY ROUTE IS HERE, /api/logs included. Section 3 of CLAUDE.md asks for
-// one block, and that route was in logger.go alone until 26.09.32. The
-// baseline test needed a second file for that one line.
+// one block.
 type routeTable interface {
 	Handle(pattern string, handler http.Handler)
 	HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request))
@@ -309,11 +277,9 @@ func (a *App) registerRoutes(mux routeTable) {
 	// The log stream of /api/logs. logger.go holds the handler, and
 	// initLogger there sends the standard logger into it.
 	//
-	// IT IS ADMIN ONLY SINCE 26.09.59. It carried every line to any
-	// caller before that, and the history ring beside it was admin only.
-	// A LAN guest could thus read the whole transcript as it happened,
-	// and only the part before the arrival of that guest was protected.
-	// The pair agrees now. See the banner of handleLogHistory.
+	// It is admin only, the same as the history ring below. A guest on
+	// the LAN thus reads no log line, live or held. See the banner of
+	// handleLogHistory.
 	mux.HandleFunc("/api/logs", a.authMiddleware(a.HandleLogsSSE, true))
 
 	// The history ring of /api/logs/history. It is admin only, the same

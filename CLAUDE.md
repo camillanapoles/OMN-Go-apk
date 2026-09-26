@@ -89,7 +89,7 @@ Do not remove a constraint without an instruction from the maintainer.
 | `metadata/` | `net.basov.omngo.fdroid.yml`, the F-Droid build recipe. |
 | `backend/frontend/test/` | The JavaScript unit tests, the DOM stub and the page stub. Embedded by no `go:embed`, thus no device receives them. |
 | `android/test/` | The Java unit test. It sits OUTSIDE the Gradle project on purpose. See `doc/TESTING.md`. |
-| `doc/` | Maintainer documents. `API.md` holds the endpoint reference. `TERMINOLOGY.md` holds the controlled vocabulary. `TESTING.md` holds the map of the test set. `initial_prompt.md` holds the historical origin prompt. |
+| `doc/` | Maintainer documents. `API.md` holds the endpoint reference. `TERMINOLOGY.md` holds the controlled vocabulary. `TESTING.md` holds the map of the test set. `decisions/` holds the decision records. `initial_prompt.md` holds the historical origin prompt. |
 | `CLAUDE.md` | This document. The Docker context excludes it. |
 
 The repository does not hold `go.sum`, `output-binaries/`, `data/`, `.env`, or keystores.
@@ -192,10 +192,16 @@ update these files.
   the form
   `a.Router.HandleFunc("/api/x", a.authMiddleware(a.handleX, true))`. The boolean is
   `requireAdmin`. Add a comment to any registration that differs from this form.
-* **Comments say why, at length.** Most files start with a `// ---` banner of 20 to
-  60 lines. The banner gives the design decision, the rejected alternative, and often
-  the bug that forced the change. Write the same kind of justification for new code
-  that is not obvious. This is the strongest convention in the codebase.
+* **Comments say what the code does now, and why.** Many files start with a
+  `// ---` banner. The banner gives the design decision and the rejected
+  alternative. Write the same kind of justification for new code that is not
+  obvious.
+* **A comment tells no history.** Do not write a version number, "until", "used
+  to" or the story of a past fault. The git log holds the history. When a past
+  fault is the reason for a rule, write one sentence of the reason. Then put the
+  full account in a decision record under `doc/decisions/`, and name its path in
+  the comment. `doc/decisions/README.md` gives the format.
+  `TestNoVersionNumberInComments` counts the version numbers.
 
 ---
 
@@ -510,9 +516,11 @@ eye.
 reads each whole line comment of every Go, JavaScript and Java file, and it
 demands zero. A comment that breaks a rule fails the gate.
 
-It was a ratchet from 26.09.33 to 26.09.57. A table named `commentStyleDebt`
-held what each file owed, and eleven patches paid it down from 1070 faults to
-none. The git history of those versions holds the record.
+**`TestNoVersionNumberInComments` in the same file** counts each comment line
+that holds a version number. It is a ratchet. The table `commentVersionDebt`
+holds the count of each file that still has one. Lower the entry in the patch
+that removes a version number. A new version number in a comment fails the
+gate.
 
 **`TestEveryGoFileIsGofmtClean` in the same file** checks the formatting that
 `go vet` does not read.
