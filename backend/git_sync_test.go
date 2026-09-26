@@ -1323,3 +1323,98 @@ func TestSyncNoteFilesToHTMLRebuildsAfterAPull(t *testing.T) {
 		t.Errorf("the copy holds %q", got)
 	}
 }
+
+// A force pull writes the .gitignore of the remote into the storage
+// directory. That file can come from an older version and lack the
+// patterns of this version. The cleanup of the force pull must still keep
+// each file that the built-in list protects. Before loadGitignoreMatcher
+// added that list, this force pull deleted the database file, the
+// local- file and session_secret. An untracked note that no pattern
+// covers must still go, because that is the job of a force pull.
+func TestSyncPullForceKeepsAppFilesWithAnOldGitignore(t *testing.T) {
+	remote := gsRemote(t)
+	gsSeedRemote(t, remote, "first", map[string]string{
+		"md/One.md":  "one\n",
+		".gitignore": "# a list from an older version\n*.tmp\n",
+	})
+	a := gsApp(t, remote)
+	if err := a.SyncRepo("pull", ""); err != nil {
+		t.Fatalf("the first pull: %v", err)
+	}
+	keep := []string{
+		"db/notes.sqlite",
+		"html/user_json/local-data.json",
+		"session_secret",
+		"html/One.html",
+	}
+	for _, rel := range append(keep, "md/Stray.md") {
+		gsWrite(t, a, rel, "x")
+	}
+
+	if err := a.SyncRepo("pull_force", ""); err != nil {
+		t.Fatalf("SyncRepo(pull_force): %v", err)
+	}
+	for _, rel := range append(keep, "config.json") {
+		if !gsExists(a, rel) {
+			t.Errorf("the force pull deleted %s", rel)
+		}
+	}
+	if gsExists(a, "md/Stray.md") {
+		t.Error("the force pull kept md/Stray.md. No pattern covers it, and git does not track it.")
+	}
+}
+
+// A force pull removes a note that the remote dropped, and it removes an
+// untracked note. It keeps each tracked note of the remote. This test
+// runs the whole force pull with the .gitignore of this version.
+func TestSyncPullForceRemovesDroppedAndUntrackedNotes(t *testing.T) {
+	remote := gsRemote(t)
+	gsSeedRemote(t, remote, "two notes", map[string]string{
+		"md/Keep.md": "keep\n",
+		"md/Drop.md": "drop\n",
+	})
+	a := gsApp(t, remote)
+	if err := a.SyncRepo("pull", ""); err != nil {
+		t.Fatalf("the first pull: %v", err)
+	}
+	gsWrite(t, a, "md/Stray.md", "a note that no commit carries\n")
+	gsSeedRemote(t, remote, "drop one note", map[string]string{"md/Drop.md": ""})
+
+	if err := a.SyncRepo("pull_force", ""); err != nil {
+		t.Fatalf("SyncRepo(pull_force): %v", err)
+	}
+	if !gsExists(a, "md/Keep.md") {
+		t.Error("the force pull removed md/Keep.md")
+	}
+	for _, rel := range []string{"md/Drop.md", "md/Stray.md"} {
+		if gsExists(a, rel) {
+			t.Errorf("the force pull kept %s", rel)
+		}
+	}
+}
+
+// A force pull that cannot reach the remote must change no file. The
+// fetch comes first, thus a fault there stops the pull before any write.
+func TestSyncPullForceChangesNothingWhenTheFetchFails(t *testing.T) {
+	remote := gsRemote(t)
+	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})
+	a := gsApp(t, remote)
+	if err := a.SyncRepo("pull", ""); err != nil {
+		t.Fatalf("the first pull: %v", err)
+	}
+	gsWrite(t, a, "md/One.md", "the text of this device\n")
+	gsWrite(t, a, "md/Stray.md", "stray\n")
+	if err := os.RemoveAll(remote); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := a.SyncRepo("pull_force", ""); err == nil {
+		t.Fatal("the force pull gave no error with no remote")
+	}
+	if got := gsRead(t, a, "md/One.md"); got != "the text of this device\n" {
+		t.Errorf("md/One.md changed to %q", got)
+	}
+	if !gsExists(a, "md/Stray.md") {
+		t.Error("the failed force pull deleted md/Stray.md")
+	}
+}

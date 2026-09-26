@@ -487,11 +487,22 @@ func (a *App) manualGitInit(dir string) error {
 	return nil
 }
 
-// a.loadGitignoreMatcher returns a matcher for the worktree's .gitignore patterns.
+// loadGitignoreMatcher answers a matcher for the .gitignore file of the
+// worktree plus the built-in list gitignorePatterns.
+//
+// The built-in list comes last, thus it wins over the file. A force pull
+// writes the .gitignore of the remote into the worktree. That file can
+// come from an older version, or a person can change it. When the
+// matcher read the file alone, a force pull deleted each file that only
+// the built-in list protects. Examples are the database files in /db/,
+// each local- file and session_secret.
 func (a *App) loadGitignoreMatcher(wt *git.Worktree) (gitignore.Matcher, error) {
 	patterns, err := gitignore.ReadPatterns(wt.Filesystem, []string{})
 	if err != nil {
 		return nil, err
+	}
+	for _, p := range gitignorePatterns {
+		patterns = append(patterns, gitignore.ParsePattern(p, nil))
 	}
 	return gitignore.NewMatcher(patterns), nil
 }
