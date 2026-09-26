@@ -46,8 +46,9 @@ Two tests in `backend/decisions_test.go` check the records:
 * `TestEachCommentNamesARealDecisionRecord` checks that each path in a
   comment names a record that exists.
 
-The Docker build does not copy `doc/`, thus both tests skip there. Run
-`go test ./backend/...` in a clone to run them.
+`.dockerignore` excludes `doc/`, but it includes `doc/decisions/` again.
+The Docker build thus copies the records, and both tests run in the gate
+of each Docker build. A tree with no `doc/decisions` skips them.
 
 ## The format of a record
 

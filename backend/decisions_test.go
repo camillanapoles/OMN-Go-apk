@@ -11,9 +11,10 @@ package backend
 // A record that nothing lists is hard to find. A path in a comment that
 // names no file sends the reader nowhere. The two tests below find both.
 //
-// THE DOCKER BUILD HAS NO doc/ DIRECTORY. .dockerignore excludes it, thus
-// the two tests skip in the gate of the Docker build. They run in each
-// go test of a clone. TestApiDocNamesTheRightFile does the same.
+// THE DOCKER BUILD COPIES doc/decisions AND NO OTHER PART OF doc/.
+// .dockerignore excludes doc/ and then includes doc/decisions/ again. The
+// two tests thus run in the gate of each Docker build. A tree with no
+// doc/decisions directory skips them.
 
 import (
 	"fmt"

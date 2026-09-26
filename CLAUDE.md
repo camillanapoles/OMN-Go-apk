@@ -89,7 +89,7 @@ Do not remove a constraint without an instruction from the maintainer.
 | `metadata/` | `net.basov.omngo.fdroid.yml`, the F-Droid build recipe. |
 | `backend/frontend/test/` | The JavaScript unit tests, the DOM stub and the page stub. Embedded by no `go:embed`, thus no device receives them. |
 | `android/test/` | The Java unit test. It sits OUTSIDE the Gradle project on purpose. See `doc/TESTING.md`. |
-| `doc/` | Maintainer documents. `API.md` holds the endpoint reference. `TERMINOLOGY.md` holds the controlled vocabulary. `TESTING.md` holds the map of the test set. `decisions/` holds the decision records. `initial_prompt.md` holds the historical origin prompt. |
+| `doc/` | Maintainer documents. `API.md` holds the endpoint reference. `TERMINOLOGY.md` holds the controlled vocabulary. `TESTING.md` holds the map of the test set. `decisions/` holds the decision records. `initial_prompt.md` holds the historical origin prompt. The Docker context excludes `doc/`, except `decisions/`. |
 | `CLAUDE.md` | This document. The Docker context excludes it. |
 
 The repository does not hold `go.sum`, `output-binaries/`, `data/`, `.env`, or keystores.

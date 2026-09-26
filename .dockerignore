@@ -3,6 +3,7 @@
 .gitignore
 .env
 doc/
+!doc/decisions/
 local/
 output-binaries/
 README.md
