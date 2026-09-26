@@ -456,6 +456,11 @@ subject line, also when it has no list.
   JavaScript tests. `project_builder` copies `/gate-passed` from the `test` stage, thus
   no artifact comes from a build with a failed gate. `--build-arg SKIP_TESTS=1` skips
   the gate and prints a warning. Do not use that argument for work that you push.
+* **The three builds must agree.** `backend/pipelines_test.go` compares the Android API
+  level, the Go version and the NDK. It reads the Docker files and
+  `android/app/build.gradle`. It also reads the last version in
+  `metadata/net.basov.omngo.fdroid.yml`. `-androidapi` must be the same as `minSdk`. When the recipe on the F-Droid server changes, copy it into
+  `metadata/` first. The tests then show each difference.
 * **Two GitHub workflows.** `test.yml` builds the `test` stage alone on each push to
   `master` and on each pull request. It needs no secret. `android-gomobile-release.yml`
   builds the artifacts, and a tag push makes the release. Run the gate alone on a
