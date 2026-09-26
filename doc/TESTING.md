@@ -186,3 +186,46 @@ A browser test is a fourth thing that this gate does not do. Chromium in
 the build image would add about 300 MB against about 50 MB for Node, and
 each cold build would pay it. A session or a separate job can drive a real
 browser without touching the release build, and one did for 26.09.24.
+
+---
+
+## 6. The binary size report
+
+`TestBinarySize` in `backend/binary_size_test.go` builds the release
+binaries and compares their size with the build of v26.09.62. It reports
+the change in bytes and in percent for each target.
+
+**The normal gate skips it.** Five builds take minutes on a cold cache.
+Set `OMN_BINARY_SIZE=1` to run it:
+
+```sh
+OMN_BINARY_SIZE=1 go test -v -run 'TestBinarySize$' -timeout 30m ./backend/
+```
+
+The targets use the release flags of the Dockerfile and `CGO_ENABLED=0`.
+A Linux build stands for the Android ABI of the same CPU.
+
+| Target | Stands for |
+| --- | --- |
+| `linux-amd64` | the desktop application on Linux, and Android x86_64 |
+| `windows-amd64` | the desktop application on Windows |
+| `linux-arm64` | Android arm64-v8a |
+| `linux-arm7` | Android armeabi-v7a |
+| `linux-386` | Android x86 |
+
+**The baseline.** `backend/testdata/binary_size_baseline.json` holds the
+sizes of v26.09.62 and the Go version that made them. A different Go
+version also changes the size. The report then says so, and the growth
+limit does not apply.
+
+| Setting | Effect |
+| --- | --- |
+| `OMN_BINARY_SIZE=1` | Runs the test. |
+| `OMN_BINARY_SIZE_BASE=v26.09.62` | Builds that reference now, with the same Go version. This needs the `.git` directory. |
+| `OMN_BINARY_SIZE_MAX_GROWTH=1.5` | Fails the test when a target grows by more than 1.5 percent. |
+| `OMN_BINARY_SIZE_WRITE=1` | Writes the sizes of the baseline reference to the JSON file. |
+
+Use `OMN_BINARY_SIZE_WRITE=1` after the build image gets a new Go version.
+
+Two small tests run in the normal gate. `TestBinarySizeReport` checks the
+report. `TestBinarySizeBaselineFile` checks the JSON file.
