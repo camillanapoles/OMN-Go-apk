@@ -189,7 +189,7 @@ func renderConfigPage(v configPageView) string {
 		fsSel["FS_ON_SEL"] = "selected"
 	}
 
-	// Put no ADMIN_PWD and no GUEST_PWD here. See gitServerView.
+	// Put no ADMIN_PWD here. See gitServerView.
 	return fill(configPageTmpl, map[string]string{
 		// Give the names of the checkboxes of this page, from the table in
 		// config_fields.go. See configCheckboxFields.

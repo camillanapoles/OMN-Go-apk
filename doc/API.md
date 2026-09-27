@@ -131,9 +131,8 @@ A handler that writes `Cache-Control` later replaces this value.
 2. For every other connection, the request must carry a **signed**
    `session_role` cookie with an accepted role. `readSessionRole`
    (`backend/session.go`) is the one reader of that cookie. `hasRole`
-   (`backend/middleware.go`) accepts only the `admin` role. The login still
-   accepts the guest password and writes a `guest` cookie, but no route
-   accepts that role today.
+   (`backend/middleware.go`) accepts it. `admin` is the one role. See
+   `doc/decisions/0018-keep-one-role.md`.
 3. A missing, changed or expired cookie gives `401 Unauthorized` with the
    body `Unauthorized`.
 
@@ -144,7 +143,7 @@ in the old form is refused.
 
 There is no CSRF token, no bearer token, and no rate limiting. §2.4 tells
 how the server refuses a request that another site sends. Passwords are
-stored in `config.json` in cleartext. `handleLogin` compares them with
+stored in `config.json` in cleartext. `handleLogin` compares the password with
 `subtle.ConstantTimeCompare`, and an empty configured password matches
 nothing.
 
@@ -162,7 +161,7 @@ parts, separated by a dot:
 
 | Part | Contents |
 | --- | --- |
-| 1 | The role, `admin` or `guest` |
+| 1 | The role, `admin`. A signed `guest` cookie of an older version gives no role. |
 | 2 | The Unix time at which the cookie stops, as a decimal number |
 | 3 | `HMAC-SHA256("role.expiry", key)`, in base64url with no padding |
 
@@ -174,9 +173,10 @@ A cookie is therefore valid on the device that made it and on no other.
 The cookie lasts **30 days**. It is `HttpOnly` and `SameSite=Lax`. It is not
 `Secure`, because this server speaks HTTP.
 
-`session_role_hint` carries the plain role for the page alone. `checkRole`
-in `omn-go-sse.js` reads it to disable the `.admin-only` controls for a
-guest. **The server never reads it.** A client that changes the hint changes
+`session_role_hint` carries the plain role for the page alone.
+`checkSession` in `omn-go-sse.js` reads it. The page shows the notes when
+the hint says `admin`, and the login box in each other case. **The server
+never reads it.** A client that changes the hint changes
 what its own page shows and gets no permission.
 
 ### 2.3 Protection map
@@ -191,6 +191,10 @@ what its own page shows and gets no permission.
 | `GET /OMNGoFiles.html`, `GET /OMNGoStatus.html`, `GET /OMNGoLogs.html`, `GET /db_backups` | admin (local bypass applies) — answers a **page**, not a 401 |
 | `GET /Config.html`, `GET /OMNGoTags.html`, `GET /OMNGoSearch.html` | none |
 | All page and static routes (`/`, `*.html`, `/js/`, `/css/`, `/json/`, `/images/`, `/user_json/`) | none |
+
+A route with `none` answers a remote caller with no login. The login box of a
+page decides only what the page shows. A program that asks `/api/note` or
+`/api/search` reads each note with no password.
 
 ### 2.4 Requests from another site
 
@@ -255,10 +259,10 @@ the code `200`.
 | GET | `/api/logs` | admin | SSE |
 | GET | `/api/logs/history` | admin | JSON |
 | GET | `/api/status` | admin | JSON / Markdown |
-| GET | `/db_backups` | admin | HTML (a page for a guest, not a 401) |
-| GET | `/OMNGoFiles.html` | admin | HTML (a page for a guest, not a 401) |
-| GET | `/OMNGoStatus.html` | admin | HTML (a page for a guest, not a 401) |
-| GET | `/OMNGoLogs.html` | admin | HTML (a page for a guest, not a 401) |
+| GET | `/db_backups` | admin | HTML (a page for a remote caller, not a 401) |
+| GET | `/OMNGoFiles.html` | admin | HTML (a page for a remote caller, not a 401) |
+| GET | `/OMNGoStatus.html` | admin | HTML (a page for a remote caller, not a 401) |
+| GET | `/OMNGoLogs.html` | admin | HTML (a page for a remote caller, not a 401) |
 | GET | `/Config.html` | none | HTML |
 | GET | `/OMNGoTags.html` | none | HTML |
 | GET | `/OMNGoSearch.html` | none | HTML (explains how to turn global search on when it is off) |
@@ -281,13 +285,13 @@ endpoint.
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
-| `password` | string | yes | Compared against `admin_password`, then `guest_password` from `config.json`. The comparison is constant-time. An empty configured password matches nothing. |
+| `password` | string | yes | Compared against `admin_password` from `config.json`. The comparison is constant-time. An empty configured password matches nothing. |
 
 **Responses**
 
 | Status | Content-Type | Body | Notes |
 | --- | --- | --- | --- |
-| `200` | `text/plain` | `OK` | Sets the signed `session_role` cookie and the `session_role_hint` cookie, for the `admin` or the `guest` role. See §2.2. |
+| `200` | `text/plain` | `OK` | Sets the signed `session_role` cookie and the `session_role_hint` cookie, for the `admin` role. See §2.2. |
 | `401` | `text/plain` | `Invalid` | No cookie set |
 | `500` | `text/plain` | `Login unavailable` | This install has no session key and could not make one. See `sessionSecret` in `backend/session.go`. |
 
@@ -1056,7 +1060,7 @@ The server saves the file in `html/user_json/` and serves it from
 #### `GET /api/config`
 
 Return the whole live configuration as JSON. **The response includes
-`admin_password`, `guest_password`, and the SSH private key and password of
+`admin_password`, and the SSH private key and password of
 every git server slot, all in cleartext.**
 
 The Config page reads this endpoint for that reason. Since 26.09.7 the page
@@ -1071,7 +1075,6 @@ fills the boxes. See `omnGoRevealSecrets` in `omn-go-config.js`.
   "force_pull_one_time": false,
   "server_port": 8080,
   "admin_password": "admin_secret_changeme",
-  "guest_password": "guest_secret_changeme",
   "author": "Anonymous",
   "use_internal_editor": true,
   "desktop_ext_cmd": "subl",
@@ -1108,7 +1111,6 @@ fills the boxes. See `omnGoRevealSecrets` in `omn-go-config.js`.
 | `force_pull_one_time` | bool | `false` | One-shot force-pull flag |
 | `server_port` | int | `8080` | Listen port; applied at next start |
 | `admin_password` | string | `admin_secret_changeme` | Grants the `admin` role at `/login`. An empty value grants nothing. |
-| `guest_password` | string | `guest_secret_changeme` | Grants the `guest` role at `/login`. An empty value grants nothing. |
 | `author` | string | `Anonymous` | `Author:` line on newly created pages, git commit author |
 | `use_internal_editor` | bool | `true` | `false` routes `?edit=true` to `/api/edit-external` |
 | `desktop_ext_cmd` | string | `subl` | External editor command line |
@@ -1175,7 +1177,6 @@ setting off and touches nothing else.
 | `config_fields` | string | — | Comma-separated field names this request governs |
 | `server_port` | int | parses `> 0` | Otherwise ignored |
 | `admin_password` | string | carried | Written verbatim, including empty |
-| `guest_password` | string | carried | |
 | `author` | string | carried | |
 | `use_internal_editor` | `"true"` | carried | Any other value → `false` |
 | `desktop_ext_cmd` | string | carried | |
@@ -1290,10 +1291,9 @@ sync progress shows the real stages of the backend.
 
 No parameters. **Admin only since 26.09.59**, and the local bypass applies. It
 carried every line to any caller before that, while `/api/logs/history` beside
-it was already admin only. A guest of a LAN share held the stream open and read
-each line as it was written, thus the guard on the history ring protected
-nothing. A guest now gets `401`, and `omn-go-sse.js` does not open the stream
-at all when the role hint says guest.
+it was already admin only. A remote caller held the stream open and read each
+line as it was written, thus the guard on the history ring protected
+nothing. A remote caller now gets `401`.
 
 **The stream always carries every line.** The `log_debug`, `log_info` and
 `log_tags` settings of `config.json` control what the server prints to
@@ -1951,7 +1951,7 @@ server.
 
 Each special page is a row of the page-access table in `backend/pages.go`.
 The router sends it to its handler, thus `?edit` and the catch-all do not
-apply to it. A guest gets the refusal page for an admin-only row.
+apply to it. A remote caller gets the refusal page for an admin-only row.
 
 `injectRuntimeVars` adds this block to every served page:
 
@@ -2076,11 +2076,11 @@ bypass. It is a row of the page-access table in `backend/pages.go`, thus it
 has its own exact route. The catch-all that serves each other page needs no
 authentication.
 
-The page does **not** wrap `authMiddleware`. A guest gets a **200** and the
-refusal page, which says that the page is for the admin and how to log in.
-A guest does not get the one plain-text line of the middleware. The address
-is linkable, so a refusal must name the cause and the cure. No filename
-appears anywhere in the refusal.
+The page does **not** wrap `authMiddleware`. A remote caller gets a **200** and
+the refusal page, which says that the page is for the admin and how to log
+in. A remote caller does not get the one plain-text line of the middleware. The
+address is linkable, so a refusal must name the cause and the cure. No
+filename appears anywhere in the refusal.
 
 **What is never listed**
 
@@ -2133,7 +2133,7 @@ nothing to the `html/` cache, and the page itself writes nothing at all.
 
 The page of the status endpoint. It holds no facts of its own. It reads
 `/api/status` and draws each section that comes back. Admin only. The
-page-access table gives a guest the refusal page and not a line of plain
+page-access table gives a remote caller the refusal page and not a line of plain
 text.
 
 The page loads the cheap sections at once. The *Storage* and *Git worktree*

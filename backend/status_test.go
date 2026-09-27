@@ -379,7 +379,6 @@ func TestStatusRedactsGitPassword(t *testing.T) {
 func TestStatusNeverCarriesSecrets(t *testing.T) {
 	a := newTestApp(t)
 	a.Config.AdminPassword = "admin_secret_value"
-	a.Config.GuestPassword = "guest_secret_value"
 	a.Config.GitServers = []GitServerConfig{{
 		Name: "home", URL: "https://u:pw_secret_value@example.com/n.git",
 		SSHKeyData: "PRIVATE_KEY_VALUE", Password: "slot_secret_value",
@@ -390,7 +389,7 @@ func TestStatusNeverCarriesSecrets(t *testing.T) {
 		a.handleStatus(rec, httptest.NewRequest(http.MethodGet, "/api/status?"+q, nil))
 		body := rec.Body.String()
 		for _, secret := range []string{
-			"admin_secret_value", "guest_secret_value",
+			"admin_secret_value",
 			"pw_secret_value", "PRIVATE_KEY_VALUE", "slot_secret_value",
 		} {
 			if strings.Contains(body, secret) {
@@ -521,9 +520,9 @@ func TestStatusPageIsAReaderOfTheEndpoint(t *testing.T) {
 	}
 }
 
-// A guest gets a page, not the line of plain text that authMiddleware
+// A remote caller gets a page, not the line of plain text that authMiddleware
 // writes. This is the rule the file index follows.
-func TestStatusPageAnswersAGuestWithAPage(t *testing.T) {
+func TestStatusPageAnswersARemoteCallerWithAPage(t *testing.T) {
 	a := newTestApp(t)
 	a.Config.ShareLAN = true
 
@@ -531,7 +530,7 @@ func TestStatusPageAnswersAGuestWithAPage(t *testing.T) {
 	req.RemoteAddr = "192.168.1.44:51000" // another machine on the network
 	// A signed cookie, and not the bare word "guest": the server refuses
 	// an unsigned value. See session.go.
-	req.AddCookie(sessionCookie(t, a, roleGuest))
+	req.AddCookie(sessionCookie(t, a, "guest"))
 
 	rec := routeServe(a, req)
 	if rec.Code != http.StatusOK {
@@ -539,9 +538,9 @@ func TestStatusPageAnswersAGuestWithAPage(t *testing.T) {
 	}
 	body := rec.Body.String()
 	if !strings.Contains(body, "for the admin of this device") {
-		t.Error("a guest did not get the refusal page")
+		t.Error("a remote caller did not get the refusal page")
 	}
 	if strings.Contains(body, "stStorage") {
-		t.Error("a guest got the reader script")
+		t.Error("a remote caller got the reader script")
 	}
 }

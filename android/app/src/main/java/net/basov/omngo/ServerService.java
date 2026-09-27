@@ -319,7 +319,7 @@ public class ServerService extends Service {
                 .setContentText("Serving notes at " + shareUrl)
                 .setStyle(new Notification.BigTextStyle()
                         .bigText("Serving notes at " + shareUrl
-                                + "\nOther devices need the admin or guest password."))
+                                + "\nA write from another device needs the admin password."))
                 .setSmallIcon(Icon.createWithResource(this, android.R.drawable.stat_notify_sync))
                 .setOngoing(true)
                 .setContentIntent(contentPI)

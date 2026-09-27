@@ -161,9 +161,8 @@ update these files.
     browser console. The sync progress overlay reads `[sync] (debug)` lines off
     the raw stream, and it must work when debug is off.
   * **`/api/logs` is admin only**, the same as `/api/logs/history`, and the
-    local bypass applies. A guest of a LAN share reads no log line, live or
-    held. See `doc/decisions/0013-send-each-log-line-to-three-places-and-to-the-admin-only.md`.
-    `omn-go-sse.js` does not open the stream when the role hint says guest.
+    local bypass applies. A remote caller with no admin cookie reads no log
+    line, live or held. See `doc/decisions/0013-send-each-log-line-to-three-places-and-to-the-admin-only.md`.
   * `applySyncLogLine` in `omn-go-sse.js` removes the level word before it
     matches a sync stage. Keep the two in agreement, or the progress overlay
     loses a stage. That file exports it as `window.applySyncLogLine`, because

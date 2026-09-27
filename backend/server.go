@@ -221,7 +221,7 @@ type routeTable interface {
 }
 
 func (a *App) registerRoutes(mux routeTable) {
-	// /api/logs and /api/logs/history are admin only. A guest on the LAN
+	// /api/logs and /api/logs/history are admin only. A remote caller
 	// reads no log line, live or held. See handleLogHistory.
 	route(mux, "GET", "/api/logs", a.authMiddleware(a.HandleLogsSSE))
 	route(mux, "GET", "/api/logs/history", a.authMiddleware(a.handleLogHistory))
@@ -251,7 +251,7 @@ func (a *App) registerRoutes(mux routeTable) {
 	route(mux, "POST", "/api/upload_json", a.authMiddleware(a.handleUploadJSON))
 	route(mux, "GET", "/api/note", a.handleGetNote)
 	// This route has no authMiddleware, the same as /api/note and each page.
-	// Search collects nothing that a guest cannot read file by file.
+	// Search collects nothing that a remote caller cannot read file by file.
 	route(mux, "GET", "/api/search", a.handleSearch)
 	route(mux, "POST", "/api/save", a.authMiddleware(a.handleSaveNote))
 	route(mux, "POST", "/api/newpage", a.authMiddleware(a.handleNewPage))

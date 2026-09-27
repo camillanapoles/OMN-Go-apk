@@ -168,14 +168,13 @@ On first start, OMN-Go creates the storage directory, a default `config.json`, a
 
 ## Login and roles
 
-You set two passwords on the [Config](Config) page:
+You set the **admin password** on the [Config](Config) page. The admin can edit and save notes, use git synchronization, and change the configuration. OMN-Go has one role, and no guest password.
 
-- **Admin** — full access. The admin can edit and save notes, use git synchronization, and change the configuration.
-- **Guest** — read-oriented access for other people on your network.
+A local connection (`127.0.0.1` or `localhost`) skips the login. The WebView of the Android application also makes a local connection. The password applies when you enable [LAN sharing](#sharing-on-the-lan) and a caller connects from another device.
 
-A local connection (`127.0.0.1` or `localhost`) skips the login. The WebView of the Android application also makes a local connection. The passwords apply when you enable [LAN sharing](#sharing-on-the-lan) and a remote caller connects from another device.
+On another device, a page shows the login box until you log in with the admin password. The login box does not protect the notes. Without a password, a program on your network can read each note, the search, the images and the JSON files. Each write, each setting, each database, the sync and each system page need the admin password.
 
-**Change the default passwords before enabling LAN sharing.** A fresh install ships with `admin_secret_changeme` and `guest_secret_changeme`. Anyone on your network who read this manual knows these two passwords.
+**Change the default password before enabling LAN sharing.** A fresh install ships with `admin_secret_changeme`. Anyone on your network who read this manual knows this password.
 
 ## The interface
 
@@ -190,8 +189,6 @@ Press the page title to expand the header bar. The header bar has these buttons,
 - <i class="material-icons">cloud_download</i> / <i class="material-icons">cloud_upload</i> — git pull / push (see [Git synchronization](#git-synchronization))
 - <i class="material-icons">info</i> — show the metadata panel of the page
 - <i class="material-icons">save</i> / <i class="material-icons">edit</i> — save the note / enable or disable edit mode
-
-OMN-Go hides the admin-only buttons when you log in as guest.
 
 ## Creating a new page
 
@@ -564,8 +561,7 @@ The [Config](Config) page edits `config.json`. The page puts the settings into s
 | Setting | Meaning |
 |---------|---------|
 | Server Port | TCP port of the OMN-Go server (default `8080`). It takes effect after a restart. |
-| Admin Password | Full-access password for remote callers. |
-| Guest Password | Read-oriented password for remote callers. |
+| Admin Password | Full-access password for callers on other devices. |
 | Share on LAN | Serve other devices, see [Sharing on the LAN](#sharing-on-the-lan). A change of this setting restarts the application. |
 
 ### DB Backups
@@ -877,7 +873,7 @@ The page deletes nothing and moves nothing. One action on it creates a file. A r
 
 ## The Log page
 
-The Log page shows what this device wrote. Open it from the Log line of the [Config](Config) menu, or open [Log](OMNGoLogs) here. The page is for the admin of the device. A guest sees a short note instead.
+The Log page shows what this device wrote. Open it from the Log line of the [Config](Config) menu, or open [Log](OMNGoLogs) here. The page is for the admin of the device. A caller on another device without the admin password sees a short note instead.
 
 The page reads the last 500 lines one time. It then adds each new line as the server writes it. The Download and the Upload button of the page header work here, so a sync writes into the view while you watch it. That is how you read a sync on a phone, where there is one screen and no terminal.
 
@@ -893,7 +889,7 @@ A line that carries no level always shows. Three places in the application write
 
 ## The Status page
 
-The Status page tells what OMN-Go does now. Open it from the last line of the [Config](Config) menu, or open [Status](OMNGoStatus) here. The page is for the admin of the device. A guest sees a short note instead.
+The Status page tells what OMN-Go does now. Open it from the last line of the [Config](Config) menu, or open [Status](OMNGoStatus) here. The page is for the admin of the device. A caller on another device without the admin password sees a short note instead.
 
 The page reads the `/api/status` endpoint and shows what comes back:
 
@@ -918,7 +914,7 @@ By default, the server answers **only this device**. With LAN sharing disabled, 
 
 To share your notes on the local network:
 
-1. Set your own **admin and guest passwords** first.
+1. Set your own **admin password** first.
 2. Enable **Share on LAN** on the [Config](Config) page.
 3. Save the configuration.
 4. Confirm the restart prompt.
@@ -929,7 +925,7 @@ On Android, a **persistent notification** shows while LAN sharing is active. It 
 
 With LAN sharing disabled, OMN-Go shows no notification and asks for no permissions.
 
-On another device, open the address in a browser. Log in with the guest password for read access, or with the admin password for full access.
+On another device, open the address in a browser, and log in with the admin password.
 
 Open the address from the notification, or use the name of the device. OMN-Go refuses each other name with `Forbidden: unknown host name`, for example a name that your router gives. This rule stops a web page that tries to reach OMN-Go through a false name.
 **Security note:** Any person on your network who has a password can
@@ -1063,7 +1059,7 @@ One page is different. The [Bookmarks](Bookmarks) page loads `css/OMN-Go/Bookmar
 
 ## Disclaimer
 
-OMN-Go is a personal tool for one person. It has no separate accounts and no separate data for a second person. The admin role and the guest role give access to one set of notes. A connection from the device itself is always admin. See [Login and roles](#login-and-roles).
+OMN-Go is a personal tool for one person. It has no separate accounts and no separate data for a second person. The admin role gives access to one set of notes. A connection from the device itself is always admin. See [Login and roles](#login-and-roles).
 
 A note script and the SQL API operate with full rights. A script in a note can change or delete any note, any file in the storage directory and any database. Use only the scripts that you wrote, or that you trust. See [Raw HTML and JavaScript in pages](#raw-html-and-javascript-in-pages).
 

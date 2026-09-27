@@ -37,11 +37,12 @@ server wrote it. The guard on the history protected nothing.
   would then show a sync that is not running.
 * `/api/logs` and `/api/logs/history` are both admin only. A local
   connection is always admin, thus the device itself keeps both.
-* `omn-go-sse.js` does not open the stream when the role hint says guest.
+* A remote caller with no admin cookie gets `401` from the stream. The
+  `EventSource` of the page does not try again after an HTTP status.
 
 ## Consequences
 
-* A guest of a LAN share reads no log line, live or held.
+* A remote caller with no admin cookie reads no log line, live or held.
 * The ring costs about 60 KB for the life of the process.
 * A client with a full channel loses a line and does not block the
   writer. The stream must thus never control state that needs each line.

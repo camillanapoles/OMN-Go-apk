@@ -2,6 +2,8 @@ package backend
 
 import (
 	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -21,20 +23,17 @@ import (
 // is a real leak and not a coincidence.
 var secretValues = map[string]string{
 	"admin":  "ADMIN-SECRET-8f2a1c",
-	"guest":  "GUEST-SECRET-4b7e90",
 	"sshKey": "-----BEGIN OPENSSH PRIVATE KEY-----KEY-SECRET-11ff22",
 	"keyPwd": "KEYPASS-SECRET-73dd10",
 }
 
 // secretsApp builds an application whose configuration holds each value
-// of secretValues, in the admin password, the guest password and git
-// slot 0.
+// of secretValues, in the admin password and git slot 0.
 func secretsApp(t *testing.T) *App {
 	t.Helper()
 	a := newTestApp(t)
 	a.WithConfig(func(c *Config) {
 		c.AdminPassword = secretValues["admin"]
-		c.GuestPassword = secretValues["guest"]
 		c.GitServers = make([]GitServerConfig, maxGitServers)
 		c.GitServers[0].Name = "primary"
 		c.GitServers[0].URL = "git@host:notes.git"
@@ -44,7 +43,7 @@ func secretsApp(t *testing.T) *App {
 	return a
 }
 
-// /Config.html needs no login, thus a guest of a LAN share can read the
+// /Config.html needs no login, thus a caller on the LAN can read the
 // source of the page. It must therefore hold no password and no SSH key.
 func TestConfigPageCarriesNoSecret(t *testing.T) {
 	a := secretsApp(t)
@@ -72,7 +71,7 @@ func TestEverySecretBoxIsMarked(t *testing.T) {
 	a := secretsApp(t)
 	page := a.getConfigPageBody()
 
-	want := []string{"admin_password", "guest_password"}
+	want := []string{"admin_password"}
 	for i := 0; i < maxGitServers; i++ {
 		want = append(want, "git_key_"+itoa(i), "git_pass_"+itoa(i))
 	}
@@ -170,9 +169,6 @@ func TestConfigPostPasswordFollowsTheSentRule(t *testing.T) {
 	if got := a.GetConfig().AdminPassword; got != "" {
 		t.Errorf("a sent and empty admin_password did not clear it: %q", got)
 	}
-	if got := a.GetConfig().GuestPassword; got != secretValues["guest"] {
-		t.Errorf("the guest password changed to %q", got)
-	}
 }
 
 // omn-go-config.js removes each box that carries data-secret and no
@@ -221,5 +217,30 @@ func TestSecretAttributeHasAFrontendReader(t *testing.T) {
 			t.Errorf("omn-go-sse.js still holds %q. Every note carries that file, "+
 				"and only the Config page runs this code.", gone)
 		}
+	}
+}
+
+// An old config.json can still hold guest_password. The load ignores the
+// key, and the next save removes it. See doc/decisions/0018-keep-one-role.md.
+func TestOldGuestPasswordIsDropped(t *testing.T) {
+	a := newTestApp(t)
+	path := filepath.Join(a.StorageDir, "config.json")
+	old := `{"admin_password":"adminpw","guest_password":"GUEST-OLD-5c1d"}`
+	if err := os.WriteFile(path, []byte(old), 0644); err != nil {
+		t.Fatal(err)
+	}
+	a.loadConfig(a.StorageDir)
+	if got := a.GetConfig().AdminPassword; got != "adminpw" {
+		t.Fatalf("the admin password is %q after the load, want adminpw", got)
+	}
+	if err := a.persistConfig(a.GetConfig()); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "guest_password") {
+		t.Errorf("the save kept the guest password:\n%s", data)
 	}
 }

@@ -275,7 +275,6 @@ if (window.location.protocol !== 'file:') {
         if(res.ok) {
             document.getElementById('loginOverlay').style.display = 'none';
             document.getElementById('mainUI').style.display = 'flex';
-            checkRole();
         } else {
             alert('Invalid Password');
         }
@@ -509,9 +508,8 @@ if (window.location.protocol !== 'file:') {
     // here. See the banner of backend/session.go. A reader who changes
     // this cookie changes what this page shows and gets no permission.
     //
-    // A test of document.cookie for 'session_role=guest' finds nothing,
-    // because the signed cookie is HttpOnly. Each guest would then see the
-    // controls of an admin.
+    // A test of document.cookie for 'session_role' finds nothing, because
+    // the signed cookie is HttpOnly.
     function roleHint() {
         var parts = document.cookie.split(';');
         for (var i = 0; i < parts.length; i++) {
@@ -523,15 +521,6 @@ if (window.location.protocol !== 'file:') {
         return '';
     }
 
-    function checkRole() {
-        if (roleHint() === 'guest') {
-            document.querySelectorAll('.admin-only').forEach(el => {
-                if(el.tagName === 'BUTTON' || el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') el.disabled = true;
-                if(el.id === 'toggleBtn' || el.id === 'editor' || el.id === 'saveBtn') el.style.display = 'none';
-            });
-        }
-    }
-
     window.checkSession = async function() {
         // #loginOverlay is a server-injected modal. See injectRuntimeVars.
         // An exported page and an offline page have no login gate. When
@@ -541,12 +530,12 @@ if (window.location.protocol !== 'file:') {
         const overlay = document.getElementById('loginOverlay');
         const main = document.getElementById('mainUI');
         if (!overlay || !main) return;
-        // A hint cookie means that this browser logged in. The server
-        // still tests the signed cookie on each request.
-        if (roleHint() !== '') {
+        // An admin hint cookie means that this browser logged in. The
+        // server still tests the signed cookie on each request. An old
+        // "guest" hint gives no role. See doc/decisions/0018-keep-one-role.md.
+        if (roleHint() === 'admin') {
             overlay.style.display = 'none';
             main.style.display = 'flex';
-            checkRole();
         } else {
             // Check if server is configured with public role or check backend
             const test = await fetch('/api/config');
@@ -581,12 +570,8 @@ if (window.location.protocol !== 'file:') {
     // line. It does mean that the stream must never drive state that has to
     // see every event.
     document.addEventListener('DOMContentLoaded', () => {
-        // A guest gets 401 from the stream. To open it
-        // anyway writes a console fault on each page load, and the
-        // EventSource does not retry after an HTTP status. roleHint()
-        // answers "" when no cookie is there, which is the local admin,
-        // thus the test is against "guest" alone.
-        if (roleHint() === 'guest') { return; }
+        // A caller on another machine with no admin cookie gets 401 from
+        // the stream. The EventSource does not retry after an HTTP status.
         try {
             const logSource = new EventSource('/api/logs');
 	    // stream is released before the document is cached

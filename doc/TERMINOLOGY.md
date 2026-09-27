@@ -131,7 +131,6 @@ not the words for the user-facing action.
 | Use | Do not use instead |
 | --- | --- |
 | admin (the role, `session_role=admin`) | administrator, superuser, owner |
-| guest (the role) | visitor, reader, read-only user |
 | admin-only | administrator only, admin-protected, privileged |
 | local connection (`127.0.0.1`, `::1`, `localhost`) | loopback, same-device connection |
 | remote caller | external client, outside client, LAN client |

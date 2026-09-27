@@ -418,8 +418,8 @@ func TestLogHistoryEndpointAnswersAnArrayWhenEmpty(t *testing.T) {
 // The endpoint is ADMIN ONLY, and so is the stream beside it.
 //
 // A LAN share gives no log line, live or held. An open stream would make
-// the guard on the ring useless. A guest who holds the stream open reads
-// the same lines as the server writes them.
+// the guard on the ring useless. A remote caller who holds the stream open
+// reads the same lines as the server writes them.
 //
 // This test drives the REAL registration through a real mux. A guard
 // that registerRoutes forgets to wrap is then a failure here, and a test
@@ -455,8 +455,8 @@ func TestLogHistoryEndpointIsAdminOnly(t *testing.T) {
 
 // The stream is ADMIN ONLY as well.
 //
-// A log line names a note, a remote, a path and a fault. A guest of a LAN
-// share reads none of them now.
+// A log line names a note, a remote, a path and a fault. A remote caller
+// reads none of them.
 //
 // This test drives the REAL registration through a real mux, the same as
 // the history test above. The request of each allowed case carries a
@@ -587,10 +587,10 @@ func TestLogsPageIsAReaderOfTheTwoAddresses(t *testing.T) {
 	}
 }
 
-// A guest gets a page and not a line of plain text.
+// A remote caller gets a page and not a line of plain text.
 //
 // The route carries no authMiddleware for that reason. See pages.go.
-func TestLogsPageAnswersAGuestWithAPage(t *testing.T) {
+func TestLogsPageAnswersARemoteCallerWithAPage(t *testing.T) {
 	a := newTestApp(t)
 	a.Config.ShareLAN = true
 
@@ -598,7 +598,7 @@ func TestLogsPageAnswersAGuestWithAPage(t *testing.T) {
 	req.RemoteAddr = "192.168.1.44:51000" // another machine on the network
 	// A signed cookie, and not the bare word "guest". The server refuses
 	// an unsigned value. See session.go.
-	req.AddCookie(sessionCookie(t, a, roleGuest))
+	req.AddCookie(sessionCookie(t, a, "guest"))
 
 	rec := routeServe(a, req)
 	if rec.Code != http.StatusOK {
@@ -606,9 +606,9 @@ func TestLogsPageAnswersAGuestWithAPage(t *testing.T) {
 	}
 	body := rec.Body.String()
 	if !strings.Contains(body, "for the admin of this device") {
-		t.Error("a guest did not get the refusal page")
+		t.Error("a remote caller did not get the refusal page")
 	}
 	if strings.Contains(body, "lgReload") {
-		t.Error("a guest got the reader script")
+		t.Error("a remote caller got the reader script")
 	}
 }

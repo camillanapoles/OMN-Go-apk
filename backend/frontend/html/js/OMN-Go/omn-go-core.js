@@ -903,8 +903,7 @@ if (typeof currentNote === 'undefined') {
         // omn-go-core.css) when the page was served with IS_ANDROID set
         // (COND_SCRIPTS in templates.go, mirroring the IS_MARKDOWN
         // precedent). It runs on load, and it is not gated on login or
-        // session state like checkRole(). There is no guest or admin
-        // distinction for "can this device pin a shortcut".
+        // session state.
         //
         // An explicit "flex", and not "". An empty value drops the inline
         // style and hands the decision back to the cascade. The CSS now

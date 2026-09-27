@@ -237,7 +237,7 @@ func (a *App) serveLogsPage(w http.ResponseWriter, r *http.Request) {
 // first. It is a separate endpoint, because a replay on /api/logs breaks the
 // sync overlay. See the banner of the ring.
 //
-// IT IS ADMIN ONLY, and so is /api/logs. A LAN guest reads no log line. See
+// IT IS ADMIN ONLY, and so is /api/logs. A remote caller reads no log line. See
 // doc/decisions/0013-send-each-log-line-to-three-places-and-to-the-admin-only.md.
 // The answer follows section 1.4 of doc/API.md: JSON with a status word.
 func (a *App) handleLogHistory(w http.ResponseWriter, r *http.Request) {

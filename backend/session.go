@@ -19,9 +19,9 @@ package backend
 //	session_role_hint  readable, NOT signed, display only
 //
 // A note can hold a script, and a script that reads session_role could send
-// it to another machine. checkRole in omn-go-sse.js needs the role to hide
-// the admin controls, thus it reads the hint. A client that changes the hint
-// changes only its own page.
+// it to another machine. checkSession in omn-go-sse.js needs to know about
+// the login, thus it reads the hint. A client that changes the hint changes
+// only its own page.
 
 import (
 	"crypto/hmac"
@@ -38,11 +38,9 @@ import (
 	"time"
 )
 
-// The two roles. An empty string means "no role", and no cookie holds it.
-const (
-	roleAdmin = "admin"
-	roleGuest = "guest"
-)
+// roleAdmin is the one role. An empty string means "no role", and no cookie
+// holds it. See doc/decisions/0018-keep-one-role.md.
+const roleAdmin = "admin"
 
 const (
 	sessionCookieName = "session_role"
@@ -154,7 +152,7 @@ func (a *App) readSessionRole(r *http.Request) string {
 	}
 	role, expiryText, sig := parts[0], parts[1], parts[2]
 
-	if role != roleAdmin && role != roleGuest {
+	if role != roleAdmin {
 		return ""
 	}
 	expiry, err := strconv.ParseInt(expiryText, 10, 64)
@@ -181,22 +179,15 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 	cfg := a.GetConfig()
 	pwd := r.FormValue("password")
 
-	role := ""
-	switch {
-	case passwordMatches(pwd, cfg.AdminPassword):
-		role = roleAdmin
-	case passwordMatches(pwd, cfg.GuestPassword):
-		role = roleGuest
-	}
-	if role == "" {
-		if cfg.AdminPassword == "" && cfg.GuestPassword == "" {
-			a.logErrf(logSession, "login refused: config.json holds no password, thus no caller on the network can log in")
+	if !passwordMatches(pwd, cfg.AdminPassword) {
+		if cfg.AdminPassword == "" {
+			a.logErrf(logSession, "login refused: config.json holds no admin password, thus no caller on the network can log in")
 		}
 		http.Error(w, "Invalid", http.StatusUnauthorized)
 		return
 	}
 
-	signed, hint := a.newSessionCookies(role)
+	signed, hint := a.newSessionCookies(roleAdmin)
 	if signed == nil {
 		// The install has no key. See sessionSecret. An unsigned cookie is
 		// not an option.

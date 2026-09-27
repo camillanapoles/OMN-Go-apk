@@ -75,7 +75,7 @@ type searchResponse struct {
 }
 
 // handleSearch answers GET /api/search. It has NO authMiddleware, the same as
-// /api/note, because a search shows nothing that a LAN guest cannot fetch
+// /api/note, because a search shows nothing that a remote caller cannot fetch
 // file by file. See doc/API.md.
 func (a *App) handleSearch(w http.ResponseWriter, r *http.Request) {
 	started := time.Now()

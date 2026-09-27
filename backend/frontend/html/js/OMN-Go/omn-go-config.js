@@ -149,7 +149,6 @@ function secretFields(form) {
 // number, for example git_key_2.
 function secretValue(cfg, name) {
     if (name === 'admin_password') return cfg.admin_password || '';
-    if (name === 'guest_password') return cfg.guest_password || '';
     const git = /^git_(key|pass)_(\d+)$/.exec(name);
     if (git) {
         const slot = (cfg.git_servers || [])[Number(git[2])];

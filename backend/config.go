@@ -233,14 +233,13 @@ type Config struct {
 	ForcePullOneTime bool   `json:"force_pull_one_time"`
 	ServerPort       int    `json:"server_port"`
 	AdminPassword    string `json:"admin_password"`
-	GuestPassword    string `json:"guest_password"`
 	Author           string `json:"author"`
 	UseInternalEd    bool   `json:"use_internal_editor"`
 	DesktopExtCmd    string `json:"desktop_ext_cmd"`
 	Theme            string `json:"theme"` // "auto" | "light" | "dark", see normalizeTheme
 	// ShareLAN sets the listen address. False, the default, binds 127.0.0.1,
-	// and only this device can connect. True binds 0.0.0.0, and the admin and
-	// guest passwords protect the connection. The socket binds one time, thus
+	// and only this device can connect. True binds 0.0.0.0, and each write
+	// needs the admin password. The socket binds one time, thus
 	// a change applies at the next start. See
 	// doc/decisions/0002-bind-the-loopback-address-when-lan-sharing-is-off.md.
 	ShareLAN         bool              `json:"share_lan"`
@@ -309,7 +308,6 @@ func (a *App) loadConfig(storageDir string) {
 			// writes the port to config.json, thus each later reader sees it.
 			ServerPort:      a.fallbackPort(),
 			AdminPassword:   "admin_secret_changeme",
-			GuestPassword:   "guest_secret_changeme",
 			Author:          "Anonymous",
 			UseInternalEd:   true,
 			DesktopExtCmd:   "subl",

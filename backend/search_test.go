@@ -453,7 +453,7 @@ func TestParseQuery(t *testing.T) {
 // The dialog is reachable from the page chrome, and reachable by everyone.
 //
 // Search is read-only. Unlike create, quick-note and bookmark, the button is
-// thus NOT .admin-only. A guest on the LAN can already read every page. To be
+// thus NOT .admin-only. A remote caller can already read every page. To be
 // unable to search what you are allowed to read is a strange place to draw a
 // line. It IS .server-only, because an exported page has no /api/search. The
 // existing applyOfflineUI() hides it there with no extra code.

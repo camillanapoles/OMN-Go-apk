@@ -157,7 +157,7 @@
                 <label class="config-label">Server Port</label>
                 <input type="number" id="cfgPort" name="server_port" value="%%SERVER_PORT%%" class="config-input" required />
             </div>
-            <!-- The two password boxes are EMPTY on purpose, and they carry
+            <!-- The password box is EMPTY on purpose, and it carries
                  no value attribute. The page source thus holds no password.
                  data-secret marks the box for omn-go-config.js: an empty box
                  that the reader did not touch leaves the stored password as
@@ -165,10 +165,6 @@
             <div class="config-field">
                 <label class="config-label">Admin Password</label>
                 <input type="password" id="cfgAdminPwd" name="admin_password" value="" data-secret="admin_password" autocomplete="new-password" placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;&#9679; unchanged" class="config-input" />
-            </div>
-            <div class="config-field">
-                <label class="config-label">Guest Password</label>
-                <input type="password" id="cfgGuestPwd" name="guest_password" value="" data-secret="guest_password" autocomplete="new-password" placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;&#9679; unchanged" class="config-input" />
             </div>
             <div class="config-field">
                 <button type="button" class="config-link-btn" data-reveal onclick="omnGoRevealSecrets(this)">
@@ -182,7 +178,7 @@
                     <input type="checkbox" id="cfgShareLan" name="share_lan" value="true" %%SHARE_LAN_CHECKED%% />
                     <label class="config-label">Share on LAN</label>
                 </div>
-                <span class="config-hint">When off, the server answers only this device (127.0.0.1 / localhost). When on, it listens on all network interfaces so other devices can connect using the admin or guest password. Takes effect after application restart.</span>
+                <span class="config-hint">When off, the server answers only this device (127.0.0.1 / localhost). When on, it listens on all network interfaces so other devices can connect. Each write from another device needs the admin password. Takes effect after application restart.</span>
             </div>
             <div class="config-field config-save-row">
                 <span class="config-dirty-indicator"><span class="config-dirty-dot clean"></span><span class="config-dirty-label"></span></span>

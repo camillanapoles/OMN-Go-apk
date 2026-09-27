@@ -1619,8 +1619,7 @@ mark.omn-search-hit.omn-search-hit-current {
 }
 
 /* -- Android-only controls (e.g. "add to home screen" shortcut) --
-   Hidden by default, unlike .admin-only (which defaults visible and is
-   hidden by JS for guests): there's no native shortcut API to call on
+   Hidden by default: there's no native shortcut API to call on
    desktop, so these stay hidden until omn-go-core.js's applyPlatformUI()
    (gated on the server-injected IS_ANDROID flag, see templates.go) reveals
    them. */

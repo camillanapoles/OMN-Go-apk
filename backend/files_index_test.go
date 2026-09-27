@@ -874,7 +874,8 @@ func TestFilesPage_Authorization(t *testing.T) {
 		t.Error("an admin cookie was refused")
 	}
 
-	// A guest is not an admin here, and neither is an anonymous request.
+	// An old guest cookie is not an admin here, and neither is a request with
+	// no cookie.
 	for _, role := range []string{"", "guest"} {
 		rec := remoteFilesRequest(t, a, role)
 		body := rec.Body.String()
@@ -895,7 +896,7 @@ func TestFilesPage_Authorization(t *testing.T) {
 }
 
 // authMiddleware asks hasRole, the one definition of the rule. A local
-// connection and an admin cookie pass. A guest cookie and no cookie get 401.
+// connection and an admin cookie pass. An old guest cookie and no cookie get 401.
 func TestAuthMiddlewareStillRefusesAfterExtraction(t *testing.T) {
 	a := newTestApp(t)
 	h := a.authMiddleware(func(w http.ResponseWriter, r *http.Request) {

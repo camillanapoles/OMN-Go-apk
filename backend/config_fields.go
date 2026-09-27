@@ -89,10 +89,6 @@ var configFields = []configField{
 		String: func(c *Config) *string { return &c.AdminPassword },
 	},
 	{
-		Key: "guest_password", Kind: cfString, Secret: true,
-		String: func(c *Config) *string { return &c.GuestPassword },
-	},
-	{
 		Key: "author", Kind: cfString,
 		String: func(c *Config) *string { return &c.Author },
 	},

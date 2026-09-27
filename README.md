@@ -42,7 +42,7 @@ OMN-Go replaces the original [mvbasov/OMN](https://github.com/mvbasov/OMN) proje
 
 * **Optional Git Sync:** OMN-Go can synchronize your whole storage directory across devices over SSH. It shows each conflict clearly. You can then do a manual merge, or a safe force pull or push.
 
-* **Optional LAN Sharing:** LAN sharing is off by default. If you enable it, other devices on your network can read or edit your notes over HTTP. The admin password and the guest password protect this access.
+* **Optional LAN Sharing:** LAN sharing is off by default. If you enable it, other devices on your network can read or edit your notes over HTTP. Each write needs the admin password. A read needs no password: each device on your network can read your notes.
 
 * **Embedded SQL Database:** A note script (a `<script>` block in a note) can read and write a real SQL database (pure-Go, no CGO). You can create a backup of the database at any time. Git can track the backup, and you can use it to move the data to another device.
 
@@ -179,12 +179,12 @@ Versioning in this project is informal. Numbers do not indicate stability or roa
 ## Disclaimer
 
 OMN-Go is a personal tool for one person, and not an enterprise product. It has
-no separate accounts: the admin role and the guest role share one set of notes.
-A note script and the SQL API operate with full rights. A script in a note can
-change or delete any note and any database. LAN sharing sends plain HTTP with no
-encryption. Use it only on a network that you control. Never use it on a public
-network. Keep your own backup of your notes. The author gives no warranty
-and takes no responsibility for lost data.
+no separate accounts, and one role: the admin. A note script and the SQL API
+operate with full rights. A script in a note can change or delete any note and
+any database. LAN sharing sends plain HTTP with no encryption. Use it only on
+a network that you control. Never use it on a public network. Keep your own
+backup of your notes. The author gives no warranty and takes no responsibility
+for lost data.
 
 ## License
 

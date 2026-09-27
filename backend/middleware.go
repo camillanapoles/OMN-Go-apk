@@ -91,9 +91,8 @@ func (a *App) ActiveConnCount() int64 {
 
 // hasRole answers "may this request do a protected thing". It is the ONE
 // answer. A connection from the device itself is always the owner. Another
-// machine needs a signed admin cookie. No route accepts the guest role. A
-// page such as the file index calls it directly, thus it can answer a
-// refusal with a page.
+// machine needs a signed admin cookie. The page-access table calls it
+// directly, thus it can answer a refusal with a page.
 func (a *App) hasRole(r *http.Request) bool {
 	if a.isLocalConnection(r) {
 		return true

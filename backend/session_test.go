@@ -39,11 +39,22 @@ func sessionCookie(t *testing.T, a *App, role string) *http.Cookie {
 // that the login gave it.
 func TestSignedCookieIsAccepted(t *testing.T) {
 	a := newTestApp(t)
-	for _, role := range []string{roleAdmin, roleGuest} {
-		got := a.readSessionRole(sessionReq(t, sessionCookie(t, a, role)))
-		if got != role {
-			t.Errorf("readSessionRole for %q gave %q", role, got)
-		}
+	if got := a.readSessionRole(sessionReq(t, sessionCookie(t, a, roleAdmin))); got != roleAdmin {
+		t.Errorf("readSessionRole for %q gave %q", roleAdmin, got)
+	}
+}
+
+// A guest cookie that this install signed before the guest role went away
+// gives no role. See doc/decisions/0018-keep-one-role.md.
+func TestOldGuestCookieGivesNoRole(t *testing.T) {
+	a := newTestApp(t)
+	r := sessionReq(t, sessionCookie(t, a, "guest"))
+	r.RemoteAddr = "192.168.1.50:5555"
+	if got := a.readSessionRole(r); got != "" {
+		t.Errorf("a signed guest cookie gave the role %q, want none", got)
+	}
+	if a.hasRole(r) {
+		t.Error("a signed guest cookie passed hasRole")
 	}
 }
 
@@ -64,12 +75,14 @@ func TestUnsignedCookieIsRefused(t *testing.T) {
 }
 
 // A changed role, a changed expiry or a changed signature each break the
-// HMAC, thus each one is refused.
+// HMAC, thus each one is refused. The changed role starts from a signed
+// cookie of another role.
 func TestChangedCookieIsRefused(t *testing.T) {
 	a := newTestApp(t)
-	good := sessionCookie(t, a, roleGuest).Value
+	good := sessionCookie(t, a, roleAdmin).Value
 	parts := strings.Split(good, ".")
-	if len(parts) != 3 {
+	other := strings.Split(sessionCookie(t, a, "guest").Value, ".")
+	if len(parts) != 3 || len(other) != 3 {
 		t.Fatalf("the cookie value %q is not three parts", good)
 	}
 
@@ -77,7 +90,7 @@ func TestChangedCookieIsRefused(t *testing.T) {
 		name  string
 		value string
 	}{
-		{"the role becomes admin", "admin." + parts[1] + "." + parts[2]},
+		{"the role becomes admin", "admin." + other[1] + "." + other[2]},
 		{"the expiry moves", parts[0] + ".9999999999." + parts[2]},
 		{"the signature changes", parts[0] + "." + parts[1] + ".AAAAAAAA"},
 		{"the signature is empty", parts[0] + "." + parts[1] + "."},
@@ -133,15 +146,15 @@ func TestSessionLastsThirtyDays(t *testing.T) {
 // banner of session.go for why there are two.
 func TestHintCookieIsReadableAndSignedCookieIsNot(t *testing.T) {
 	a := newTestApp(t)
-	signed, hint := a.newSessionCookies(roleGuest)
+	signed, hint := a.newSessionCookies(roleAdmin)
 	if !signed.HttpOnly {
 		t.Error("the signed cookie is not HttpOnly, thus a note script can read it and send it away")
 	}
 	if hint.HttpOnly {
-		t.Error("the hint cookie is HttpOnly, thus checkRole in omn-go-sse.js cannot see a guest")
+		t.Error("the hint cookie is HttpOnly, thus checkSession in omn-go-sse.js cannot see the login")
 	}
-	if hint.Value != roleGuest {
-		t.Errorf("the hint cookie holds %q, want %q", hint.Value, roleGuest)
+	if hint.Value != roleAdmin {
+		t.Errorf("the hint cookie holds %q, want %q", hint.Value, roleAdmin)
 	}
 	if signed.SameSite != http.SameSiteLaxMode || hint.SameSite != http.SameSiteLaxMode {
 		t.Error("a session cookie lost its SameSite attribute")
@@ -249,7 +262,6 @@ func TestLoginWritesTheTwoCookies(t *testing.T) {
 	a := newTestApp(t)
 	a.WithConfig(func(c *Config) {
 		c.AdminPassword = "the-admin-password"
-		c.GuestPassword = "the-guest-password"
 	})
 
 	cases := []struct {
@@ -258,7 +270,6 @@ func TestLoginWritesTheTwoCookies(t *testing.T) {
 		role     string
 	}{
 		{"the-admin-password", http.StatusOK, roleAdmin},
-		{"the-guest-password", http.StatusOK, roleGuest},
 		{"wrong", http.StatusUnauthorized, ""},
 		{"", http.StatusUnauthorized, ""},
 	}
@@ -308,7 +319,6 @@ func TestEmptyPasswordGrantsNothing(t *testing.T) {
 	a := newTestApp(t)
 	a.WithConfig(func(c *Config) {
 		c.AdminPassword = ""
-		c.GuestPassword = ""
 	})
 	for _, password := range []string{"", "anything"} {
 		rec := httptest.NewRecorder()

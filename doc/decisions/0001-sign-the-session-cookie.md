@@ -37,8 +37,8 @@ The server signs the role.
   runs with `html.WithUnsafe()`. A script that can read the cookie can
   send it to another machine, which then has the role for 30 days.
 * A second cookie, `session_role_hint`, holds the role as plain text.
-  `checkRole` in `omn-go-sse.js` reads it and disables each admin control
-  for a guest. The server never reads the hint.
+  `checkSession` in `omn-go-sse.js` reads it to show the login box. The
+  server never reads the hint. See [0018](0018-keep-one-role.md).
 
 ## Consequences
 

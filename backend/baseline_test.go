@@ -803,7 +803,6 @@ func TestConfigPost_PartialRequestKeepsTheRest(t *testing.T) {
 	a.WithConfig(func(c *Config) {
 		c.Author = "Ann"
 		c.AdminPassword = "adminpw"
-		c.GuestPassword = "guestpw"
 		c.DesktopExtCmd = "vim %s"
 		c.UseInternalEd = true
 		c.ShareLAN = true
@@ -830,7 +829,6 @@ func TestConfigPost_PartialRequestKeepsTheRest(t *testing.T) {
 	for _, f := range []struct{ name, got, want string }{
 		{"author", cfg.Author, "Ann"},
 		{"admin_password", cfg.AdminPassword, "adminpw"},
-		{"guest_password", cfg.GuestPassword, "guestpw"},
 		{"desktop_ext_cmd", cfg.DesktopExtCmd, "vim %s"},
 		{"android_fullscreen", cfg.AndroidFullscreen, FullscreenImmersive},
 		{"search_scope", cfg.SearchScope, SearchScopeAll},
