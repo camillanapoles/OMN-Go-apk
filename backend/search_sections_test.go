@@ -142,9 +142,9 @@ func TestHeadingIDsDeclineWhatTheyCannotRead(t *testing.T) {
 	}
 }
 
-// A wholly non-ASCII heading degenerates to goldmark's "heading" fallback,
-// which addresses nothing a reader would recognize and collides with the next
-// one. Section, yes; anchor, no (§5.5).
+// A heading with no ASCII letter or digit gets the id "heading" from
+// goldmark. That id means nothing to a reader. The heading thus gets a
+// section, and no anchor.
 func TestCyrillicHeadingGetsNoAnchor(t *testing.T) {
 	forceAnchors(t, true)
 

@@ -679,7 +679,7 @@ func TestCommentVersionScannerFindsEachForm(t *testing.T) {
 
 // commentShareCeiling is the highest share, in per mille, that the Go
 // production files may hold.
-const commentShareCeiling = 281
+const commentShareCeiling = 263
 
 // commentShareTarget is the share, in per mille, that the ceiling moves to.
 const commentShareTarget = 200

@@ -1,36 +1,25 @@
 package backend
 
 // ----------------------------------------------------------------------
-// Sections: addressing a PART of a document
+// Sections: the address of a PART of a document
 // ----------------------------------------------------------------------
 //
-// Some notes are not flat prose. QuickNotes is a run of entries separated by
-// "---" and a "##### <timestamp>" heading. Bookmarks.md is a JSON array that
-// Bookmarker.js renders into a list.
+// QuickNotes is a list of entries, each with a "---" line and a "#####
+// <timestamp>" heading. Bookmarks.md holds a JSON array that Bookmarker.js
+// shows as a list. The compiled page gives each entry an anchor id. A result
+// can thus link to the entry that it matched, and not to the top of a long
+// page.
 //
-// In both cases the compiled page ALREADY carries an anchor id for each
-// entry. A search result can thus point at the entry that it matched, and
-// not at the top of a 3 000-line page. The search layer has to know where
-// the entries begin and end.
+// A section is a line range, a label and the anchor id of the compiled HTML.
+// It does not change the scoring. There are two sectionizers:
+// sectionsFromHeadings for each markdown document, and addBookmarks for the
+// bookmarks array.
 //
-// That is all a section is: a line range, a label to show, and the anchor id
-// the compiled HTML gives it. It is not a new scoring path. Ranking, weights,
-// tiers and the mask prefilter are untouched.
-//
-// Two sectionizers, because there are two structures:
-//
-//   - headings, for every markdown document (§5.2)
-//   - the bookmarks array, which is parsed rather than line-scanned - and that
-//     one is a correctness fix, not a nicety. See parseBookmarksArray.
-//
-// The hard part is not to find the entries. It is that the anchor ids are
-// assigned somewhere else. goldmark assigns them at compile time, and
-// Bookmarker.js at render time. This file has to predict both, and it reads
-// neither.
-//
-// Everything below is written to make a WRONG prediction impossible. A
-// missing anchor is fine, because the result falls back to a link at the
-// page. A wrong one sends the reader to another entry entirely.
+// The hard part is the anchor id. goldmark makes it when it compiles, and
+// Bookmarker.js makes it when it shows the page. This file predicts both, and
+// it reads neither. Each rule below prevents a WRONG prediction. A missing
+// anchor is safe, because the result then links to the page. A wrong anchor
+// sends the reader to another entry.
 
 import (
 	"encoding/json"
@@ -41,25 +30,20 @@ import (
 	"unicode"
 )
 
-// docSection is one addressable part of a document: [start, end] in file line
-// numbers, inclusive.
-//
-// id is the anchor in the compiled HTML. It is "" when the section exists
-// but is not addressable. That covers the preamble of a note, before its
-// first heading, and a heading whose id could not be predicted safely. Such
-// a section still labels its hits. It links at the page instead of into it.
+// docSection is one part of a document, from line start to line end, both
+// included. id is the anchor in the compiled HTML. It is "" for the text
+// before the first heading, and for a heading with an id that this file
+// cannot predict. Such a section still labels its hits, and it links to the
+// page.
 type docSection struct {
 	start, end int
 	id         string
 	label      string
 }
 
-// sectionFor returns the section containing a line, or nil.
-//
-// Linear rather than binary. Sections are few, and a long QuickNotes has
-// hundreds and not millions. This runs at result assembly only, over the
-// handful of snippets that survived ranking. It never runs in the scoring
-// loop.
+// sectionFor answers the section that holds a line, or nil. A linear search
+// is sufficient, because a document has few sections. It runs only over the
+// snippets of the final results, and never in the scoring loop.
 func sectionFor(sections []docSection, line int) *docSection {
 	for i := range sections {
 		if line >= sections[i].start && line <= sections[i].end {
@@ -69,70 +53,44 @@ func sectionFor(sections []docSection, line int) *docSection {
 	return nil
 }
 
-// ----------------------------------------------------------------------
-// Anchor prediction
-// ----------------------------------------------------------------------
-
-// timestampAnchor mirrors Bookmarker.js:
+// timestampAnchor is the rule of Bookmarker.js:
 //
 //	li.setAttribute('id', bm.date.replaceAll(':','').replaceAll(' ','-'))
 //
-// so "2026-06-15 20:00:00" becomes "2026-06-15-200000". Nothing else is
-// touched, because nothing else appears in a date this app writes.
-//
-// Note that the heading rule of goldmark below collapses to exactly the same
-// string for the same timestamp. A digit and a '-' survive, a ':' is
-// dropped, and a ' ' becomes a '-'. That agreement is not a coincidence
-// worth relying on, thus the two are computed separately. It does mean that
-// a QuickNotes heading and a bookmark entry that carry the same instant get
-// the same anchor. That is correct in both places.
+// "2026-06-15 20:00:00" thus gives "2026-06-15-200000". The heading rule of
+// goldmark gives the same string for the same timestamp. The code computes
+// the two separately, because that agreement is an accident.
 func timestampAnchor(date string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(strings.TrimSpace(date), ":", ""), " ", "-")
 }
 
-// headingUnsafe lists the characters that make a heading's id unpredictable
-// from its markdown source, so this file declines rather than guesses.
+// headingUnsafe lists the characters that make a heading id impossible to
+// predict from the markdown source. goldmark makes an id from the RENDERED
+// text. With these characters, the rendered text differs from the source:
 //
-// goldmark builds an id from the RENDERED TEXT of the heading. These are the
-// characters where the rendered text differs from the source in a way that
-// changes the answer:
+//	[ ]    A link. "[text](http://x)" renders as "text", without the URL.
+//	& < >  An entity or inline HTML. "&amp;" renders as "&".
+//	`      Inline code. renderMarkdownToHTML puts a placeholder there first.
+//	$      KaTeX math, with the same placeholder.
+//	\      An escape changes the meaning of the next character.
+//	_      An emphasis marker, and also a character that the rule keeps.
+//	#      A closing run. "## Foo ##" has the text "Foo", but "C#" keeps its '#'.
 //
-//	[ ]   a link. "[text](http://x)" renders as "text", thus the URL must
-//	      not contribute. Read as source, it would.
-//	& < >  an entity or inline HTML. "&amp;" renders as "&".
-//	`     inline code, which renderMarkdownToHTML replaces with a
-//	      placeholder BEFORE goldmark sees it. The id is thus built from
-//	      "OMN_RAW_0_END".
-//	$     KaTeX math, shielded by the same mechanism.
-//	\     a backslash escape changes what the next character means.
-//	_     an emphasis marker AND, unescaped, a character with its own
-//	      mapping. "_a_" renders as "a" but reads as "_a_".
-//	#     an ATX CLOSING sequence. "## Foo ##" is a heading whose text is
-//	      "Foo". A closing run and a literal '#', as in "C#", are hard to
-//	      tell apart. That is CommonMark trivia, and this file has no
-//	      business relitigating it.
-//
-// Deliberately absent: '*' and '~'. They are emphasis markers too, and they
-// contribute nothing to an id under either reading. A literal one is dropped
-// as punctuation, and markup is removed. They thus cannot cause a
-// disagreement.
+// '*' and '~' are absent on purpose. As text, the rule drops them. As markup,
+// goldmark removes them. Both readings give the same id.
 const headingUnsafe = "[]`_$<>&#\\"
 
-// headingSlug applies goldmark's id rule to a heading's text.
-//
-// The rule is parser.WithAutoHeadingID. An ASCII alphanumeric is lowercased
-// and kept. A space and a '-' become a '-'. Every other ASCII character is
-// dropped, and a non-ASCII rune is skipped entirely. That is why a wholly
-// Cyrillic heading degenerates (§5.5).
-//
-// ok is false when the text contains something from headingUnsafe. That is not
-// a failure, it is a refusal: see the type comment.
+// headingSlug applies the id rule of goldmark (parser.WithAutoHeadingID) to
+// the text of a heading. It lowercases and keeps an ASCII letter or digit. A
+// space and a '-' become a '-'. It drops each other ASCII character and each
+// non-ASCII rune. ok is false when the text holds a character of
+// headingUnsafe.
 func headingSlug(text string) (slug string, ok bool) {
 	var b strings.Builder
 	for _, r := range strings.TrimSpace(text) {
 		switch {
 		case r > unicode.MaxASCII:
-			// Skipped, exactly as goldmark skips multi-byte runes.
+			// goldmark skips a multi-byte rune too.
 		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
 			b.WriteRune(r)
 		case r >= 'A' && r <= 'Z':
@@ -148,17 +106,11 @@ func headingSlug(text string) (slug string, ok bool) {
 	return b.String(), true
 }
 
-// headingIDGen assigns ids the way goldmark does, including its collision
-// suffixes, and knows when to stop.
-//
-// The dedup counter is the reason this is a type, and not a function. Two
-// identical headings get "x" and "x-1". The numbering is per document and in
-// document order. A heading that this code fails to SEE, or fails to
-// predict, thus desynchronises every id after it.
-//
-// Hence the poison. Once anything unpredictable appears, no further id is
-// emitted for that document. Sections keep working, and they stop being
-// addressable.
+// headingIDGen gives ids the way goldmark does, with the suffix for a
+// collision. Two equal headings get "x" and "x-1", in document order. A
+// heading that this code misses, or cannot predict, thus moves each id after
+// it. After such a heading, headingIDGen gives no more ids for the document.
+// The sections stay, and they link to the page.
 type headingIDGen struct {
 	taken     map[string]bool
 	poisoned  bool
@@ -169,13 +121,11 @@ func newHeadingIDGen() *headingIDGen {
 	return &headingIDGen{taken: map[string]bool{}, anchorsOK: anchorsPredictable()}
 }
 
-// next returns the anchor for a heading, or "" when there must not be one.
-//
-// A degenerate id is registered, thus the numbering stays in step, and it is
-// not returned. It is the fallback "heading" of goldmark for a heading with
-// no ASCII alphanumerics, which is what a wholly Cyrillic heading produces.
-// "heading", "heading-1" and "heading-2" address nothing that a reader would
-// recognize. A link to the page is the more honest answer (§5.5).
+// next answers the anchor for a heading, or "" when it must not give one. A
+// heading with no ASCII letter or digit, for example a Cyrillic heading, gets
+// the id "heading" from goldmark. next records that id, thus the numbering
+// stays correct. It does not return it, because "heading-2" means nothing to
+// a reader.
 func (h *headingIDGen) next(text string) string {
 	if h.poisoned || !h.anchorsOK {
 		return ""
@@ -200,21 +150,16 @@ func (h *headingIDGen) next(text string) string {
 	return id
 }
 
-// poison marks the rest of the document unpredictable. Called for a construct
-// this file knows produces a heading but cannot read - see reSetextRule.
+// poison stops the ids for the rest of the document. sectionsFromHeadings
+// calls it for a setext heading. See reSetextRule.
 func (h *headingIDGen) poison() { h.poisoned = true }
 
-// ----------------------------------------------------------------------
-// The runtime self-check
-// ----------------------------------------------------------------------
-
-// headingIDAttrRe pulls the ids back out of compiled HTML.
+// headingIDAttrRe finds the ids in compiled HTML.
 var headingIDAttrRe = regexp.MustCompile(`<h[1-6][^>]*\bid="([^"]*)"`)
 
-// anchorProbe exercises every rule that headingSlug depends on. Those are
-// case folding, a digit that survives, a ' ' and a '-' that become a '-',
-// and punctuation that is dropped. They also cover a timestamp that comes
-// out the way Bookmarker.js writes one, and the collision suffix.
+// anchorProbe tests each rule of headingSlug: lowercase letters, a digit, a
+// space and a '-', dropped punctuation, a Bookmarker.js timestamp, and a
+// collision suffix.
 var anchorProbe = []struct{ md, want string }{
 	{"# Aa Bb 09", "aa-bb-09"},
 	{"# a-b c", "a-b-c"},
@@ -229,23 +174,15 @@ var (
 	anchorsGood bool
 )
 
-// anchorsPredictable compiles a probe document through the REAL renderer and
-// checks that the ids coming back are the ids headingSlug predicted.
+// anchorsPredictable compiles the probe document with the REAL renderer. It
+// checks that the ids agree with headingSlug. goldmark makes the anchor, and
+// this file makes the link. A new goldmark with another id rule would send
+// the reader to the wrong section, with no error.
 //
-// This exists because the drift risk here is unlike anywhere else in the
-// codebase. For the tags page, one Go function produces both the anchor and
-// the link, thus they cannot disagree. Here a dependency mints the anchor at
-// compile time, and this file mints the link.
-//
-// A goldmark upgrade that changed the id rule would silently start to send
-// readers to the wrong section of the right page. That kind of wrong looks
-// like a bug in the note.
-//
-// A golden test catches that at build time. This catches it at RUN time, on
-// a device that upgraded. Its failure mode is the safe one. There are no
-// anchors at all, one log line, and results still link at the page.
-//
-// Cost is one markdown compile of ~90 bytes, once per process.
+// TestHeadingIDsAgreeWithTheRenderer finds that in the build. This check
+// finds it on a device, at run time. It then turns the anchors off, writes
+// one log line, and each result links to the page. The cost is one compile of
+// about 90 bytes, one time for each process.
 func anchorsPredictable() bool {
 	anchorsOnce.Do(func() { anchorsGood = probeAnchors() })
 	return anchorsGood
@@ -279,41 +216,25 @@ func probeAnchors() bool {
 	return true
 }
 
-// ----------------------------------------------------------------------
-// Sectionizer 1: markdown headings
-// ----------------------------------------------------------------------
-
-// reATXHeading matches a heading opener. The space after the '#' run is
-// required by CommonMark - "#tag" is a word, not a heading - and a heading may
-// also be empty ("###" alone).
+// reATXHeading matches the start of a heading. CommonMark needs the space
+// after the '#' run, thus "#tag" is a word. A heading can be empty, for
+// example "###".
 var reATXHeading = regexp.MustCompile(`^ {0,3}(#{1,6})([ \t]+(.*))?$`)
 
-// reSetextRule matches a line that might be a setext heading underline.
-//
-// This is not used to FIND headings, it is used to give up. A run of '=' or '-'
-// directly under a paragraph line is an h1/h2 in CommonMark, and reading its
-// text means re-implementing paragraph continuation rules. Rather than get that
-// subtly wrong, a possible underline poisons the document's ids.
-//
-// It costs nothing where it matters. QuickNotes separates entries with
-// "---", and always after a blank line. That makes it a thematic break, and
-// not an underline. The structure that this whole file exists to serve thus
-// never trips it.
+// reSetextRule matches a line that can underline a setext heading. The code
+// does not use it to find a heading. A run of '=' or '-' under a paragraph
+// line is an h1 or h2. Its text depends on the rules of a paragraph, thus the
+// code stops the ids of that document. QuickNotes always has an empty line
+// before its "---", thus that line is a thematic break and never an
+// underline.
 var reSetextRule = regexp.MustCompile(`^ {0,3}(=+|-+)[ \t]*$`)
 
-// sectionsFromHeadings splits a document at its headings.
-//
-// The lines, contexts and firstLineNo parameters describe the BODY as
-// addLines sees it. classifyContexts already labels a heading inside a
-// fenced block or a <script> as non-prose, thus it is skipped here.
-//
-// That is the trap that a naive "^#{1,6} " scan falls into, and the trap is
-// not cosmetic. goldmark does not see such a line as a heading either, thus
-// to count it would shift every collision suffix after it.
-//
-// It answers nil when the document has no heading at all. There is nothing
-// to address, and an "everything" section would only add noise to every
-// result.
+// sectionsFromHeadings splits a document at its headings. lines, contexts and
+// firstLineNo describe the BODY, as addLines reads it. classifyContexts marks
+// a heading inside a fence or a <script>, and the loop skips it. goldmark
+// does not read such a line as a heading either, thus a count of it would
+// move each suffix after it. The function answers nil for a document with no
+// heading.
 func sectionsFromHeadings(lines, contexts []string, firstLineNo int) []docSection {
 	ids := newHeadingIDGen()
 	var out []docSection
@@ -349,20 +270,16 @@ func sectionsFromHeadings(lines, contexts []string, firstLineNo int) []docSectio
 	if len(out) == 0 {
 		return nil
 	}
-	// Everything above the first heading is the preamble. Nothing labels it,
-	// and nothing addresses it. Its hits still belong to the document, thus
-	// it must not fall into the section of the first heading.
+	// The lines above the first heading are the preamble. It has no label and
+	// no id. It is a separate section, thus its hits do not go to the first
+	// heading.
 	if out[0].start > firstLineNo {
 		out = append([]docSection{{start: firstLineNo, end: out[0].start - 1}}, out...)
 	}
 	return out
 }
 
-// ----------------------------------------------------------------------
-// Sectionizer 2: the bookmarks array
-// ----------------------------------------------------------------------
-
-// bookmarkEntry mirrors the struct handleBookmark writes.
+// bookmarkEntry is the struct that handleBookmark writes.
 type bookmarkEntry struct {
 	Date  string   `json:"date"`
 	URL   string   `json:"url"`
@@ -371,13 +288,11 @@ type bookmarkEntry struct {
 	Notes []string `json:"notes"`
 }
 
-// reBookmarksArray finds the opening of the array Bookmarker.js reads.
+// reBookmarksArray finds the start of the array that Bookmarker.js reads.
 var reBookmarksArray = regexp.MustCompile(`\bbookmarks\s*=\s*\[`)
 
-// bookmarksBlock is what a scan of Bookmarks.md recovers. It holds the array
-// as well-formed JSON. It also holds where each entry and the array itself
-// live in the file. A hit can thus be attributed to a line that a reader
-// could open.
+// bookmarksBlock holds the array as valid JSON, and the lines of each entry
+// and of the array. A hit thus gets a line that a reader can open.
 type bookmarksBlock struct {
 	json       string
 	startLines []int // source line of each entry's '{', in array order
@@ -385,22 +300,16 @@ type bookmarksBlock struct {
 	lastLine   int   // the line it closes on
 }
 
-// scanBookmarksArray extracts the array as parseable JSON.
+// scanBookmarksArray answers the array as JSON that encoding/json can read.
+// It removes two things that are not JSON:
 //
-// Two things in the file are not JSON and have to be removed, and both are
-// there for good reasons:
+//   - The "<!-- Don't edit body below this line -->" marker INSIDE the array.
+//     handleBookmark puts each new entry after it. JavaScript accepts "<!--".
+//   - A comma before the closing ']'. A file with no entries can have one.
 //
-//   - the "<!-- Don't edit body below this line -->" marker sits INSIDE the
-//     array. handleBookmark inserts new entries directly after it, which is how
-//     newest-first ordering costs nothing. Browsers accept it because "<!--" is
-//     a legal comment opener in JavaScript; encoding/json is not so relaxed.
-//   - a trailing comma before the closing ']'. A file whose entries were all
-//     removed by hand, or written by the original OMN, ends up with one.
-//
-// The scan is string-aware, and that is the whole reason it is a scan and
-// not two regular expressions. A bookmark note may legitimately contain
-// "<!--" or ",]". To rewrite those inside a quoted string would corrupt the
-// data of the user, and not the syntax of the file.
+// The scan knows each string, thus it does not change a "<!--" or a ",]"
+// inside the text of a bookmark. Two regular expressions would change the
+// data of the user.
 func scanBookmarksArray(content string, firstLineNo int) (bookmarksBlock, bool) {
 	loc := reBookmarksArray.FindStringIndex(content)
 	if loc == nil {
@@ -477,49 +386,31 @@ func scanBookmarksArray(content string, firstLineNo int) (bookmarksBlock, bool) 
 	return bookmarksBlock{}, false // unterminated array
 }
 
-// logAnchorsOff says so one time, loudly enough to be findable. The symptom
-// otherwise is "search results stopped linking into long notes", with
-// nothing to explain it.
+// logAnchorsOff writes one error line. Without it, the only sign is that the
+// results link to the top of a long note.
 func logAnchorsOff(why string) {
 	log.Printf("[search] (error) section anchors disabled - the renderer no longer "+
 		"assigns heading ids the way this build predicts (%s). Results will "+
 		"link at the page instead of the section.", why)
 }
 
-// bookmarksNote is the one note with a bespoke parser. Its base name, not its
-// path, because that is what both resolvePageName and the index walk key on.
+// bookmarksNote is the one note with its own parser. It is a base name,
+// because resolvePageName and the index walk use the base name.
 const bookmarksNote = "Bookmarks"
 
-// bookmarkJoin separates an entry's fields inside its single searchable line.
-// A middle dot, matching the separator the UI already uses, and one no URL,
-// tag or timestamp this app writes can contain.
+// bookmarkJoin separates the fields of an entry in its one searchable line.
+// The UI uses the same middle dot, and no URL, tag or timestamp of this app
+// holds it.
 const bookmarkJoin = " · "
 
-// addBookmarks indexes Bookmarks.md as ENTRIES rather than as lines.
+// addBookmarks indexes Bookmarks.md by ENTRIES, and not by lines.
+// handleBookmark writes the array with json.MarshalIndent, and that writes
+// '<', '>' and '&' as \u escapes. The source line of a bookmark "Cats & Dogs"
+// thus does not hold "&". Only the decoded JSON holds the text that the user
+// sees. TestBookmarkWithEscapedPunctuationIsFindable holds the rule.
 //
-// This is a correctness fix, not a presentation nicety. handleBookmark writes
-// the array with json.MarshalIndent, which emits '<', '>' and '&' as \u
-// escapes so a bookmark can never break out of the surrounding <script>. A
-// bookmark titled "Cats & Dogs" is therefore stored as
-//
-//	"title": "Cats & Dogs"
-//
-// A line-based index cannot match "Cats & Dogs" against that. It can match
-// "Cats", which is fine, and it cannot match "&", which is not the point
-// either.
-//
-// The point is that the escaping is invisible in the browser and total in
-// the source. Exactly the bookmarks that hold the commonest punctuation of
-// an English title were thus the unfindable ones. To decode the JSON is the
-// only way to search what the user can see.
-//
-// Anything in the note OUTSIDE the array is still indexed as ordinary prose.
-// Bookmarks.md is machine-managed, and nothing stops someone from adding a
-// note above the script. "I typed it and search cannot find it" is a bad
-// answer.
-//
-// If the file is not the shape this expects - hand-edited, half-written, from
-// another tool - it falls back to plain line indexing. Degraded, not broken.
+// addBookmarks indexes the text outside the array as normal prose. A file
+// that does not have the expected shape gets the normal line index.
 func (d *searchDocument) addBookmarks(body string, firstLineNo int) {
 	block, ok := scanBookmarksArray(body, firstLineNo)
 	var entries []bookmarkEntry
@@ -527,8 +418,8 @@ func (d *searchDocument) addBookmarks(body string, firstLineNo int) {
 		if err := json.Unmarshal([]byte(block.json), &entries); err != nil {
 			ok = false
 		} else if len(entries) != len(block.startLines) {
-			// The scan and the decoder disagree about how many entries there
-			// are, so the line attribution below would be fiction.
+			// When the scan and the decoder count different numbers of
+			// entries, the line of each entry would be wrong.
 			ok = false
 		}
 	}
@@ -538,10 +429,9 @@ func (d *searchDocument) addBookmarks(body string, firstLineNo int) {
 		return
 	}
 
-	// The own source lines of the array are blanked, and not skipped,
-	// because addLines already drops a blank line. The prose around it is
-	// thus indexed with its real line numbers, and none of the escaped JSON
-	// is indexed.
+	// Replace the lines of the array with empty lines, and do not remove
+	// them. addLines drops an empty line, thus the prose around the array
+	// keeps its real line numbers.
 	lines := strings.Split(body, "\n")
 	for i := range lines {
 		if no := firstLineNo + i; no >= block.firstLine && no <= block.lastLine {
@@ -568,12 +458,10 @@ func (d *searchDocument) addBookmarks(body string, firstLineNo int) {
 			label: label,
 		})
 
-		// ONE line for each entry, and not one for each field. The reason is
-		// mechanical. scoreDocument keys its per-line hits by line number.
-		// Two lines that share one would thus merge, and a span from the url
-		// would land on the text of the title. An entry is one searchable
-		// thing anyway, and snippetFor windows the join down to the 160
-		// runes or so around whatever matched.
+		// Make ONE line for each entry, and not one for each field.
+		// scoreDocument keys its hits by line number. Two lines with one
+		// number would merge, and a span of the URL would mark the title.
+		// snippetFor cuts the line to about 160 runes around the match.
 		var parts []string
 		for _, p := range []string{e.Title, e.URL, strings.Join(e.Tags, ", "), strings.Join(e.Notes, "; ")} {
 			if p = strings.TrimSpace(p); p != "" {

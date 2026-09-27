@@ -4,22 +4,17 @@ package backend
 // Search: the query layer
 // ----------------------------------------------------------------------
 //
-// This file turns a query string into results. It contains TWO searches that
-// share one matcher (search_match.go):
+// This file changes a query into results. It holds TWO searches that share
+// the matcher of search_match.go:
 //
-//   - PAGE search (scope=page) - the open note only. Reads that one file,
-//     scores it, returns, and keeps nothing. No index, no configuration, no
-//     gate: there is no standing cost to opt out of, so it is always
-//     available.
-//   - GLOBAL search (scope=all) - everything, through the index
-//     (search_index.go). It needs search_enabled in the configuration.
+//	PAGE search (scope=page)   The open note alone. It reads one file,
+//	                           scores it, and keeps nothing.
+//	GLOBAL search (scope=all)  Each file, through the index of
+//	                           search_index.go. It needs search_enabled.
 //
-// Same matcher, same scoring, same response shape for both, so a result means
-// the same thing whichever scope produced it - only the haystack differs.
-//
-// Nothing here holds state between requests. A page-scope query allocates a
-// document, scores it and drops it. On a 2.5 KB note that is microseconds
-// and a few kilobytes of garbage.
+// Both use the same scoring and the same response shape, thus a result means
+// the same thing in each scope. Page search has no setting, because it has no
+// cost when nobody uses it.
 
 import (
 	"bytes"
@@ -36,29 +31,26 @@ import (
 	"unicode/utf8"
 )
 
-// Limits and defaults for one request.
+// These are the limits and defaults of one request.
 const (
 	searchDefaultSnippets = 3
 	searchMaxSnippets     = 10
 	searchDefaultLimit    = 50
 	searchMaxLimit        = 200
 
-	// maxIndexFileBytes caps how much of any one file is searched. That is
-	// the first 500 KiB, cut at a line boundary. A larger file is NOT
-	// skipped. It is searched up to the cap and flagged truncated. The
-	// answer is thus "found nothing in the part I looked at", and not
-	// silence.
+	// maxIndexFileBytes limits the search of one file to the first 500 KiB,
+	// cut at a line end. The search does NOT skip a larger file. It marks the
+	// result as truncated.
 	maxIndexFileBytes = 500 << 10
 
-	// snippetMaxRunes / snippetLead shape a snippet around its first hit.
+	// snippetMaxRunes and snippetLead shape a snippet around its first hit.
 	snippetMaxRunes = 160
 	snippetLead     = 60
 )
 
-// Field weights, x10 so the arithmetic stays in integers and is exactly
-// reproducible (see the worked examples in the plan). A title hit is worth
-// three content hits; the ordering these produce IS the feature, so they are
-// named here rather than inlined.
+// The field weights are times 10, thus the arithmetic uses integers. A title
+// hit is worth three content hits. The tests of this file hold the exact
+// numbers.
 const (
 	weightTitle   = 30
 	weightTags    = 25
@@ -67,7 +59,8 @@ const (
 	weightContent = 10
 )
 
-// Kind weights, x100. A note beats a config blob at equal score.
+// The kind weights are times 100. A note wins against a JSON file at an equal
+// score.
 var kindWeight = map[string]int{
 	"md":        100,
 	"bookmarks": 100,
@@ -76,37 +69,30 @@ var kindWeight = map[string]int{
 	"js":        85,
 }
 
-// ----------------------------------------------------------------------
-// The query
-// ----------------------------------------------------------------------
-
-// queryTerm is one whitespace-separated term, folded, with its character mask
-// precomputed and its optional field restriction resolved.
+// queryTerm is one folded term of the query, with its character mask and its
+// field.
 type queryTerm struct {
 	runes []rune
 	mask  uint64
 	field string // "" = any field; otherwise "title", "tag", "path"
 
-	// raw is the term as the user typed it, with only the field prefix
-	// removed. Matching never reads it, because runes is for that.
-	// Highlighting does read it, and it has to be the unfolded text. The
-	// client marks LITERAL occurrences, and fold maps 'ё' to 'е'. To
-	// highlight the folded form of "ёж" would thus mark nothing on a page
-	// that says "ёж".
+	// raw is the term as the user typed it, without the field prefix. Only
+	// the highlight reads it. The client marks the LITERAL text, and the fold
+	// maps 'ё' to 'е'. The folded "еж" would thus mark nothing on a page that
+	// says "ёж".
 	raw string
 }
 
-// parsedQuery is a query string after parsing: the terms that must ALL match,
-// plus any kind filter pulled out of a "kind:" prefix.
+// parsedQuery holds the terms that must ALL match, and the kind filter of a
+// "kind:" prefix.
 type parsedQuery struct {
 	terms []queryTerm
 	kinds []string
 }
 
-// parseQuery splits a raw query into terms and pulls out the field prefixes.
-// "tag:hydro title:manual json" restricts the first two terms and leaves the
-// third free. An unknown prefix is NOT treated as a prefix - "http://x" must
-// stay a search for "http://x", not a search of a field called "http".
+// parseQuery splits a raw query into terms and reads the field prefixes.
+// "tag:hydro title:manual json" limits the first two terms. An unknown prefix
+// is NOT a prefix, thus "http://x" stays a search for "http://x".
 func parseQuery(q string) parsedQuery {
 	var out parsedQuery
 	for _, f := range strings.Fields(q) {
@@ -136,25 +122,16 @@ func parseQuery(q string) parsedQuery {
 	return out
 }
 
-// highlightMinRunes mirrors OMN_HL_MIN in omn-go-core.js: a one-character term
-// marks half the page, which is noise rather than an answer. Both ends drop it,
-// so a link never carries a term the client would refuse to use.
+// highlightMinRunes is the same as OMN_HL_MIN in omn-go-core.js. A term of
+// one character marks half the page, thus both ends drop it.
 const highlightMinRunes = 2
 
-// highlightTerms is what a result should mark once it is opened: the query's
-// terms as typed, field prefixes removed, deduplicated case-insensitively.
-//
-// Note what this is NOT. It is not the spans that the matcher produced.
-// Those are per line, they already travel with each snippet, and they are
-// offsets into the SOURCE.
-//
-// This is literal text to look for in the RENDERED page, and that is a
-// different document. The source line "**fetch** the json" renders as "fetch
-// the json", and no span of the first survives into the second.
-//
-// A term that matched fuzzily alone is not found, and nothing is marked.
-// That is the honest outcome, because the result list has already shown
-// which lines matched. It is also why this returns text and not positions.
+// highlightTerms answers the terms that an opened result marks: the terms as
+// typed, without field prefixes, with no duplicate. These are not the spans
+// of the matcher. A span is an offset in the SOURCE, and the page shows the
+// RENDERED text. "**fetch** the json" renders as "fetch the json". A term
+// that only matched fuzzily finds nothing, and the page marks nothing. The
+// result list already showed the matching lines.
 func highlightTerms(q parsedQuery) []string {
 	var out []string
 	seen := make(map[string]bool, len(q.terms))
@@ -172,21 +149,17 @@ func highlightTerms(q parsedQuery) []string {
 	return out
 }
 
-// highlightURL hangs those terms off a document URL: /Note.html?hl=fetch&hl=json.
-//
-// Repeated parameters rather than one comma-joined value, because a term may
-// itself contain a comma and re-splitting it would be guesswork. The client
-// strips them from the address bar once applied, so what a reader ends up
-// copying or bookmarking is the plain URL.
+// highlightURL adds the terms to a document URL: /Note.html?hl=fetch&hl=json.
+// Each term gets its own parameter, because a term can hold a comma. The
+// client removes the parameters from the address bar, thus a copied URL is
+// plain.
 func highlightURL(base string, terms []string) string {
 	if base == "" || len(terms) == 0 {
 		return base
 	}
-	// A result URL may already carry a section anchor (S9), and a query
-	// string goes BEFORE the fragment. An example is
-	// "/Bookmarks.html?hl=cats#2026-06-15-200000". A blind append would put
-	// "?hl=" inside the fragment, where it is one more part of an id that
-	// matches nothing.
+	// A result URL can already hold a section anchor, and the query string
+	// goes BEFORE the fragment: "/Bookmarks.html?hl=cats#2026-06-15-200000".
+	// Behind the '#', "?hl=" would become part of the id.
 	frag := ""
 	if i := strings.IndexByte(base, '#'); i >= 0 {
 		base, frag = base[:i], base[i:]
@@ -207,25 +180,18 @@ func highlightURL(base string, terms []string) string {
 	return b.String()
 }
 
-// snippetURL builds the link for ONE matching line, because the results page
-// needs one for each snippet. The link carries the document and the query
-// terms as ?hl=. It also carries the text of this line as ?hlt=, and the
-// section of this line as the fragment.
+// snippetURL makes the link for ONE matching line. The link holds the query
+// terms as ?hl=, the text of the line as ?hlt=, and the section of the line
+// as the fragment.
 //
-// ?hlt= is what makes the link point at THIS line. The line NUMBER cannot do
-// it. The number indexes the markdown SOURCE, and the page shows compiled
-// HTML. There a <script> block is absent, the URL of a link is gone, and one
-// paragraph can be several source lines. "The Nth line is the Nth mark" is
-// thus wrong by an amount that varies for each note.
+// ?hlt= points the link at THIS line. The line number cannot do that. It
+// counts lines of the markdown SOURCE, and the page shows compiled HTML
+// without the <script> blocks and the link URLs. omnMarkNear in
+// omn-go-core.js thus finds the TEXT. The snippet has at most snippetMaxRunes
+// runes, thus the URL stays short.
 //
-// The client matches the TEXT instead, in omnMarkNear in omn-go-core.js. The
-// text is thus what the link carries. The snippet is already capped at
-// snippetMaxRunes, thus the URL stays short.
-//
-// The fragment is THIS line's section, not the document's. base ends in the
-// BEST hit's anchor (see buildMatches), and that is a different line. A
-// section with no predictable id contributes no fragment, and the client then
-// falls back to the first mark it can use.
+// The fragment is the section of THIS line. base ends with the anchor of the
+// BEST hit, and that is another line. A section with no id gives no fragment.
 func snippetURL(base string, terms []string, m searchMatch) string {
 	if i := strings.IndexByte(base, '#'); i >= 0 {
 		base = base[:i]
@@ -235,9 +201,8 @@ func snippetURL(base string, terms []string, m searchMatch) string {
 		frag = "#" + m.Section.ID
 	}
 	out := highlightURL(base, terms)
-	// A hit inside a <script> block is indexed but never rendered, so there is
-	// no word on the page to go to. Such a line keeps its terms and its
-	// section and asks for nothing more.
+	// The page does not show a hit inside a <script> block. Such a line keeps
+	// its terms and its section, and nothing more.
 	if m.Text == "" || m.Context == "script" || len(terms) == 0 {
 		return out + frag
 	}
@@ -259,22 +224,16 @@ func normalizeQueryField(k string) string {
 	}
 }
 
-// ----------------------------------------------------------------------
-// The document being searched
-// ----------------------------------------------------------------------
-
-// docField is one short, weighted piece of metadata: a title, a tag, the path.
+// docField is one short weighted field: a title, a tag or the path.
 type docField struct {
 	name   string
 	text   []rune // folded
 	weight int    // x10, see the weight constants
 }
 
-// docLine is one line of content. It holds the number of the line in the
-// file AS STORED. It holds the raw text, which snippets need, thus the
-// original case survives. It holds the folded form that the matcher works
-// on, and the character mask that lets most lines be rejected without a look
-// at them.
+// docLine is one content line. It holds the line number in the file, the raw
+// text for the snippet, the folded text for the matcher, and the mask. The
+// mask rejects most lines with no look at the text.
 type docLine struct {
 	no      int
 	raw     string
@@ -283,9 +242,8 @@ type docLine struct {
 	context string // "", "code" or "script" - see classifyContexts
 }
 
-// searchDocument is one searchable thing. Page search builds exactly one of
-// these for each request, and it throws it away. The index builds many and
-// keeps a reduced form of them.
+// searchDocument is one searchable thing. Page search makes one for each
+// request. The index makes one for each file and keeps a reduced form.
 type searchDocument struct {
 	Path      string // storage-relative, slash form ("md/Test/OMN-Go/Fetch.md")
 	Kind      string
@@ -299,16 +257,11 @@ type searchDocument struct {
 	truncated bool
 }
 
-// loadPageDocument reads and parses the single file a page-scope query targets.
-//
-// name is whatever the frontend was looking at, such as "Note", "Note.html",
-// "Note.md" or "js/thing.js". It is resolved through resolvePageName, which
-// is the one place that decision lives.
-//
-// It answers nil, and no error, when the target does not exist or resolves
-// outside the storage directory. A query for something that is not there is
-// an empty result. It is not a failure, and it is never a way to probe the
-// filesystem.
+// loadPageDocument reads the one file of a page query. name is what the page
+// shows, for example "Note", "Note.html", "Note.md" or "js/thing.js".
+// resolvePageName decides what it means. The function answers nil, and no
+// error, for a file that does not exist or that is outside the storage
+// directory. A query thus cannot probe the file system.
 func (a *App) loadPageDocument(name string) (*searchDocument, error) {
 	if name == "" {
 		return nil, nil
@@ -341,11 +294,9 @@ func (a *App) loadPageDocument(name string) (*searchDocument, error) {
 	return newAssetDocument(rel, string(data), truncated), nil
 }
 
-// newMarkdownDocument builds the searchable form of a note. Two callers
-// share it. Page search builds one for each request and drops it. The index
-// builds one for each file, keeps a reduced form, and rebuilds this one on
-// demand when a query reaches the document. Both thus see identical fields,
-// identical line numbering and identical context labels.
+// newMarkdownDocument makes the search form of a note. Page search and the
+// index both call it, thus both see the same fields, the same line numbers
+// and the same context labels.
 func newMarkdownDocument(baseName, content string, truncated bool) *searchDocument {
 	doc := &searchDocument{
 		Path:      "md/" + baseName + ".md",
@@ -354,9 +305,8 @@ func newMarkdownDocument(baseName, content string, truncated bool) *searchDocume
 		URL:       "/" + baseName + ".html",
 		truncated: truncated,
 	}
-	// Decided here rather than by the caller so PAGE search agrees with the
-	// index about what Bookmarks.html is. The index sets Kind again from the
-	// config-driven walk, to the same value.
+	// Page search and the index must agree that Bookmarks.html is a bookmarks
+	// document, thus the decision is here.
 	if baseName == bookmarksNote {
 		doc.Kind = SearchKindBookmarks
 	}
@@ -364,8 +314,9 @@ func newMarkdownDocument(baseName, content string, truncated bool) *searchDocume
 	return doc
 }
 
-// newAssetDocument is the same for a file with no header block: a script, a
-// JSON blob. rel is storage-relative below html/ ("js/mine.js").
+// newAssetDocument is the same for a file with no header block, for example a
+// script or a JSON file. rel is the path below html/, for example
+// "js/mine.js".
 func newAssetDocument(rel, content string, truncated bool) *searchDocument {
 	doc := &searchDocument{
 		Path:      "html/" + rel,
@@ -378,10 +329,10 @@ func newAssetDocument(rel, content string, truncated bool) *searchDocument {
 	return doc
 }
 
-// parseMarkdown fills a document from note source. The header block becomes
-// weighted fields, and only the BODY becomes content lines. A "Category:
-// Notes" header thus never shows up as a content hit. Line numbers stay true
-// to the file, header included, because that is what the reader sees.
+// parseMarkdown fills a document from the source of a note. The header block
+// gives weighted fields, and only the BODY gives content lines. A header
+// "Category: Notes" thus never gives a content hit. The line numbers count
+// the header too, as the file shows them.
 func (d *searchDocument) parseMarkdown(content string) {
 	hb := parseHeaderBlock(content)
 	title, tags := extractTitleTags(content)
@@ -414,7 +365,7 @@ func (d *searchDocument) parseMarkdown(content string) {
 		}
 	}
 
-	// Body line numbers continue from the header rather than restarting.
+	// The body line numbers continue after the header.
 	firstBodyLine := 1 + strings.Count(content[:hb.BodyOffset], "\n")
 
 	if d.Kind == SearchKindBookmarks {
@@ -425,9 +376,8 @@ func (d *searchDocument) parseMarkdown(content string) {
 	d.sections = sectionsFromHeadings(raw, contexts, firstBodyLine)
 }
 
-// parsePlain fills a document from a file with no header block, such as a
-// script or a JSON blob. Every line is content, and the path is the only
-// field.
+// parsePlain fills a document from a file with no header block. Each line is
+// content, and the path is the only field.
 func (d *searchDocument) parsePlain(content string) {
 	d.Title = path.Base(d.Name)
 	d.fields = append(d.fields,
@@ -435,9 +385,9 @@ func (d *searchDocument) parsePlain(content string) {
 	d.addLines(content, 1)
 }
 
-// addLines answers the split lines and their context labels. A caller that
-// also has to walk the body thus does not split and classify it a second
-// time. The heading sectionizer is such a caller.
+// addLines answers the split lines and their context labels.
+// sectionsFromHeadings reads them, and it does not split the body a second
+// time.
 func (d *searchDocument) addLines(content string, firstLineNo int) ([]string, []string) {
 	raw := strings.Split(content, "\n")
 	contexts := classifyContexts(raw)
@@ -457,24 +407,15 @@ func (d *searchDocument) addLines(content string, firstLineNo int) ([]string, []
 	return raw, contexts
 }
 
-// classifyContexts labels every line prose, "code" or "script".
+// classifyContexts marks each line as prose, "code" or "script". A hit in the
+// JavaScript of a note is a different answer from a hit in prose, and the
+// result list shows the difference. The mark does not lower the score,
+// because a person can search FOR code.
 //
-// The body of a note legitimately contains JavaScript. A hit inside it is a
-// different kind of answer from a hit in prose. It is useful, and it is not
-// the same, and a result list that presents them identically reads as noise.
-//
-// A mark is all this does. There is no score penalty. To down-rank code
-// would hide the answer from anyone who searches FOR code. That is a normal
-// thing to want in a notes app whose notes run scripts.
-//
-// Fence state wins over tag state, deliberately: a "<script>" MENTIONED inside
-// a fenced example must not mark the rest of the file as script. That is the
-// same failure the combined-scan comment in markdown.go records for the
-// renderer.
-//
-// Line granularity means an inline `code` span is not marked - only fenced
-// blocks, <pre> and <script>. Marking part of a line would need a span-level
-// model that nothing in the UI can show today.
+// The fence state wins over the tag state. A "<script>" inside a fenced
+// example must not mark the rest of the file. markdown.go has the same rule
+// for the renderer. The marks are for each line, thus an inline `code` span
+// gets no mark.
 func classifyContexts(lines []string) []string {
 	out := make([]string, len(lines))
 	inFence, inScript, inPre := false, false, false
@@ -523,11 +464,7 @@ func classifyContexts(lines []string) []string {
 	return out
 }
 
-// ----------------------------------------------------------------------
-// Scoring a document
-// ----------------------------------------------------------------------
-
-// lineHit is one content line that matched, with every term's spans merged.
+// lineHit is one matching content line, with the spans of each term merged.
 type lineHit struct {
 	line  *docLine
 	score int
@@ -535,33 +472,24 @@ type lineHit struct {
 	spans []span
 }
 
-// scoreDocument applies AND semantics: every term must hit somewhere in the
-// document, or the document is not a result at all. Within a term, the best
-// (tier, weighted score) across all fields and lines wins - see betterMatch,
-// which is why tiers are compared before numbers.
+// scoreDocument applies AND: each term must hit the document, or the document
+// is not a result. For each term, the best tier and weighted score of all
+// fields and lines wins. See betterMatch.
 //
-// THE PHRASE RUNG. A document that holds the whole query in order and next
-// to itself takes tierPhrase, above every document that does not, whatever
-// the sums say. The reason is arithmetic. The score of a document is the SUM
-// over the terms, and a field carries a weight. Five query words loose in one
-// title thus add five title scores. Measured over a corpus built for the
-// question: a title of loose words scored 2001. The note that held the
-// sentence in a body line scored 718. A bonus large enough to close that gap
-// is too large for the next query, and it needs a new number to tune. The
-// ladder already ranks by quality before quantity, thus the answer is a rung.
+// THE PHRASE RUNG. A document that holds the whole query, in order and side
+// by side, gets tierPhrase. It then ranks above each other document, whatever
+// the sums say. The score of a document is a SUM over the terms, and a field
+// has a weight. Five loose query words in one title scored 2001, and the note
+// with the sentence scored 718. A bonus that closes that gap is too large for
+// the next query. TestPhraseTierBeatsAHigherScore holds the rule.
 //
-// The check is nearly free, and the shape of it is the reason. The loop below
-// already reads each line for each term. It thus also counts how many DISTINCT
-// terms hit a line, and it does the same for a field. A line that did not
-// take every term cannot hold the query word for word. The substring test
-// then runs on the few candidates, and usually on none. Measured against the
-// same loop with the count off: 0.94 to 1.05 of the time, which is the
-// noise of the measure. A query of one term allocates no counter at all.
+// The check costs almost nothing. The loop counts the DISTINCT terms that hit
+// each line and each field. Only a line with each term can hold the phrase,
+// thus the substring test runs on few lines. The measured time was 0.94 to
+// 1.05 of the loop without the count.
 //
-// The rule is deliberately narrow. The words must be next to each other,
-// with one space between each pair, in the folded text. A comma between two
-// words is not a phrase. A query that names a field is never a phrase,
-// because "title:a b" has no natural reading as one.
+// The rule is narrow. The words must be side by side, with one space between
+// them, in the folded text. A query with a field prefix is never a phrase.
 func scoreDocument(q parsedQuery, d *searchDocument) (int, matchTier, []lineHit, bool) {
 	if len(q.terms) == 0 {
 		return 0, tierNone, nil, false
@@ -571,8 +499,8 @@ func scoreDocument(q parsedQuery, d *searchDocument) (int, matchTier, []lineHit,
 	worst := tierSubstring // the document's tier is its WEAKEST term's tier
 	hits := map[int]*lineHit{}
 
-	// The phrase counters. A slice and not a map: a map hashes once for
-	// each hit, and that alone costs a third of the scoring time.
+	// The phrase counters are a slice, because a map hash for each hit costs
+	// a third of the scoring time.
 	phraseWanted := len(q.terms) > 1
 	for _, term := range q.terms {
 		if term.field != "" {
@@ -629,13 +557,11 @@ func scoreDocument(q parsedQuery, d *searchDocument) (int, matchTier, []lineHit,
 					hits[ln.no] = h
 				}
 				h.spans = append(h.spans, spans...)
-				// SUM across distinct terms, and do not keep the best one. A
-				// line that carries every term of the query is the line worth
-				// showing. That holds also when some other line matches a
-				// single term more strongly. "await fetch('/json/test.json')"
-				// beats a heading that only says "fetch". The sum is what
-				// expresses that, because each term contributes to a line at
-				// most one time.
+				// SUM the distinct terms of a line, and do not keep the best
+				// one. The line with each term of the query is the line to
+				// show, also when another line matches one term better.
+				// "await fetch('/json/test.json')" wins against a heading
+				// "fetch". Each term adds to a line one time.
 				h.score += weighted
 				if tier > h.tier {
 					h.tier = tier // a line is only as good as its weakest term
@@ -644,11 +570,9 @@ func scoreDocument(q parsedQuery, d *searchDocument) (int, matchTier, []lineHit,
 		}
 
 		if bestTier == tierNone && term.field == "" {
-			// Nothing matched verbatim or as a subsequence. Try the typo
-			// rung before the document is given up. That rung finds "fetch"
-			// when the query said "fecth". It is the only one that cannot
-			// work from the character mask, thus it runs last, and only when
-			// everything cheaper has failed.
+			// Nothing matched as a substring or a subsequence. Try the typo
+			// rung before the code drops the document. It finds "fetch" for
+			// "fecth". It cannot use the mask, thus it runs last.
 			if s, spans, ok := scoreTypoInDocument(term.runes, d); ok {
 				bestScore, bestTier = s.score, tierTypo
 				for _, lh := range spans {
@@ -674,8 +598,8 @@ func scoreDocument(q parsedQuery, d *searchDocument) (int, matchTier, []lineHit,
 		total += bestScore
 	}
 
-	// The phrase check. Only a field or a line that took EVERY term can
-	// hold the query word for word, thus nothing else is read again.
+	// Check the phrase now. Only a field or a line that took EACH term can
+	// hold it, thus the check reads nothing else.
 	if phraseWanted {
 		full := uint16(len(q.terms))
 		want := queryPhrase(q)
@@ -694,9 +618,8 @@ func scoreDocument(q parsedQuery, d *searchDocument) (int, matchTier, []lineHit,
 			}
 			if _, _, ok := scoreSubstring(want, d.lines[i].fold); ok {
 				found = true
-				// The line itself takes the rung, thus the panel shows
-				// the line the reader typed before every other line of
-				// the same document.
+				// The line takes the rung too, thus the panel shows the line
+				// that the reader typed first.
 				if h := hits[d.lines[i].no]; h != nil {
 					h.tier = tierPhrase
 				}
@@ -722,8 +645,8 @@ func scoreDocument(q parsedQuery, d *searchDocument) (int, matchTier, []lineHit,
 	return total, worst, ordered, true
 }
 
-// queryPhrase joins the terms with one space. The terms are folded, thus the
-// result compares against the folded text of a field or of a line.
+// queryPhrase joins the folded terms with one space. The result compares with
+// the folded text of a field or a line.
 func queryPhrase(q parsedQuery) []rune {
 	out := make([]rune, 0, 32)
 	for i, t := range q.terms {
@@ -735,25 +658,20 @@ func queryPhrase(q parsedQuery) []rune {
 	return out
 }
 
-// typoResult is the best token match found for a term in a document.
+// typoResult is the best token match of a term in a document.
 type typoResult struct {
 	score int
 	token string
 }
 
-// scoreTypoInDocument runs the edit-distance rung over the document's own
-// tokens.
+// scoreTypoInDocument runs the edit-distance rung over the tokens of the
+// document. It makes the tokens here, because a token dictionary in the index
+// grows with the vocabulary. See the banner of search_index.go. The trigram
+// signature first narrows the candidates to few documents.
 //
-// Tokens are built here, and they are not kept in the index. To keep them
-// was the one structure that scaled with VOCABULARY rather than with text.
-// It measured about 44k unique tokens for each MB, which means map entries
-// in the millions for a large collection. The index narrows to a handful of
-// candidate documents by trigram signature, see search_index.go. This then
-// pays the tokenisation cost for those alone.
-//
-// Spans come from a plain substring scan for the matched TOKEN, on the lines
-// where it appears. The token is what is really in the text. To highlight it
-// is thus truthful, and to highlight the misspelled query would not be.
+// The spans come from a substring scan for the matched TOKEN. The token is
+// the real text, thus the highlight is correct. A highlight of the misspelled
+// query would not be.
 func scoreTypoInDocument(term []rune, d *searchDocument) (typoResult, []lineHit, bool) {
 	if typoBudget(len(term)) == 0 {
 		return typoResult{}, nil, false
@@ -801,8 +719,8 @@ func scoreTypoInDocument(term []rune, d *searchDocument) (typoResult, []lineHit,
 	return best, hits, true
 }
 
-// sortLineHits orders by (tier, score) descending, then by line number so the
-// order is stable and reads top-to-bottom within a tie.
+// sortLineHits orders by tier and score, and then by line number. The order
+// is thus stable, and a tie reads from top to bottom.
 func sortLineHits(hits []lineHit) {
 	for i := 1; i < len(hits); i++ {
 		for j := i; j > 0; j-- {
@@ -817,17 +735,11 @@ func sortLineHits(hits []lineHit) {
 	}
 }
 
-// ----------------------------------------------------------------------
-// Snippets
-// ----------------------------------------------------------------------
-
-// snippetFor trims a line down to something that a result row can show, and
-// it shifts the spans to match. The rules, in order. Strip the surrounding
-// whitespace. Use what is left when it fits. Otherwise take a window around
-// the first hit, and mark it with ellipses.
-//
-// A span that falls outside the window is dropped, and not clamped. A
-// highlight that does not cover its match is worse than none.
+// snippetFor cuts a line to fit a result row, and it moves the spans to
+// match. It removes the white space at each end. When the rest is too long,
+// it takes a window around the first hit and adds an ellipsis. It drops a
+// span outside the window, because a span that does not cover its match is
+// worse than none.
 func snippetFor(raw string, spans []span) (string, []span) {
 	runes := []rune(raw)
 
@@ -887,28 +799,20 @@ func isSpace(r rune) bool {
 	return r == ' ' || r == '\t' || r == '\r' || r == '\n' || r == '\v' || r == '\f'
 }
 
-// ----------------------------------------------------------------------
-// Gating
-// ----------------------------------------------------------------------
-//
-// Only GLOBAL search is gated. Page search has no setting, because it has no
-// standing cost. A switch whose "off" position saves nothing is one more way
-// to break the feature by accident.
+// Only GLOBAL search has a setting. Page search has no cost when nobody uses
+// it. A switch that saves nothing only gives one more way to break the
+// feature.
 
-// globalSearchAvailable is the one answer to "can this server search
-// everything right now": the user asked for it AND there is an index to ask.
-// Injected into every page as OMN_SEARCH_GLOBAL (see injectRuntimeVars), so
-// the dialog never offers a scope that would fail.
+// globalSearchAvailable answers "can this server search each file now": the
+// user asked for it AND an index exists. injectRuntimeVars gives it to each
+// page as OMN_SEARCH_GLOBAL, thus the dialog never offers a scope that fails.
 func (a *App) globalSearchAvailable() bool {
 	return a.GetConfig().SearchEnabled && a.searchIndexBuilt()
 }
 
-// defaultSearchScope is the scope a request without an explicit one gets.
-//
-// It follows the configured preference, EXCEPT that it falls back to page
-// scope whenever global search cannot answer. An unscoped query must not
-// default to a scope that can only fail. That would be a strange way to
-// treat a caller who expressed no preference at all.
+// defaultSearchScope is the scope of a request without one. It follows the
+// setting, but it falls back to page scope when global search cannot answer.
+// A request with no preference must not get a scope that fails.
 func (a *App) defaultSearchScope() string {
 	if a.globalSearchAvailable() {
 		return normalizeSearchScope(a.GetConfig().SearchScope)
@@ -916,13 +820,8 @@ func (a *App) defaultSearchScope() string {
 	return SearchScopePage
 }
 
-// ----------------------------------------------------------------------
-// The HTTP surface
-// ----------------------------------------------------------------------
-
-// searchMatch is one snippet in the response. Spans are [start, len] pairs in
-// RUNE offsets into Text - see the matcher's note on why byte offsets are a
-// way to render mojibake.
+// searchMatch is one snippet of the response. Spans are [start, len] pairs in
+// RUNE offsets into Text. See the banner of search_match.go.
 type searchMatch struct {
 	Line    int            `json:"line"`
 	Context string         `json:"context,omitempty"`
@@ -931,14 +830,11 @@ type searchMatch struct {
 	Spans   [][2]int       `json:"spans"`
 }
 
-// searchSection names the part of a document a hit fell in: a bookmark entry,
-// a timestamped quick note, a heading's section. Absent when the document is
-// flat, and when the hit is in a note's preamble above its first heading.
-//
-// ID is the anchor in the compiled HTML. It may be empty while Label is not.
-// Such a section can be NAMED but not LINKED, and that is what a heading
-// whose id could not be predicted produces. See search_sections.go. The UI
-// shows the label either way, and it makes a link only when there is an id.
+// searchSection names the part of a document that a hit is in: a bookmark
+// entry, a quick note, or the section of a heading. It is absent for a flat
+// document, and for a hit above the first heading. ID is the anchor in the
+// compiled HTML, and it can be empty while Label is not. The UI always shows
+// the label, and it makes a link only for an id. See search_sections.go.
 type searchSection struct {
 	ID    string `json:"id,omitempty"`
 	Label string `json:"label,omitempty"`
@@ -966,19 +862,16 @@ type searchResponse struct {
 	Status    string         `json:"status,omitempty"`
 	Error     string         `json:"error,omitempty"`
 
-	// Highlight is the terms of the query as typed, for the client to mark
-	// once a result is opened. It sits here and not on each result, because
-	// it is a property of the QUESTION and not of any one answer. Every
-	// result gets the same terms, and a repeat for each result is only bytes.
+	// Highlight holds the terms of the query as typed. The client marks them
+	// in an opened result. The terms belong to the QUESTION, thus they are
+	// here one time and not on each result.
 	Highlight []string `json:"highlight,omitempty"`
 }
 
-// handleSearch answers GET /api/search.
-//
-// Registered WITHOUT authMiddleware, which matches /api/note and every page
-// and static route. See doc/API.md. Search aggregates nothing that a LAN
-// guest could not already fetch file by file. To gate it would thus buy no
-// confidentiality, and it would break the guest experience.
+// handleSearch answers GET /api/search. It has NO authMiddleware, the same as
+// /api/note and each page route. See doc/API.md. A search shows nothing that
+// a LAN guest cannot fetch file by file. A login would thus protect nothing,
+// and it would stop the guest.
 func (a *App) handleSearch(w http.ResponseWriter, r *http.Request) {
 	started := time.Now()
 	qs := r.URL.Query()
@@ -999,8 +892,8 @@ func (a *App) handleSearch(w http.ResponseWriter, r *http.Request) {
 		a.searchPage(&resp, qs)
 	case SearchScopeAll:
 		if !a.GetConfig().SearchEnabled {
-			// Not an empty result set: "nothing matched" is a claim about the
-			// notes, and this is a claim about the settings.
+			// This is not an empty result. "Nothing matched" is about the
+			// notes, and this answer is about the settings.
 			resp.Status = "disabled"
 			resp.Error = "global search is off (Settings -> Search)"
 			a.writeSearchJSON(w, http.StatusServiceUnavailable, &resp, started)
@@ -1024,7 +917,7 @@ func (a *App) handleSearch(w http.ResponseWriter, r *http.Request) {
 	a.writeSearchJSON(w, http.StatusOK, &resp, started)
 }
 
-// searchPage fills resp from the single document named by "on".
+// searchPage fills resp from the one document that "on" names.
 func (a *App) searchPage(resp *searchResponse, qs map[string][]string) {
 	get := func(k string) string {
 		if v, ok := qs[k]; ok && len(v) > 0 {
@@ -1046,12 +939,10 @@ func (a *App) searchPage(resp *searchResponse, qs map[string][]string) {
 	if doc == nil {
 		return // missing, outside storage, or binary: nothing to say
 	}
-	// The own kind filters of the query apply. Config.SearchKinds
-	// deliberately does NOT. That setting says what the global INDEX covers,
-	// which is what it costs to hold in memory. It has nothing to say about
-	// a file that the user is looking at right now. To let it reach here
-	// would make page search stop working on a note, the moment someone
-	// unticked "Notes" for the index.
+	// The kind filters of the query apply. Config.SearchKinds does NOT apply.
+	// That setting tells what the INDEX holds in memory. It says nothing
+	// about the file on the screen. Page search must work on a note also when
+	// the index does not cover notes.
 	if !kindAllowed(doc.Kind, splitCSV(get("kind")), q.kinds) {
 		return
 	}
@@ -1069,39 +960,27 @@ func (a *App) searchPage(resp *searchResponse, qs map[string][]string) {
 		Tags: doc.Tags, Score: score, URL: doc.URL, Truncated: doc.truncated,
 	}
 	res.Matches, _ = buildMatches(doc, hits)
-	// No anchor in page scope: the reader is already on the page, and the
-	// dialog highlights in place rather than navigating.
+	// Page scope gives no anchor. The reader is already on the page, and the
+	// dialog marks the text there.
 
 	resp.Results = append(resp.Results, res)
 	resp.Total = 1
 	resp.Truncated = doc.truncated
 }
 
-// cutSnippets gives back the lines a result should show: the first limit
-// of them, less any line that says nothing about the query.
-//
-// A long note answers a common query on hundreds of lines, and about eight
-// of them say anything. The panel asks for ten, thus the last rows carried
-// the lines that matched the article "a" and nothing else.
-//
-// Measured on the User Manual with the query "also makes a local
-// connection". 564 lines matched. Ranks 1 to 8 carried two to five query
-// words, and ranks 9 and 10 carried the letter "a" alone.
+// cutSnippets answers the lines that a result shows: the first limit lines,
+// less each line that carries no word of the query. A long note can match a
+// common query on hundreds of lines. The last rows of the panel then showed
+// lines with only the article "a".
 //
 // THE ORDER OF THE TWO STEPS IS THE RULE. The window comes first, and the
-// drop comes second. A drop before the window would take a weak line away
-// and let a later line move UP. The line that moves up comes from a worse
-// rung. That arrangement put two subsequence lines of the User Manual into
-// the first ten, and each one matched the query as scattered letters.
-// With the window first, a line can only leave.
+// drop second. A drop first would let a weaker line from a worse rung move UP
+// into the window. With the window first, a line can only leave.
+// TestCutSnippetsNeverPromotes holds the rule.
 //
-// A line leaves when the query has several terms and every term that hits
-// the line is one rune. Such a line carries no word of the query. A term of
-// one Han, Hiragana, Katakana or Hangul rune is a whole word, thus it never
-// counts as short.
-//
-// A term that is common in this collection does not count either. See
-// commonWords. doc/decisions/0009-show-only-the-search-rows-that-carry-a-word-of-the-query.md
+// A line leaves when the query has several terms and each term that hits the
+// line is short or common. See isShortTerm and commonWords.
+// doc/decisions/0009-show-only-the-search-rows-that-carry-a-word-of-the-query.md
 // gives the measurements and the rejected alternatives.
 func cutSnippets(q parsedQuery, hits []lineHit, limit int, common map[string]bool) []lineHit {
 	if len(hits) > limit {
@@ -1128,24 +1007,19 @@ func cutSnippets(q parsedQuery, hits []lineHit, limit int, common map[string]boo
 			kept = append(kept, h)
 		}
 	}
-	// A document that matched has something to say. When no line of the
-	// window carries a word of its own, the window is the answer.
+	// A matching document has something to say. When no line of the window
+	// carries a word, the window is the answer.
 	if len(kept) == 0 {
 		return hits
 	}
 	return kept
 }
 
-// searchGlobal answers a scope=all query from the index.
-//
-// The shape is to reject cheaply, and then to read what survives. Every
-// document is tested against the character masks and the trigram signature
-// of the query, with no I/O at all. Only the documents that could possibly
-// match are read from disk. They are scored by exactly the same code that
-// page search uses.
-//
-// That is what keeps the index small enough to hold. It decides WHICH files
-// to read, and it is not a copy of them.
+// searchGlobal answers a query of scope=all from the index. It tests each
+// document against the masks and the trigram signature of the query, with no
+// I/O. It reads from disk only the documents that can match. The code of page
+// search scores them. The index only decides WHICH files to read, thus it
+// stays small.
 func (a *App) searchGlobal(resp *searchResponse, qs map[string][]string) {
 	get := func(k string) string {
 		if v, ok := qs[k]; ok && len(v) > 0 {
@@ -1189,7 +1063,7 @@ func (a *App) searchGlobal(resp *searchResponse, qs map[string][]string) {
 			continue
 		}
 
-		// Only now is a file opened.
+		// Only now does the search open a file.
 		doc := a.reloadDocument(d)
 		if doc == nil {
 			continue
@@ -1202,11 +1076,9 @@ func (a *App) searchGlobal(resp *searchResponse, qs map[string][]string) {
 		found = append(found, scored{doc: doc, index: d, score: score, tier: tier, hits: hits})
 	}
 
-	// Documents order by (tier, score). That is the same tier-first rule
-	// that a single match uses, lifted to the document. One that contains
-	// every term verbatim outranks one that needed a typo correction,
-	// whatever the sums say. Ties break on newest first, and then on path,
-	// thus the order is stable.
+	// Order the documents by tier and then by score, the same rule as for one
+	// match. A document with each term as it is thus wins against one that
+	// needed a typo match. A tie orders the newest first, and then by path.
 	sortScored := func(i, j int) bool {
 		a1, b1 := found[i], found[j]
 		if a1.tier != b1.tier || a1.score != b1.score {
@@ -1248,14 +1120,10 @@ func (a *App) searchGlobal(resp *searchResponse, qs map[string][]string) {
 	}
 }
 
-// buildMatches turns scored line hits into the response's snippets, attaching
-// each one's section. Shared by both scopes so a match means the same thing
-// whichever produced it.
-//
-// The URL of the document gains the fragment of the section of the BEST hit.
-// It is the best one and not the first, because the ranked order is what the
-// reader is shown. To send the reader to a weaker match further up the page
-// would be arbitrary.
+// buildMatches makes the snippets of the response from the line hits, with
+// the section of each hit. Both scopes use it. The URL of the document gets
+// the fragment of the BEST hit. The reader sees the ranked order, thus a jump
+// to a weaker match higher on the page would make no sense.
 func buildMatches(doc *searchDocument, hits []lineHit) ([]searchMatch, string) {
 	var out []searchMatch
 	anchor := ""
@@ -1285,22 +1153,19 @@ func (a *App) writeSearchJSON(w http.ResponseWriter, status int, resp *searchRes
 	}
 }
 
-// serveSearchPage renders /OMNGoSearch.html.
+// serveSearchPage renders /OMNGoSearch.html for each request, the same as the
+// Config page. It has no md/ source and no html/ cache, and ?refresh does
+// nothing.
 //
-// Dynamic like Config, not generated like OMNGoTags: there is no
-// md/OMNGoSearch.md, nothing is written to the html/ cache, and ?refresh means
-// nothing here. The results are computed per request from the index.
-//
-// GLOBAL ONLY. This page exists to show a ranked list across everything, and
-// that is exactly what needs the index. With global search off, the page
-// says so and names the setting. Page search lives in the dialog, where the
-// answer is short enough to need no page of its own.
+// The page is for GLOBAL search only, because it shows a ranked list of all
+// files. With global search off, the page says so and names the setting. Page
+// search lives in the dialog.
 func (a *App) serveSearchPage(w http.ResponseWriter, r *http.Request) {
 	cfg := a.GetConfig()
 
-	// Off is not missing. A person can put a "Search" link on a note, thus
-	// the page IS reachable. It has to say why it can do nothing and where
-	// to fix that. See searchDisabledNotice.
+	// A note can link to the Search page, thus a person can reach it when
+	// search is off. The page then says why it can do nothing, and where to
+	// change that.
 	if !cfg.SearchEnabled {
 		body := renderSearchPage(searchPageView{Disabled: true})
 		compiled := a.compilePageWithBody("Search",
@@ -1318,8 +1183,8 @@ func (a *App) serveSearchPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if strings.TrimSpace(query) != "" && a.ensureSearchIndex() {
-		// Same code path as the API, so the page and the dialog can never
-		// disagree about what matches or in what order.
+		// The page and the API use the same code, thus the page and the
+		// dialog always agree.
 		resp := searchResponse{Query: query, Scope: SearchScopeAll, Results: []searchResult{}}
 		a.searchGlobal(&resp, map[string][]string{"q": {query}})
 		view.Results = resp.Results
@@ -1338,13 +1203,9 @@ func (a *App) serveSearchPage(w http.ResponseWriter, r *http.Request) {
 	w.Write(a.injectRuntimeVars(compiled))
 }
 
-// ----------------------------------------------------------------------
-// Small shared helpers
-// ----------------------------------------------------------------------
-
 // withinStorage reports whether p stays inside StorageDir. resolvePageName
-// already cleans its input, so this is defence in depth - the same containment
-// notFoundSuggestion applies before it admits a file exists.
+// already cleans its input, thus this is a second guard. notFoundSuggestion
+// holds a copy of the same test.
 func (a *App) withinStorage(p string) bool {
 	root, err := filepath.Abs(a.StorageDir)
 	if err != nil {
@@ -1358,8 +1219,8 @@ func (a *App) withinStorage(p string) bool {
 	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
-// readCapped reads at most max bytes, cut back to the last complete line so no
-// snippet is ever a half line. truncated says whether anything was left out.
+// readCapped reads at most max bytes, cut at the last complete line, thus no
+// snippet is half a line. truncated tells whether the file had more.
 func readCapped(p string, max int) (data []byte, truncated bool, err error) {
 	f, err := os.Open(p)
 	if err != nil {
@@ -1367,7 +1228,7 @@ func readCapped(p string, max int) (data []byte, truncated bool, err error) {
 	}
 	defer f.Close()
 
-	// max+1 so a file of exactly max bytes is not misreported as truncated.
+	// Read max+1 bytes, thus a file of exactly max bytes is not truncated.
 	data, err = io.ReadAll(io.LimitReader(f, int64(max)+1))
 	if err != nil {
 		return nil, false, err
@@ -1382,8 +1243,9 @@ func readCapped(p string, max int) (data []byte, truncated bool, err error) {
 	return cut, true, nil
 }
 
-// isBinary rejects a file whose first 8 KiB contains a NUL byte. Cheap, and
-// wrong only for text that has no business being in a notes directory.
+// isBinary rejects a file with a NUL byte in its first 8 KiB. The test is
+// cheap, and it is wrong only for text that does not belong in a notes
+// directory.
 func isBinary(data []byte) bool {
 	n := len(data)
 	if n > 8<<10 {
@@ -1411,9 +1273,8 @@ func assetKind(rel string) string {
 	}
 }
 
-// kindAllowed applies the kind filters. Both come from the caller (the query
-// parameter and a "kind:" prefix inside the query itself); an empty filter
-// allows everything.
+// kindAllowed applies the kind filters: the query parameter and a "kind:"
+// prefix in the query. An empty filter allows each kind.
 func kindAllowed(kind string, filters ...[]string) bool {
 	for _, f := range filters {
 		if len(f) == 0 {
