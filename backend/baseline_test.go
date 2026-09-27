@@ -7,7 +7,7 @@ package backend
 //
 //   - the set of routes that registerRoutes registers,
 //   - the set of runtime variables that injectRuntimeVars puts into a page,
-//   - the dispatch of serveHTMLPage for each kind of address,
+//   - the page dispatch for each kind of address,
 //   - the shape of a compiled page across every write path,
 //   - the /api/logs SSE lifecycle,
 //   - the semantics of a POST to /api/config.
@@ -66,28 +66,24 @@ func postForm(t *testing.T, h http.HandlerFunc, path string, form url.Values) *h
 	return rec
 }
 
-// getPage issues a browser-shaped GET, with Accept: text/html, through
-// serveFrontend. That is the handler registered at "/". The test thus
-// exercises the real dispatch chain, and it does not call an inner handler
-// directly.
+// getPage issues a browser-shaped GET, with Accept: text/html, through the
+// real router. The test thus exercises the real dispatch chain, and it does
+// not call an inner handler directly.
 func getPage(t *testing.T, a *App, target string) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodGet, target, nil)
 	req.Header.Set("Accept", "text/html,application/xhtml+xml")
-	rec := httptest.NewRecorder()
-	a.serveFrontend(rec, req)
-	return rec
+	return routeServe(a, req)
 }
 
 // ---------------------------------------------------------------------
-// 1. serveHTMLPage dispatch
+// 1. Page dispatch
 //
-// serveFrontend -> serveHTMLPage is a switch with several arms. Those arms are
-// Config, OMNGoTags, an ordinary note, a missing note, ?refresh, ?edit and a
-// non-page asset. Nothing tests the switch AS A WHOLE, because the handler
-// tests all call the inner functions directly. The search feature adds another
-// arm to it (OMNGoSearch). That is exactly the kind of edit that can silently
-// reorder or shadow an existing arm.
+// The router sends Config, OMNGoTags and OMNGoSearch through the page-access
+// table. serveFrontend sends an ordinary note, a missing note, ?refresh, ?edit
+// and a non-page asset. The handler tests call the inner functions directly,
+// thus only this test checks the dispatch AS A WHOLE. A new page can shadow
+// an existing address, and this test finds that.
 // ---------------------------------------------------------------------
 
 func TestBaseline_ServeHTMLPageDispatch(t *testing.T) {
@@ -350,22 +346,22 @@ func TestBaseline_RouteSet(t *testing.T) {
 		"/json/",
 		"/login",
 		"/user_json/",
-		// The directory index. An exact pattern, so it shadows
-		// nothing - the catch-all "/" still answers every other page. It is
-		// registered here rather than dispatched from serveHTMLPage because it
-		// is a page that needs authorization, and the catch-all is
-		// unauthenticated.
+		// The rows of the page-access table in pages.go. Each one is an
+		// exact pattern, thus the catch-all "/" still answers each note.
+		"/Config.html",
 		"/OMNGoFiles.html",
-		// The Status page. An exact pattern, like the file index
-		// above, and admin-only through hasRole inside the handler.
-		"/OMNGoStatus.html",
-		// The Log page. The same shape as the Status page above.
 		"/OMNGoLogs.html",
+		"/OMNGoSearch.html",
+		"/OMNGoStatus.html",
+		"/OMNGoTags.html",
 		// The method of each route. The bare path of each route above
 		// answers 405 for another method. See route in server.go.
+		"GET /Config.html",
 		"GET /OMNGoFiles.html",
 		"GET /OMNGoLogs.html",
+		"GET /OMNGoSearch.html",
 		"GET /OMNGoStatus.html",
+		"GET /OMNGoTags.html",
 		"GET /api/config",
 		"GET /api/db/backups",
 		"GET /api/edit-external",

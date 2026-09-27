@@ -579,45 +579,16 @@ type filesPageView struct {
 	Hidden     int // ... how many of them are not shown
 	Empty      bool
 	ShowingAll bool
-	Denied     bool
 }
-
-// filesDeniedNotice is the page for a user who is not admin. A person can
-// link to this address, thus it is a page and not a bare 401. Its markup is
-// static.
-const filesDeniedNotice = `<div class="files-notice">` +
-	`<h2>Administrator only</h2>` +
-	`<p>This page lists the files stored on the device, so it is shown only ` +
-	`to an administrator.</p>` +
-	`<p class="files-note">Log in from any note page - the account button in ` +
-	`the page header - and come back. A connection from the device itself is ` +
-	`always treated as the owner; this only applies to other machines on the ` +
-	`network.</p>` +
-	`</div>`
 
 // filesOwnerHint is the tooltip of the app-owned mark.
 const filesOwnerHint = "The next version of OMN-Go backs up your copy and replaces it"
 
 func renderFilesPage(v filesPageView) string {
-	if v.Denied {
-		return fill(filesPageTmpl, map[string]string{
-			"DENIED": " is-denied",
-			"NOTICE": filesDeniedNotice,
-			"BODY":   "",
-		})
-	}
 	if v.Tree == "" {
-		return fill(filesPageTmpl, map[string]string{
-			"DENIED": "",
-			"NOTICE": "",
-			"BODY":   renderFilesCards(v),
-		})
+		return fill(filesPageTmpl, map[string]string{"BODY": renderFilesCards(v)})
 	}
-	return fill(filesPageTmpl, map[string]string{
-		"DENIED": "",
-		"NOTICE": "",
-		"BODY":   renderFilesListing(v),
-	})
+	return fill(filesPageTmpl, map[string]string{"BODY": renderFilesListing(v)})
 }
 
 // renderFilesCards makes the first screen: three buttons in one column at

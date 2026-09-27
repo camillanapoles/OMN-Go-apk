@@ -13,10 +13,18 @@ import (
 // routeReq sends one request through the real router, from the device
 // itself. The local bypass of authMiddleware thus applies.
 func routeReq(a *App, method, target string) *httptest.ResponseRecorder {
+	return routeServe(a, httptest.NewRequest(method, target, nil))
+}
+
+// routeServe sends req through the real router. httptest gives each request
+// the address 192.0.2.1. routeServe changes that address to the device
+// itself, and it keeps each other address.
+func routeServe(a *App, req *http.Request) *httptest.ResponseRecorder {
 	mux := http.NewServeMux()
 	a.registerRoutes(mux)
-	req := httptest.NewRequest(method, target, nil)
-	req.RemoteAddr = "127.0.0.1:40000"
+	if req.RemoteAddr == "192.0.2.1:1234" {
+		req.RemoteAddr = "127.0.0.1:40000"
+	}
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 	return rec

@@ -533,8 +533,7 @@ func TestStatusPageAnswersAGuestWithAPage(t *testing.T) {
 	// an unsigned value. See session.go.
 	req.AddCookie(sessionCookie(t, a, roleGuest))
 
-	rec := httptest.NewRecorder()
-	a.serveStatusPage(rec, req)
+	rec := routeServe(a, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d, want a page", rec.Code)
 	}

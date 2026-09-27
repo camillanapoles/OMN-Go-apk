@@ -801,27 +801,6 @@ func (a *App) serveHTMLPage(w http.ResponseWriter, r *http.Request, path string)
 	// "Draft.txt" is a file. Do not strip ".md", because "Welcome.md" is a
 	// valid note name.
 	requested := strings.TrimPrefix(path, "/")
-	name := strings.TrimSuffix(requested, ".html")
-
-	if name == "Config" {
-		a.serveConfigPage(w)
-		return
-	}
-
-	// The Tags index is stale against ALL notes, and not against its own .md.
-	// See serveTagsPage.
-	if name == "OMNGoTags" {
-		a.serveTagsPage(w, r)
-		return
-	}
-
-	// The Search page is dynamic. It has no .md and no cache. See
-	// serveSearchPage.
-	if name == "OMNGoSearch" {
-		a.serveSearchPage(w, r)
-		return
-	}
-
 	mdPath, htmlPath, name, _ := a.resolvePageName(requested)
 
 	htmlStat, errHtml := os.Stat(htmlPath)
@@ -870,7 +849,8 @@ func (a *App) recompileMarkdownPage(name, mdPath string, errMd error) {
 	}
 }
 
-func (a *App) serveConfigPage(w http.ResponseWriter) {
+// serveConfigPage answers /Config.html. The page has no .md and no cache.
+func (a *App) serveConfigPage(w http.ResponseWriter, r *http.Request) {
 	writeHTMLHeader(w)
 	body := a.getConfigPageBody()
 	compiled := a.compilePageWithBody("Config", []byte("Title: Config\nCategory: Settings\n\n"), body)

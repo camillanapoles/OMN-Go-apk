@@ -220,28 +220,15 @@ func (a *App) HandleLogsSSE(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// logsDeniedBody is the page that a guest sees, not the line of plain text of
-// authMiddleware.
-const logsDeniedBody = `<div class="config-panel">` +
-	`<h2 class="config-title">Log</h2>` +
-	`<p class="config-hint">This page is for the admin of this device. ` +
-	`Log in as admin on a note page, then open the page again.</p>` +
-	`</div>`
-
 // serveLogsPage answers /OMNGoLogs.html. The page reads /api/logs/history one
 // time, and then it adds each new line of /api/logs. omn-go-logs.js does that
 // work.
 //
 // Android has no terminal. Without this page, a person on a phone needs adb
-// logcat, or a second browser at the history endpoint. The route follows
-// serveStatusPage, and it asks hasRole itself. See statusDeniedBody.
+// logcat, or a second browser at the history endpoint.
 func (a *App) serveLogsPage(w http.ResponseWriter, r *http.Request) {
-	body := logsPageTmpl
-	if !a.hasRole(r) {
-		body = logsDeniedBody
-	}
 	compiled := a.compilePageWithBody("Log",
-		[]byte("Title: Log\nCategory: System\n\n"), body)
+		[]byte("Title: Log\nCategory: System\n\n"), logsPageTmpl)
 	writeHTMLHeader(w)
 	w.Write(a.injectRuntimeVars(compiled))
 }

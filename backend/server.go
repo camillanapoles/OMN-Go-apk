@@ -263,11 +263,6 @@ func (a *App) registerRoutes(mux routeTable) {
 	route(mux, "POST", "/api/db/backup", a.authMiddleware(a.handleDBBackupCreate))
 	route(mux, "GET", "/api/db/backups", a.authMiddleware(a.handleDBBackupList))
 	route(mux, "POST", "/api/db/restore", a.authMiddleware(a.handleDBRestore))
-	route(mux, "GET", "/db_backups", a.authMiddleware(a.serveDBBackupsPage))
-	// This is a PAGE with its own route, because the catch-all needs no login
-	// and this listing is admin only. The handler asks hasRole itself, thus a
-	// refusal is a page and not a line of text.
-	route(mux, "GET", "/OMNGoFiles.html", a.serveFilesPage)
 	route(mux, "POST", "/api/sync", a.authMiddleware(a.handleSync))
 	route(mux, "GET", "/api/sync/preview", a.authMiddleware(a.handleSyncPreview))
 	route(mux, "GET", "/api/edit-external", a.authMiddleware(a.handleEditExternal))
@@ -279,9 +274,10 @@ func (a *App) registerRoutes(mux routeTable) {
 	// This route is admin only, because the answer holds LAN addresses,
 	// absolute paths and a commit subject.
 	route(mux, "GET", "/api/status", a.authMiddleware(a.handleStatus))
-	// These two pages ask hasRole themselves, the same as /OMNGoFiles.html.
-	route(mux, "GET", "/OMNGoStatus.html", a.serveStatusPage)
-	route(mux, "GET", "/OMNGoLogs.html", a.serveLogsPage)
+	// Each system page. See pages.go.
+	for _, p := range a.systemPages() {
+		route(mux, "GET", p.path, a.pageHandler(p))
+	}
 }
 
 // route registers h for one method on one path. The pattern "GET /x" also

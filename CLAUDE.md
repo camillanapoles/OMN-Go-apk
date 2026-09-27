@@ -50,7 +50,8 @@ Do not remove a constraint without an instruction from the maintainer.
 7. **Give each decision one authority.** Each decision has one implementation.
    `parseHeaderBlock` is the only header-block parser. `renderAndCache` is the only
    writer of `html/<name>.html`. `resolvePageName` is the only name resolver.
-   `hasRole` is the only role check. `resolveContentType` is the only MIME resolver.
+   `hasRole` is the only role check. `systemPages` is the only page-access table.
+   `resolveContentType` is the only MIME resolver.
    `hasKnownAssetExtension` is the only note-or-file test.
    Do not add a second implementation. Extend the first one.
 8. **An upgrade never overwrites a user-owned asset.** A version change replaces the
@@ -195,6 +196,8 @@ update these files.
   `route` also registers the bare path, and that path answers 405 for another
   method. Do not check `r.Method` in a handler. A protected route needs the
   admin role. Add a comment to any registration that differs from this form.
+  Add a system page as a row of `systemPages` in `backend/pages.go`. Do not
+  check the role in a page handler.
 * **Comments say what the code does now, and why, one time.** Many files start
   with a `// ---` banner. The banner gives the design decision and the rejected
   alternative. Write the same kind of justification for new code that is not
@@ -447,8 +450,8 @@ subject line, also when it has no list.
   value".
 * `baseline_test.go` pins behavior with golden sets. When you add a route, update
   `TestBaseline_RouteSet`, with one comment that says why the route is there. The
-  same rule covers a new injected runtime variable and a change to the
-  `serveHTMLPage` dispatch table.
+  same rule covers a new injected runtime variable and a change to the page
+  dispatch.
 * Some tests scan the source and act as lint rules. Respect them.
 * Run the tests with `go vet ./backend/... && go test ./backend/...`.
 

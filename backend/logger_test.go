@@ -589,8 +589,7 @@ func TestLogsPageIsAReaderOfTheTwoAddresses(t *testing.T) {
 
 // A guest gets a page and not a line of plain text.
 //
-// The route carries no authMiddleware for that reason, and serveLogsPage
-// asks hasRole itself. See registerRoutes in server.go.
+// The route carries no authMiddleware for that reason. See pages.go.
 func TestLogsPageAnswersAGuestWithAPage(t *testing.T) {
 	a := newTestApp(t)
 	a.Config.ShareLAN = true
@@ -601,8 +600,7 @@ func TestLogsPageAnswersAGuestWithAPage(t *testing.T) {
 	// an unsigned value. See session.go.
 	req.AddCookie(sessionCookie(t, a, roleGuest))
 
-	rec := httptest.NewRecorder()
-	a.serveLogsPage(rec, req)
+	rec := routeServe(a, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d, want a page", rec.Code)
 	}

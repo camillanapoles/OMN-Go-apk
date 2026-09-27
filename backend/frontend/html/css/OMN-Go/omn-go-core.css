@@ -1600,26 +1600,6 @@ mark.omn-search-hit.omn-search-hit-current {
     border-color: var(--accent);
 }
 
-/* The refusal shown to a guest. Same shape as the search page's explanation:
-   an address someone can legitimately reach should say what it needs, not
-   answer with a bare code. The refused page carries the notice and nothing
-   else, so there is no crumb and no list to hide. */
-.files-notice {
-    padding: 8px 0 4px;
-    max-width: 46em;
-}
-.files-notice h2 {
-    margin: 0 0 8px;
-    font-size: 1.15rem;
-}
-.files-notice p {
-    margin: 0 0 10px;
-}
-.files-note {
-    color: var(--text-muted);
-    font-size: 0.9rem;
-}
-
 /* -- Header action button accents --
    Semantic colors stay identical in both themes; !important preserved
    from the pre-token version to keep specificity behavior unchanged. */

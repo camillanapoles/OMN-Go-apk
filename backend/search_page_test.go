@@ -23,9 +23,7 @@ func getSearchPage(t *testing.T, a *App, query string) *httptest.ResponseRecorde
 	}
 	req := httptest.NewRequest(http.MethodGet, target, nil)
 	req.Header.Set("Accept", "text/html")
-	rec := httptest.NewRecorder()
-	a.serveFrontend(rec, req)
-	return rec
+	return routeServe(a, req)
 }
 
 func TestSearchPage_RendersResults(t *testing.T) {

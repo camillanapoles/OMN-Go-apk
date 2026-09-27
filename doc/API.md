@@ -186,10 +186,9 @@ what its own page shows and gets no permission.
 | `GET /api/note` | **none — deliberately open** |
 | `GET /api/search` | **none — deliberately open** |
 | `GET /api/logs` | admin (local bypass applies) |
-| `/api/quick`, `/api/bookmark`, `/api/upload`, `/api/upload_json`, `/api/save`, `/api/newpage`, `/api/config`, `/api/restart`, `/api/sql`, `/api/db/backup`, `/api/db/backups`, `/api/db/restore`, `/api/sync`, `/api/sync/preview`, `/api/edit-external`, `/api/status`, `/api/export/note`, `/api/import/note`, `/db_backups` | admin (local bypass applies) |
-| `GET /OMNGoFiles.html` | admin (local bypass applies) — answers a **page**, not a 401 |
-| `GET /OMNGoStatus.html` | admin (local bypass applies) — answers a **page**, not a 401 |
-| `GET /OMNGoLogs.html` | admin (local bypass applies) — answers a **page**, not a 401 |
+| `/api/quick`, `/api/bookmark`, `/api/upload`, `/api/upload_json`, `/api/save`, `/api/newpage`, `/api/config`, `/api/restart`, `/api/sql`, `/api/db/backup`, `/api/db/backups`, `/api/db/restore`, `/api/sync`, `/api/sync/preview`, `/api/edit-external`, `/api/status`, `/api/export/note`, `/api/import/note` | admin (local bypass applies) |
+| `GET /OMNGoFiles.html`, `GET /OMNGoStatus.html`, `GET /OMNGoLogs.html`, `GET /db_backups` | admin (local bypass applies) — answers a **page**, not a 401 |
+| `GET /Config.html`, `GET /OMNGoTags.html`, `GET /OMNGoSearch.html` | none |
 | All page and static routes (`/`, `*.html`, `/js/`, `/css/`, `/json/`, `/images/`, `/user_json/`) | none |
 
 ---
@@ -197,8 +196,13 @@ what its own page shows and gets no permission.
 ## 3. Endpoint index
 
 The router refuses each method that the first column does not list, with
-`405`. A `GET` route also takes `HEAD`. The last four rows go through the
+`405`. A `GET` route also takes `HEAD`. The last three rows go through the
 catch-all and the asset trees, and these take each method. See §1.2.
+
+The page-access table, `systemPages` in `backend/pages.go`, registers the
+seven pages above the last three rows. Each row gives the address, the
+handler and the role. A caller without the role gets a refusal page with
+the code `200`.
 
 | Method(s) | URL | Auth | Response |
 | --- | --- | --- | --- |
@@ -225,11 +229,13 @@ catch-all and the asset trees, and these take each method. See §1.2.
 | GET | `/api/logs` | admin | SSE |
 | GET | `/api/logs/history` | admin | JSON |
 | GET | `/api/status` | admin | JSON / Markdown |
-| GET | `/db_backups` | admin | HTML |
+| GET | `/db_backups` | admin | HTML (a page for a guest, not a 401) |
 | GET | `/OMNGoFiles.html` | admin | HTML (a page for a guest, not a 401) |
 | GET | `/OMNGoStatus.html` | admin | HTML (a page for a guest, not a 401) |
 | GET | `/OMNGoLogs.html` | admin | HTML (a page for a guest, not a 401) |
-| any | `/OMNGoSearch.html` | none | HTML (explains how to turn global search on when it is off; used to 404) |
+| GET | `/Config.html` | none | HTML |
+| GET | `/OMNGoTags.html` | none | HTML |
+| GET | `/OMNGoSearch.html` | none | HTML (explains how to turn global search on when it is off) |
 | any | `/`, `/<name>.html`, `/<asset>` | none | HTML / asset |
 | any | `/js/…`, `/css/…`, `/json/…` | none | asset |
 | any | `/images/…`, `/user_json/…` | none | asset |
@@ -864,8 +870,8 @@ instead of saying nothing at all.
 #### `GET /OMNGoSearch.html`
 
 The search page runs the same search as `scope=all` and renders it as a page
-that you can share and that needs no JavaScript. `serveHTMLPage` handles it as
-a special case beside `Config` and `OMNGoTags`. It is **dynamic like `Config`**
+that you can share and that needs no JavaScript. It is a row of the
+page-access table, beside `Config` and `OMNGoTags`. It is **dynamic like `Config`**
 - there is no `md/OMNGoSearch.md`, the server writes nothing to the `html/`
 cache, and `?refresh` has no effect here.
 
@@ -1911,8 +1917,15 @@ server.
 | --- | --- | --- |
 | `/Config.html` | `serveConfigPage` | Rendered server-side; posts to `/api/config` |
 | `/OMNGoTags.html` | `serveTagsPage` | Auto-generated tag index; staleness is checked against the newest mtime of **all** notes, not one source. Honors `?refresh` |
-| `/db_backups` | `serveDBBackupsPage` | Admin page. All data comes from `GET /api/db/backups`. **Admin-only**, unlike other pages |
+| `/OMNGoSearch.html` | `serveSearchPage` | The search page. See §4.4 |
+| `/db_backups` | `serveDBBackupsPage` | Admin page. All data comes from `GET /api/db/backups`. **Admin-only** |
 | `/OMNGoFiles.html` | `serveFilesPage` | The file index: the Bundled, Served and Source trees. **Admin-only**. See §5.3 |
+| `/OMNGoStatus.html` | `serveStatusPage` | The Status page. **Admin-only**. See §5.4 |
+| `/OMNGoLogs.html` | `serveLogsPage` | The Log page. **Admin-only** |
+
+Each special page is a row of the page-access table in `backend/pages.go`.
+The router sends it to its handler, thus `?edit` and the catch-all do not
+apply to it. A guest gets the refusal page for an admin-only row.
 
 `injectRuntimeVars` adds this block to every served page:
 
@@ -2033,16 +2046,15 @@ reads `same size`. Reading an embedded file is not writing, so this does not
 break the rule below.
 
 **Authorization.** The page is admin-only, with the usual local connection
-bypass. The server registers it as its own exact route, and does not dispatch
-it from `serveHTMLPage`. The reason is that the catch-all that serves every
-other page needs no authentication. `/db_backups` is a separate route for the
-same reason.
+bypass. It is a row of the page-access table in `backend/pages.go`, thus it
+has its own exact route. The catch-all that serves each other page needs no
+authentication.
 
-The page does **not** wrap `authMiddleware`. A guest gets a **200** and a page
-that says the listing is admin-only and how to log in. A guest does not get
-the one plain-text line of the middleware. This is the same lesson as the 404
-of the search page (26.08.2). The address is linkable, so a refusal must name
-the cause and the cure. No filename appears anywhere in the refusal.
+The page does **not** wrap `authMiddleware`. A guest gets a **200** and the
+refusal page, which says that the page is for the admin and how to log in.
+A guest does not get the one plain-text line of the middleware. The address
+is linkable, so a refusal must name the cause and the cure. No filename
+appears anywhere in the refusal.
 
 **What is never listed**
 
@@ -2094,8 +2106,8 @@ nothing to the `html/` cache, and the page itself writes nothing at all.
 #### `GET /OMNGoStatus.html`
 
 The page of the status endpoint. It holds no facts of its own. It reads
-`/api/status` and draws each section that comes back. Admin only, and the
-handler asks `hasRole` itself, so a guest gets a page and not a line of plain
+`/api/status` and draws each section that comes back. Admin only. The
+page-access table gives a guest the refusal page and not a line of plain
 text.
 
 The page loads the cheap sections at once. The *Storage* and *Git worktree*

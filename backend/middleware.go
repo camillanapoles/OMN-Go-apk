@@ -97,7 +97,7 @@ func (a *App) hasRole(r *http.Request) bool {
 }
 
 // authMiddleware answers 401 with plain text when hasRole refuses the
-// request. A page answers a refusal with a page, and asks hasRole itself.
+// request. A system page answers a refusal with a page. See pages.go.
 func (a *App) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !a.hasRole(r) {

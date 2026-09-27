@@ -274,23 +274,11 @@ func (a *App) handleStatus(w http.ResponseWriter, r *http.Request) {
 	a.writeJSON(w, http.StatusOK, res)
 }
 
-// statusDeniedBody is the page that a guest sees, the same as on the file
-// index. It is not the line of plain text of authMiddleware.
-const statusDeniedBody = `<div class="config-panel">` +
-	`<h2 class="config-title">Status</h2>` +
-	`<p class="config-hint">This page is for the admin of this device. ` +
-	`Log in as admin on a note page, then open the page again.</p>` +
-	`</div>`
-
 // serveStatusPage answers /OMNGoStatus.html. The page reads /api/status and
 // shows the answer. It holds no facts of its own.
 func (a *App) serveStatusPage(w http.ResponseWriter, r *http.Request) {
-	body := statusPageTmpl
-	if !a.hasRole(r) {
-		body = statusDeniedBody
-	}
 	compiled := a.compilePageWithBody("Status",
-		[]byte("Title: Status\nCategory: System\n\n"), body)
+		[]byte("Title: Status\nCategory: System\n\n"), statusPageTmpl)
 	writeHTMLHeader(w)
 	w.Write(a.injectRuntimeVars(compiled))
 }

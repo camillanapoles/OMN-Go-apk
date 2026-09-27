@@ -37,9 +37,7 @@ func getFilesPage(t *testing.T, a *App, query string) *httptest.ResponseRecorder
 	}
 	req := httptest.NewRequest(http.MethodGet, target, nil)
 	req.RemoteAddr = "127.0.0.1:54321" // local: always the owner
-	rec := httptest.NewRecorder()
-	a.serveFilesPage(rec, req)
-	return rec
+	return routeServe(a, req)
 }
 
 // served asks for one directory of the Served tree, which is the tree most of
@@ -859,9 +857,7 @@ func remoteFilesRequest(t *testing.T, a *App, cookie string) *httptest.ResponseR
 	if cookie != "" {
 		req.AddCookie(sessionCookie(t, a, cookie))
 	}
-	rec := httptest.NewRecorder()
-	a.serveFilesPage(rec, req)
-	return rec
+	return routeServe(a, req)
 }
 
 func TestFilesPage_Authorization(t *testing.T) {
@@ -874,7 +870,7 @@ func TestFilesPage_Authorization(t *testing.T) {
 		t.Error("a local connection was refused")
 	}
 
-	if body := remoteFilesRequest(t, a, "admin").Body.String(); strings.Contains(body, "Administrator only") {
+	if body := remoteFilesRequest(t, a, "admin").Body.String(); strings.Contains(body, "for the admin of this device") {
 		t.Error("an admin cookie was refused")
 	}
 
@@ -882,7 +878,7 @@ func TestFilesPage_Authorization(t *testing.T) {
 	for _, role := range []string{"", "guest"} {
 		rec := remoteFilesRequest(t, a, role)
 		body := rec.Body.String()
-		if !strings.Contains(body, "Administrator only") {
+		if !strings.Contains(body, "for the admin of this device") {
 			t.Errorf("role %q was not refused", role)
 		}
 		if !strings.Contains(body, "Log in") {

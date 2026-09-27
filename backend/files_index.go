@@ -583,21 +583,13 @@ func (a *App) filesStat(sub, logical string) *indexedFile {
 // filesLegend must find the same text, thus it is a constant.
 const filesFromTheApp = "from the app"
 
-// serveFilesPage answers GET /OMNGoFiles.html. It needs a login, thus it has
-// its own route outside the catch-all. It asks hasRole and answers a refusal
-// with a page, not with the plain text of authMiddleware.
-// TestFilesPage_Authorization holds the rule.
+// serveFilesPage answers GET /OMNGoFiles.html. The page-access table in
+// pages.go refuses a caller without the admin role.
 func (a *App) serveFilesPage(w http.ResponseWriter, r *http.Request) {
 	dir := normalizeFilesDir(r.URL.Query().Get("dir"))
 	view := filesPageView{
 		Dir:  dir,
 		Tree: normalizeFilesTree(r.URL.Query().Get("tree"), dir),
-	}
-
-	if !a.hasRole(r) {
-		view.Denied = true
-		a.writeFilesPage(w, view)
-		return
 	}
 
 	if view.Tree == "" {

@@ -275,8 +275,8 @@ func (a *App) tagsPageStale(forceRefresh bool) bool {
 }
 
 // serveTagsPage sends the Tags page, and it rebuilds the page first when it
-// is stale. serveHTMLPage sends it here, because this page uses the test of
-// tagsPageStale. The rest is the same as the end of serveHTMLPage.
+// is stale. It uses the test of tagsPageStale, and not the mtime test of
+// serveHTMLPage. The rest is the same as the end of serveHTMLPage.
 func (a *App) serveTagsPage(w http.ResponseWriter, r *http.Request) {
 	forceRefresh := r.URL.Query().Get("refresh") == "1" || r.URL.Query().Get("refresh") == "true"
 	if a.tagsPageStale(forceRefresh) {
