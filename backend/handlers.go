@@ -80,14 +80,9 @@ const configFormMaxMemory = 32 << 20
 // configFieldSent reports whether a POST to /api/config carries a value for
 // one config field.
 //
-// WHY THIS EXISTS. handleConfig used to rebuild the whole Config from the
-// form. A request that named one setting thus CLEARED every setting it did
-// not name. The Config page always sends the whole form, thus nothing
-// showed the fault. Then a note posted "theme" on its own, and it emptied
-// the author name, both passwords, the external-editor command and the
-// device label with it.
-//
-// The rule now is: a field the request does not carry is left as it is.
+// THE RULE: a field the request does not carry is left as it is. A note
+// can post "theme" alone, and the author name, the passwords and each other
+// setting must stay. See doc/decisions/0014-change-only-the-settings-that-a-request-names.md.
 //
 // THE CHECKBOX PROBLEM. A browser sends nothing at all for an unticked
 // checkbox, so "unticked" and "not my business" arrive identically. With the
@@ -132,10 +127,8 @@ func configFieldSent(r *http.Request) func(field string) bool {
 
 // handleConfig answers GET and POST on /api/config.
 //
-// The body of this function was 191 lines until 26.09.19. It read the
-// form, wrote the file, and started the work that a change needs, in one
-// block. Four functions hold that work now, and each one has a name that
-// says what it does:
+// Four functions hold the work of a POST, and each one has a name that says
+// what it does:
 //
 //	applyConfigForm       config_fields.go, the table of settings.
 //	applyGitServerForm    config_fields.go, the five git slots.
@@ -328,17 +321,17 @@ func (a *App) restartProcess() {
 //
 // The incoming name here is whatever URL the user was viewing. For the
 // rendered view of a markdown-backed page that is "Welcome.html". It is not
-// necessarily the real editable source file. To pass that raw name through
-// used to make Android fall into the html/ branch for every ordinary note.
-// It then opened the compiled HTML cache instead of the markdown source.
+// necessarily the real editable source file. The raw name would make
+// Android fall into the html/ branch for every ordinary note. It would then
+// open the compiled HTML cache instead of the markdown source.
 //
 // Normalize it here instead. A real page gives baseName + ".md". A genuine
 // non-page asset keeps the original name, because isPage is false there and
 // baseName is the name itself. See resolvePageName.
 //
-// The handleEditExternal of the desktop never had this bug, because it
-// already resolves isPage and baseName before it picks filePath. This is
-// exactly that same resolution, reused for the redirect of Android.
+// The handleEditExternal of the desktop resolves isPage and baseName
+// before it picks filePath. This is exactly that same resolution, reused
+// for the redirect of Android.
 //
 // It is extracted as its own pure function, with no runtime.GOOS check
 // inside, thus it can be unit-tested directly. runtime.GOOS is a
@@ -477,10 +470,10 @@ func (a *App) resolveNewPageTarget(source, target string) string {
 // costs nothing.
 //
 // An EMPTY configured password grants nothing. A person who clears
-// admin_password on the Config page asks for no admin password. The old
-// code read the empty value as a match for an empty submission. Each
-// caller on the network could then log in. The empty value now refuses
-// each attempt, and the log carries the reason.
+// admin_password on the Config page asks for no admin password. An empty
+// value must not match an empty submission, or each caller on the network
+// can log in. The empty value refuses each attempt, and the log carries
+// the reason.
 func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 	cfg := a.GetConfig()
 	pwd := r.FormValue("password")
@@ -857,11 +850,9 @@ func (a *App) handleNewPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// A bare target name, with no "/", used to always land at the storage
-	// root, whatever page it was created from. To create "test" while
-	// viewing "local/local" thus produced "test", and not "local/test".
-	// That disagreed with how a bare relative link on that same page
-	// resolves, see rewriteInternalLink.
+	// A bare target name, with no "/", must resolve the same way as a bare
+	// relative link on that same page, see rewriteInternalLink. To create
+	// "test" while viewing "local/local" thus makes "local/test".
 	//
 	// Resolve it the same way here. It is relative to the directory of
 	// source, unless target is itself absolute or already names a
@@ -901,10 +892,10 @@ func (a *App) handleNewPage(w http.ResponseWriter, r *http.Request) {
 			// resolution of the browser land on exactly that file. That
 			// resolution is relative to the directory of source too.
 			//
-			// The already-resolved "target", such as "path/new", used to
-			// go in instead. The browser then resolved it AGAIN relative
-			// to the directory of source on a click, and the nesting
-			// doubled into "path/path/new".
+			// The already-resolved "target", such as "path/new", must not
+			// go in. The browser would resolve it AGAIN relative to the
+			// directory of source on a click, and the nesting would
+			// double into "path/path/new".
 			//
 			// A rawTarget that already named its own directory, or that
 			// was absolute, is anchored at the storage root. It thus needs
@@ -1024,10 +1015,8 @@ func (a *App) serveFrontend(w http.ResponseWriter, r *http.Request) {
 
 	// Edit intent takes precedence for BOTH markdown pages and static
 	// assets. The one dedicated editor page thus handles every editable
-	// file the same way. Previously only an asset that was not ".html"
-	// reached serveEditor here. A markdown page fell through to
-	// serveHTMLPage, and it relied on an in-page toggle that baked the
-	// entire source into every rendered page.
+	// file the same way. No rendered page carries a copy of its own
+	// source.
 	if r.URL.Query().Get("edit") == "true" {
 		a.serveEditor(w, r, path)
 		return
@@ -1055,9 +1044,9 @@ func (a *App) serveHTMLPage(w http.ResponseWriter, r *http.Request, path string)
 	// html/Draft.txt and answers 404. Unstripped, it resolves to
 	// md/Draft.txt.md, which is the note the reader asked for.
 	//
-	// A ".md" strip stood here until 26.08.76. It made "Welcome.md.html"
-	// into "Welcome". A note name can hold a dot now, thus "Welcome.md" is
-	// a name a person can choose, and the strip destroyed it.
+	// There is no ".md" strip here. A note name can hold a dot, thus
+	// "Welcome.md" is a name a person can choose, and a strip would make
+	// "Welcome.md.html" into "Welcome".
 	requested := strings.TrimPrefix(path, "/")
 	name := strings.TrimSuffix(requested, ".html")
 
@@ -1129,9 +1118,8 @@ func (a *App) recompileMarkdownPage(name, mdPath string, errMd error) {
 		//
 		// ensureHeaderModified stamps "Modified: <time.Now()>". It belongs
 		// to the explicit save path alone, which is handleSaveNote. A call
-		// to it here used to bump and rewrite the Modified timestamp of the
-		// source file. That happened on every plain view that needed a
-		// cache rebuild. This comment guards against a return of that bug.
+		// to it here would rewrite the Modified timestamp of the source
+		// file on every plain view that needs a cache rebuild.
 		if _, err := a.renderAndCache(name, mdContent); err != nil {
 			a.logErrf(logPrecompile, "recompileMarkdownPage: %v", err)
 		}
@@ -1181,8 +1169,8 @@ func (a *App) serveEditor(w http.ResponseWriter, r *http.Request, path string) {
 
 // renderInternalEditor writes the standalone editor page for relPath. The
 // note text is NOT embedded here. The page fetches it from /api/note on
-// load, see omn-go-editor.js. That is the whole point of the rewrite. The
-// rendered view page no longer carries a hidden second copy of itself.
+// load, see omn-go-editor.js. The rendered view page thus carries no
+// hidden second copy of itself.
 //
 // Two callers share this. The first is serveEditor, for a markdown page and
 // for a catch-all asset. The second is the lazy-embed edit branch of /js,

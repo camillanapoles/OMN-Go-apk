@@ -25,8 +25,7 @@ func sessionReq(t *testing.T, cookies ...*http.Cookie) *http.Request {
 }
 
 // sessionCookie mints a valid signed cookie for one role. Other test
-// files use it in place of the hand-written cookie they carried until
-// 26.09.6.
+// files use it in place of a hand-written cookie.
 func sessionCookie(t *testing.T, a *App, role string) *http.Cookie {
 	t.Helper()
 	signed, _ := a.newSessionCookies(role)
@@ -48,10 +47,9 @@ func TestSignedCookieIsAccepted(t *testing.T) {
 	}
 }
 
-// THIS IS THE TEST FOR THE FAULT THAT 26.09.6 REPAIRS. Until that
-// version the server read the cookie value and trusted it. A client on
-// the network could therefore name its own role with no password. The
-// bare word must never be accepted again.
+// The server must not trust a cookie value that it did not sign. A client
+// on the network could otherwise name its own role with no password. See
+// doc/decisions/0001-sign-the-session-cookie.md.
 func TestUnsignedCookieIsRefused(t *testing.T) {
 	a := newTestApp(t)
 	for _, value := range []string{"admin", "guest", "admin.", "admin..", ".."} {

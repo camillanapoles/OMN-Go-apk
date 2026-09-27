@@ -619,13 +619,10 @@ var commentVersionDebt = map[string]int{
 	"backend/frontend/test/editor.test.js":                     1,
 	"backend/frontend/test/fold.test.js":                       1,
 	"backend/frontend/test/lazy.test.js":                       2,
-	"backend/handlers.go":                                      2,
-	"backend/handlers_test.go":                                 2,
 	"backend/java_test.go":                                     4,
 	"backend/js_test.go":                                       5,
 	"backend/pipelines_test.go":                                1,
 	"backend/ports_test.go":                                    4,
-	"backend/session_test.go":                                  2,
 }
 
 // No file may hold more version numbers in its comments than the table

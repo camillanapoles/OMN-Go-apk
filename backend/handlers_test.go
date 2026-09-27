@@ -36,15 +36,10 @@ func newUnconfiguredApp(t *testing.T) *App {
 // layout and then loads the configuration, thus a.Config holds the
 // defaults that loadConfig writes and config.json exists on disk.
 //
-// WHY IT LOADS THE CONFIGURATION. Until 26.09.18 this helper built an
-// App with a zero Config. No user ever runs that App. A zero Config
-// makes each boolean false and each string empty, and a test then read a
-// default that the loader never writes.
-//
-// TestBaseline_ServeHTMLPageDispatch showed the cost. Its comment said
-// that UseInternalEd defaults to false. loadConfig sets that field to
-// true on a fresh install. The subtest for the external editor therefore
-// passed on a zero value and not on the default it named.
+// WHY IT LOADS THE CONFIGURATION. No user ever runs an App with a zero
+// Config. A zero Config makes each boolean false and each string empty,
+// and a test would then read a default that the loader never writes. For
+// example, loadConfig sets UseInternalEd to true on a fresh install.
 //
 // A test that wants the zero Config asks for it by name with
 // newUnconfiguredApp. The two helpers make the choice visible in the
@@ -61,8 +56,8 @@ func newTestApp(t *testing.T) *App {
 // change that each test above must see.
 //
 // The fields below are the ones that a handler branches on. A zero
-// Config makes each of them false or empty, which is what hid the wrong
-// UseInternalEd comment in baseline_test.go until 26.09.18.
+// Config makes each of them false or empty, and that hides a wrong
+// default.
 func TestTestAppHoldsTheFreshInstallDefaults(t *testing.T) {
 	a := newTestApp(t)
 	cfg := a.GetConfig()
