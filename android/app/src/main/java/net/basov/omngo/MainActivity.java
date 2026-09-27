@@ -743,7 +743,7 @@ public class MainActivity extends Activity {
     //      extension whitelist and max-size limit that saveUploadedFile
     //      enforces on the server for the own drag-and-drop upload of the
     //      editor. The limit comes from max_upload_size_mb in config.json.
-    //      See backend/handlers.go. Keep the whitelist here in step with
+    //      See backend/upload_handlers.go. Keep the whitelist here in step with
     //      imageUploadExtensions and jsonUploadExtensions there if either
     //      one changes.
     //   2. Build the same snippet format that those Go handlers return.
@@ -762,8 +762,8 @@ public class MainActivity extends Activity {
 
     // JSON and image extensions this app accepts via share - kept in sync
     // with jsonUploadExtensions / imageUploadExtensions in
-    // backend/handlers.go. These two sets are the single source within this
-    // file: both isSharedFileIntent and handleSharedFile use them, so the
+    // backend/upload_handlers.go. These two sets are the single source within
+    // this file: both isSharedFileIntent and handleSharedFile use them, so the
     // lists are never re-typed inline.
     private static final java.util.Set<String> SHARED_JSON_EXT =
         new java.util.HashSet<>(java.util.Arrays.asList(".json", ".jsonl"));
@@ -1090,8 +1090,8 @@ public class MainActivity extends Activity {
                     }
 
                     // Same format that handleUpload and handleUploadJSON
-                    // in backend/handlers.go produce. Keep these in step by
-                    // hand if either one changes.
+                    // in backend/upload_handlers.go produce. Keep these in
+                    // step by hand if either one changes.
                     //
                     // Images went from markdown image syntax to an HTML
                     // <img> tag, with the .omn-imported-image class. See
@@ -1221,7 +1221,7 @@ public class MainActivity extends Activity {
     }
 
     // POSTs note (already-built markdown) to /api/quick, appending it to
-    // QuickNotes.md - see handleQuickNote in backend/handlers.go.
+    // QuickNotes.md - see handleQuickNote in backend/note_handlers.go.
     private void postQuickNote(String note) throws java.io.IOException {
         java.net.URL url = new java.net.URL(serverBase() + "/api/quick");
         java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();

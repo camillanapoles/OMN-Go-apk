@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-// These tests cover the whole-database JSONL backups of db_backup.go. They
+// These tests cover the whole-database JSONL backups of db_backup*.go. They
 // test the round trip, the full replace, trigger safety and the endpoints.
 // They also test indexes, sqlite_sequence, BLOBs, int64 values, the prune,
 // the bootstrap of a fresh device and the refusal of a damaged file.

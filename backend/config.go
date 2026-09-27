@@ -223,7 +223,7 @@ type GitServerConfig struct {
 }
 
 // defaultMaxUploadSizeMB is the default limit, in MB, for an uploaded image
-// or JSON file. saveUploadedFile in handlers.go applies it. The Android
+// or JSON file. saveUploadedFile in upload_handlers.go applies it. The Android
 // "share to OMN-Go" path writes the file without the Go server, thus
 // MainActivity.java reads the same value from config.json. See
 // Config.MaxUploadSizeMB.

@@ -45,7 +45,7 @@ package backend
 //
 // THE ONE EXCEPTION. The marker comment of the bookmark note keeps its
 // contraction. It is a literal string that the note carries, and a
-// change to it would break each stored note. See handlers.go and
+// change to it would break each stored note. See note_handlers.go and
 // storage.go. The scanner removes that exact string before it looks for
 // a contraction.
 //

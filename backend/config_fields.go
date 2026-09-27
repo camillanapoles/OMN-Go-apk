@@ -201,8 +201,8 @@ var configFields = []configField{
 // hidden config_fields input, joined by commas. A browser sends nothing for a
 // clear checkbox, thus "clear" and "not this form" look the same. The form
 // declares its fields, and each name in the list counts as sent. See
-// configFieldSent in handlers.go. The table writes the list, thus a new row
-// needs no change of the markup.
+// configFieldSent in config_handlers.go. The table writes the list, thus a
+// new row needs no change of the markup.
 func configCheckboxFields() string {
 	var keys []string
 	for _, f := range configFields {

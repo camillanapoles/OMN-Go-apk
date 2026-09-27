@@ -43,7 +43,8 @@ import (
 //	  name is a file name, thus this is the path-traversal guard.
 //	- At most 1 MB of body and 500 statements for each request.
 //
-// db_backup.go holds the JSONL backup and restore of these databases.
+// The db_backup*.go files hold the JSONL backup and restore of these
+// databases.
 
 // dbNameRe allows only safe database names, because a name is a file name.
 var dbNameRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)

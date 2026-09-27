@@ -2,7 +2,7 @@
 
 * Status: accepted
 * Version: 26.08.43
-* Code: `configFieldSent` in `backend/handlers.go`, `applyConfigForm` and
+* Code: `configFieldSent` in `backend/config_handlers.go`, `applyConfigForm` and
   `applyGitServerForm` in `backend/config_fields.go`,
   `configCheckboxFields` and the Config page template
 

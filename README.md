@@ -60,11 +60,12 @@ platform wraps this binary in a different way:
 1. **The backend (`backend/`):** A Go package that runs the whole
    application. An `http.ServeMux` (`server.go`) connects request
    authentication (`middleware.go`), the note and API handlers
-   (`handlers.go`), and Markdown compilation with goldmark (`markdown.go`,
-   `templates.go`). The backend writes the HTML cache to disk
-   (`render_cache.go`). It also holds an embedded SQLite database (pure-Go
-   `modernc.org/sqlite`, `sqlite.go` + `db_backup.go`) and runs git
-   synchronization over SSH (`git_sync.go`). The build compiles all
+   (`handlers.go` and the `*_handlers.go` files), and Markdown compilation
+   with goldmark (`markdown.go`, `templates.go`). The backend writes the HTML
+   cache to disk (`render_cache.go`). It also holds an embedded SQLite
+   database (pure-Go `modernc.org/sqlite`, `sqlite.go` and the
+   `db_backup*.go` files) and runs git synchronization over SSH
+   (`git_sync.go`). The build compiles all
    frontend assets into the binary with `//go:embed`, and the backend
    extracts them to the storage directory when it first needs them. This is
    why OMN-Go works without an internet connection.

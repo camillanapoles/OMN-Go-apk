@@ -27,6 +27,7 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
 	"net/http"
@@ -171,4 +172,46 @@ func (a *App) readSessionRole(r *http.Request) string {
 		return ""
 	}
 	return role
+}
+
+// handleLogin changes a password into the two session cookies. Only a caller
+// on the network needs it. The comparison is constant-time, and an EMPTY
+// configured password matches nothing.
+func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
+	cfg := a.GetConfig()
+	pwd := r.FormValue("password")
+
+	role := ""
+	switch {
+	case passwordMatches(pwd, cfg.AdminPassword):
+		role = roleAdmin
+	case passwordMatches(pwd, cfg.GuestPassword):
+		role = roleGuest
+	}
+	if role == "" {
+		if cfg.AdminPassword == "" && cfg.GuestPassword == "" {
+			a.logErrf(logSession, "login refused: config.json holds no password, thus no caller on the network can log in")
+		}
+		http.Error(w, "Invalid", http.StatusUnauthorized)
+		return
+	}
+
+	signed, hint := a.newSessionCookies(role)
+	if signed == nil {
+		// The install has no key. See sessionSecret. An unsigned cookie is
+		// not an option.
+		a.logErrf(logSession, "login refused: this install has no session key")
+		http.Error(w, "Login unavailable", http.StatusInternalServerError)
+		return
+	}
+	http.SetCookie(w, signed)
+	http.SetCookie(w, hint)
+	w.Write([]byte("OK"))
+}
+
+func passwordMatches(submitted, configured string) bool {
+	if configured == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(submitted), []byte(configured)) == 1
 }

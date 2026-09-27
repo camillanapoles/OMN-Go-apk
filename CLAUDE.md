@@ -186,7 +186,7 @@ update these files.
   It reads and writes under `Lock`. Never touch `App.Config` directly. The
   `normalizeXxx` functions repair an unknown enum value. The loader, the POST
   handler, and the renderer then always agree. A request that omits a field leaves
-  that field alone. See `configFieldSent` in `handlers.go`.
+  that field alone. See `configFieldSent` in `config_handlers.go`.
 * **Routes.** Register every route in `registerRoutes` in `backend/server.go`.
   `StartServer` calls it with `a.Router`, a plain `http.ServeMux`. The parameter
   is the small `routeTable` interface, thus `TestBaseline_RouteSet` can pass a
