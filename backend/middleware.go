@@ -19,6 +19,13 @@ func (a *App) connectionMiddleware(next http.Handler) http.Handler {
 		a.ActiveConns.Add(1)
 		defer a.ActiveConns.Add(-1)
 
+		if reason := a.foreignRequest(r); reason != "" {
+			a.logErrf(logServer, "refused %s %s from %s, Host %q: %s",
+				r.Method, r.URL.Path, r.RemoteAddr, r.Host, reason)
+			http.Error(w, "Forbidden: "+reason, http.StatusForbidden)
+			return
+		}
+
 		// This is the one place that controls the cache of the client. See
 		// doc/decisions/0004-tell-the-browser-to-ask-before-it-uses-a-copy.md.
 		// "no-cache" keeps the copy and asks the server each time, and the

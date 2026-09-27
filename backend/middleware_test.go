@@ -26,7 +26,7 @@ func TestConnectionMiddlewareSetsCacheControl(t *testing.T) {
 	}))
 
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/js/OMN-Go/omn-go-core.js", nil))
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "http://localhost/js/OMN-Go/omn-go-core.js", nil))
 
 	if got := rec.Header().Get("Cache-Control"); got != "no-cache" {
 		t.Errorf("Cache-Control = %q, want %q", got, "no-cache")
@@ -49,7 +49,7 @@ func TestConnectionMiddlewareUsesNoStoreForAPage(t *testing.T) {
 		}))
 
 		rec := httptest.NewRecorder()
-		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/Welcome.html", nil))
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "http://localhost/Welcome.html", nil))
 
 		if got := rec.Header().Get("Cache-Control"); got != "no-store" {
 			t.Errorf("Content-Type %q: Cache-Control = %q, want %q", contentType, got, "no-store")
@@ -68,7 +68,7 @@ func TestConnectionMiddlewareKeepsTheWordsOfTheHandler(t *testing.T) {
 	}))
 
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/Welcome.html", nil))
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "http://localhost/Welcome.html", nil))
 
 	if got := rec.Header().Get("Cache-Control"); got != "no-cache, private" {
 		t.Errorf("Cache-Control = %q, want the value of the handler", got)
@@ -85,7 +85,7 @@ func TestConnectionMiddlewareWriterIsAFlusher(t *testing.T) {
 		_, isFlusher = w.(http.Flusher)
 	}))
 
-	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/api/logs", nil))
+	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "http://localhost/api/logs", nil))
 
 	if !isFlusher {
 		t.Error("the writer of connectionMiddleware is not an http.Flusher")
@@ -103,7 +103,7 @@ func TestConnectionMiddlewareLetsAHandlerReplaceCacheControl(t *testing.T) {
 	}))
 
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/logs", nil))
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "http://localhost/api/logs", nil))
 
 	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
 		t.Errorf("Cache-Control = %q, want the value of the handler %q", got, "no-store")

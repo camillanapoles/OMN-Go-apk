@@ -142,7 +142,8 @@ trusted it.** A caller on the network could set that cookie itself and get
 the admin role with no password. The signature closes that hole. A cookie
 in the old form is refused.
 
-There is no CSRF token, no bearer token, and no rate limiting. Passwords are
+There is no CSRF token, no bearer token, and no rate limiting. §2.4 tells
+how the server refuses a request that another site sends. Passwords are
 stored in `config.json` in cleartext. `handleLogin` compares them with
 `subtle.ConstantTimeCompare`, and an empty configured password matches
 nothing.
@@ -190,6 +191,31 @@ what its own page shows and gets no permission.
 | `GET /OMNGoFiles.html`, `GET /OMNGoStatus.html`, `GET /OMNGoLogs.html`, `GET /db_backups` | admin (local bypass applies) — answers a **page**, not a 401 |
 | `GET /Config.html`, `GET /OMNGoTags.html`, `GET /OMNGoSearch.html` | none |
 | All page and static routes (`/`, `*.html`, `/js/`, `/css/`, `/json/`, `/images/`, `/user_json/`) | none |
+
+### 2.4 Requests from another site
+
+A local connection is always admin. A page of another site that the
+browser of the device opens thus must not reach the server through that
+browser. `connectionMiddleware` asks `foreignRequest`
+(`backend/request_guard.go`) before each route, and it answers
+`403 Forbidden` with a plain text reason in these cases:
+
+| Case | Reason in the body |
+| --- | --- |
+| The `Host` header names another machine | `unknown host name` |
+| A write carries an `Origin` with another host or port, or `Origin: null` | `request from another origin` |
+| A write carries `Sec-Fetch-Site: cross-site` and no `Origin` | `request from another site` |
+
+A write is each method except `GET`, `HEAD` and `OPTIONS`.
+
+A `Host` passes when it is an IP address, `localhost`, the system name of
+the device or the device label of the Config page. Each name can end in
+`.local`. A request with no `Host` passes. A LAN client that uses another
+name, for example a name of a local DNS server, gets `403`.
+
+A write with no `Origin` passes. The Java layer of the Android application
+and a command-line client such as `curl` send none. See
+`doc/decisions/0017-refuse-a-request-that-another-site-sends.md`.
 
 ---
 
@@ -2166,6 +2192,7 @@ stream:
 | `400 Bad Request` | `/api/status` with an unknown `sections` name |
 | `400 Bad Request` | Missing/invalid parameters, rejected uploads, SQL errors |
 | `401 Unauthorized` | `/login` with a wrong password. `authMiddleware` for a remote caller with no valid admin cookie, which covers a missing, a changed and an expired one. |
+| `403 Forbidden` | Each address, for a request that another site sends. See §2.4 |
 | `404 Not Found` | Missing static asset or `/api/note` for a missing non-page file |
 | `405 Method Not Allowed` | Each route of §3 except the catch-all and the asset trees, for a method that §3 does not list |
 | `500 Internal Server Error` | Disk/permission failures, git repo errors, restore failures |

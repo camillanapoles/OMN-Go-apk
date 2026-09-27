@@ -930,6 +930,8 @@ On Android, a **persistent notification** shows while LAN sharing is active. It 
 With LAN sharing disabled, OMN-Go shows no notification and asks for no permissions.
 
 On another device, open the address in a browser. Log in with the guest password for read access, or with the admin password for full access.
+
+Open the address from the notification, or use the name of the device. OMN-Go refuses each other name with `Forbidden: unknown host name`, for example a name that your router gives. This rule stops a web page that tries to reach OMN-Go through a false name.
 **Security note:** Any person on your network who has a password can
 access your notes. OMN-Go has no HTTPS. Use LAN sharing only on a trusted home network. Do not use it to publish on the internet.
 
