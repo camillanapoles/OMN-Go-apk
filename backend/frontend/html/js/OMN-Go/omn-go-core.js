@@ -173,8 +173,8 @@ var OMN_HL_MIN = 2;   // 1 character marks half the page
 // The server folds before it matches, thus a search for "elka" finds a note
 // titled "Elka" with the Cyrillic yo. The panel marks that word, because the
 // server sends the spans. This file marks the word again after the reader
-// opens the page. It found nothing until 26.08.79. A lowercase alone does
-// not make the yo into an e.
+// opens the page. A lowercase alone does not make the yo into an e, thus
+// this file needs the table.
 //
 // Every entry maps ONE character to ONE character. The Go comment gives
 // the reason. A fold that changes the length moves every span after it.
@@ -1305,9 +1305,9 @@ function omnGoSendNote(note) {
 // API and refuses the permission. Android 14 has a current WebView. That
 // version does the write after a tap.
 //
-// Before 26.08.74 this function returned at the API call. The refusal on
-// Android 6 thus came to the reader as "Copy failed: Write permission
-// denied". The second way did not run.
+// This function must not return at the API call. The refusal on Android 6
+// would then reach the reader as "Copy failed: Write permission denied",
+// and the second way would not run.
 //
 // The second way uses a scratch textarea and execCommand. It is
 // synchronous. It needs no permission. It works in the Android WebView, on
@@ -1422,12 +1422,9 @@ async function omnGoCopyPageLink(say) {
 // Built from ELEMENTS, not from a string of HTML.
 //
 // Every value here comes from the meta tags of the note, which come from
-// its header block. The old "metaHtml += `<strong>${name}</strong>
-// ${content}`" thus let a note write markup into its own metadata panel.
-// textContent cannot. The inline "color:#0056b3" and "border-bottom:#ccc"
-// went the same way. They are theme tokens now, thus the panel is legible
-// on the dark theme. The database backup dialog had that fault before
-// 26.08.29.
+// its header block. A string of HTML would let a note write markup into
+// its own metadata panel. textContent cannot. The colors are theme
+// tokens, thus the panel is legible on the dark theme.
 document.addEventListener("DOMContentLoaded", () => {
     const panel = document.getElementById('metadataPanel');
     if (!panel) return;

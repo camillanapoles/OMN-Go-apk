@@ -16,11 +16,9 @@ import java.util.Map;
 // at the moment it needs it. A change on the Config page therefore applies
 // at the next tap, and it needs no restart of the application.
 //
-// MainActivity held THREE near copies of the same reader until 26.09.25.
-// readConfigString, readConfigFlag and readMaxUploadSizeMB each opened the
-// file, read the bytes, built an org.json.JSONObject and asked it for one
-// key. Each copy carried its own default, thus a change of a default was
-// a change in three places, and no test held any of them.
+// THIS CLASS IS THE ONE READER. A copy of the reader for each setting
+// would carry its own default. A change of a default would then be a
+// change in several places.
 //
 // WHY THIS CLASS IMPORTS NO android PACKAGE. org.json is part of the
 // Android framework. A plain Java virtual machine does not have it, thus a
@@ -64,10 +62,10 @@ final class OmnConfig {
     //
     // THE PARAMETER IS A String AND NOT A File. MainActivity.storageDir()
     // and ServerService.storageDir(Context) both answer a String, and so
-    // does the path that Backend.startServer takes. A File parameter made
-    // each of the four call sites convert, and 26.09.29 shipped with four
-    // that did not. TestAndroidConfigCallSitesTypeCheck now compiles the
-    // real call sites against these signatures.
+    // does the path that Backend.startServer takes. A File parameter would
+    // make each of the four call sites convert, and a call site that does
+    // not convert fails the build. TestAndroidConfigCallSitesTypeCheck compiles
+    // the real call sites against these signatures.
     static Map<String, Object> read(String storageDir) {
         try {
             File cfgFile = new File(storageDir, "config.json");

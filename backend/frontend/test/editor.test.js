@@ -1,8 +1,7 @@
 // The editor expansions, against the note that documents them.
 //
-// A person types into expandEmmet and expandMarkdownAbbr every day, and
-// NOTHING tested either one. H3 gave each an export tail in 26.09.27 and
-// no test ever called them.
+// A person types into expandEmmet and expandMarkdownAbbr every day. Each
+// one has an export tail, and this file calls them.
 //
 // THE CASES COME FROM backend/frontend/md/Editor.md. That note is what a
 // person reads before they type, thus it is the contract.

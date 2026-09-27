@@ -30,9 +30,8 @@ test('omnFold never changes the length of a string', () => {
 });
 
 test('omnFold folds the pair that the reported fault named', () => {
-    // A search for "елка" must find "Ёлка". Before 26.08.79 the page held
-    // no table, thus the server found the note and the page marked
-    // nothing.
+    // A search for "елка" must find "Ёлка". With no table, the server
+    // finds the note and the page marks nothing.
     assert.strictEqual(core.omnFold('Ёлка'), core.omnFold('елка'));
     assert.strictEqual(core.omnFold('ЁЛКА'), core.omnFold('елка'));
 });

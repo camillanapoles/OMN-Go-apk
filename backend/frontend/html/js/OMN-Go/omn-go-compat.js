@@ -15,9 +15,9 @@
  * DO NOT MOVE THIS CODE INTO omn-go-core.js. That file is modern, an old
  * WebView drops all of it, and this notice would go with it.
  *
- * It was inline in index.html until 26.08.73. It moved out because the
- * compiled page of each note carried a copy. That copy is 3.3 KB for each
- * note, on disk and in every git sync.
+ * It is a file, and not an inline block of index.html. An inline block
+ * would go into the compiled page of each note. That copy is 3.3 KB for
+ * each note, on disk and in every git sync.
  *
  * THE NUMBER. 85 is the highest requirement the frontend actually has:
  * String.replaceAll, in Bookmarker.js and the editor. Below that things

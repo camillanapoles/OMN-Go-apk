@@ -4,10 +4,9 @@
 // to /api/sync, the conflict modal, the force push, and the commit-message
 // modal that an upload opens first.
 //
-// THIS FILE ARRIVES ON DEMAND. It was part of omn-go-sse.js until
-// 26.09.24, thus every note page parsed it to run nothing. omn-go-sse.js
-// writes a stub for each name below, and the first press of a sync button
-// loads this file. See omnLazy in that file.
+// THIS FILE ARRIVES ON DEMAND. omn-go-sse.js writes a stub for each name
+// below, and the first press of a sync button loads this file. See omnLazy
+// in that file, and doc/decisions/0015-load-the-click-driven-scripts-on-demand.md.
 //
 // The names must match the omnLazy list there. A name that this file does
 // not define writes a console fault at the first press.
@@ -16,16 +15,14 @@ if (window.location.protocol !== 'file:') {
     // The title of the progress overlay, for each action that runSync
     // takes.
     //
-    // IT LIVED IN omn-go-sse.js UNTIL 26.09.41, AND THAT BROKE THE UPLOAD.
-    // F3 moved the sync code into this file in 26.09.24 and left the map
-    // behind. The body of omn-go-sse.js sits inside an if block, thus a
-    // const of that block reaches no other file. Each press of
-    // "Commit & Push" then threw "SYNC_TITLES is not defined" and the
-    // button did nothing.
+    // IT MUST BE IN THIS FILE. The body of omn-go-sse.js sits inside an if
+    // block, thus a const of that block reaches no other file. A map
+    // there would make each press of "Commit & Push" throw "SYNC_TITLES is
+    // not defined".
     //
-    // A name that this file reads belongs in this file. See
-    // TestLazyFilesDefineWhatTheyRead, which runs each exported function
-    // of each lazy file and fails on a free variable.
+    // A name that this file reads belongs in this file. lazy.test.js runs
+    // each exported function of each lazy file and fails on a free
+    // variable.
     const SYNC_TITLES = {
         pull: 'Download', pull_ff: 'Download', download: 'Download',
         pull_force: 'Force download', pull_mark: 'Mark conflicts',
@@ -33,22 +30,17 @@ if (window.location.protocol !== 'file:') {
         push: 'Upload', upload: 'Upload', push_force: 'Force upload'
     };
 
-    // populateConflictFiles and the functions below were inside an
-    // IIFE named Logger until 26.09.42. The name was wrong: the block
-    // held the sync controls and no logger. Its return value went into
-    // a const that nothing read.
-    //
-    // The whole body of this file already sits inside the protocol
-    // guard, thus a name here reaches no other file unless it goes on
-    // window. The wrapper added a scope and hid nothing.
+    // The whole body of this file sits inside the protocol guard, thus a
+    // name here reaches no other file unless it goes on window. An IIFE
+    // around the functions below would add a scope and hide nothing.
 
     // runSync is the one place that talks to /api/sync. It always POSTs
     // action, force and message together, and it always expects a JSON
     // {status, message} response.
     //
-    // The backend previously read "action" from the URL query string
-    // alone, and this file posted it in the body. The action was thus
-    // silently ignored, and every request fell back to a plain "pull".
+    // The backend reads "action" from the body of the POST. An action in
+    // the URL query string alone would be ignored, and the request would
+    // fall back to a plain "pull".
     //
     // Both syncAction and the conflict modal handler, which is performSync
     // below, go through this one function. The two thus cannot drift apart.

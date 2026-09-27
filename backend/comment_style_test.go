@@ -602,27 +602,13 @@ func countCommentVersions(src string) int {
 // commentVersionDebt holds the version numbers that each file still
 // carries in its comments. See the banner above.
 var commentVersionDebt = map[string]int{
-	"android/app/src/main/java/net/basov/omngo/OmnConfig.java": 2,
-	"android/test/java/net/basov/omngo/OmnConfigTest.java":     1,
-	"backend/api_doc_test.go":                                  2,
-	"backend/baseline_test.go":                                 23,
-	"backend/binary_size_test.go":                              3,
-	"backend/frontend/html/js/OMN-Go/omn-go-bookmark.js":       1,
-	"backend/frontend/html/js/OMN-Go/omn-go-config.js":         2,
-	"backend/frontend/html/js/OMN-Go/omn-go-core.js":           3,
-	"backend/frontend/html/js/OMN-Go/omn-go-editor.js":         2,
-	"backend/frontend/html/js/OMN-Go/omn-go-logs.js":           1,
-	"backend/frontend/html/js/OMN-Go/omn-go-search.js":         1,
-	"backend/frontend/html/js/OMN-Go/omn-go-sse.js":            5,
-	"backend/frontend/html/js/OMN-Go/omn-go-status.js":         2,
-	"backend/frontend/html/js/OMN-Go/omn-go-sync.js":           4,
-	"backend/frontend/test/editor.test.js":                     1,
-	"backend/frontend/test/fold.test.js":                       1,
-	"backend/frontend/test/lazy.test.js":                       2,
-	"backend/java_test.go":                                     4,
-	"backend/js_test.go":                                       5,
-	"backend/pipelines_test.go":                                1,
-	"backend/ports_test.go":                                    4,
+	"backend/api_doc_test.go":     2,
+	"backend/baseline_test.go":    23,
+	"backend/binary_size_test.go": 3,
+	"backend/java_test.go":        4,
+	"backend/js_test.go":          5,
+	"backend/pipelines_test.go":   1,
+	"backend/ports_test.go":       4,
 }
 
 // No file may hold more version numbers in its comments than the table

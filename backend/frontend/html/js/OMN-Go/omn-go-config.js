@@ -3,10 +3,9 @@
 // Every setting screen of OMN-Go is in this file: the navigation, the
 // unsaved-changes mark, the reveal of each secret, and the save.
 //
-// WHY IT IS A FILE OF ITS OWN. The navigation and the dirty mark were in
-// omn-go-core.js until 26.09.23, and the secrets and the save were in
-// omn-go-sse.js. Each note carries a copy of the shell of index.html,
-// thus each note carried a script that only ONE page runs. config_page.html
+// WHY IT IS A FILE OF ITS OWN. Each note carries a copy of the shell of
+// index.html. Code in omn-go-core.js or omn-go-sse.js would thus reach each
+// note, and only ONE page runs this code. config_page.html
 // loads this file, and no other page does.
 //
 // IT NEEDS NO file: GUARD, unlike omn-go-sse.js. The Config page is
@@ -136,8 +135,7 @@ document.addEventListener("DOMContentLoaded", () => {
 //
 // A reader who empties a box by hand makes it dirty, thus an empty
 // value reaches the server and clears the stored value. That is the
-// behavior that a person expects, and it is the behavior of each
-// version before 26.09.7.
+// behavior that a person expects.
 //
 // revealSecrets fills each box from GET /api/config, which is admin
 // only. It sets no dirty flag, thus a reveal alone changes nothing.

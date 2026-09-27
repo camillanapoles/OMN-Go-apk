@@ -3,9 +3,9 @@
 // The capture of a shared link, the panel itself, and the autocomplete of
 // the Tags box.
 //
-// THIS FILE ARRIVES ON DEMAND. It was part of omn-go-sse.js until
-// 26.09.24. omn-go-sse.js writes a stub for each name below, and the
-// first press of the bookmark button loads this file. See omnLazy there.
+// THIS FILE ARRIVES ON DEMAND. omn-go-sse.js writes a stub for each name
+// below, and the first press of the bookmark button loads this file. See
+// omnLazy there.
 //
 // TWO PARTS STAYED IN omn-go-sse.js, and each one has a reason.
 // omnGoInsertCapture answers Android with a value that Android reads,

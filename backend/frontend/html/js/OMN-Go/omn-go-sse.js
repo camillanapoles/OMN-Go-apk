@@ -4,12 +4,12 @@
 // opens an exported page from disk, where no server answers. See the
 // else branch at the end.
 //
-// WHAT LOADS WHEN, SINCE 26.09.24
+// WHAT LOADS WHEN
 //
-// index.html carries three script elements, and this is the third. The
-// file held 2045 lines until 26.09.23, and every note page parsed all of
-// them to run a fraction. Three parts are now files of their own, and
-// each one arrives at the first press of the control that needs it:
+// index.html carries three script elements, and this is the third. Every
+// note page parses this file. Three parts are files of their own, and
+// each one arrives at the first press of the control that needs it. See
+// doc/decisions/0015-load-the-click-driven-scripts-on-demand.md:
 //
 //	omn-go-sync.js      the sync buttons and the commit modal
 //	omn-go-bookmark.js  the bookmark panel and the tag autocomplete
@@ -37,10 +37,9 @@
 //     lazy omnSearchOpen.
 //  5. THE LOG STREAM AND THE SESSION CHECK. Each page starts both.
 
-// printDebug is defined OUTSIDE the guard below, and it was inside the
-// else branch until 26.09.24. Each stub of that branch calls it, and the
-// split files each carry a branch of their own now. One definition, at
-// the top, answers for all of them.
+// printDebug is defined OUTSIDE the guard below. Each stub of the else
+// branch calls it, and the split files each carry a branch of their own.
+// One definition, at the top, answers for all of them.
 window.printDebug = function (funcName) {
     console.debug("'" + funcName + "' Not usable on standalone page");
 };
@@ -192,11 +191,9 @@ if (window.location.protocol !== 'file:') {
     // through the scope.
     //
     // The body of this file sits inside an if block. Annex B of the
-    // standard hoists a function of such a block to the global scope.
-    // omn-go-sync.js found this name that way for 17 versions, by
-    // accident. A const of the same block does NOT hoist, and
-    // SYNC_TITLES broke the upload of 26.09.24 for that reason. See the
-    // banner of omn-go-sync.js.
+    // standard hoists a function of such a block to the global scope. A
+    // const of the same block does NOT hoist. Do not depend on that
+    // difference. See doc/decisions/0015-load-the-click-driven-scripts-on-demand.md.
     //
     // One export, written out, cannot break that way.
     window.applySyncLogLine = applySyncLogLine;
@@ -517,9 +514,9 @@ if (window.location.protocol !== 'file:') {
     // here. See the banner of backend/session.go. A reader who changes
     // this cookie changes what this page shows and gets no permission.
     //
-    // The old code asked document.cookie.includes('session_role=guest').
-    // The signed cookie is HttpOnly since 26.09.6, thus that test found
-    // nothing and each guest saw the controls of an admin.
+    // A test of document.cookie for 'session_role=guest' finds nothing,
+    // because the signed cookie is HttpOnly. Each guest would then see the
+    // controls of an admin.
     function roleHint() {
         var parts = document.cookie.split(';');
         for (var i = 0; i < parts.length; i++) {

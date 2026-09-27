@@ -181,7 +181,7 @@ public final class OmnConfigTest {
             "\"a\":\"line\\nbreak\",\"b\":\"say \\\"hi\\\"\",\"c\":\"back\\\\slash\"}");
         // The expected value is written with the SAME escapes, thus this
         // file holds no byte above 127. A javac with no UTF-8 locale
-        // refuses such a byte, and version 26.09.28 failed a build on it.
+        // refuses such a byte, and the build then fails.
         eq("escape: \\u", "\u041f\u0438\u043a\u0441\u0435\u043b", m.get("hostname"));
         eq("escape: newline", "line\nbreak", m.get("a"));
         eq("escape: quote", "say \"hi\"", m.get("b"));

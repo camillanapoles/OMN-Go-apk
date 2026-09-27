@@ -1,14 +1,11 @@
 // Each lazy file must define every name that omn-go-sse.js promises, and
 // it must read no name that nothing defines.
 //
-// THE FAULT THIS FILE EXISTS TO FIND, and which shipped for 17 versions.
-//
-// F3 moved the sync code out of omn-go-sse.js in 26.09.24. It left the
-// SYNC_TITLES map behind. The body of omn-go-sse.js sits inside an
-// `if (protocol !== 'file:')` BLOCK, thus a `const` of that block reaches
-// no other file. Every press of "Commit & Push" threw
-// "SYNC_TITLES is not defined" and the button did nothing. 26.09.41
-// repaired it.
+// THE FAULT THIS FILE EXISTS TO FIND. The body of omn-go-sse.js sits inside
+// an `if (protocol !== 'file:')` BLOCK, thus a `const` of that block reaches
+// no other file. A lazy file that reads such a name throws a ReferenceError,
+// for example "SYNC_TITLES is not defined" at each press of "Commit & Push".
+// See doc/decisions/0015-load-the-click-driven-scripts-on-demand.md.
 //
 // WHY NOTHING CAUGHT IT.
 //

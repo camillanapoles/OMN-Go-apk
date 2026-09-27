@@ -86,3 +86,4 @@ the status of the old record to `replaced by NNNN`.
 | [0012](0012-keep-one-remote-for-each-git-server-slot.md) | Keep one remote for each git server slot. | `git_repo.go` |
 | [0013](0013-send-each-log-line-to-three-places-and-to-the-admin-only.md) | Send each log line to three places, and to the admin only. | `log_levels.go`, `logger.go` |
 | [0014](0014-change-only-the-settings-that-a-request-names.md) | Change only the settings that a request names. | `handlers.go`, `config_fields.go` |
+| [0015](0015-load-the-click-driven-scripts-on-demand.md) | Load the click-driven scripts on demand. | `omn-go-sse.js`, `omn-go-sync.js`, `omn-go-bookmark.js`, `omn-go-search.js` |

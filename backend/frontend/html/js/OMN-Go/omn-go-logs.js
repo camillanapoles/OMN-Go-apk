@@ -10,8 +10,8 @@
 // window.omnGoOnServerLog of omn-go-sse.js, thus the page opens NO second
 // connection to the stream.
 //
-// Both addresses are admin only since 26.09.59. serveLogsPage answers a
-// guest with an explanation and not with this page.
+// Both addresses are admin only. serveLogsPage answers a guest with an
+// explanation and not with this page.
 //
 // THE HEADER OF THE PAGE ALREADY CARRIES THE SYNC BUTTONS. Every compiled
 // page shares one shell, and Download and Upload sit in it. A reader can

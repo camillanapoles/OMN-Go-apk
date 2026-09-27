@@ -7,13 +7,8 @@
 // The page holds no fact of its own. It reads /api/status and draws what
 // comes back. That endpoint came first for this reason.
 //
-// IT WAS INLINE UNTIL 26.09.61. status_page.html carried this code and
-// its stylesheet between a <script> tag and a <style> tag. It was the one
-// page template that did. Section 4 of CLAUDE.md asks for a file and a
-// src, and nothing about this code needed the exception.
-//
-// The move changed no line of the code itself. Only the banner above and
-// the two lines of the template are new.
+// IT IS A FILE AND NOT AN INLINE BLOCK. Section 4 of CLAUDE.md asks for a
+// file and a src, and nothing about this code needs an exception.
 
 'use strict';
 
@@ -172,9 +167,8 @@
     // page holds. The text is therefore the same text that "Open as text"
     // gives, and a bug report gets each fact in one paste.
     // omnGoCopyText in omn-go-core.js is the only clipboard writer of the
-    // application. Before 26.08.74 this page had its own textarea and its
-    // own execCommand call. Two paths then had to agree about the Android
-    // WebView. One of the two was wrong.
+    // application. A second copy here would be a second path that must
+    // agree about the Android WebView.
     document.getElementById('stCopy').addEventListener('click', async function () {
         var btn = this;
         var label = btn.textContent;

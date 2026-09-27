@@ -766,7 +766,7 @@
     // backend/header_block.go. The caret of the editor and the server thus
     // agree about where a header block ends.
     //
-    // THE RULE HAS TWO ENDINGS, AND THIS FUNCTION HELD ONE UNTIL 26.09.14.
+    // THE RULE HAS TWO ENDINGS.
     // A header exists only when the first line is a metadata key line. It
     // then ends at the FIRST of:
     //
@@ -775,15 +775,14 @@
     //   * a line that is not a metadata key line. That line IS the first
     //     line of the body, thus the body starts on it.
     //
-    // The old code looked for /\r?\n\r?\n/ and nothing else. Three notes
-    // read wrong:
+    // A search for /\r?\n\r?\n/ alone reads three notes wrong:
     //
     //   "Title: X\n<style>..."
-    //       The caret went to the END of the file.
+    //       The caret goes to the END of the file.
     //   "Title: X\nprose\n\nmore"
-    //       The caret went past the first paragraph of the body.
+    //       The caret goes past the first paragraph of the body.
     //   "Title: X\n   \nbody"
-    //       A separator of spaces went unread.
+    //       A separator of spaces goes unread.
     //
     // TestHeaderBodyStartHasAFrontendCopy compares the two sides against a
     // table of notes. Change this function and header_block.go together.
@@ -1641,9 +1640,8 @@
     //
     // isHeaderFirstLine and firstLineAfterHeader are a port of the Go
     // code, and CLAUDE.md section 5 asks a person to keep the two the
-    // same. A person could not, and 26.09.14 repaired a pair that had
-    // already moved apart. header.test.js runs THIS code against the
-    // same cases that the Go test uses.
+    // same. A person cannot do that by eye. header.test.js runs THIS code
+    // against the same cases that the Go test uses.
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = {
             isHeaderFirstLine: isHeaderFirstLine,

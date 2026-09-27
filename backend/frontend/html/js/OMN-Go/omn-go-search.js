@@ -3,9 +3,9 @@
 // The panel that the magnifier opens: the query box, the scope chips, the
 // result rows, and the jump into a page with the words marked.
 //
-// THIS FILE ARRIVES ON DEMAND, and it is the largest of the three. It was
-// part of omn-go-sse.js until 26.09.24, thus each note page parsed about
-// 34 kilobytes of it to show nothing. The first press of the magnifier,
+// THIS FILE ARRIVES ON DEMAND, and it is the largest of the three. Each
+// note page would otherwise parse about 34 kilobytes of it to show
+// nothing. The first press of the magnifier,
 // of Ctrl-K, or of the slash key loads it. See omnLazy in omn-go-sse.js.
 //
 // THE SHORTCUTS ARE NOT HERE. They are in omn-go-sse.js, because a
