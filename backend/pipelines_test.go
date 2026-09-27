@@ -102,7 +102,7 @@ func pipeSame(t *testing.T, what, where, want string, got []string) {
 
 // The Android API level of the native library must be minSdk. The
 // library of a higher level can fail to load on the lowest Android that
-// installs the APK. Version 26.08.49 set minSdk 23 for Android 6.
+// installs the APK. minSdk 23 is Android 6.
 func TestPipelinesAgreeOnTheAndroidAPILevel(t *testing.T) {
 	gradle := pipeRead(t, "android/app/build.gradle")
 	m := pipeMinSdkRe.FindStringSubmatch(gradle)

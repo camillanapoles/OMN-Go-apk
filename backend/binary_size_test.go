@@ -5,8 +5,8 @@ package backend
 // ----------------------------------------------------------------------
 //
 // TestBinarySize builds the release binaries of the current tree. It
-// compares the size of each one with the build of v26.09.62, and it
-// reports the change in bytes and in percent. A change is not a fault.
+// compares the size of each one with a baseline build, and it reports the
+// change in bytes and in percent. A change is not a fault.
 // The test fails only when a growth limit is set and a target goes over
 // it.
 //
@@ -15,8 +15,8 @@ package backend
 //
 //	OMN_BINARY_SIZE=1 go test -v -run 'TestBinarySize$' -timeout 30m ./backend/
 //
-// THE BASELINE. testdata/binary_size_baseline.json holds the sizes of
-// v26.09.62 and the Go version that made them. A different Go version
+// THE BASELINE. testdata/binary_size_baseline.json holds the git reference
+// of the baseline build, its sizes, and the Go version that made them. A different Go version
 // also changes the size. The report then says so, and the growth limit
 // does not apply.
 //
@@ -28,7 +28,8 @@ package backend
 // THE SETTINGS.
 //
 //   - OMN_BINARY_SIZE=1 runs the test.
-//   - OMN_BINARY_SIZE_BASE=v26.09.62 builds that reference as the baseline.
+//   - OMN_BINARY_SIZE_BASE=<git reference> builds that reference as the
+//     baseline. Use the ref of the JSON file for the same baseline.
 //   - OMN_BINARY_SIZE_MAX_GROWTH=1.5 fails the test when a target grows
 //     by more than 1.5 percent.
 //   - OMN_BINARY_SIZE_WRITE=1 writes the sizes of the baseline reference

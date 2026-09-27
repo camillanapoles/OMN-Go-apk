@@ -4,8 +4,7 @@ package backend
 // The JavaScript, from the Go gate
 // ----------------------------------------------------------------------
 //
-// No JavaScript of this project ran under a test until 26.09.27. Two Go
-// tests read a script and compared a VALUE in it, which is a real guard
+// A Go test that reads a script and compares a VALUE in it is a real guard
 // and a narrow one. ports_test.go says the limit out loud:
 //
 //	"A transcription is not the JavaScript itself. This test can
@@ -13,8 +12,7 @@ package backend
 //
 // jsFirstLineAfterHeader in that file is a Go copy of the editor, written
 // by hand. It finds a rule that MOVED. It cannot find a copy that was
-// wrong the day a person wrote it. The header pair had already moved
-// apart when E1 first tested it, and 26.09.14 repaired it.
+// wrong the day a person wrote it.
 //
 // The tests under backend/frontend/test/ load the shipped script and call
 // the real function. TestJavaScriptUnitTests below runs them.
@@ -85,10 +83,9 @@ func TestHeaderCasesRunThroughTheGoAuthority(t *testing.T) {
 //
 // It runs the REAL omn-go-editor.js through node and compares each answer
 // against parseHeaderBlock. A difference means the editor puts the caret
-// in one place and the server reads the body from another. That is the
-// fault that 26.09.14 repaired, in four of eight note shapes.
+// in one place and the server reads the body from another.
 //
-// It skips with no node. The build image has one since 26.09.27.
+// It skips with no node. The build image has one.
 func TestHeaderPortAgreesWithTheRealJavaScript(t *testing.T) {
 	node, err := exec.LookPath("node")
 	if err != nil {
@@ -215,7 +212,7 @@ func TestFrontendTestsAreNotShipped(t *testing.T) {
 // stage that ended, and no fault reaches any log.
 //
 // This test runs a WHOLE SYNC and reads the lines that it really wrote.
-// The ring of 26.09.38 keeps them, thus the test needs no capture of its
+// The history ring keeps them, thus the test needs no capture of its
 // own. Each line then goes through the REAL JavaScript, in a page whose
 // OMNProgress records the stage.
 //

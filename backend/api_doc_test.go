@@ -9,14 +9,9 @@ package backend
 //
 //	`omnGoRevealSecrets` in `omn-go-config.js`
 //
-// A claim of that shape goes stale each time a function moves. Two of
-// the nine were wrong when 26.09.35 measured them. F2 moved
-// omnGoRevealSecrets into omn-go-config.js in 26.09.23, and the
-// reference still named omn-go-sse.js. The omnGoOpenDatabase claim named
-// omn-go-core.js and was wrong for longer than that.
-//
-// Each time was the same mistake. A person moved code, ran the gate, and
-// the gate said nothing about a document.
+// A claim of that shape goes stale each time a function moves. A person
+// moves code, runs the gate, and the gate says nothing about a document.
+// This test makes the gate say it.
 //
 // WHAT THIS TEST PROVES, AND WHAT IT DOES NOT. It proves that the named
 // file HOLDS the name. It does not prove that the file DEFINES it, and a

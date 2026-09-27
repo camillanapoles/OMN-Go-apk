@@ -4,13 +4,12 @@ package backend
 // The Android layer, from the Go gate
 // ----------------------------------------------------------------------
 //
-// The Java of this project had NO test until 26.09.26. The reason was
-// always the same. A test of Android code needs an emulator, an emulator
-// needs a test framework, and a test framework is a Gradle dependency.
-// Rule 1 of CLAUDE.md section 1 allows one dependency.
+// A test of Android code needs an emulator, an emulator needs a test
+// framework, and a test framework is a Gradle dependency. Rule 1 of
+// CLAUDE.md section 1 allows one dependency.
 //
-// OmnConfig.java broke that chain in 26.09.25. It imports no android
-// package, thus javac and java alone can run a test of it. The Docker
+// OmnConfig.java breaks that chain. It imports no android package, thus
+// javac and java alone can run a test of it. The Docker
 // image of the gate already holds a JDK for the Gradle build. The test
 // below therefore needs no new tool and no change to any Dockerfile.
 //
@@ -186,13 +185,12 @@ func TestJavaUnitTests(t *testing.T) {
 
 	// -encoding UTF-8, because a raw javac reads a source file in the
 	// encoding of the PLATFORM. The build image of the gate has no UTF-8
-	// locale, thus its javac read the file as US-ASCII and refused each
-	// byte above 127. Version 26.09.28 failed the build that way.
+	// locale, thus its javac reads the file as US-ASCII and refuses each
+	// byte above 127.
 	//
-	// The Gradle build never had that fault. The Android Gradle Plugin
-	// sets options.encoding to UTF-8 for each JavaCompile task.
-	// MainActivity.java has thus carried a character above 127 in a
-	// comment for a long time. This line makes the two compilers agree.
+	// The Android Gradle Plugin sets options.encoding to UTF-8 for each
+	// JavaCompile task, and MainActivity.java carries a character above
+	// 127 in a comment. This line makes the two compilers agree.
 	out := t.TempDir()
 	build := exec.Command(javac, "-encoding", "UTF-8", "-d", out,
 		filepath.Join("..", filepath.FromSlash(mainSrc)),
@@ -215,9 +213,9 @@ func TestJavaUnitTests(t *testing.T) {
 // THE CALL SITES OF MainActivity MUST TYPE-CHECK AGAINST OmnConfig.
 //
 // TestJavaUnitTests compiles OmnConfig.java and its test, and it compiles
-// NEITHER caller. Version 26.09.29 therefore passed the whole Go gate with
-// four call sites that could not compile: storageDir() answers a String,
-// and OmnConfig took a File. Gradle found it, twenty minutes later.
+// NEITHER caller. A call site that cannot compile, for example a String
+// passed where OmnConfig takes a File, would then pass the whole Go gate.
+// Only Gradle would find it, twenty minutes later.
 //
 // Compiling MainActivity itself is not the answer. It needs android.jar,
 // which only the build image has, and it needs R and BuildConfig, which

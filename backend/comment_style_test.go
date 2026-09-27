@@ -572,26 +572,30 @@ func TestCommentStyleScanReachesEachTree(t *testing.T) {
 //
 // The scan counts each whole line comment that holds a version number of
 // this project. TestCommentVersionScannerFindsEachForm shows each form.
-// The scan uses the same files and the same comment lines as the style
-// scan above.
+// The scan uses the same files as the style scan above. In a JavaScript
+// and a Java file it also reads each line of a block comment.
 //
-// THE TABLE IS A RATCHET. commentVersionDebt holds the count of each file
-// that still has such a line. The test fails when a count goes up. It
-// also fails when a count goes down and the table stays the same. Lower
-// the number in the same patch. A file that is not in the table must
-// hold no version number. The table goes away when it is empty.
+// THE RULE IS ZERO. A file that holds one such line fails.
 
 // commentVersionRe finds a version of this project: two digits of the
 // year, the month, and a sequence number of one to three digits. It does
 // not find an address such as 127.0.0.1 or a version such as v5.13.1.
 var commentVersionRe = regexp.MustCompile(`\bv?2[0-9]\.(0[1-9]|1[0-2])\.[0-9]{1,3}[a-z]?\b`)
 
+// commentBlockLineRe is a line of a block comment: the line that opens it,
+// or a line that starts with a star. The scan reads it in a JavaScript and
+// a Java file alone. A Go line that starts with a star is a pointer.
+var commentBlockLineRe = regexp.MustCompile(`^\s*(?:/\*+|\*)\s?(.*)$`)
+
 // countCommentVersions counts the whole line comments of src that hold a
-// version number.
-func countCommentVersions(src string) int {
+// version number. blocks adds the lines of block comments.
+func countCommentVersions(src string, blocks bool) int {
 	n := 0
 	for _, line := range strings.Split(src, "\n") {
 		m := styleCommentLineRe.FindStringSubmatch(line)
+		if m == nil && blocks {
+			m = commentBlockLineRe.FindStringSubmatch(line)
+		}
 		if m != nil && commentVersionRe.MatchString(m[1]) {
 			n++
 		}
@@ -599,43 +603,23 @@ func countCommentVersions(src string) int {
 	return n
 }
 
-// commentVersionDebt holds the version numbers that each file still
-// carries in its comments. See the banner above.
-var commentVersionDebt = map[string]int{
-	"backend/api_doc_test.go":     2,
-	"backend/baseline_test.go":    23,
-	"backend/binary_size_test.go": 3,
-	"backend/java_test.go":        4,
-	"backend/js_test.go":          5,
-	"backend/pipelines_test.go":   1,
-	"backend/ports_test.go":       4,
-}
-
-// No file may hold more version numbers in its comments than the table
-// allows, and the table must follow each repair.
+// No comment may hold a version number of this project.
 func TestNoVersionNumberInComments(t *testing.T) {
-	seen := map[string]bool{}
+	read := 0
 	for _, rel := range commentStyleFiles(t) {
 		src, err := readRepoFile(rel)
 		if err != nil {
 			t.Fatalf("cannot read %s: %v", rel, err)
 		}
-		seen[rel] = true
-		got, want := countCommentVersions(src), commentVersionDebt[rel]
-		switch {
-		case got > want:
-			t.Errorf("%s holds %d comment lines with a version number, and the table allows %d.\n"+
+		read++
+		if got := countCommentVersions(src, filepath.Ext(rel) != ".go"); got > 0 {
+			t.Errorf("%s holds %d comment lines with a version number.\n"+
 				"  A comment tells no history. Remove the version number.\n"+
-				"  See doc/decisions/README.md.", rel, got, want)
-		case got < want:
-			t.Errorf("%s holds %d comment lines with a version number, and the table says %d.\n"+
-				"  Lower the entry in commentVersionDebt to %d.", rel, got, want, got)
+				"  See doc/decisions/README.md.", rel, got)
 		}
 	}
-	for rel := range commentVersionDebt {
-		if !seen[rel] {
-			t.Errorf("commentVersionDebt names %s, and the scan does not read it. Remove the entry.", rel)
-		}
+	if read == 0 {
+		t.Fatal("no file was read, thus this test proves nothing")
 	}
 }
 
@@ -660,8 +644,21 @@ func TestCommentVersionScannerFindsEachForm(t *testing.T) {
 		{"s := \"26.09.1\"\n", 0},
 	}
 	for _, c := range cases {
-		if got := countCommentVersions(c.src); got != c.want {
+		if got := countCommentVersions(c.src, false); got != c.want {
 			t.Errorf("%q gave %d and the case wants %d", c.src, got, c.want)
 		}
+	}
+
+	// A block comment counts in a JavaScript or a Java file, and not in a
+	// Go file. A Go line that starts with a star is a pointer.
+	block := "/* The notice moved in 26.08.73.\n * It was inline until 26.08.73.\n */\n"
+	if got := countCommentVersions(block, true); got != 2 {
+		t.Errorf("a block comment gave %d with blocks on, and the case wants 2", got)
+	}
+	if got := countCommentVersions(block, false); got != 0 {
+		t.Errorf("a block comment gave %d with blocks off, and the case wants 0", got)
+	}
+	if got := countCommentVersions("\t*p = 26.09\n", true); got != 0 {
+		t.Errorf("a pointer line with no full version gave %d, want 0", got)
 	}
 }

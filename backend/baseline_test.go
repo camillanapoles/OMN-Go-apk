@@ -1,67 +1,21 @@
 package backend
 
-// BASELINE: what OMN-Go does today, pinned before the search feature is built.
+// BASELINE: the behavior that a change can break with no other test to say so.
 //
-// This file replaces phase0_regression_test.go, which was the safety net for
-// an EARLIER plan. Its comments are written in the future tense about
-// refactors that have since shipped, such as "Phase 1 will replace them with
-// one parseFrontMatter". Two of its four tests asserted post-refactor
-// behavior while they still carried the pre-refactor name.
+// One question chose each test here. "What would break silently, and is
+// asserted nowhere else?" The file pins:
 //
-// What those two guarded is now covered directly by header_block_test.go and
-// markdown_test.go. Two others are still load-bearing, and they moved here.
-// Those are the shape of a compiled page across every write path, and the
-// /api/logs SSE lifecycle. They are re-commented as statements about today,
-// and not as promises about tomorrow.
+//   - the set of routes that registerRoutes registers,
+//   - the set of runtime variables that injectRuntimeVars puts into a page,
+//   - the dispatch of serveHTMLPage for each kind of address,
+//   - the shape of a compiled page across every write path,
+//   - the /api/logs SSE lifecycle,
+//   - the semantics of a POST to /api/config.
 //
-// The rest of the file pins behavior that the search work is about to lean
-// on or walk past. One question chose it. "What would break silently if the
-// search work got something wrong, and is asserted nowhere today?"
-//
-// NOTHING HERE TESTS SEARCH. Every test must pass on the current tree, before a
-// single line of search code exists, and keep passing after. Two exceptions are
-// planned and named at the point they happen:
-//
-//   - S2 adds /api/search to TestBaseline_RouteSet (done)
-//   - S4 adds OMN_SEARCH_GLOBAL to TestBaseline_InjectedRuntimeVarSet (done)
-//   - S7 adds the OMNGoSearch arm to TestBaseline_ServeHTMLPageDispatch (done)
-//   - 26.08.2 changes that same arm (done). With global search off, the page
-//     no longer answers 404. It explains how to turn it on. This was not a
-//     planned edit, but a reversal. S7 argued that a permanently empty
-//     results page was worse than an honest miss. That was wrong about who
-//     arrives here. The address is linkable, and people put a "Search" link
-//     on their Welcome note. The 404 was thus a dead end that named neither
-//     the cause nor the cure.
-//   - 26.08.3 adds /OMNGoFiles.html to TestBaseline_RouteSet (done). The
-//     directory index is a page, but it is admin-only. The catch-all that
-//     serves every other page is unauthenticated. The index thus takes a
-//     route of its own, next to /db_backups, which is there for the same
-//     reason.
-//   - 26.08.35 adds /api/export/note and /api/import/note to
-//     TestBaseline_RouteSet (done). Note exchange, phase 2. Two exact
-//     patterns under /api/, both behind authMiddleware with requireAdmin.
-//   - 26.08.47 adds OMN_INCOMING_PAGE to TestBaseline_InjectedRuntimeVarSet
-//     (done). The receive box moved out of the incoming index note and into
-//     modals.html. omn-go-sse.js thus has to be told which page it belongs
-//     on, and the name stays in Go, beside the code that writes that page.
-//   - 26.08.71 adds OMN_LOG_DEBUG, OMN_LOG_INFO and OMN_LOG_TAGS to
-//     TestBaseline_InjectedRuntimeVarSet (done), and log_debug, log_info and
-//     log_tags to configFormFields. Every page mirrors the server log into
-//     the browser console, and omn-go-sse.js reads these three to decide
-//     what it prints. They must reach a page compiled before the switches
-//     changed, which is what this mechanism is for.
-//   - 26.09.39 adds /api/logs/history to TestBaseline_RouteSet (done). The
-//     ring of the last 500 log lines. An exact pattern beside /api/logs,
-//     which stays an exact pattern as well. A trailing slash on either one
-//     would make it a subtree and take the other address. Both are admin
-//     only since 26.09.59, and handleLogHistory says why.
-//   - 26.09.60 adds /OMNGoLogs.html to TestBaseline_RouteSet (done). The
-//     Log page. It is registered with no authMiddleware, the same as the
-//     Status page, and serveLogsPage asks hasRole itself. A guest thus
-//     reads a page that explains, and not a line of plain text.
-//
-// A baseline test failing for any other reason means the change under it was
-// not as behavior-preserving as it looked.
+// A CHANGE OF A GOLDEN VALUE IS A DECISION. A new route or a new runtime
+// variable changes a list below. Add it with one comment that says why it is
+// there. A baseline test that fails for any other reason means the change
+// under it was not as behavior-preserving as it looked.
 //
 // A convention inherited from the file that this replaces, and worth keeping.
 // Every test says WHY it exists. A failure thus reads either as "you broke
@@ -264,11 +218,8 @@ func TestBaseline_ServeHTMLPageDispatch(t *testing.T) {
 		// A person who turns the internal editor off gets the
 		// external-editor flow and not the editor page.
 		//
-		// This subtest set no value until 26.09.18. It read the zero
-		// value of the field, and the comment here called that value the
-		// default. loadConfig sets UseInternalEd to true on a fresh
-		// install, thus the comment was wrong and the subtest tested the
-		// state of no user.
+		// loadConfig sets UseInternalEd to true on a fresh install, thus
+		// the subtest sets false itself and puts the default back.
 		a.WithConfig(func(c *Config) { c.UseInternalEd = false })
 		defer a.WithConfig(func(c *Config) { c.UseInternalEd = true })
 
@@ -317,14 +268,11 @@ func TestBaseline_ServeHTMLPageDispatch(t *testing.T) {
 // ---------------------------------------------------------------------
 // 2. The route set
 //
-// IT RECORDS THE REAL REGISTRATIONS SINCE 26.09.32. http.ServeMux exposes
-// no way to enumerate its patterns. The block also sat inside the goroutine
-// that binds the socket. This test therefore read the SOURCE of server.go
-// with a regular expression, and it proved what the file says and not what
-// the mux holds. A route that a helper registered, or a pattern that the
-// expression did not match, was invisible to it.
+// IT RECORDS THE REAL REGISTRATIONS. http.ServeMux exposes no way to
+// enumerate its patterns. A test of the SOURCE of server.go would prove what
+// the file says and not what the mux holds.
 //
-// registerRoutes takes a routeTable now. The recorder below satisfies that
+// registerRoutes takes a routeTable. The recorder below satisfies that
 // interface, thus this test calls the real function and reads the pattern
 // of each route that it really registers.
 // ---------------------------------------------------------------------
@@ -368,17 +316,17 @@ func TestBaseline_RouteSet(t *testing.T) {
 		"/api/db/backups",
 		"/api/db/restore",
 		"/api/edit-external",
-		// 26.08.35: note exchange. Two exact patterns under /api/, so they
+		// Note exchange. Two exact patterns under /api/, so they
 		// shadow nothing. Both admin only - import writes files, and export
 		// is a new way out of the note tree.
 		"/api/export/note",
 		"/api/import/note",
-		// 26.09.32: registered by registerRoutes and no longer by
-		// logger.go, thus one block holds every route.
+		// The log stream. An exact pattern, the same as the history ring
+		// below. A trailing slash on either one would make it a subtree and
+		// take the other address.
 		"/api/logs",
-		// 26.09.39: the history ring. An exact pattern, thus it shadows
-		// nothing and /api/logs still matches its own address alone. Both
-		// are admin only since 26.09.59. See handleLogHistory.
+		// The history ring. Both log routes are admin only. See
+		// handleLogHistory.
 		"/api/logs/history",
 		"/api/newpage",
 		"/api/note",
@@ -387,7 +335,7 @@ func TestBaseline_RouteSet(t *testing.T) {
 		"/api/save",
 		"/api/search",
 		"/api/sql",
-		// 26.08.14: the status endpoint. An exact pattern under /api/, so
+		// The status endpoint. An exact pattern under /api/, so
 		// it shadows nothing. Admin only - the answer carries LAN
 		// addresses, absolute paths and a commit subject (see status.go).
 		"/api/status",
@@ -402,16 +350,16 @@ func TestBaseline_RouteSet(t *testing.T) {
 		"/json/",
 		"/login",
 		"/user_json/",
-		// 26.08.3: the directory index. An exact pattern, so it shadows
+		// The directory index. An exact pattern, so it shadows
 		// nothing - the catch-all "/" still answers every other page. It is
 		// registered here rather than dispatched from serveHTMLPage because it
 		// is a page that needs authorization, and the catch-all is
 		// unauthenticated.
 		"/OMNGoFiles.html",
-		// 26.08.16: the Status page. An exact pattern, like the file index
+		// The Status page. An exact pattern, like the file index
 		// above, and admin-only through hasRole inside the handler.
 		"/OMNGoStatus.html",
-		// 26.09.60: the Log page. The same shape as the Status page above.
+		// The Log page. The same shape as the Status page above.
 		"/OMNGoLogs.html",
 	}
 	sort.Strings(want)
@@ -695,14 +643,8 @@ func TestBaseline_ViewDoesNotRewriteSource(t *testing.T) {
 // ---------------------------------------------------------------------
 // 6. Config POST semantics
 //
-// CHANGED IN 26.08.43. handleConfig used to rebuild the config from the form.
-// An ABSENT field was thus not "leave it alone". A missing checkbox read as
-// false, and a missing text input read as "". That was invisible while the
-// Config page was the only caller, because that page sends the whole form.
-// Then a note posted "theme" on its own. It emptied the author name, both
-// passwords, the external-editor command and the device label.
-//
-// The rule now: a field the request does not carry is left as it is. A field
+// The rule: a field the request does not carry is left as it is. See
+// doc/decisions/0014-change-only-the-settings-that-a-request-names.md. A field
 // it DOES carry is applied, empty value included, so the Config page can
 // still clear a text box.
 //
@@ -716,9 +658,9 @@ func TestBaseline_ViewDoesNotRewriteSource(t *testing.T) {
 // configFormFields is what the Config page's hidden config_fields input
 // carries. A test posts the same declaration that the real form sends.
 //
-// It is not a copy any more. configCheckboxFields reads the table in
-// config_fields.go, and the page fills the input from the same call since
-// 26.09.19. A test therefore cannot drift from the page.
+// It is not a copy. configCheckboxFields reads the table in
+// config_fields.go, and the page fills the input from the same call. A test
+// therefore cannot drift from the page.
 var configFormFields = configCheckboxFields()
 
 // assertConfigOnDisk decodes config.json and hands it to check. It is separate
@@ -951,9 +893,7 @@ func TestConfigPost_DeclaredCheckboxesStillClear(t *testing.T) {
 // browser sends nothing at all for an unticked box. The server reads that
 // absence as "not my business" and keeps the old value.
 //
-// THE TEST READS THE RENDERED PAGE. The list was a hand-written attribute
-// of config_page.html until 26.09.19, and a test of the template caught a
-// forgotten name. The page now fills the attribute from
+// THE TEST READS THE RENDERED PAGE. The page fills the attribute from
 // configCheckboxFields. This test therefore proves the whole path. It
 // reads the table, the fill, and the markup that the browser gets.
 func TestConfigPost_EveryCheckboxIsDeclared(t *testing.T) {
@@ -1107,16 +1047,17 @@ func TestBaseline_InjectedRuntimeVarSet(t *testing.T) {
 	}
 	sort.Strings(names)
 
-	// S4 added OMN_SEARCH_GLOBAL. The offer of the "All notes" scope in the
-	// dialog depends on a setting that a person can change at any time. The
-	// value must thus reach an already-cached page, the same way the theme
-	// does.
-	// 26.08.47 added OMN_INCOMING_PAGE. The receive box lives in the modals
-	// block now. omn-go-sse.js must know which page the box belongs on, and it
-	// must keep no second copy of the name of the note.
-	// 26.08.71 added the three log switches. The console mirror in
-	// omn-go-sse.js reads them to decide what it prints. A page compiled
-	// before a switch changed must still get the new answer.
+	// OMN_SEARCH_GLOBAL: the offer of the "All notes" scope in the dialog
+	// depends on a setting that a person can change at any time. The value
+	// must thus reach an already-cached page, the same way the theme does.
+	//
+	// OMN_INCOMING_PAGE: the receive box lives in the modals block.
+	// omn-go-sse.js must know which page the box belongs on, and it must keep
+	// no second copy of the name of the note.
+	//
+	// The three log switches: the console mirror in omn-go-sse.js reads them
+	// to decide what it prints. A page compiled before a switch changed must
+	// still get the new answer.
 	want := []string{
 		"APP_VERSION", "OMN_INCOMING_PAGE", "OMN_LOG_DEBUG", "OMN_LOG_INFO",
 		"OMN_LOG_TAGS", "OMN_SEARCH_GLOBAL", "OMN_THEME", "USE_INTERNAL_ED",

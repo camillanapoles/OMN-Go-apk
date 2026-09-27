@@ -516,11 +516,9 @@ eye.
 reads each whole line comment of every Go, JavaScript and Java file, and it
 demands zero. A comment that breaks a rule fails the gate.
 
-**`TestNoVersionNumberInComments` in the same file** counts each comment line
-that holds a version number. It is a ratchet. The table `commentVersionDebt`
-holds the count of each file that still has one. Lower the entry in the patch
-that removes a version number. A new version number in a comment fails the
-gate.
+**`TestNoVersionNumberInComments` in the same file** demands zero comment
+lines with a version number. It reads the same files, and in a JavaScript and a
+Java file also each line of a block comment. See `doc/decisions/README.md`.
 
 **`TestEveryGoFileIsGofmtClean` in the same file** checks the formatting that
 `go vet` does not read.

@@ -53,9 +53,8 @@ func portsJava(t *testing.T) string {
 
 // portsJavaConfig reads the class that holds the config rules.
 //
-// MainActivity held them until 26.09.25, in three near copies of one
-// reader. OmnConfig.java holds one copy now, and it imports no Android
-// package, thus a plain JVM can run a test of it. See the banner of that
+// OmnConfig.java holds the one reader, and it imports no Android package,
+// thus a plain JVM can run a test of it. See the banner of that
 // file and TestJavaUnitTests in java_test.go.
 func portsJavaConfig(t *testing.T) string {
 	return portsJavaFile(t, "OmnConfig.java")
@@ -316,8 +315,8 @@ func TestFullscreenModeHasAJavaCopy(t *testing.T) {
 // 5. The upload limit
 // ----------------------------------------------------------------------
 
-// The default moved from three inline numbers to one named constant in
-// 26.09.25. A named constant is what makes the three readers agree.
+// The default is one named constant. A named constant is what makes the
+// readers agree.
 var javaUploadDefaultRe = regexp.MustCompile(`DEFAULT_MAX_UPLOAD_MB\s*=\s*(\d+)`)
 
 // The Android layer writes a shared file itself, thus it reads the limit
@@ -342,9 +341,8 @@ func TestUploadLimitHasAJavaCopy(t *testing.T) {
 
 	// maxUploadMB answers the constant in four cases. Those are a missing
 	// file, a missing key, a value of the wrong type, and a number at zero
-	// or below. A bare number in that method is a fourth default that
-	// waits to go out of step. The three readers of MainActivity were
-	// exactly that until 26.09.25.
+	// or below. A bare number in that method is a second default that
+	// waits to go out of step.
 	inside := java
 	if at := strings.Index(java, "static int maxUploadMB("); at != -1 {
 		if end := strings.Index(java[at:], "\n    }"); end != -1 {
@@ -454,13 +452,11 @@ func jsFirstLineAfterHeader(text string) int {
 	return len(text)
 }
 
-// THIS IS THE TEST FOR THE FAULT THAT 26.09.14 REPAIRS. Until that
-// version firstLineAfterHeader looked for a truly empty line and nothing
-// else. parseHeaderBlock ends a header at a line of spaces as well, and
-// at the first line that is not a metadata key line.
-//
-// Four of the eight notes below read differently in the two. The worst
-// put the caret at the END of the file for a note whose header a <style>
+// parseHeaderBlock ends a header at an empty line or a line of spaces. It
+// also ends it at the first line that is not a metadata key line.
+// firstLineAfterHeader must do the same. A copy that looks for an empty
+// line alone reads four of the eight notes below differently. The worst
+// puts the caret at the END of the file for a note whose header a <style>
 // block follows.
 func TestHeaderBodyStartHasAFrontendCopy(t *testing.T) {
 	cases := []struct{ name, content string }{
