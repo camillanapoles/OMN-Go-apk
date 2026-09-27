@@ -137,7 +137,7 @@ func TestPageSearch_E4EndToEnd(t *testing.T) {
 func TestPageSearch_NeedsNothing(t *testing.T) {
 	// newUnconfiguredApp and not newTestApp. The property under test is
 	// that page search needs no configuration, thus this test must load
-	// none. newTestApp loads the defaults since 26.09.18.
+	// none. newTestApp loads the defaults.
 	a := newUnconfiguredApp(t)
 	writeSearchNote(t, a, "Note.md", "Title: A Note\n\nthe quick brown fox\n")
 
@@ -510,8 +510,8 @@ func writeSearchNote(t *testing.T, a *App, rel, content string) {
 // observe the behavior needs a physical Android keyboard. These attributes are
 // also exactly what a later tidy-up puts back.
 func TestSearchInputDoesNotDisableTheIME(t *testing.T) {
-	// The overlay moved to a file of its own in 26.09.24. It loads at the
-	// first press of the magnifier, and not with each note page.
+	// The overlay is a file of its own. It loads at the first press of the
+	// magnifier, and not with each note page.
 	src, err := staticFS.ReadFile("frontend/html/js/OMN-Go/omn-go-search.js")
 	if err != nil {
 		t.Fatal(err)
@@ -598,10 +598,10 @@ func TestEditorFindInputsDoNotDisableTheIME(t *testing.T) {
 // The phrase rung
 //
 // A reader who types a whole sentence wants the note that holds that
-// sentence. Before 26.08.80 the sum decided, and the sum favors a title.
-// Five loose query words in one title scored 2001. The note that held the
-// sentence in a body line scored 718. tierPhrase answers that, and the
-// tests below pin each edge of the rule.
+// sentence. A plain sum of the scores favors a title. Five loose query
+// words in one title can outscore the note that holds the sentence in a
+// body line. tierPhrase answers that, and the tests below pin each edge of
+// the rule.
 // ---------------------------------------------------------------------
 
 // phraseDoc writes one note and gives its search document back.
@@ -713,9 +713,9 @@ func TestPhraseTierIsLiteralAndAdjacent(t *testing.T) {
 // The snippet cut
 //
 // A long note answers a common query on hundreds of lines. The panel asks
-// for ten, and before 26.08.81 it got ten. The last rows thus carried the
-// lines that matched a one-letter term and nothing else. cutSnippets takes
-// those rows out of the answer.
+// for ten. Without a cut, the last rows carry the lines that match a
+// one-letter term and nothing else. cutSnippets takes those rows out of the
+// answer.
 // ---------------------------------------------------------------------
 
 // cutDoc writes a note whose first lines carry the query and whose tail
@@ -849,12 +849,9 @@ func TestCutSnippetsInTheResponse(t *testing.T) {
 // The snippet cut, with the common words of the collection
 // ----------------------------------------------------------------------
 //
-// 26.09.39 measured the panel for the query "the tag and the level".
-// **33 of 50 rows carried no content word, and the panel drew 1360
-// marks.** See claude/s1-search-panel-report-2026-09-06.md.
-//
-// The rule of 26.09.40 keeps a row that holds a term which is not one
-// rune, is not common in this collection, and matches VERBATIM.
+// The rule keeps a row that holds a term which is not one rune, is not
+// common in this collection, and matches VERBATIM. See
+// doc/decisions/0009-show-only-the-search-rows-that-carry-a-word-of-the-query.md.
 //
 // EACH OF THE THREE PARTS DOES WORK. The tests below break each part in
 // turn. Remove the common test and the reported query keeps 75 percent
@@ -941,8 +938,8 @@ func TestCutSnippetsNeedsAVerbatimMatch(t *testing.T) {
 		t.Fatal("the note must match")
 	}
 
-	// Every line of the window carries "cat" through scoreTerm, thus the
-	// rule before 26.09.40 kept each of them.
+	// Every line of the window carries "cat" through scoreTerm, thus a rule
+	// with no verbatim test would keep each of them.
 	loose := 0
 	for _, h := range hits {
 		if _, _, _, ok := scoreTerm([]rune("cat"), h.line.fold); ok {
@@ -969,8 +966,7 @@ func TestCutSnippetsNeedsAVerbatimMatch(t *testing.T) {
 // no row would tell the reader that a result exists and show nothing of
 // it.
 //
-// This guard stood before 26.09.40. It now carries the whole risk of the
-// common set. A person whose notes are all about one subject pushes the
+// This guard carries the whole risk of the common set. A person whose notes are all about one subject pushes the
 // words of that subject above the half, and lands here.
 func TestCutSnippetsAnswersTheWindowWhenEachTermIsCommon(t *testing.T) {
 	a := newTestApp(t)

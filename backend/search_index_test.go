@@ -371,8 +371,7 @@ func TestIndexPicksUpEdits(t *testing.T) {
 	// timestamps produces exactly this when two writes land in the same
 	// second. The external media of Android, where every note lives, is such
 	// a filesystem. An index that re-stats to "confirm" an edit it was told
-	// about would conclude nothing changed and serve the old text. This is
-	// the regression that reached a build machine before it was caught.
+	// about would conclude nothing changed and serve the old text.
 	before, err := os.Stat(filepath.Join(a.StorageDir, "md", "Note.md"))
 	if err != nil {
 		t.Fatal(err)
@@ -595,10 +594,10 @@ func readIfExists(path string) ([]byte, error) {
 // ----------------------------------------------------------------------
 //
 // See the banner of commonWordShare in search_index.go for why the set
-// exists, and claude/s1-search-panel-report-2026-09-06.md for the
-// measurement that asked for it.
+// exists, and doc/decisions/0009-show-only-the-search-rows-that-carry-a-word-of-the-query.md
+// for the measurement that asked for it.
 //
-// Four signals were measured before this one, and each one failed:
+// Four other signals were measured, and each one failed:
 //
 //   - the character mask of the index. It answers "could match" and it
 //     saturates. The word "cat" reads as present in 96 percent of the
@@ -670,8 +669,8 @@ func TestCommonWordsCountsDocumentsAndNotOccurrences(t *testing.T) {
 	}
 }
 
-// With no index there is no set, and cutSnippets then behaves as it did
-// before 26.09.40.
+// With no index there is no set, and cutSnippets then counts no word as
+// common.
 func TestCommonWordsIsEmptyWithNoIndex(t *testing.T) {
 	a := enabledSearchApp(t)
 	if got := a.commonWords(); len(got) != 0 {

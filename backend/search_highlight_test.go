@@ -319,7 +319,7 @@ func excerpt(page, needle string) string {
 // The server folds before it matches, and it sends the UNFOLDED term in
 // ?hl= (see TestHighlightTermsAreNotFolded above). omn-go-core.js thus has
 // to fold both sides itself, or a note titled "Ёлка" opens with nothing
-// marked after a search for "елка". It did exactly that until 26.08.79.
+// marked after a search for "елка".
 //
 // The table therefore exists twice, in Go and in JavaScript. That is the
 // same arrangement as isHeaderFirstLine, and it needs the same guard. That

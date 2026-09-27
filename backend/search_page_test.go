@@ -148,9 +148,9 @@ func TestSearchPage_EmptyStateNamesTheCorpus(t *testing.T) {
 // With global search off the page still exists, and its whole job is to say
 // why it cannot do anything.
 //
-// It answered 404 until someone put a "Search" link on their Welcome note. The
-// address is legitimate and permanent. A miss is thus a dead end that names
-// neither the cause nor the cure. The cure is one settings toggle away.
+// A person can put a "Search" link on a note, thus the address is
+// legitimate and permanent. A 404 would be a dead end that names neither
+// the cause nor the cure. The cure is one settings toggle away.
 func TestSearchPage_ExplainsHowToEnableGlobalSearch(t *testing.T) {
 	a := newTestApp(t)
 	a.search = &searchIndex{}

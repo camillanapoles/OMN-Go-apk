@@ -10,9 +10,9 @@ package backend
 //   - PAGE search (scope=page) - the open note only. Reads that one file,
 //     scores it, returns, and keeps nothing. No index, no configuration, no
 //     gate: there is no standing cost to opt out of, so it is always
-//     available. That is this phase.
-//   - GLOBAL search (scope=all) - everything, through the index. A later
-//     phase; until then it answers 503 rather than pretending.
+//     available.
+//   - GLOBAL search (scope=all) - everything, through the index
+//     (search_index.go). It needs search_enabled in the configuration.
 //
 // Same matcher, same scoring, same response shape for both, so a result means
 // the same thing whichever scope produced it - only the haystack differs.
@@ -571,8 +571,8 @@ func scoreDocument(q parsedQuery, d *searchDocument) (int, matchTier, []lineHit,
 	worst := tierSubstring // the document's tier is its WEAKEST term's tier
 	hits := map[int]*lineHit{}
 
-	// The phrase counters. A slice and not a map: the map hashed once for
-	// each hit, and that alone cost a third of the scoring time.
+	// The phrase counters. A slice and not a map: a map hashes once for
+	// each hit, and that alone costs a third of the scoring time.
 	phraseWanted := len(q.terms) > 1
 	for _, term := range q.terms {
 		if term.field != "" {
@@ -1098,13 +1098,11 @@ func (a *App) searchPage(resp *searchResponse, qs map[string][]string) {
 // A line leaves when the query has several terms and every term that hits
 // the line is one rune. Such a line carries no word of the query. A term of
 // one Han, Hiragana, Katakana or Hangul rune is a whole word, thus it never
-// counts as short. See labIdeographic in the laboratory notes.
+// counts as short.
 //
-// Two other shapes were measured and rejected. A score floor of the top
-// divided by four cut the reported query correctly. It did nothing for a
-// query of three terms, thus it answered one case and not the fault. A cut
-// at the first change of rung reduced a list to ONE row, because the phrase
-// rung above belongs to the first line alone.
+// A term that is common in this collection does not count either. See
+// commonWords. doc/decisions/0009-show-only-the-search-rows-that-carry-a-word-of-the-query.md
+// gives the measurements and the rejected alternatives.
 func cutSnippets(q parsedQuery, hits []lineHit, limit int, common map[string]bool) []lineHit {
 	if len(hits) > limit {
 		hits = hits[:limit] // the window first
@@ -1294,17 +1292,15 @@ func (a *App) writeSearchJSON(w http.ResponseWriter, status int, resp *searchRes
 // nothing here. The results are computed per request from the index.
 //
 // GLOBAL ONLY. This page exists to show a ranked list across everything, and
-// that is exactly what needs the index. With global search off the page does
-// not exist, because a permanently empty page is worse than an honest 404.
-// Page search lives in the dialog, where the answer is short enough to need
-// no page of its own.
+// that is exactly what needs the index. With global search off, the page
+// says so and names the setting. Page search lives in the dialog, where the
+// answer is short enough to need no page of its own.
 func (a *App) serveSearchPage(w http.ResponseWriter, r *http.Request) {
 	cfg := a.GetConfig()
 
-	// Off is not missing. This answered 404 until someone put a "Search"
-	// link on their Welcome note, and it then became a permanent dead end.
-	// The page IS reachable, thus it has to say why it can do nothing and
-	// where to fix that. See searchDisabledNotice.
+	// Off is not missing. A person can put a "Search" link on a note, thus
+	// the page IS reachable. It has to say why it can do nothing and where
+	// to fix that. See searchDisabledNotice.
 	if !cfg.SearchEnabled {
 		body := renderSearchPage(searchPageView{Disabled: true})
 		compiled := a.compilePageWithBody("Search",

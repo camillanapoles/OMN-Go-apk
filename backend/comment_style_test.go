@@ -640,10 +640,6 @@ var commentVersionDebt = map[string]int{
 	"backend/note_exchange_test.go":                            4,
 	"backend/pipelines_test.go":                                1,
 	"backend/ports_test.go":                                    4,
-	"backend/search_highlight_test.go":                         1,
-	"backend/search_index.go":                                  2,
-	"backend/search_index_test.go":                             1,
-	"backend/search_test.go":                                   8,
 	"backend/session_test.go":                                  2,
 	"backend/status_test.go":                                   2,
 }

@@ -60,6 +60,7 @@ of each Docker build. A tree with no `doc/decisions` skips them.
   * Version: each version that made the decision.
   * Code: the files that hold the rule.
 * Three sections follow: `## Context`, `## Decision` and
+  `## Consequences`. A record can add `## Rejected alternatives` before
   `## Consequences`.
 * Write the record in Simplified Technical English. See section 10 of
   `CLAUDE.md`.
@@ -79,3 +80,4 @@ the status of the old record to `replaced by NNNN`.
 | [0006](0006-replace-the-application-files-at-each-new-version.md) | Replace the application files at each new version. | `assets.go`, `MainActivity.java` |
 | [0007](0007-keep-the-application-files-in-omn-go-directories.md) | Keep the application files in OMN-Go directories. | `assets.go`, `serving.go`, `git_repo.go` |
 | [0008](0008-render-the-pages-without-html-template.md) | Render the pages without html/template. | `templates.go` |
+| [0009](0009-show-only-the-search-rows-that-carry-a-word-of-the-query.md) | Show only the search rows that carry a word of the query. | `search.go`, `search_index.go` |

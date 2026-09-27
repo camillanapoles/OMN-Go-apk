@@ -187,10 +187,9 @@ type searchIndex struct {
 // The common words of this collection
 // ----------------------------------------------------------------------
 //
-// A query of five words where two are "the" gave a panel of rows that
-// said nothing. 26.09.39 measured it: 33 of 50 rows carried no content
-// word, and the panel drew 1360 marks. See
-// claude/s1-search-panel-report-2026-09-06.md.
+// A query of five words where two are "the" gives a panel of rows that say
+// nothing. See doc/decisions/0009-show-only-the-search-rows-that-carry-a-word-of-the-query.md
+// for the measurement.
 //
 // cutSnippets steps over a term of ONE rune. That rule cannot grow by
 // rune count, because "cat", "dog", "git" and "log" are three runes and
@@ -213,8 +212,7 @@ type searchIndex struct {
 // THE SET IS RELATIVE TO THE COLLECTION, and that is the point. A
 // person who writes only about one subject pushes the words of that
 // subject above the line. cutSnippets then keeps no row and answers the
-// window, which is the behavior of today. The worst case of this rule
-// is the state before it.
+// window. The worst case of this rule is thus the same as no rule.
 const commonWordShare = 2 // one part in two, thus above a half
 
 // indexWords adds each word of one folded string to a set.
@@ -240,8 +238,8 @@ func indexWords(rs []rune, into map[string]bool) {
 }
 
 // commonWords answers the set of words that carry little in this
-// collection. It answers nil when no index is built, and cutSnippets
-// then behaves as it did before 26.09.40.
+// collection. It answers nil when no index is built, and cutSnippets then
+// counts no word as common.
 func (a *App) commonWords() map[string]bool {
 	if a.search == nil {
 		return nil
