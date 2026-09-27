@@ -92,9 +92,10 @@ against the same object.
 
 **A Node module has its own scope, and that difference hid a real fault.**
 `SYNC_TITLES` sat in the `if` block of `omn-go-sse.js` while
-`omn-go-sync.js` read it as a bare name. Every upload from 26.09.24 to
-26.09.40 threw "SYNC_TITLES is not defined", and the "Commit & Push"
-button did nothing.
+`omn-go-sync.js` read it as a bare name. In a browser, each upload threw
+"SYNC_TITLES is not defined", and the "Commit & Push" button did nothing.
+In a Node module, the fault did not show. See
+`doc/decisions/0015-load-the-click-driven-scripts-on-demand.md`.
 
 `lazy.test.js` uses the page stub. It reads the `omnLazy` call of
 `omn-go-sse.js`, loads each lazy file ALONE, and calls each name that the
@@ -172,8 +173,9 @@ The cases live in `backend/frontend/test/header-cases.json`, and both
 languages read that one file. Add a case there when you find a note shape
 that the two might read differently.
 
-That pair had already moved apart when it first got a test. Version
-26.09.14 repaired it, and four of eight note shapes had disagreed.
+A copy of a rule that nobody runs moves apart from the original. This
+pair did: four of eight note shapes read differently before this test
+existed.
 
 ---
 
@@ -200,15 +202,15 @@ That is the most that a test here can do.
 A browser test is a fourth thing that this gate does not do. Chromium in
 the build image would add about 300 MB against about 50 MB for Node, and
 each cold build would pay it. A session or a separate job can drive a real
-browser without touching the release build, and one did for 26.09.24.
+browser without touching the release build.
 
 ---
 
 ## 6. The binary size report
 
 `TestBinarySize` in `backend/binary_size_test.go` builds the release
-binaries and compares their size with the build of v26.09.62. It reports
-the change in bytes and in percent for each target.
+binaries and compares their size with a baseline build. It reports the
+change in bytes and in percent for each target.
 
 **The normal gate skips it.** Five builds take minutes on a cold cache.
 Set `OMN_BINARY_SIZE=1` to run it:
@@ -229,14 +231,15 @@ A Linux build stands for the Android ABI of the same CPU.
 | `linux-386` | Android x86 |
 
 **The baseline.** `backend/testdata/binary_size_baseline.json` holds the
-sizes of v26.09.62 and the Go version that made them. A different Go
+git reference of the baseline build, its sizes, and the Go version that
+made them. A different Go
 version also changes the size. The report then says so, and the growth
 limit does not apply.
 
 | Setting | Effect |
 | --- | --- |
 | `OMN_BINARY_SIZE=1` | Runs the test. |
-| `OMN_BINARY_SIZE_BASE=v26.09.62` | Builds that reference now, with the same Go version. This needs the `.git` directory. |
+| `OMN_BINARY_SIZE_BASE=<git reference>` | Builds that reference now, with the same Go version. Use the `ref` of the JSON file for the same baseline. This needs the `.git` directory. |
 | `OMN_BINARY_SIZE_MAX_GROWTH=1.5` | Fails the test when a target grows by more than 1.5 percent. |
 | `OMN_BINARY_SIZE_WRITE=1` | Writes the sizes of the baseline reference to the JSON file. |
 

@@ -3,10 +3,8 @@
 These are the standing rules for work on the OMN-Go repository.
 Read this document before you change code, tests, documents, or build files.
 
-Source: repository `https://github.com/mvbasov/OMN-Go`, version 26.09.34.
-
-The commit hash stood here until 26.09.34. A hash names the commit before this
-document, and never the commit that carries it. The version is enough.
+Source: repository `https://github.com/mvbasov/OMN-Go`. The version of the tree
+is in `backend/version.go`.
 
 This document uses ASD-STE100 Simplified Technical English. See section 10.
 
@@ -41,8 +39,8 @@ Do not remove a constraint without an instruction from the maintainer.
    `async`. A `<script src>` element is its own parse unit, thus a SyntaxError in a
    modern script cannot stop it. Do not move this code into `omn-go-core.js`: that
    file is modern, an old WebView drops all of it, and the notice would go with it.
-   It was inline until 26.08.73, and it moved out because the compiled page of each
-   note carried a copy. Other scripts can use `async`, arrow functions, and
+   It is a file and not an inline block, because an inline block goes into the
+   compiled page of each note. Other scripts can use `async`, arrow functions, and
    template literals.
 6. **Keep F-Droid compatibility.** `metadata/net.basov.omngo.fdroid.yml` is the
    F-Droid recipe. It builds from the committed Gradle configuration. The Docker
@@ -158,9 +156,9 @@ update these files.
     control stdout, and they control what `omn-go-sse.js` mirrors into the
     browser console. The sync progress overlay reads `[sync] (debug)` lines off
     the raw stream, and it must work when debug is off.
-  * **`/api/logs` is admin only since 26.09.59**, and the local bypass applies.
-    It was open until then, while `/api/logs/history` beside it was already
-    admin only. A guest of a LAN share now reads no log line, live or held.
+  * **`/api/logs` is admin only**, the same as `/api/logs/history`, and the
+    local bypass applies. A guest of a LAN share reads no log line, live or
+    held. See `doc/decisions/0013-send-each-log-line-to-three-places-and-to-the-admin-only.md`.
     `omn-go-sse.js` does not open the stream when the role hint says guest.
   * `applySyncLogLine` in `omn-go-sse.js` removes the level word before it
     matches a sync stage. Keep the two in agreement, or the progress overlay
@@ -256,8 +254,8 @@ update these files.
   file sits inside an `if` block, thus a `const` of the block reaches no other
   file. A `function` of the block reaches one by accident, through Annex B of
   the standard. Both are traps. Put the value in the lazy file, or export it as
-  a property of `window`. `SYNC_TITLES` broke every upload from 26.09.24 to
-  26.09.40 this way, and the button did nothing.
+  a property of `window`. See
+  `doc/decisions/0015-load-the-click-driven-scripts-on-demand.md`.
   `backend/frontend/test/lazy.test.js` runs each exported function of each lazy
   file and fails on a free variable.
 * **The fold table has two implementations on purpose.** `foldTable` in
@@ -267,8 +265,8 @@ update these files.
   match on a lowercase alone. `TestFoldTableHasAFrontendCopy` compares the two
   tables and checks that the three call sites use them. Each row maps one
   character to one character. A row that changes the length moves every span
-  after it, and the marks land on the wrong words. Before 26.08.79 the page held
-  no table, thus a search for `елка` opened `Ёлка` with nothing marked.
+  after it, and the marks land on the wrong words. Without the table, a search
+  for `елка` opens `Ёлка` with nothing marked.
 * **Load order is a feature.** The custom files load last. A user rule then wins
   against an app rule at equal specificity. The editor page loads neither custom
   file. A broken custom file can never lock the user out of the editor that repairs
@@ -307,8 +305,6 @@ update these files.
     `/api/search` for the note on screen. A bare name is ambiguous when it
     ends in a real file extension. `renderInternalEditor` does this, and
     `omnGoCurrentNoteName` in `omn-go-core.js` does it for the frontend.
-  * Before 26.08.76 the application asked whether a name held a dot, thus
-    `/Report.2026.html` gave 404.
 * `parseHeaderBlock` in `backend/header_block.go` is the only parser. A header block
   exists only if the first line holds a colon and does not start with a space, `#`,
   or `<`. The header block ends at the first empty line, which the parser drops. It
@@ -421,9 +417,8 @@ subject line, also when it has no list.
   `java`. Each one skips when the tool is absent, and the build image holds both.
   `doc/TESTING.md` maps the whole set.
 * **A test that reads source text proves what a file SAYS. A test that runs the
-  code proves what the code DOES.** Prefer the second. Two source-reading tests
-  were replaced in 26.09.27 and 26.09.32, and each replacement found a fault that
-  the first shape could not see.
+  code proves what the code DOES.** Prefer the second. A test that runs the code
+  finds faults that a test of the source text cannot see.
 * The tests use the standard library `testing` package, `net/http/httptest`, and
   `t.TempDir()`. The project uses no assertion library and no mock library.
 * Build the application under test with `newTestApp(t)` from `handlers_test.go`.
