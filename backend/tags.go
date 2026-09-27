@@ -13,28 +13,25 @@ import (
 )
 
 // ----------------------------------------------------------------------
-// Auto-generated Tags page (OMNGoTags)
+// The Tags page (OMNGoTags)
 // ----------------------------------------------------------------------
 //
-// OMNGoTags is a single, root-level, generated note. It indexes every other
-// note by its Tags: header. It is Format A, which is "prepared links". The
-// page is static HTML. It holds a cloud of jump-links, and one section per tag
-// with relative links to the tagged pages. It thus works with JavaScript
-// disabled, and when the compiled html/ tree is opened offline (file://).
+// OMNGoTags is one generated note at the root. It lists each other note by
+// its Tags: header. The page is static HTML: a cloud of links, and one
+// section for each tag with relative links to the notes. It thus works
+// without JavaScript and from file://.
 //
-// generateTagsPage is a sanctioned writer of md/OMNGoTags.md. The general
-// cache contract in render_cache.go reserves an md write for the save and edit
-// paths. This generated page is the documented exception. generateTagsPage
-// produces html/OMNGoTags.html through renderAndCache, like any other page.
+// generateTagsPage writes md/OMNGoTags.md. render_cache.go allows a write to
+// md/ only from a save or an edit, and this generated page is the one
+// exception. html/OMNGoTags.html comes from renderAndCache, the same as each
+// other page.
 
-// tagSlug turns a tag into an HTML id, which is also a URL fragment. It is the
-// single source of the anchor contract that the tag pills (renderIndexPage)
-// and this generator share. A "#slug" of a pill thus always matches the id of
-// a section. Both are server-side Go, thus they can never drift. Unicode
-// letters and digits are kept, thus a Cyrillic tag slugs sanely too. Every
-// other run collapses to a single '-', trimmed at the ends. Case is preserved
-// to minimize the chance that two distinct tags collide to one slug. That is
-// an accepted and rare v1 limitation.
+// tagSlug makes an HTML id, and a URL fragment, from a tag. The tag pills of
+// renderIndexPage and this generator both call it, thus a "#slug" always
+// matches a section id. It keeps each Unicode letter and digit, thus a
+// Cyrillic tag works. It changes each other run to one '-', and it trims the
+// ends. It keeps the case, thus two tags collide less often. A rare collision
+// stays possible.
 func tagSlug(tag string) string {
 	var b strings.Builder
 	prevDash := false
@@ -50,13 +47,12 @@ func tagSlug(tag string) string {
 	return strings.Trim(b.String(), "-")
 }
 
-// extractTitleTags reads the Title and the Tags of a note out of its header
-// block. It uses exactly the same rules as compilePageWithBody, which now
-// calls this too, thus the two cannot drift. The last "Title:" wins. "Tags:"
-// is a comma-separated list, trimmed, with each empty entry dropped. title is
-// "" when the note has none, and the caller decides the fallback. tags keeps
-// the order and, like the pill path, is NOT de-duplicated here. The tags-page
-// generator de-dupes per page itself.
+// extractTitleTags reads the Title and the Tags of a note from its header
+// block. compilePageWithBody calls it too, thus the two read the same values.
+// The last "Title:" wins. "Tags:" is a list with commas. The function trims
+// each entry and drops an empty one. title is "" when the note has none. tags
+// keeps the order and can hold a duplicate. buildTagIndex removes the
+// duplicates.
 func extractTitleTags(content string) (title string, tags []string) {
 	hb := parseHeaderBlock(content)
 	if !hb.HasHeader {
@@ -82,16 +78,15 @@ func extractTitleTags(content string) (title string, tags []string) {
 	return title, tags
 }
 
-// tagPageRef is one tagged note as listed under a tag on the Tags page.
+// tagPageRef is one note under a tag on the Tags page.
 type tagPageRef struct {
 	path  string // page path relative to md root, no extension (e.g. "Hydro/Myrtle")
 	title string
 }
 
-// buildTagIndex walks md/**.md and returns tag -> pages. It excludes the
-// generated page itself (OMNGoTags) and the gitignored md/local/ scratch tree,
-// skips untagged notes, and de-dupes a tag repeated within one note. Unreadable
-// entries are skipped rather than aborting the whole scan.
+// buildTagIndex walks md/**.md and answers the notes for each tag. It skips
+// OMNGoTags itself, the md/local scratch tree, a note with no tag and a file
+// that it cannot read. A tag that a note names twice counts one time.
 func (a *App) buildTagIndex() map[string][]tagPageRef {
 	mdRoot := filepath.Join(a.StorageDir, "md")
 	index := map[string][]tagPageRef{}
@@ -139,14 +134,12 @@ func (a *App) buildTagIndex() map[string][]tagPageRef {
 	return index
 }
 
-// renderTagsMarkdown builds the OMNGoTags note content from a tag index. The
-// content is a header, a "do not edit" comment, a cloud of jump-links, and one
-// section per tag. Tags are ordered case-insensitively. Pages within a tag are
-// ordered by title, and then by path. The body is raw HTML, because a note
-// renders with html.WithUnsafe(). The section ids thus match tagSlug exactly.
-// A page link is a relative ".html" path, which resolves from the root-level
-// page both online and offline. Every tag and title is HTML-escaped for its
-// context.
+// renderTagsMarkdown makes the content of the OMNGoTags note. It holds a
+// header, a "do not edit" comment, the cloud of links, and one section for
+// each tag. The tags sort without case, and the notes of a tag sort by title
+// and then by path. The body is raw HTML, thus each section id is exactly
+// tagSlug. A note link is a relative ".html" path, thus it works online and
+// from file://. escapeHTML escapes each tag and title.
 func renderTagsMarkdown(index map[string][]tagPageRef) []byte {
 	tagNames := make([]string, 0, len(index))
 	for t := range index {
@@ -196,19 +189,16 @@ func renderTagsMarkdown(index map[string][]tagPageRef) []byte {
 	return []byte(b.String())
 }
 
-// generateTagsPage rebuilds md/OMNGoTags.md from the current tag index and
-// compiles it to html/OMNGoTags.html. Safe to call repeatedly (it fully
-// replaces both files). Wiring - when it runs (startup, and lazily on a stale
-// view) - is Phase T2; this is the generator itself.
+// generateTagsPage writes md/OMNGoTags.md again from the tag index and
+// compiles html/OMNGoTags.html. It replaces both files, thus a second call
+// does no harm. precompileAllPages calls it at start, and serveTagsPage calls
+// it when the page is stale.
 func (a *App) generateTagsPage() error {
-	// A rebuild reads and parses every note. On a large collection that is a
-	// real wait. When it happens lazily, it is inside a page navigation
-	// (serveTagsPage), where no in-page progress UI can run. A log of the
-	// start and the end at least surfaces the wait on the /api/logs stream,
-	// and in the JS console. The indicator that the reader sees for the
-	// navigation itself is the Android ProgressBar
-	// (MainActivity.onPageStarted), and the delayed overlay in
-	// omn-go-core.js.
+	// A rebuild reads each note, and on a large collection that takes time.
+	// From serveTagsPage, it runs inside a page navigation, where no progress
+	// UI of the page can run. The two log lines show the wait on /api/logs.
+	// The reader sees the ProgressBar of MainActivity and the delayed overlay
+	// of omn-go-core.js.
 	a.logDebugf(logTags, "Rebuilding tags index")
 	started := time.Now()
 	index := a.buildTagIndex()
@@ -231,14 +221,10 @@ func (a *App) generateTagsPage() error {
 	return nil
 }
 
-// newestNoteMtime returns the most recent modification time among the note
-// sources that the Tags page is built from. Those are every md/**.md file AND
-// its containing directories. A directory mtime is included on purpose. A file
-// added, deleted or renamed bumps the mtime of its directory, and not
-// necessarily the mtime of any surviving file. A scan of files alone would
-// thus miss those. The generated OMNGoTags.md, which is a derived file, and
-// the md/local scratch tree are excluded. It is a stat-only walk, with no
-// parsing. It returns the zero time when md/ cannot be walked.
+// newestNoteMtime answers the newest mtime of each md/**.md file AND of each
+// directory above it. An add, a delete or a rename changes the mtime of the
+// directory, and maybe of no file. It skips OMNGoTags.md and md/local. It
+// uses stat only, and it answers the zero time when it cannot walk md/.
 func (a *App) newestNoteMtime() time.Time {
 	mdRoot := filepath.Join(a.StorageDir, "md")
 	var newest time.Time
@@ -274,10 +260,9 @@ func (a *App) newestNoteMtime() time.Time {
 	return newest
 }
 
-// tagsPageStale reports whether html/OMNGoTags.html needs regenerating: forced
-// (?refresh), missing/unreadable, or older than the newest note source. This is
-// the OMNGoTags analogue of serveHTMLPage's single-source mtime check, except
-// its "source" is every note rather than one .md.
+// tagsPageStale reports whether html/OMNGoTags.html needs a rebuild: a
+// ?refresh, a missing file, or a note that is newer. serveHTMLPage makes the
+// same test with one source. Here the source is each note.
 func (a *App) tagsPageStale(forceRefresh bool) bool {
 	if forceRefresh {
 		return true
@@ -289,10 +274,9 @@ func (a *App) tagsPageStale(forceRefresh bool) bool {
 	return a.newestNoteMtime().After(htmlStat.ModTime())
 }
 
-// serveTagsPage serves the generated Tags page, regenerating it first when
-// stale (lazy + mtime-invalidated). Special-cased from serveHTMLPage so it uses
-// the all-notes staleness above instead of the normal one-source check. Serving
-// itself mirrors serveHTMLPage's tail (injectRuntimeVars over the cached html).
+// serveTagsPage sends the Tags page, and it rebuilds the page first when it
+// is stale. serveHTMLPage sends it here, because this page uses the test of
+// tagsPageStale. The rest is the same as the end of serveHTMLPage.
 func (a *App) serveTagsPage(w http.ResponseWriter, r *http.Request) {
 	forceRefresh := r.URL.Query().Get("refresh") == "1" || r.URL.Query().Get("refresh") == "true"
 	if a.tagsPageStale(forceRefresh) {

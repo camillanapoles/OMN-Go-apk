@@ -1,39 +1,26 @@
 package backend
 
 // ----------------------------------------------------------------------
-// Plain files that live beside the notes
+// Plain files beside the notes
 // ----------------------------------------------------------------------
 //
-// md/ is the notes tree. html/ is what the server hands out: a URL that is
-// not a page resolves under html/ and nowhere else (materializeAsset).
+// md/ is the notes tree. html/ is what the server sends: a URL that is not a
+// page resolves under html/ alone. See materializeAsset.
 //
-// A user keeps a plain text file beside the note that refers to it, thus md/
-// holds Log.md and log.txt together. That is where the note is, that is what
-// git sync carries, and that is what a file manager shows.
+// A person keeps a text file beside the note that links to it, for example
+// md/Log.md and md/log.txt. Git sync carries md/, and a file manager shows
+// it. The link "[log](log.txt)" asks for "/log.txt", and the server reads
+// html/. This file thus keeps a copy in each tree:
 //
-// The note then links to it with "[log](log.txt)". The browser asks for
-// "/log.txt", and the server looks in html/, which has no such file. The
-// link answered 404.
+//	- syncNoteFilesToHTML copies md/ to html/ at start and after a pull.
+//	- syncNoteFileToMD copies html/ to md/ after a save in the editor.
 //
-// So the two trees hold a copy each, and this file keeps the pair together.
-// One direction each, because each direction has one event that causes it:
+// A copy gets the mtime of its source, thus "newer" keeps its meaning. See
+// copyFileWithTime.
 //
-//   - AT START, md/x.txt is copied to html/x.txt when html/ has no copy or
-//     the md/ copy is newer (syncNoteFilesToHTML). This is the direction
-//     that a git pull, a file manager and a desktop editor all produce.
-//   - AFTER A SAVE through the editor, the html/ copy is written back to
-//     md/ (syncNoteFileToMD). The editor writes where the URL points, which
-//     is html/, so without this the file beside the note would go stale.
-//
-// A copy carries the modification time of its source, through os.Chtimes in
-// copyFileWithTime. That is what keeps "newer" meaningful. A copy stamped
-// with the time of the copy would be newer than its source forever. Each
-// start would then see a pair that differs when it does not.
-//
-// NOTHING IS DELETED HERE. A file removed from md/ keeps its html/ copy. To
-// delete, this code would have to tell an intentional removal apart from a
-// tree that it has not seen before. It cannot do that, and the cost of the
-// wrong answer is the data of the user.
+// NOTHING HERE DELETES A FILE. This code cannot tell a removal on purpose
+// from a tree that it did not see before. A wrong answer deletes the data of
+// the user.
 
 import (
 	"io"
@@ -43,16 +30,11 @@ import (
 	"strings"
 )
 
-// syncedNoteFileExts names which files are mirrored.
+// syncedNoteFileExts lists the extensions to copy. A new plain-text kind, for
+// example ".csv", is one more entry.
 //
-// ".txt" is the kind that a note keeps beside it. Another plain-text kind
-// that belongs there, such as ".csv" or ".log", is one line in this list.
-// That is why it is a list, and not a comparison against one string.
-//
-// ".md" IS NOT HERE AND MUST NOT BE. A markdown file in md/ is a NOTE. It
-// already reaches the browser as its compiled page at "/Name.html". A copy
-// of it under html/ would be the same note at a second URL. The page cache
-// of the first would sit next to it.
+// ".md" MUST NOT BE HERE. A markdown file in md/ is a NOTE, and its page is
+// "/Name.html". A copy under html/ would be the same note at a second URL.
 var syncedNoteFileExts = []string{".txt"}
 
 func isSyncedNoteFile(name string) bool {
@@ -65,18 +47,14 @@ func isSyncedNoteFile(name string) bool {
 	return false
 }
 
-// syncNoteFilesToHTML copies each mirrored file in md/ to html/ when html/
-// has no copy or the md/ copy is newer. It runs once, at start.
+// syncNoteFilesToHTML copies each listed file in md/ to html/, when html/ has
+// no copy or the md/ copy is newer. It runs at start and after a pull.
 //
-// Newer, and not different. A comparison of content would read every one of
-// these files on every start. A git checkout, a file manager, a desktop
-// editor and copyFileWithTime all set the modification time. It is thus the
-// fact that is available.
-//
-// The walk is over md/ only, and it reads nothing until it finds a file to
-// copy. It thus stays cheap on a tree of some thousands of notes. It is
-// synchronous for that reason. A link tapped in the first second after the
-// start must not race the copy that makes it work.
+// It compares the mtime, and not the content, because a content test reads
+// each file at each start. A git checkout, a file manager, an editor and
+// copyFileWithTime all set the mtime. The walk reads no file until it finds
+// one to copy. It runs at once, because a link tap in the first second must
+// find the copy.
 func (a *App) syncNoteFilesToHTML() {
 	mdRoot := filepath.Join(a.StorageDir, "md")
 	htmlRoot := filepath.Join(a.StorageDir, "html")
@@ -112,32 +90,23 @@ func (a *App) syncNoteFilesToHTML() {
 	}
 }
 
-// syncNoteFileToMD copies a file back to md/ after html/ received it. It is
-// the other half of syncNoteFilesToHTML, and it runs after a save.
+// syncNoteFileToMD copies a file from html/ back to md/ after a save.
+// htmlPath is the path that the caller already resolved with resolvePageName.
+// The function also writes a new file to md/, thus a .txt that the editor
+// made joins the notes tree.
 //
-// htmlPath is the path the caller already resolved (resolvePageName), not a
-// name to resolve again: one resolution, one file.
-//
-// It writes md/ even when nothing is there yet. A .txt first created through
-// the editor then joins the notes tree. The next start finds it there, and
-// git sync carries it beside the notes that link to it.
-//
-// KNOWN GAP: the external editor, at /api/edit-external, opens the html/
-// copy in another application and gets no completion event back. cmd.Start()
-// and the Android intent are both fire and forget. An edit made that way
-// reaches md/ at no point. It is not lost, because html/ holds it and serves
-// it. The pair stays one-sided until someone saves that file through the
-// in-app editor.
+// KNOWN GAP: /api/edit-external opens the html/ copy in another app, and the
+// server gets no event when the edit ends. Such an edit stays in html/ until
+// a person saves the file in the app editor.
 func (a *App) syncNoteFileToMD(htmlPath string) {
 	if !isSyncedNoteFile(htmlPath) {
 		return
 	}
 	htmlRoot := filepath.Join(a.StorageDir, "html")
 	rel, err := filepath.Rel(htmlRoot, htmlPath)
-	// A path that leaves html/ is not a file beside a note, whatever it is.
-	// resolvePageName builds htmlPath with filepath.Join. That RESOLVES a
-	// "../" in a name, and it does not refuse it. A name is thus only as
-	// trusted as its caller, and this function will not carry that into md/.
+	// Stop for a path outside html/. filepath.Join RESOLVES a "../" in a
+	// name, and it does not refuse it. This function must not carry such a
+	// name into md/.
 	if err != nil || rel == "." || rel == ".." ||
 		strings.HasPrefix(rel, ".."+string(filepath.Separator)) ||
 		filepath.IsAbs(rel) {
@@ -149,16 +118,10 @@ func (a *App) syncNoteFileToMD(htmlPath string) {
 	}
 }
 
-// copyFileWithTime copies src over dst, creating dst's directory, and gives
-// dst the modification time of src.
-//
-// The time is the point. Without it each copy is newer than its source. The
-// next start would then read an identical pair as "md/ changed" and copy it
-// again. A save that writes back to md/ would also make md/ newer than the
-// html/ copy that produced it.
-//
-// It streams: one of these files is a log that a note points at, and its
-// size is the user's business.
+// copyFileWithTime copies src over dst, makes the directory of dst, and gives
+// dst the mtime of src. Without the mtime, each copy is newer than its
+// source, and each start copies the pair again. It streams the file, because
+// a log file can be large.
 func copyFileWithTime(src, dst string) error {
 	info, err := os.Stat(src)
 	if err != nil {
