@@ -8,26 +8,23 @@ import (
 	"strings"
 )
 
-// maxGitServers is the fixed number of git-server config slots that the UI
-// shows. This file, the POST handler of handleConfig and getConfigPageBody
-// all read it. A change of the slot count is thus a change of one line.
+// maxGitServers is the fixed number of git server slots. The loader,
+// config_fields.go and getConfigPageBody read it, thus a new count is a
+// change of one line.
 const maxGitServers = 5
 
-// UI theme values accepted in Config.Theme. ThemeAuto means "follow the
-// OS/browser dark-mode setting" (implemented purely in CSS via a
-// prefers-color-scheme media query - no JS needed for the auto case).
+// These are the theme values of Config.Theme. ThemeAuto follows the dark mode
+// of the system, through the prefers-color-scheme media query of the CSS.
 const (
 	ThemeAuto  = "auto"
 	ThemeLight = "light"
 	ThemeDark  = "dark"
 )
 
-// normalizeTheme maps any input to a valid theme value. An unknown or empty
-// value becomes ThemeAuto. That includes a config.json with no theme key.
-// The one function here keeps the config loader, the config
-// POST handler and the page renderer in agreement about what is valid. Each
-// caller downstream, such as injectRuntimeVars and renderConfigPage, can
-// safely assume that the value is one of the three constants.
+// normalizeTheme maps each input to a valid theme. An unknown or empty value,
+// also a missing key, becomes ThemeAuto. The loader, the POST handler and the
+// renderer all use it, thus each reader after them gets one of the three
+// constants.
 func normalizeTheme(s string) string {
 	switch s {
 	case ThemeLight, ThemeDark:
@@ -37,26 +34,21 @@ func normalizeTheme(s string) string {
 	}
 }
 
-// Android system-bar modes accepted in Config.AndroidFullscreen.
-//
-// Note that the default is FullscreenOn, and NOT the zero value.
-// AndroidManifest.xml sets Theme.NoTitleBar.Fullscreen, thus the app hides
-// the status bar when config.json says nothing. A plain bool would make "field
-// absent" mean false, and each install with no such key would change how it
-// looks. A string enum lets normalizeFullscreen map absent onto the manifest
-// behavior, the same as normalizeTheme maps absent onto auto.
+// These are the Android system bar modes of Config.AndroidFullscreen. The
+// default is FullscreenOn, and NOT the zero value. AndroidManifest.xml sets
+// Theme.NoTitleBar.Fullscreen, thus the app hides the status bar when
+// config.json has no value. With a bool, a missing key would mean false, and
+// an old install would change its look.
 const (
 	FullscreenOff       = "off"        // status and navigation bars visible
 	FullscreenOn        = "fullscreen" // status bar hidden (the default)
 	FullscreenImmersive = "immersive"  // status AND navigation bars hidden
 )
 
-// normalizeFullscreen maps any input to a valid Android fullscreen mode.
-// Unknown or empty values (including a config.json with no such key)
-// become FullscreenOn. Centralized for the same reason as
-// normalizeTheme - and deliberately mirrored in
-// MainActivity.readFullscreenMode(), which reads config.json natively and
-// must apply the identical default.
+// normalizeFullscreen maps each input to a valid mode. An unknown or empty
+// value, also a missing key, becomes FullscreenOn.
+// MainActivity.readFullscreenMode reads config.json itself, and it must apply
+// the same default.
 func normalizeFullscreen(s string) string {
 	switch s {
 	case FullscreenOff, FullscreenImmersive:
@@ -66,13 +58,10 @@ func normalizeFullscreen(s string) string {
 	}
 }
 
-// Search kinds accepted in Config.SearchKinds - the content the GLOBAL index
-// covers. Page search ignores this entirely: it reads whatever file is open,
-// which is what lets it work with no configuration at all.
-//
-// The default is notes plus bookmarks. Scripts and JSON are opt-in because
-// most people's notes are prose, and every kind added is memory held for as
-// long as the process lives.
+// These are the search kinds of Config.SearchKinds. They tell what the GLOBAL
+// index covers. Page search ignores this setting, and it reads the open file.
+// The default is notes and bookmarks. Scripts and JSON are optional, because
+// each kind costs memory for the life of the process.
 const (
 	SearchKindMD        = "md"
 	SearchKindBookmarks = "bookmarks"
@@ -87,22 +76,17 @@ var searchKindsAll = []string{
 
 var searchKindsDefault = []string{SearchKindMD, SearchKindBookmarks}
 
-// Scope values accepted in Config.SearchScope: where a search STARTS. The
-// dialog can still re-aim one query without changing this.
+// These are the scope values of Config.SearchScope. They tell where a search
+// STARTS. The dialog can change the scope of one query.
 const (
 	SearchScopeAll  = "all"
 	SearchScopePage = "page"
 )
 
-// normalizeSearchKinds whitelists and de-duplicates, preserving order.
-//
-// The difference between nil and empty is load-bearing and deliberate. A
-// config.json with NO search_kinds key unmarshals to nil, and it must get
-// the default. A person who unticks every
-// box gets a real empty list, which means "index nothing". The shape is the
-// same as normalizeTheme in other respects. The loader, the POST handler and
-// the renderer all go through here, thus none of them can disagree about what
-// is valid.
+// normalizeSearchKinds keeps only known kinds, with no duplicate, in their
+// order. nil and empty differ on purpose. A config.json with NO search_kinds
+// key gives nil, and nil gets the default. A person who clears each box gets
+// an empty list, which means "index nothing".
 func normalizeSearchKinds(kinds []string) []string {
 	if kinds == nil {
 		return append([]string(nil), searchKindsDefault...)
@@ -125,10 +109,9 @@ func normalizeSearchKinds(kinds []string) []string {
 	return out
 }
 
-// logTagsDefault is every tag in allLogTags (log_levels.go), as strings.
-// A fresh install ticks each subsystem, because the two level switches are
-// the control a reader reaches first. The tag list narrows a level that is
-// already on, and it is useless as a second way to switch everything off.
+// logTagsDefault holds each tag of allLogTags in log_levels.go. A fresh
+// install checks each tag, because the two level switches are the control
+// that a reader finds first. The tag list narrows a level that is on.
 var logTagsDefault = func() []string {
 	out := make([]string, 0, len(allLogTags))
 	for _, t := range allLogTags {
@@ -137,11 +120,9 @@ var logTagsDefault = func() []string {
 	return out
 }()
 
-// normalizeLogTags whitelists and de-duplicates, and keeps the order of
-// allLogTags. It is the same shape as normalizeSearchKinds above. The nil
-// rule is load-bearing for the same reason. A config.json with no log_tags
-// key unmarshals to nil, and it must get every tag. A person who unticks every box gets a real empty list, which
-// means "no debug or info line from any subsystem".
+// normalizeLogTags keeps only known tags, with no duplicate, in the order of
+// allLogTags. As in normalizeSearchKinds, nil gets each tag, and an empty
+// list means "no debug or info line".
 func normalizeLogTags(tags []string) []string {
 	if tags == nil {
 		return append([]string(nil), logTagsDefault...)
@@ -159,8 +140,7 @@ func normalizeLogTags(tags []string) []string {
 	return out
 }
 
-// normalizeSearchScope maps each unknown value, an empty value included,
-// onto SearchScopeAll.
+// normalizeSearchScope maps each unknown or empty value to SearchScopeAll.
 func normalizeSearchScope(s string) string {
 	if strings.ToLower(strings.TrimSpace(s)) == SearchScopePage {
 		return SearchScopePage
@@ -172,22 +152,15 @@ func normalizeSearchScope(s string) string {
 // The mime_types map of config.json
 // ----------------------------------------------------------------------
 //
-// Config.MimeTypes is an OVERRIDE of builtinMIME in serving.go, and
-// resolveContentType reads it first. See rule 7 of CLAUDE.md section 1:
-// builtinMIME is the one authority for a content type.
-//
-// A FRESH INSTALL WRITES NO MAP. An older version wrote a default map, and
-// each row of it hid the table and carried no charset. See
+// Config.MimeTypes OVERRIDES builtinMIME in serving.go, and
+// resolveContentType reads it first. builtinMIME is the one authority for a
+// content type. A FRESH INSTALL WRITES NO MAP, because each row of a map
+// hides the table and has no charset. See
 // doc/decisions/0003-use-one-table-for-each-content-type.md.
 //
-// Point 4 of TestCompatScriptIsFirstAndES5 asks each byte of
-// omn-go-compat.js to be ASCII. That rule stays as a second defense
-// against a missing charset.
-//
-// legacyMimeSeeds holds the two maps that an older version wrote. The
-// repair below drops a map that equals one of them EXACTLY. A person who
-// changed one row keeps each row, because such a map is a choice and not
-// a leftover.
+// legacyMimeSeeds holds the two maps that an older version wrote.
+// dropLegacyMimeSeed removes a map only when it is EXACTLY one of them. A map
+// with one changed row is a choice of the user, and it stays.
 var legacyMimeSeeds = []map[string]string{
 	{
 		".css":   "text/css",
@@ -209,12 +182,10 @@ var legacyMimeSeeds = []map[string]string{
 	},
 }
 
-// dropLegacyMimeSeed removes a mime_types map that an older version
-// wrote, and it reports whether it changed anything. The caller then
-// writes config.json.
-//
-// A nil map is the state of a fresh install, thus the function answers
-// false and writes no file.
+// dropLegacyMimeSeed removes a mime_types map that an older version wrote,
+// and it reports whether it changed something. The caller then writes
+// config.json. A nil map is the state of a fresh install, thus the function
+// answers false.
 func (a *App) dropLegacyMimeSeed() bool {
 	if a.Config.MimeTypes == nil {
 		return false
@@ -231,8 +202,7 @@ func (a *App) dropLegacyMimeSeed() bool {
 	return false
 }
 
-// sameStringMap answers whether two maps hold the same keys and the same
-// values.
+// sameStringMap answers whether two maps hold the same keys and values.
 func sameStringMap(a, b map[string]string) bool {
 	if len(a) != len(b) {
 		return false
@@ -252,13 +222,11 @@ type GitServerConfig struct {
 	Password   string `json:"password"`
 }
 
-// defaultMaxUploadSizeMB is the out-of-the-box cap on the size of an uploaded
-// image or JSON file, in megabytes. saveUploadedFile (backend/handlers.go)
-// enforces it for the drag-and-drop upload of the editor. It also applies to
-// the "share to OMN-Go" file handoff of Android. MainActivity.java reads this
-// same value out of config.json natively, because that path never goes
-// through the Go HTTP server for the file write itself. The Config page can
-// override the cap for each install. See Config.MaxUploadSizeMB below.
+// defaultMaxUploadSizeMB is the default limit, in MB, for an uploaded image
+// or JSON file. saveUploadedFile in handlers.go applies it. The Android
+// "share to OMN-Go" path writes the file without the Go server, thus
+// MainActivity.java reads the same value from config.json. See
+// Config.MaxUploadSizeMB.
 const defaultMaxUploadSizeMB = 3
 
 type Config struct {
@@ -270,12 +238,10 @@ type Config struct {
 	UseInternalEd    bool   `json:"use_internal_editor"`
 	DesktopExtCmd    string `json:"desktop_ext_cmd"`
 	Theme            string `json:"theme"` // "auto" | "light" | "dark", see normalizeTheme
-	// ShareLAN controls the listen address. False, the default, binds
-	// 127.0.0.1, thus only this device can reach the server. True binds
-	// 0.0.0.0, thus another device on the network can connect. The admin and
-	// guest passwords protect that connection, through authMiddleware. A
-	// change takes effect on the next application start, because the socket
-	// binds one time. See
+	// ShareLAN sets the listen address. False, the default, binds 127.0.0.1,
+	// and only this device can connect. True binds 0.0.0.0, and the admin and
+	// guest passwords protect the connection. The socket binds one time, thus
+	// a change applies at the next start. See
 	// doc/decisions/0002-bind-the-loopback-address-when-lan-sharing-is-off.md.
 	ShareLAN         bool              `json:"share_lan"`
 	Hostname         string            `json:"hostname"`
@@ -283,71 +249,51 @@ type Config struct {
 	MimeTypes        map[string]string `json:"mime_types"`
 	ActiveGitIndex   int               `json:"active_git_index"`
 	GitServers       []GitServerConfig `json:"git_servers"`
-	// SearchEnabled turns on GLOBAL search, the part that builds and holds an
-	// index. The default is FALSE. The index is the first standing memory cost
-	// that this app has. It is approximately half the size of the indexed
-	// text, and it stays for the life of the process. On a device with little
-	// memory to spare, the correct amount of index is none. Page search is
-	// unaffected, and it is always available.
+	// SearchEnabled turns on GLOBAL search, which builds and keeps an index.
+	// The default is FALSE. The index uses about half the size of the indexed
+	// text, for the life of the process. Page search does not need it.
 	SearchEnabled bool `json:"search_enabled"`
 	// SearchKinds is what the global index covers. See normalizeSearchKinds
-	// for why absent and empty mean different things.
+	// for why absent and empty differ.
 	SearchKinds []string `json:"search_kinds"`
-	// SearchBundled additionally indexes OMN-Go's own shipped scripts
-	// (omn-go-*.js, *.min.js and friends - the versionDependentAssets list).
-	// Off by default: they are several times the size of a typical note
-	// collection and rarely what anyone is looking for.
+	// SearchBundled also indexes the scripts that OMN-Go ships, from the
+	// versionDependentAssets list. It is off by default, because they are
+	// larger than a typical note collection and rarely the target of a
+	// search.
 	SearchBundled bool `json:"search_bundled"`
-	// SearchScope is where a search starts, "all" or "page".
+	// SearchScope is where a search starts: "all" or "page".
 	SearchScope string `json:"search_scope"`
-	// MaxUploadSizeMB caps uploaded image/JSON file size (megabytes).
-	// Enforced in saveUploadedFile; see defaultMaxUploadSizeMB above for
-	// where the default and the Android-native duplicate of this value
-	// come from.
+	// MaxUploadSizeMB limits an uploaded image or JSON file, in MB. See
+	// defaultMaxUploadSizeMB.
 	MaxUploadSizeMB int `json:"max_upload_size_mb"`
-	// EnableIntentURI is the master switch for the launch of an Android
-	// "intent:" URI, for example
-	// [Wi-Fi](intent:#Intent;action=android.settings.WIRELESS_SETTINGS;end;),
-	// from a tap inside the WebView. Default false. When false,
-	// MainActivity.shouldOverrideUrlLoading refuses to dispatch an intent URI
-	// at all. Like MaxUploadSizeMB, the Android layer reads this value
-	// straight out of config.json at tap time. See MainActivity. It does not
-	// read it through the Go HTTP server, thus a change applies with no app
-	// restart. This is purely an Android-client concern. The desktop and LAN
-	// server ignores it, and an intent link is dead in a normal browser
-	// anyway.
+	// EnableIntentURI is the main switch for an Android "intent:" link in a
+	// note, for example
+	// [Wi-Fi](intent:#Intent;action=android.settings.WIRELESS_SETTINGS;end;).
+	// The default is false, and MainActivity.shouldOverrideUrlLoading then
+	// refuses each intent URI. MainActivity reads the value from config.json
+	// at each tap, thus a change needs no restart. The desktop ignores it.
 	EnableIntentURI bool `json:"enable_intent_uri"`
-	// EnableTermuxIntent additionally permits the Termux RUN_COMMAND path.
-	// That is a note that runs a shell command on the device through
-	// com.termux/.app.RunCommandService. Default false, and it is also gated
-	// behind EnableIntentURI. Both must be true. That mirrors the
-	// pk_enable_intent_uri and pk_enable_termux_intent pair of the old OMN.
-	// Termux must also be installed, its RUN_COMMAND permission must be
-	// granted, and each tap needs a confirmation. The Android side enforces
-	// all three. This value is also read natively from config.json at tap
-	// time.
+	// EnableTermuxIntent also allows the Termux RUN_COMMAND path: a note that
+	// runs a shell command through com.termux/.app.RunCommandService. The
+	// default is false, and it needs EnableIntentURI too. Termux must be
+	// installed, with its RUN_COMMAND permission, and each tap needs a
+	// confirmation. The Android side enforces each rule, and it reads the
+	// value from config.json at each tap.
 	EnableTermuxIntent bool `json:"enable_termux_intent"`
-	// AndroidFullscreen selects which system bars the Android app hides.
-	// FullscreenOff hides none. FullscreenOn hides the status bar, which is
-	// the default. FullscreenImmersive hides the status
-	// and navigation bars, and a swipe reveals them. See normalizeFullscreen
-	// above for why this is a string and not a bool. Like the two intent
-	// toggles, MainActivity reads it natively out of config.json, and not
-	// through the Go HTTP server. It reads it again on resume, and after each
-	// page load, thus a change applies with no app restart. This is purely an
-	// Android-client concern. The desktop and LAN server ignores it.
+	// AndroidFullscreen selects the system bars that the Android app hides.
+	// See normalizeFullscreen. MainActivity reads it from config.json on
+	// resume and after each page load, thus a change needs no restart. The
+	// desktop ignores it.
 	AndroidFullscreen string `json:"android_fullscreen"`
-	// LogDebug and LogInfo switch on the two quiet log levels. Both are
-	// false on a fresh install. Every open page mirrors the log into the
-	// browser console. The full detail of 21 subsystems is noise to a
-	// reader who did not ask for it. The error level has no
-	// switch: a person who asks for less noise never asks for fewer
-	// faults. See log_levels.go.
+	// LogDebug and LogInfo turn on the two quiet log levels. Both are false
+	// on a fresh install, because each open page copies the log into the
+	// browser console. The error level has no switch: a person who asks for
+	// less noise never asks for fewer faults. See log_levels.go.
 	LogDebug bool `json:"log_debug"`
 	LogInfo  bool `json:"log_info"`
-	// LogTags is the second axis. A debug or info line prints when its
-	// level is on AND its tag is in this list. An error line ignores the
-	// list. See normalizeLogTags for why absent and empty differ.
+	// LogTags is the second axis. A debug or info line prints when its level
+	// is on AND its tag is in this list. An error line ignores the list. See
+	// normalizeLogTags.
 	LogTags []string `json:"log_tags"`
 }
 
@@ -358,12 +304,9 @@ func (a *App) loadConfig(storageDir string) {
 	configPath := filepath.Join(a.StorageDir, "config.json")
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		a.Config = Config{
-			// Not a literal 8080. The Android fdroid flavor passes 8081. The
-			// two flavors are installable side by side, and they must not
-			// compete for the same loopback port. This is the one place that
-			// can honor that decision. The value written here is persisted,
-			// and each caller downstream sees a config that already has a
-			// port.
+			// Do not use a literal 8080. The fdroid flavor of Android passes
+			// 8081, because the two flavors can run side by side. The loader
+			// writes the port to config.json, thus each later reader sees it.
 			ServerPort:      a.fallbackPort(),
 			AdminPassword:   "admin_secret_changeme",
 			GuestPassword:   "guest_secret_changeme",
@@ -373,29 +316,28 @@ func (a *App) loadConfig(storageDir string) {
 			Theme:           ThemeAuto,
 			MaxUploadSizeMB: defaultMaxUploadSizeMB,
 
-			// Global search is off on a fresh install. When it is switched
-			// on, it starts with notes and bookmarks.
+			// Global search is off on a fresh install. When a person turns it
+			// on, it covers notes and bookmarks.
 			SearchEnabled: false,
 			SearchKinds:   append([]string(nil), searchKindsDefault...),
 			SearchScope:   SearchScopeAll,
 
-			// Both quiet levels are off, and every subsystem is ticked.
-			// A fresh install therefore writes a fault and nothing else.
+			// Both quiet levels are off, and each tag is checked. A fresh
+			// install thus writes faults and nothing else.
 			LogDebug: false,
 			LogInfo:  false,
 			LogTags:  append([]string(nil), logTagsDefault...),
-			// Matches the manifest's Theme.NoTitleBar.Fullscreen, so a
-			// fresh install looks the same as every existing one.
+			// This is the same as Theme.NoTitleBar.Fullscreen in the
+			// manifest.
 			AndroidFullscreen: FullscreenOn,
 
-			// Hostname labels this device in database backup filenames
-			// (see db_backup.go); BackupPruneDepth is how many backups
-			// to keep per database before the oldest is pruned.
+			// Hostname labels this device in the file names of database
+			// backups. See db_backup.go. BackupPruneDepth is the number of
+			// backups that each database keeps.
 			Hostname:         defaultHostname(),
 			BackupPruneDepth: 3,
 
-			// NO MimeTypes MAP. The field is an override of
-			// builtinMIME, and a fresh install overrides nothing. See
+			// Write NO MimeTypes MAP. A fresh install overrides nothing. See
 			// legacyMimeSeeds.
 		}
 		data, err := json.MarshalIndent(a.Config, "", "  ")
@@ -407,42 +349,35 @@ func (a *App) loadConfig(storageDir string) {
 	} else {
 		data, readErr := os.ReadFile(configPath)
 		if readErr != nil {
-			// Cannot read an existing config.json. Leave a.Config at its zero
-			// value, and say so loudly. Do not run silently with an empty or
-			// broken config that looks intentional.
+			// The loader cannot read an existing config.json. Leave a.Config
+			// at its zero value, and write an error line. Do not run with an
+			// empty config in silence.
 			a.logErrf(logConfig, "loadConfig: failed to read %s: %v", configPath, readErr)
 		} else if err := json.Unmarshal(data, &a.Config); err != nil {
-			// A corrupt config.json leaves a.Config partly or fully zeroed.
-			// Log it clearly, or the passwords and the settings seem to
-			// reset themselves with no reason.
+			// A config.json that does not parse leaves a.Config partly zero.
+			// The error line explains why the passwords and settings seem to
+			// reset.
 			a.logErrf(logConfig, "loadConfig: failed to parse %s (using defaults for any unparsed fields): %v", configPath, err)
 		}
 	}
-	// A config.json with no server_port, or with a value below 1, gets the
-	// fallback port, the same as a fresh install.
+	// A config.json with no server_port, or a value below 1, gets the
+	// fallback port.
 	if a.Config.ServerPort <= 0 {
 		a.Config.ServerPort = a.fallbackPort()
 	}
-	// Each other repair comes from the table in config_fields.go. A
-	// configuration that an older version wrote carries an empty theme and
-	// no log_tags key. Each one of those needs a value before any other
-	// code reads it.
-	//
-	// The repair is not written back at once. The next save of config.json
-	// carries it, whatever started that save.
+	// normalizeConfig applies each other repair from the table in
+	// config_fields.go. An old config.json can have an empty theme and no
+	// log_tags key. The next save of config.json writes the repair.
 	normalizeConfig(&a.Config)
-	// The slot array always holds maxGitServers rows. A config.json that
-	// carries fewer, or a "git_servers": null that an older version
-	// wrote, gets the missing rows here.
-	//
-	// getConfigPageBody holds a second copy as a guard for the renderer.
-	// That copy reads a snapshot and never the field below.
+	// The slot array always holds maxGitServers rows. A config.json with
+	// fewer rows, or with "git_servers": null, gets the missing rows here.
+	// getConfigPageBody holds a second guard for its snapshot.
 	for len(a.Config.GitServers) < maxGitServers {
 		a.Config.GitServers = append(a.Config.GitServers, GitServerConfig{Name: fmt.Sprintf("Server %d", len(a.Config.GitServers)+1)})
 	}
 
-	// A map that an older version seeded goes away, and the canonical
-	// table below it answers again. See dropLegacyMimeSeed.
+	// Remove a map that an older version wrote, thus the table of the build
+	// answers again. See dropLegacyMimeSeed.
 	if a.dropLegacyMimeSeed() {
 		data, err := json.MarshalIndent(a.Config, "", "  ")
 		if err != nil {
@@ -452,8 +387,7 @@ func (a *App) loadConfig(storageDir string) {
 		}
 	}
 
-	// Last, because every line above this point is a fault, and a fault
-	// prints whatever the filter says. See applyLogFilter for why the
-	// filter is a cache and not a read of the configuration.
+	// Call this last. Each line above is a fault, and a fault always prints.
+	// See applyLogFilter.
 	a.applyLogFilter(a.Config)
 }
