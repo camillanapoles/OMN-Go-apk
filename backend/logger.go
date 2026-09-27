@@ -1,35 +1,27 @@
 package backend
 
-// ---------------------------------------------------------------------
+// ----------------------------------------------------------------------
 // The log transport
+// ----------------------------------------------------------------------
 //
-// One line goes to two destinations. stdout is the destination a desktop
-// user and `adb logcat` read. The /api/logs SSE stream is the destination
-// that every open page reads. omn-go-sse.js mirrors each line into the
-// browser console, and the sync progress overlay reads the same stream for
-// its stage text.
+// broadcastLogLine is the only fan-out. It sends each line to THREE places:
+// stdout, the /api/logs stream and the history ring. stdout is for a desktop
+// user and for adb logcat. Each open page reads the stream, copies it into
+// the browser console, and the sync overlay reads its stage text there. See
+// doc/decisions/0013-send-each-log-line-to-three-places-and-to-the-admin-only.md.
+// Two callers reach broadcastLogLine:
 //
-// broadcastLogLine is the only fan-out. It has THREE destinations: stdout,
-// the SSE stream, and the history ring below. See
-// doc/decisions/0013-send-each-log-line-to-three-places-and-to-the-admin-only.md. Two callers reach it:
-//
-//	JSLogger.Write  the standard log package, for the two call sites that
+//	JSLogger.Write  The standard log package, for the two call sites that
 //	                cannot reach an *App. See TestNoDirectLogPrintf.
-//	App.emitLog     every other line, through a.logDebugf, a.logInfof or
-//	                a.logErrf. See log_levels.go.
+//	App.emitLog     Each other line, through logDebugf, logInfof or logErrf.
 //
-// THE SSE STREAM ALWAYS CARRIES EVERY LINE. Two reasons hold that rule. The
-// sync progress overlay is fed by "[sync]" debug lines, and it must keep
-// working when a reader asks for less noise. And the browser is the place a
-// person can change a filter and see the effect at once, with no server
-// restart. broadcastLogLine therefore takes a separate switch for stdout
-// only.
+// THE STREAM ALWAYS CARRIES EACH LINE. The sync overlay needs the "[sync]"
+// debug lines also when a reader asks for less. The browser can also change
+// its filter with no restart. The switches thus control stdout only.
 //
-// The stream is a live sample and not a complete transcript. A client with a
-// full 10-slot channel loses the line rather than blocking the writer. That
-// is correct for a progress display, and it means the stream must never
-// drive state that has to see every event.
-// ---------------------------------------------------------------------
+// The stream is a live sample. A client with a full channel loses the line,
+// and the writer never waits. The stream must thus never drive a state that
+// needs each event.
 
 import (
 	"encoding/json"
@@ -45,34 +37,23 @@ var (
 	logClients []chan string
 )
 
-// ---------------------------------------------------------------------
+// ----------------------------------------------------------------------
 // The history ring
-// ---------------------------------------------------------------------
+// ----------------------------------------------------------------------
 //
-// The SSE stream is a live sample. A page that opens after an event
-// never sees the lines of it. A person who reads a fault report must
-// then make the fault happen again, with a page open.
+// A page that opens after an event never sees its lines on the stream. The
+// ring holds the last logHistoryCap lines, and /api/logs/history answers with
+// them.
 //
-// The ring holds the last logHistoryCap lines, and /api/logs/history
-// answers with them.
+// THE RING DOES NOT REPLAY ON THE STREAM. applySyncLogLine in omn-go-sse.js
+// reads the "[sync] (debug)" lines of the stream. A replay would show an old
+// sync on each page load.
 //
-// IT DOES NOT REPLAY ON THE STREAM. A replay breaks the sync progress
-// overlay. applySyncLogLine in omn-go-sse.js
-// reads "[sync] (debug)" lines off the raw stream to drive the stages.
-// A replay on connect feeds it the lines of a sync that ended an hour
-// ago. Each page load would then show a sync that is not running. The
-// ring therefore answers its own endpoint, and the stream carries live
-// lines alone.
+// THE RING HOLDS EACH LINE, the same as the stream. A person who turned debug
+// off and then met a fault needs those debug lines most.
 //
-// IT HOLDS EVERY LINE, the same as the stream. The stdout switches say
-// what a reader wants to SEE, and never what the application must keep.
-// A person who turned debug off and then met a fault needs the debug
-// lines of that moment more than anybody.
-//
-// THE SIZE. 500 lines, and a line is about 120 bytes, thus about 60
-// kilobytes for the life of the process. That is the right order for a
-// phone. It is a constant and not a setting: a person who needs another
-// number is a person who is already reading this file.
+// 500 lines of about 120 bytes use about 60 KB for the life of the process.
+// That size suits a phone. It is a constant and not a setting.
 
 // logHistoryCap is the number of lines that the ring holds.
 const logHistoryCap = 500
@@ -83,12 +64,9 @@ var (
 	logHistoryCount int
 )
 
-// recordLogLine writes one line into the ring. The caller holds
-// logMutex.
-//
-// The ring writes over the oldest line when it is full. A log that stops
-// at a cap keeps the start of the session and loses the fault, which is
-// the wrong half.
+// recordLogLine writes one line into the ring. The caller holds logMutex.
+// When the ring is full, the new line replaces the oldest one. A log that
+// stops at a limit keeps the start and loses the fault.
 func recordLogLine(msg string) {
 	logHistory[logHistoryNext] = msg
 	logHistoryNext = (logHistoryNext + 1) % logHistoryCap
@@ -97,10 +75,8 @@ func recordLogLine(msg string) {
 	}
 }
 
-// logHistorySnapshot answers a copy of the ring, oldest line first.
-//
-// It is a COPY. The caller reads it with no lock, and a writer can add a
-// line while the caller still reads.
+// logHistorySnapshot answers a COPY of the ring, oldest line first. The
+// caller reads it without the lock while a writer adds lines.
 func logHistorySnapshot() []string {
 	logMutex.Lock()
 	defer logMutex.Unlock()
@@ -113,15 +89,14 @@ func logHistorySnapshot() []string {
 	return out
 }
 
-// logTimeLayout is the prefix format of the standard log package with
-// log.LstdFlags. emitLog writes the stamp itself, because it does not go
-// through the log package. The two sources must look the same on stdout and
-// on the stream, or the page has two shapes to parse.
+// logTimeLayout is the time prefix of the standard log package with
+// log.LstdFlags. emitLog writes the stamp itself. Both sources must look the
+// same, or the page must parse two shapes.
 const logTimeLayout = "2006/01/02 15:04:05 "
 
-// broadcastLogLine sends one finished line to every SSE subscriber, and to
-// stdout when toStdout is true. Both happen under logMutex, so two
-// goroutines cannot interleave one line into another.
+// broadcastLogLine sends one line to each stream subscriber and to the ring,
+// and to stdout when toStdout is true. It holds logMutex, thus two lines
+// cannot mix.
 func broadcastLogLine(msg string, toStdout bool) {
 	logMutex.Lock()
 	recordLogLine(msg)
@@ -140,14 +115,14 @@ func broadcastLogLine(msg string, toStdout bool) {
 type JSLogger struct{}
 
 func (l *JSLogger) Write(p []byte) (n int, err error) {
-	// A line from the standard log package carries no level. It always
-	// reaches stdout, because no filter applies to it.
+	// A line from the standard log package has no level. It always goes to
+	// stdout, because no filter applies to it.
 	broadcastLogLine(string(p), true)
 	return len(p), nil
 }
 
-// emitLog formats one line as "[tag] (level) message", stamps it, and hands
-// it to broadcastLogLine. It is the only writer of a level-tagged line.
+// emitLog makes one line "[tag] (level) message", stamps it, and gives it to
+// broadcastLogLine. It is the only writer of a line with a level.
 func (a *App) emitLog(lvl logLevel, tag logTag, format string, args ...any) {
 	line := time.Now().Format(logTimeLayout) +
 		"[" + string(tag) + "] (" + string(lvl) + ") " +
@@ -155,8 +130,8 @@ func (a *App) emitLog(lvl logLevel, tag logTag, format string, args ...any) {
 	broadcastLogLine(line, a.logLineEnabled(lvl, tag))
 }
 
-// logFilter is the cached form of the three log switches: Config.LogDebug,
-// Config.LogInfo and Config.LogTags.
+// logFilter is the cached form of Config.LogDebug, Config.LogInfo and
+// Config.LogTags.
 type logFilter struct {
 	debug bool
 	info  bool
@@ -165,15 +140,11 @@ type logFilter struct {
 
 // applyLogFilter caches the log switches of one configuration.
 //
-// A LOG LINE MUST NEVER TAKE THE CONFIG LOCK. loadConfig holds the config
-// write lock while it runs, and it writes a log line when config.json is
-// unreadable. A Go RWMutex is not reentrant, so a read of the configuration
-// from inside emitLog would deadlock the startup path. An atomic value costs
-// one load for each line and cannot deadlock.
-//
-// The configuration stays the one authority. This is a copy that two places
-// refresh: loadConfig, at the end, and the POST branch of handleConfig,
-// after it writes config.json.
+// A LOG LINE MUST NEVER TAKE THE CONFIG LOCK. loadConfig holds the write lock
+// and can write a log line, and a Go RWMutex is not reentrant. A read of the
+// config from emitLog would thus deadlock the start. An atomic value costs
+// one load for each line. loadConfig and the POST branch of handleConfig
+// refresh the cache.
 func (a *App) applyLogFilter(c Config) {
 	f := logFilter{
 		debug: c.LogDebug,
@@ -186,13 +157,10 @@ func (a *App) applyLogFilter(c Config) {
 	a.logFilter.Store(f)
 }
 
-// logLineEnabled says whether one line reaches stdout and the browser
-// console. An error always does. A debug or an info line needs its level
-// switched on and its tag ticked.
-//
-// Before loadConfig runs, the cache is empty and this answers the same as a
-// fresh install: faults only. Every line the application writes that early
-// is a fault, so nothing is lost.
+// logLineEnabled tells whether one line reaches stdout and the browser
+// console. An error always does. A debug or info line needs its level on and
+// its tag checked. Before loadConfig runs, the cache is empty and allows
+// faults only, the same as a fresh install.
 func (a *App) logLineEnabled(lvl logLevel, tag logTag) bool {
 	if lvl == levelError {
 		return true
@@ -210,15 +178,9 @@ func (a *App) logLineEnabled(lvl logLevel, tag logTag) bool {
 	return f.tags[tag]
 }
 
-// initLogger sends the standard logger into the stream of /api/logs.
-//
-// registerRoutes in server.go registers the route. Section 3 of CLAUDE.md
-// asks for one block of routes.
-//
-// It is unexported. main_desktop.go and the Android layer use
-// StartServer, AssetsRefreshed, GetServerPort, WaitUntilReady,
-// SetLANAddresses and SetAndroidPackage. See section 3 of CLAUDE.md on the
-// exported surface.
+// initLogger sends the standard logger into the /api/logs stream.
+// registerRoutes in server.go registers the route. The function is not
+// exported. See section 3 of CLAUDE.md for the exported names.
 func (a *App) initLogger() {
 	log.SetOutput(&JSLogger{})
 }
@@ -260,29 +222,21 @@ func (a *App) HandleLogsSSE(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// logsDeniedBody is what a guest sees. A page answers with a page, the
-// same as the Status page and the file index do. It is not the line of
-// plain text that authMiddleware writes.
+// logsDeniedBody is the page that a guest sees, not the line of plain text of
+// authMiddleware.
 const logsDeniedBody = `<div class="config-panel">` +
 	`<h2 class="config-title">Log</h2>` +
 	`<p class="config-hint">This page is for the admin of this device. ` +
 	`Log in as admin on a note page, then open the page again.</p>` +
 	`</div>`
 
-// serveLogsPage answers /OMNGoLogs.html. The page holds no line of its
-// own. It reads /api/logs/history one time, and then it adds each new
-// line of /api/logs. omn-go-logs.js does that work.
+// serveLogsPage answers /OMNGoLogs.html. The page reads /api/logs/history one
+// time, and then it adds each new line of /api/logs. omn-go-logs.js does that
+// work.
 //
-// WHY A PAGE AT ALL. A desktop reader has stdout. Android has no
-// terminal, thus a person there could read a fault in two ways only. One
-// is adb logcat, which needs a computer and developer mode. The other is
-// a second browser on the phone, opened at the address of the history
-// endpoint, which answers JSON. Both are bad, and a fault on a phone is
-// the case that needs the log most.
-//
-// It is registered the same way as serveStatusPage, and it asks hasRole
-// itself. See the banner of statusDeniedBody for why a page answers a
-// guest with a page.
+// Android has no terminal. Without this page, a person on a phone needs adb
+// logcat, or a second browser at the history endpoint. The route follows
+// serveStatusPage, and it asks hasRole itself. See statusDeniedBody.
 func (a *App) serveLogsPage(w http.ResponseWriter, r *http.Request) {
 	body := logsPageTmpl
 	if !a.hasRole(r, true) {
@@ -294,18 +248,12 @@ func (a *App) serveLogsPage(w http.ResponseWriter, r *http.Request) {
 	w.Write(a.injectRuntimeVars(compiled))
 }
 
-// handleLogHistory answers the ring of the last logHistoryCap lines,
-// oldest first.
+// handleLogHistory answers the ring of the last logHistoryCap lines, oldest
+// first. It is a separate endpoint, because a replay on /api/logs breaks the
+// sync overlay. See the banner of the ring.
 //
-// WHY THIS IS A SEPARATE ENDPOINT AND NOT A REPLAY ON /api/logs. See the
-// banner of the ring above. A replay on the stream breaks the sync
-// progress overlay.
-//
-// IT IS ADMIN ONLY, and so is /api/logs. A guest who holds the stream open
-// reads the transcript as the server writes it, thus a guard on the ring
-// alone hides nothing. A LAN share gives no log line. See
+// IT IS ADMIN ONLY, and so is /api/logs. A LAN guest reads no log line. See
 // doc/decisions/0013-send-each-log-line-to-three-places-and-to-the-admin-only.md.
-//
 // The answer follows section 1.4 of doc/API.md: JSON with a status word.
 func (a *App) handleLogHistory(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

@@ -24,79 +24,65 @@ import (
 )
 
 // ----------------------------------------------------------------------
-// GET /api/status - what this build is doing right now
+// GET /api/status: what this build does now
 // ----------------------------------------------------------------------
 //
-// One endpoint answers the questions that a bug report asks. Which
-// address does the server listen on? Which commit are the notes at? How
-// large did the search index grow? Which Android package runs? The Status
-// page is a later phase, and it reads this endpoint. It is not a second
-// source of the same facts.
+// One endpoint answers the questions of a fault report. Which address does
+// the server listen on? Which commit are the notes at? How large is the
+// search index? Which Android package runs? The Status page reads this
+// endpoint, and it has no second source.
 //
-// ADMIN ONLY. The answer carries LAN addresses, absolute paths and a
-// commit subject. hasRole treats each local connection as the owner. The
-// Android WebView and a desktop browser therefore reach this endpoint
-// with no login. Only another machine on the network needs the admin
-// cookie.
+// ADMIN ONLY. The answer holds LAN addresses, absolute paths and a commit
+// subject. hasRole treats a local connection as the owner, thus the Android
+// WebView and a desktop browser need no login.
 //
-// Two sections cost real work. They are NEVER in the default answer:
-// "storage" walks the storage directory, and "git_dirty" walks the git
-// worktree. A caller asks for them by name. The page therefore paints the
-// cheap facts at once, and runs a progress bar over the slow request
-// alone.
+// Two sections cost real work, and the default answer NEVER holds them.
+// "storage" walks the storage directory, and "git_dirty" walks the worktree.
+// A caller names them. The page thus shows the cheap facts at once, with a
+// progress bar for the slow request.
 //
-// Nothing here opens a network connection, and nothing here creates or
-// changes a file. In particular the git section opens the repository
-// read-only: getOrInitRepo() would CREATE one, which a status request
-// must never do.
+// Nothing here opens a network connection or writes a file. The git section
+// opens the repository read-only, because getOrInitRepo would CREATE one.
 
-// statusCheapSections is the default answer. statusSlowSections must be
-// named in the "sections" parameter, one at a time or through "all".
+// statusCheapSections is the default answer. A caller must name each of
+// statusSlowSections in "sections", or ask for "all".
 var (
 	statusCheapSections = []string{"server", "config", "git", "search", "runtime", "android"}
 	statusSlowSections  = []string{"storage", "git_dirty"}
 )
 
-// androidPackage is set by the Android layer before StartServer, through
-// SetAndroidPackage. The Go runtime cannot ask Android which
-// applicationId it runs under. The two values are net.basov.omngo and
-// net.basov.omngo.fdroid. This package only reports the name.
+// androidPackage holds the applicationId, net.basov.omngo or
+// net.basov.omngo.fdroid. The Go runtime cannot ask Android for it, thus the
+// Android layer sets it through SetAndroidPackage.
 var (
 	androidPackageMu sync.RWMutex
 	androidPackage   string
 )
 
-// SetAndroidPackage records the applicationId of the running Android
-// application. ServerService.java calls it before Backend.startServer.
-// /api/status then reports the package that this process belongs to.
-//
-// The function is exported for the gomobile binding, and it is additive.
-// A caller that never calls it still works. statusAndroidPackage then
-// takes the last element of the storage directory, which IS the package
-// name on Android (/storage/emulated/0/Android/media/<package>).
+// SetAndroidPackage records the applicationId of the Android app.
+// ServerService.java calls it before Backend.startServer. gomobile exports
+// it. Without the call, statusAndroidPackage takes the last element of the
+// storage directory, which IS the package name on Android.
 func SetAndroidPackage(name string) {
 	androidPackageMu.Lock()
 	androidPackage = strings.TrimSpace(name)
 	androidPackageMu.Unlock()
 }
 
-// lanAddressList holds what the Android layer enumerated. Go cannot read
-// the addresses on a phone. java.net.NetworkInterface uses getifaddrs(),
-// which an application may call. Go asks the kernel over a NETLINK_ROUTE
-// socket, which Android denies to an application since Android 11.
+// lanAddressList holds the addresses that the Android layer found.
+// java.net.NetworkInterface uses getifaddrs(), which an app can call. Go asks
+// the kernel over a NETLINK_ROUTE socket, and Android 11 and later deny that
+// to an app.
 var (
 	lanAddressesMu sync.RWMutex
 	lanAddressList []string
 )
 
-// SetLANAddresses records the addresses of this device, as one
-// comma-separated list. ServerService.java calls it with each
-// non-loopback site-local IPv4 address that it finds. The call happens
-// at each build of the notification, so the notification and the Status
-// page name the same addresses.
-//
-// One string and not a slice, because the gomobile binding carries no
-// slice of strings. An empty list clears the value.
+// SetLANAddresses records the addresses of this device as one list with
+// commas. ServerService.java calls it with each site-local IPv4 address that
+// is not loopback, each time it builds the notification. The notification and
+// the Status page thus show the same addresses. The gomobile binding carries
+// no slice of strings, thus the value is one string. An empty list clears it.
 func SetLANAddresses(list string) {
 	out := []string{}
 	for _, part := range strings.Split(list, ",") {
@@ -146,9 +132,9 @@ type statusResponse struct {
 	Errors    map[string]string `json:"errors,omitempty"`
 }
 
-// statusServer holds no listen ADDRESS. The listener binds "::" or
-// "0.0.0.0", and "[::]:8080" answers no question that a person asks. The
-// port is the useful half, and share_lan with lan_urls says the rest.
+// statusServer holds no listen ADDRESS. The listener binds "::" or "0.0.0.0",
+// and "[::]:8080" answers no question. The port is the useful half, and
+// share_lan with lan_urls tells the rest.
 type statusServer struct {
 	AppVersion  string   `json:"app_version"`
 	Started     string   `json:"started"`
@@ -202,10 +188,9 @@ type statusGit struct {
 	Remote     *statusGitRemote `json:"remote,omitempty"`
 
 	// RemoteRef and RemoteHead are what the LAST sync left in this
-	// repository, for example "gitserver0/master". Nothing here asks the
-	// remote server. A branch that this device never fetched leaves both
-	// fields absent. A reader compares head.hash with remote_head.hash to
-	// see whether the two ends agree.
+	// repository, for example "gitserver0/master". Nothing asks the remote
+	// server. Compare head.hash with remote_head.hash to see whether the two
+	// ends agree.
 	RemoteRef  string         `json:"remote_ref,omitempty"`
 	RemoteHead *statusGitHead `json:"remote_head,omitempty"`
 }
@@ -235,8 +220,8 @@ type statusRuntime struct {
 	HeapAlloc     uint64 `json:"heap_alloc"`
 	Sys           uint64 `json:"sys"`
 	AssetsVersion string `json:"assets_version"`
-	// AssetsRefreshed tells if this start wrote a version-dependent
-	// asset. It is true one time, after an update of the application.
+	// AssetsRefreshed tells whether this start wrote a version-dependent
+	// file. It is true one time after an update.
 	AssetsRefreshed bool `json:"assets_refreshed"`
 }
 
@@ -246,7 +231,7 @@ type statusAndroid struct {
 	Fullscreen  string `json:"fullscreen"`
 }
 
-// statusGroup is one counted group of files inside the storage directory.
+// statusGroup is one counted group of files in the storage directory.
 type statusGroup struct {
 	Files int   `json:"files"`
 	Bytes int64 `json:"bytes"`
@@ -283,9 +268,9 @@ func (a *App) handleStatus(w http.ResponseWriter, r *http.Request) {
 	res := a.buildStatus(want)
 
 	if strings.EqualFold(r.URL.Query().Get("format"), "md") {
-		// text/plain, not text/markdown. A browser paints text/plain
-		// everywhere, and the Android WebView paints nothing else. This
-		// is the reason .jsonl is text/plain too (see builtinMIME).
+		// Answer text/plain and not text/markdown, because the Android
+		// WebView shows only text/plain. For the same reason, builtinMIME
+		// serves .jsonl as text/plain.
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Write([]byte(renderStatusMarkdown(res)))
 		return
@@ -299,18 +284,16 @@ func (a *App) handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// statusDeniedBody is what a guest sees. A page answers with a page, like
-// the file index does - not with the line of plain text that
-// authMiddleware writes.
+// statusDeniedBody is the page that a guest sees, the same as on the file
+// index. It is not the line of plain text of authMiddleware.
 const statusDeniedBody = `<div class="config-panel">` +
 	`<h2 class="config-title">Status</h2>` +
 	`<p class="config-hint">This page is for the admin of this device. ` +
 	`Log in as admin on a note page, then open the page again.</p>` +
 	`</div>`
 
-// serveStatusPage answers /OMNGoStatus.html. The page holds no facts of
-// its own: it reads /api/status and draws what comes back. Phase 2 of the
-// status work, and the reason the endpoint came first.
+// serveStatusPage answers /OMNGoStatus.html. The page reads /api/status and
+// shows the answer. It holds no facts of its own.
 func (a *App) serveStatusPage(w http.ResponseWriter, r *http.Request) {
 	body := statusPageTmpl
 	if !a.hasRole(r, true) {
@@ -322,10 +305,9 @@ func (a *App) serveStatusPage(w http.ResponseWriter, r *http.Request) {
 	w.Write(a.injectRuntimeVars(compiled))
 }
 
-// parseStatusSections turns the "sections" parameter into a set. Empty
-// means the cheap sections. "all" means every section, the slow ones
-// included. An unknown name is an error rather than a silent omission:
-// a caller that asks for "sarch" must hear about it.
+// parseStatusSections changes the "sections" parameter into a set. Empty
+// means the cheap sections, and "all" means each section. An unknown name is
+// an error, thus a caller who asks for "sarch" knows it.
 func parseStatusSections(raw string) (want map[string]bool, unknown []string) {
 	want = map[string]bool{}
 	raw = strings.TrimSpace(raw)
@@ -373,7 +355,7 @@ func (a *App) buildStatus(want map[string]bool) *statusResponse {
 		res.Config = statusConfigSection(cfg)
 	}
 	if want["git"] {
-		// Not named "git": that is the package this file imports.
+		// The name is not "git", because this file imports that package.
 		section, err := a.statusGitSection(cfg)
 		res.Git = section
 		if err != nil {
@@ -411,14 +393,14 @@ func (a *App) buildStatus(want map[string]bool) *statusResponse {
 }
 
 // ----------------------------------------------------------------------
-// Sections
+// The sections
 // ----------------------------------------------------------------------
 
 func (a *App) statusServerSection(cfg Config) *statusServer {
 	_, portStr, addr := a.boundAddress()
 	port, _ := strconv.Atoi(portStr)
 	if addr == "" {
-		// Asked before the listener came up. The config then answers.
+		// The listener is not up yet. The config gives the port.
 		port = cfg.ServerPort
 	}
 
@@ -470,8 +452,8 @@ func statusConfigSection(cfg Config) *statusConfig {
 	}
 }
 
-// statusGitSection reads HEAD without touching the repository. An install
-// that never synced has no .git at all, which is an answer, not an error.
+// statusGitSection reads HEAD and changes nothing. An install that never
+// synced has no .git, and that is an answer, not an error.
 func (a *App) statusGitSection(cfg Config) (*statusGit, error) {
 	out := &statusGit{}
 
@@ -502,9 +484,9 @@ func (a *App) statusGitSection(cfg Config) (*statusGit, error) {
 	}
 	out.Head = commitSummary(repo, head.Hash())
 
-	// The remote-tracking ref: what the last pull or push wrote into this
-	// repository for the branch of HEAD. This is a local read of a local
-	// file. It contacts no server, so it costs nothing and it can be old.
+	// The remote-tracking ref is what the last pull or push wrote for the
+	// branch of HEAD. It is a local file, thus the read is cheap, and it can
+	// be old.
 	for _, remote := range remoteRefCandidates(cfg, out.Branch) {
 		refName := plumbing.NewRemoteReferenceName(remote, out.Branch)
 		ref, err := repo.Reference(refName, true)
@@ -518,11 +500,11 @@ func (a *App) statusGitSection(cfg Config) (*statusGit, error) {
 	return out, nil
 }
 
-// remoteRefCandidates names the git remotes to look in, most specific
-// first. ensureSlotRemotes gives each configured server slot a remote of
-// its own ("gitserver0"), and "origin" is the bootstrap remote that an
-// older installation carries. An empty branch (a detached HEAD) has no
-// remote-tracking ref at all.
+// remoteRefCandidates names the remotes to read, most specific first.
+// ensureSlotRemotes gives each server slot its own remote, for example
+// "gitserver0". "origin" is the fallback remote. See
+// doc/decisions/0012-keep-one-remote-for-each-git-server-slot.md. A detached
+// HEAD has no branch, and no remote-tracking ref.
 func remoteRefCandidates(cfg Config, branch string) []string {
 	if branch == "" {
 		return nil
@@ -535,9 +517,9 @@ func remoteRefCandidates(cfg Config, branch string) []string {
 	return append(out, "origin")
 }
 
-// commitSummary reads one commit and reports it. A hash whose object is
-// not in this repository still gives the hash, because the hash is the
-// answer that the caller asked for.
+// commitSummary reads one commit and reports it. When the object is not in
+// this repository, the answer still holds the hash, because the hash is what
+// the caller asked for.
 func commitSummary(repo *git.Repository, h plumbing.Hash) *statusGitHead {
 	hash := h.String()
 	short := hash
@@ -555,10 +537,9 @@ func commitSummary(repo *git.Repository, h plumbing.Hash) *statusGitHead {
 	return out
 }
 
-// statusGitDirtySection is the slow half of the git answer. go-git hashes
-// each tracked file to find it. One log line goes out first. The page
-// then has something to show under its progress bar, because the
-// /api/logs stream carries that line like it carries the sync stages.
+// statusGitDirtySection is the slow half of the git answer: go-git hashes
+// each tracked file. It first writes one log line, thus the page can show it
+// under its progress bar.
 func (a *App) statusGitDirtySection() (*statusGitDirty, error) {
 	repo, err := a.openRepoReadOnly()
 	if err != nil {
@@ -619,11 +600,10 @@ func (a *App) statusSearchSection(cfg Config) *statusSearch {
 		out.Checked = statusTime(a.search.checked)
 	}
 
-	// An ESTIMATE, and the field name says so. Go cannot report the true
-	// size of a live object graph. This counts what the index holds: one
-	// 8-byte mask for each indexed line, the 64-byte trigram signature,
-	// and the strings. A flat allowance covers the structure and its map
-	// entry.
+	// This is an ESTIMATE, and the field name says so. Go cannot measure a
+	// live object graph. The count covers one 8-byte mask for each line, the
+	// 64-byte signature and the strings. A flat value covers the struct and
+	// its map entry.
 	const perDocOverhead = 160
 	var est int64
 	for path, doc := range a.search.docs {
@@ -657,9 +637,9 @@ func (a *App) statusRuntimeSection() *statusRuntime {
 	}
 }
 
-// statusStorageSection walks the storage directory ONE time and classifies
-// each file by where it sits. One pass, because a walk of the note tree on
-// a phone is the whole cost of this section.
+// statusStorageSection walks the storage directory ONE time and sorts each
+// file into its group. The walk of the note tree is the whole cost of this
+// section on a phone.
 func (a *App) statusStorageSection() (*statusStorage, error) {
 	out := &statusStorage{Dir: a.StorageDir}
 	add := func(g *statusGroup, size int64) {
@@ -719,7 +699,7 @@ func (a *App) statusStorageSection() (*statusStorage, error) {
 // ----------------------------------------------------------------------
 
 // statusTime is the one time format of this endpoint: RFC3339 in UTC, the
-// same shape the backup files carry.
+// same as the backup files.
 func statusTime(t time.Time) string {
 	if t.IsZero() {
 		return ""
@@ -727,14 +707,11 @@ func statusTime(t time.Time) string {
 	return t.UTC().Format(time.RFC3339)
 }
 
-// lanURLs lists the addresses that another device on the network can
-// open. Loopback and link-local are dropped. The first is reachable from
-// nowhere else, and the second needs a zone index that no URL carries.
-//
-// The address of the default route comes first, because that is the one
-// a phone or a laptop on the same network uses. A desktop can carry
-// several more (a docker bridge, a virtual machine bridge), and those
-// follow it in sorted order.
+// lanURLs lists the addresses that another device on the network can open. It
+// drops loopback and link-local: the first is reachable from nowhere else,
+// and the second needs a zone index. The address of the default route comes
+// first. A desktop can have more addresses, for example of a docker bridge,
+// and they follow in sorted order.
 func lanURLs(port int) []string {
 	usable := func(ip net.IP) bool {
 		return ip != nil && !ip.IsLoopback() && !ip.IsLinkLocalUnicast() &&
@@ -762,20 +739,18 @@ func lanURLs(port int) []string {
 		out = append(out, url)
 	}
 
-	// 1. The address of the default route, read now. A phone or a laptop
-	// on the same network opens this one, so it comes first.
+	// 1. Add the address of the default route, read now. Another device on
+	// the network uses it, thus it comes first.
 	add(defaultRouteIP())
 
-	// 2. What the Android layer enumerated (see SetLANAddresses). It can
-	// be older than the answer above, because ServerService writes it
-	// when it builds the notification.
+	// 2. Add the addresses that the Android layer found. See SetLANAddresses.
+	// They can be older than the answer above.
 	for _, text := range androidLANAddresses() {
 		add(net.ParseIP(text))
 	}
 
-	// 3. Each interface address that this process can read. This is the
-	// desktop path, and it adds the bridges of a docker or a virtual
-	// machine setup after the address of the network.
+	// 3. Add each interface address that this process can read. This is the
+	// desktop path, and it adds bridge addresses.
 	rest := []string{}
 	restSeen := map[string]bool{}
 	if addrs, err := net.InterfaceAddrs(); err == nil {
@@ -800,17 +775,11 @@ func lanURLs(port int) []string {
 	return out
 }
 
-// defaultRouteIP reports the address of the interface that carries the
-// default route, or nil.
-//
-// It exists for Android. net.InterfaceAddrs asks the kernel through
-// NETLINK, and Android denies NETLINK_ROUTE to an application since
-// Android 11. The call therefore fails on a phone, and the list of LAN
-// addresses came back empty on the one platform where a user needs it.
-//
-// A UDP "connection" sends no packet. The kernel only selects the route
-// and gives the local address of it, which is the address that another
-// device reaches this server on.
+// defaultRouteIP reports the address of the interface with the default route,
+// or nil. net.InterfaceAddrs uses NETLINK, and Android 11 and later deny
+// NETLINK_ROUTE to an app, thus the call fails on a phone. A UDP "connection"
+// sends no packet. The kernel only selects the route and gives its local
+// address, which is the address that another device reaches.
 func defaultRouteIP() net.IP {
 	for _, target := range []string{"8.8.8.8:53", "192.168.1.1:9"} {
 		conn, err := net.Dial("udp4", target)
@@ -826,10 +795,9 @@ func defaultRouteIP() net.IP {
 	return nil
 }
 
-// redactGitURL removes the password from a remote URL. A user name stays:
-// it is part of how the remote is addressed, and it is not a secret. An
-// address this function cannot parse is reported as "(hidden)" rather
-// than as itself.
+// redactGitURL removes the password from a remote URL. The user name stays,
+// because it is part of the address and not a secret. An address that the
+// function cannot parse shows as "(hidden)".
 func redactGitURL(raw string) string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -852,10 +820,9 @@ func redactGitURL(raw string) string {
 	return u.String()
 }
 
-// openRepoReadOnly opens the storage repository and creates nothing. It
-// uses the same filesystem wrapping as getOrInitRepo (git_repo.go), so
-// both see one worktree. With no repository on disk it returns an error.
-// It never initializes one.
+// openRepoReadOnly opens the storage repository and makes nothing. It uses
+// the same file system wrappers as getOrInitRepo in git_repo.go, thus both
+// see one worktree. With no repository on disk, it answers an error.
 func (a *App) openRepoReadOnly() (*git.Repository, error) {
 	baseFS := osfs.New(a.StorageDir)
 	wtFS := &NoLockFS{&stableMtimeFS{baseFS}}
@@ -868,7 +835,7 @@ func (a *App) openRepoReadOnly() (*git.Repository, error) {
 }
 
 // ----------------------------------------------------------------------
-// Markdown rendering (?format=md)
+// The Markdown form (?format=md)
 // ----------------------------------------------------------------------
 
 func renderStatusMarkdown(res *statusResponse) string {

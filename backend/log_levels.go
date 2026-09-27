@@ -1,47 +1,36 @@
 package backend
 
-// ---------------------------------------------------------------------
+// ----------------------------------------------------------------------
 // Log tags and log levels
+// ----------------------------------------------------------------------
 //
-// Every log line the backend writes reaches three places: stdout, the
-// /api/logs SSE stream, and the browser console of every open page. See
-// logger.go and the EventSource block at the end of omn-go-sse.js.
-//
-// A person who opens the browser console must be able to ask for less
-// than the full detail of every subsystem. See
+// Each log line goes to stdout, to the /api/logs stream and to the history
+// ring. Each open page copies the stream into the browser console. See
+// logger.go and
 // doc/decisions/0013-send-each-log-line-to-three-places-and-to-the-admin-only.md.
+// A reader of the console can ask for less, thus a line has two properties:
 //
-// This file gives a line two properties instead of one:
+//	tag    The subsystem that wrote the line: one of the constants below.
+//	level  How much the reader wants it: debug, info or error.
 //
-//	tag    which subsystem wrote the line. One of the constants below.
-//	level  how much the reader wants it. debug, info or error.
+// The text is "[tag] (level) message". a.logDebugf, a.logInfof and a.logErrf
+// write the brackets and the parentheses, thus a format string never holds
+// them.
 //
-// The emitted text is "[tag] (level) message". a.logDebugf, a.logInfof and
-// a.logErrf write the brackets and the parentheses, so a format string never
-// carries them.
+// THIS FILE IS THE ONLY AUTHORITY FOR THE TAG SET. Add a new tag to the
+// constant block and to allLogTags together. The Config page makes its
+// checkboxes from allLogTags. TestAllLogTagsIsComplete holds the rule.
 //
-// THIS FILE IS THE ONLY AUTHORITY FOR THE TAG SET. See CLAUDE.md section 1,
-// rule 7. Add a new tag to the constant block and to allLogTags together.
-// The Config page builds its checkbox list from allLogTags, so a tag that is
-// absent from that slice can never be switched off.
-//
-// The three levels mean this, and the call sites keep to it:
-//
-//	error  A fault. An operation failed, was refused, or is not available.
+//	error  A fault: an operation failed, the server refused it, or it is not
+//	       available.
 //	       The reader must know, whatever the configuration says.
-//	info   The outcome of an operation a person asked for, with its result.
-//	debug  One step inside an operation. Useful to find a fault, and noise
-//	       at every other time.
-//
-// The project has no leveled logger library and no structured logger. These
-// three levels are the whole of it. A level is a word in the text, not an
-// object.
-// ---------------------------------------------------------------------
+//	info   The result of an operation that a person asked for.
+//	debug  One step inside an operation, for the search for a fault.
 
 // logTag names the subsystem that wrote a line.
 type logTag string
 
-// The tag set. The value is the text between the brackets.
+// This is the tag set. The value is the text between the brackets.
 const (
 	log404         logTag = "404"
 	logAssets      logTag = "assets"
@@ -67,9 +56,9 @@ const (
 	logUpload      logTag = "upload"
 )
 
-// allLogTags is the full tag set in the order the Config page shows it.
-// normalizeLogTags in config.go whitelists against this slice, so a tag that
-// a person cannot see on the page also cannot survive in config.json.
+// allLogTags holds each tag, in the order of the Config page.
+// normalizeLogTags in config.go keeps only these tags, thus config.json
+// cannot keep a tag that the page does not show.
 var allLogTags = []logTag{
 	log404,
 	logAssets,
@@ -95,7 +84,7 @@ var allLogTags = []logTag{
 	logUpload,
 }
 
-// logLevel is how much the reader wants a line.
+// logLevel tells how much the reader wants a line.
 type logLevel string
 
 const (
@@ -104,23 +93,19 @@ const (
 	levelError logLevel = "error"
 )
 
-// logDebugf writes one step of an operation. A reader who looks for a fault
-// switches this level on. It is off on a fresh install.
+// logDebugf writes one step of an operation. It is off on a fresh install.
 func (a *App) logDebugf(tag logTag, format string, args ...any) {
 	a.emitLog(levelDebug, tag, format, args...)
 }
 
-// logInfof writes the outcome of an operation, with its result. It is off on
-// a fresh install.
+// logInfof writes the result of an operation. It is off on a fresh install.
 func (a *App) logInfof(tag logTag, format string, args ...any) {
 	a.emitLog(levelInfo, tag, format, args...)
 }
 
-// logErrf writes a fault. This level has no switch. A person who turns a
-// level off asks for less noise, and never for fewer faults.
-//
-// The word "error" is already in the parentheses. Do not write "Error:" or
-// "Warning:" in the message as well.
+// logErrf writes a fault. This level has no switch: a person who asks for
+// less noise never asks for fewer faults. The parentheses already hold
+// "error", thus do not write "Error:" or "Warning:" in the message.
 func (a *App) logErrf(tag logTag, format string, args ...any) {
 	a.emitLog(levelError, tag, format, args...)
 }
