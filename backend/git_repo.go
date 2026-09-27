@@ -3,6 +3,7 @@ package backend
 import (
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -276,7 +277,7 @@ func (a *App) ensureOriginRemote(repo *git.Repository, fallbackURL string) error
 	if fallbackURL == "" {
 		return nil // nothing to seed it with yet; try again on a later sync
 	}
-	a.logInfof(logSync, "Remote origin missing, seeding it once from %s", fallbackURL)
+	a.logInfof(logSync, "Remote origin missing, seeding it once from %s", redactGitURL(fallbackURL))
 	_, err := repo.CreateRemote(&gitconfig.RemoteConfig{
 		Name: "origin",
 		URLs: []string{fallbackURL},
@@ -303,7 +304,7 @@ func (a *App) ensureSlotRemotes(repo *git.Repository, cfg Config) (activeRemoteN
 		}
 
 		if rErr != nil {
-			a.logInfof(logSync, "Adding remote %s -> %s", name, url)
+			a.logInfof(logSync, "Adding remote %s -> %s", name, redactGitURL(url))
 			if _, cErr := repo.CreateRemote(&gitconfig.RemoteConfig{Name: name, URLs: []string{url}}); cErr != nil {
 				return "", fmt.Errorf("failed to add remote %s: %v", name, cErr)
 			}
@@ -314,7 +315,11 @@ func (a *App) ensureSlotRemotes(repo *git.Repository, cfg Config) (activeRemoteN
 		if len(existing) == 1 && existing[0] == url {
 			continue // already up to date
 		}
-		a.logInfof(logSync, "Remote %s URL changed (%v -> %s), updating", name, existing, url)
+		old := make([]string, len(existing))
+		for j, u := range existing {
+			old[j] = redactGitURL(u)
+		}
+		a.logInfof(logSync, "Remote %s URL changed (%v -> %s), updating", name, old, redactGitURL(url))
 		if dErr := repo.DeleteRemote(name); dErr != nil {
 			return "", fmt.Errorf("failed to update remote %s: %v", name, dErr)
 		}
@@ -510,4 +515,30 @@ func (a *App) protectGitDirs() {
 			}
 		}
 	}
+}
+
+// redactGitURL removes the password from a remote URL. The user name stays,
+// because it is part of the address and not a secret. An address that the
+// function cannot parse shows as "(hidden)". Each text that shows a remote
+// URL, except the Config page of the admin, calls it.
+func redactGitURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	if !strings.Contains(raw, "://") {
+		return raw // scp form, "git@host:path" - it carries no password
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "(hidden)"
+	}
+	if u.User != nil {
+		if name := u.User.Username(); name != "" {
+			u.User = url.User(name)
+		} else {
+			u.User = nil
+		}
+	}
+	return u.String()
 }

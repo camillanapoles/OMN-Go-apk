@@ -14,7 +14,7 @@ type systemPage struct {
 
 func (a *App) systemPages() []systemPage {
 	return []systemPage{
-		{"/Config.html", "Config", false, a.serveConfigPage},
+		{"/Config.html", "Config", true, a.serveConfigPage},
 		{"/OMNGoTags.html", "Tags", false, a.serveTagsPage},
 		{"/OMNGoSearch.html", "Search", false, a.serveSearchPage},
 		{"/OMNGoFiles.html", "Files", true, a.serveFilesPage},

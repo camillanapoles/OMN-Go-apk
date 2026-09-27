@@ -1,6 +1,8 @@
 package backend
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -43,8 +45,9 @@ func secretsApp(t *testing.T) *App {
 	return a
 }
 
-// /Config.html needs no login, thus a caller on the LAN can read the
-// source of the page. It must therefore hold no password and no SSH key.
+// The page source must hold no password and no SSH key. The page is admin
+// only, but a browser keeps its copy, and a note script of the admin can read
+// the page.
 func TestConfigPageCarriesNoSecret(t *testing.T) {
 	a := secretsApp(t)
 	page := a.getConfigPageBody()
@@ -242,5 +245,21 @@ func TestOldGuestPasswordIsDropped(t *testing.T) {
 	}
 	if strings.Contains(string(data), "guest_password") {
 		t.Errorf("the save kept the guest password:\n%s", data)
+	}
+}
+
+// Finding X4: a remote caller with no admin cookie gets the refusal page and
+// not the Config page, thus no git server URL.
+func TestConfigPageRefusesARemoteCaller(t *testing.T) {
+	a := secretsApp(t)
+	req := httptest.NewRequest(http.MethodGet, "/Config.html", nil)
+	req.RemoteAddr = "192.168.1.44:51000"
+	rec := routeServe(a, req)
+	body := rec.Body.String()
+	if !strings.Contains(body, "for the admin of this device") {
+		t.Error("a remote caller did not get the refusal page")
+	}
+	if strings.Contains(body, "git@host:notes.git") {
+		t.Error("the refusal page carries the git server URL")
 	}
 }

@@ -3,7 +3,6 @@ package backend
 import (
 	"fmt"
 	"net"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -421,31 +420,6 @@ func defaultRouteIP() net.IP {
 		}
 	}
 	return nil
-}
-
-// redactGitURL removes the password from a remote URL. The user name stays,
-// because it is part of the address and not a secret. An address that the
-// function cannot parse shows as "(hidden)".
-func redactGitURL(raw string) string {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return ""
-	}
-	if !strings.Contains(raw, "://") {
-		return raw // scp form, "git@host:path" - it carries no password
-	}
-	u, err := url.Parse(raw)
-	if err != nil {
-		return "(hidden)"
-	}
-	if u.User != nil {
-		if name := u.User.Username(); name != "" {
-			u.User = url.User(name)
-		} else {
-			u.User = nil
-		}
-	}
-	return u.String()
 }
 
 // openRepoReadOnly opens the storage repository and makes nothing. It uses

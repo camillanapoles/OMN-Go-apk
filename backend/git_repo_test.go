@@ -434,3 +434,35 @@ func TestCommitLocalChangesUntracksADerivedTextCopy(t *testing.T) {
 		t.Errorf("the index still holds %v", left)
 	}
 }
+
+// A remote URL can hold a password. Each log line that names a remote shows
+// the URL through redactGitURL, thus the log holds no password.
+func TestRemoteLogLinesHideThePassword(t *testing.T) {
+	a := newTestApp(t)
+	repo, err := a.getOrInitRepo()
+	if err != nil {
+		t.Fatal(err)
+	}
+	lgClearHistory(t)
+	cfg := a.GetConfig()
+	cfg.GitServers = []GitServerConfig{{Name: "home", URL: "https://ann:FIRST-SECRET@example.com/n.git"}}
+	if _, err := a.ensureSlotRemotes(repo, cfg); err != nil {
+		t.Fatal(err)
+	}
+	cfg.GitServers[0].URL = "https://ann:SECOND-SECRET@example.com/n.git"
+	if _, err := a.ensureSlotRemotes(repo, cfg); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.ensureOriginRemote(repo, "https://ann:THIRD-SECRET@example.com/n.git"); err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Join(logHistorySnapshot(), "\n")
+	if !strings.Contains(lines, "ann@example.com") {
+		t.Fatalf("the log names no remote:\n%s", lines)
+	}
+	for _, secret := range []string{"FIRST-SECRET", "SECOND-SECRET", "THIRD-SECRET"} {
+		if strings.Contains(lines, secret) {
+			t.Errorf("the log holds %s:\n%s", secret, lines)
+		}
+	}
+}

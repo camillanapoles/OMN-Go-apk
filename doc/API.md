@@ -188,13 +188,18 @@ what its own page shows and gets no permission.
 | `GET /api/search` | **none — deliberately open** |
 | `GET /api/logs` | admin (local bypass applies) |
 | `/api/quick`, `/api/bookmark`, `/api/upload`, `/api/upload_json`, `/api/save`, `/api/newpage`, `/api/config`, `/api/restart`, `/api/sql`, `/api/db/backup`, `/api/db/backups`, `/api/db/restore`, `/api/sync`, `/api/sync/preview`, `/api/edit-external`, `/api/status`, `/api/export/note`, `/api/import/note` | admin (local bypass applies) |
-| `GET /OMNGoFiles.html`, `GET /OMNGoStatus.html`, `GET /OMNGoLogs.html`, `GET /db_backups` | admin (local bypass applies) — answers a **page**, not a 401 |
-| `GET /Config.html`, `GET /OMNGoTags.html`, `GET /OMNGoSearch.html` | none |
+| `GET /Config.html`, `GET /OMNGoFiles.html`, `GET /OMNGoStatus.html`, `GET /OMNGoLogs.html`, `GET /db_backups` | admin (local bypass applies) — answers a **page**, not a 401 |
+| `GET /OMNGoTags.html`, `GET /OMNGoSearch.html` | none |
 | All page and static routes (`/`, `*.html`, `/js/`, `/css/`, `/json/`, `/images/`, `/user_json/`) | none |
 
 A route with `none` answers a remote caller with no login. The login box of a
 page decides only what the page shows. A program that asks `/api/note` or
 `/api/search` reads each note with no password.
+
+**Remote URLs.** A git server URL can hold a password. `redactGitURL`
+(`backend/git_repo.go`) removes it and keeps the user name. The Status
+answer and each log line that names a remote use it. Only the Config page,
+which is admin-only, shows the full URL, because the admin edits it there.
 
 ### 2.4 Requests from another site
 
@@ -263,7 +268,7 @@ the code `200`.
 | GET | `/OMNGoFiles.html` | admin | HTML (a page for a remote caller, not a 401) |
 | GET | `/OMNGoStatus.html` | admin | HTML (a page for a remote caller, not a 401) |
 | GET | `/OMNGoLogs.html` | admin | HTML (a page for a remote caller, not a 401) |
-| GET | `/Config.html` | none | HTML |
+| GET | `/Config.html` | admin | HTML (a page for a remote caller, not a 401) |
 | GET | `/OMNGoTags.html` | none | HTML |
 | GET | `/OMNGoSearch.html` | none | HTML (explains how to turn global search on when it is off) |
 | any | `/`, `/<name>.html`, `/<asset>` | none | HTML / asset |
@@ -1941,7 +1946,7 @@ server.
 
 | URL | Served by | Notes |
 | --- | --- | --- |
-| `/Config.html` | `serveConfigPage` | Rendered server-side; posts to `/api/config` |
+| `/Config.html` | `serveConfigPage` | The server renders it, and it posts to `/api/config`. **Admin-only**, because it shows each git server URL in full |
 | `/OMNGoTags.html` | `serveTagsPage` | Auto-generated tag index; staleness is checked against the newest mtime of **all** notes, not one source. Honors `?refresh` |
 | `/OMNGoSearch.html` | `serveSearchPage` | The search page. See §4.4 |
 | `/db_backups` | `serveDBBackupsPage` | Admin page. All data comes from `GET /api/db/backups`. **Admin-only** |
