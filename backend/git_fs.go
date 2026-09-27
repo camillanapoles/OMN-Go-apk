@@ -11,7 +11,7 @@ import (
 // Filesystem workarounds for Android
 // ----------------------------------------------------------------------
 //
-// See the banner of git_repo.go for what each of the four git files holds.
+// See the banner of git_repo.go for what each git file holds.
 //
 // go-git speaks to the worktree and to the object store through a
 // go-billy filesystem. The two wrappers below change what that

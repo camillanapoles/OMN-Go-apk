@@ -116,7 +116,7 @@ if (window.location.protocol !== 'file:') {
     // Maps a backend "[sync] ..." log line to a human-readable stage. The
     // first match wins, thus a more specific prefix comes first. Anything
     // unmatched leaves the current stage alone and updates the detail line
-    // alone. A log message added to git_sync.go later thus degrades to
+    // alone. A log message added to the sync code later thus degrades to
     // "still working", and it does not blank the stage.
     const SYNC_STAGES = [
         ['Opening repo',            'Opening repository…'],
@@ -564,7 +564,7 @@ if (window.location.protocol !== 'file:') {
     //
     // Every log line that the backend writes reaches this stream, see
     // logger.go. That is why the sync progress overlay needs no transport of
-    // its own. The "[sync] ..." lines of git_sync.go are the progress feed.
+    // its own. The "[sync] ..." lines of the sync code are the progress feed.
     // A subscriber registered through window.omnGoOnServerLog gets each
     // line, beside the console mirroring that has always happened here.
     //

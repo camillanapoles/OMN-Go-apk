@@ -2,7 +2,7 @@
 
 * Status: accepted
 * Version: 26.08.81, 26.09.40
-* Code: `cutSnippets` in `backend/search.go`, `commonWords` and
+* Code: `cutSnippets` in `backend/search_http.go`, `commonWords` and
   `commonWordShare` in `backend/search_index.go`
 
 ## Context

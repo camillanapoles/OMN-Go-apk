@@ -13,10 +13,11 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
-// Tests for git_repo.go: the ignore rules, the staging, and the commit.
+// Tests for git_repo.go and git_commit.go: the ignore rules, the staging,
+// and the commit.
 //
-// git_sync_test.go holds the tests of git_sync.go. See the banner of
-// git_repo.go for what each of the four git files holds.
+// git_sync_test.go holds the tests of the sync code. See the banner of
+// git_repo.go for what each git file holds.
 //
 // THE SHARED HELPERS LIVE HERE. newTestRepo, testCommit, writeAndAdd,
 // headTree, mustRead and overwrite build a real repository on disk, and

@@ -19,7 +19,7 @@ func (a *App) getConfigPageBody() string {
 		cfg.GitServers = append(cfg.GitServers, GitServerConfig{Name: fmt.Sprintf("Server %d", len(cfg.GitServers)+1)})
 	}
 
-	// The view carries no secret. See gitServerView in templates.go.
+	// The view carries no secret. See gitServerView in templates_config.go.
 	view := configPageView{
 		ServerPort:         cfg.ServerPort,
 		Author:             cfg.Author,

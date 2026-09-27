@@ -761,7 +761,7 @@ The reason is arithmetic. A document score is the sum over the terms, and a
 field carries a weight. Several query words loose in one title thus outscore
 a body line that holds the sentence. A bonus large enough to close that gap
 in one query is too large in the next one. See the banner of `scoreDocument`
-in `backend/search.go` for the measurements. New in 26.08.80.
+in `backend/search_score.go` for the measurements. New in 26.08.80.
 
 **Response** `200`
 

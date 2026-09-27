@@ -1049,7 +1049,7 @@ func TestFilesPage_DirectoryRowsAreNeverCapped(t *testing.T) {
 }
 
 // File names come from uploads and note titles, and this page is assembled by
-// hand like every other in templates.go.
+// hand like every other page of the templates*.go files.
 func TestFilesPage_EscapesFileNames(t *testing.T) {
 	a := newTestApp(t)
 	writeDiskFile(t, a, `js/<img src=x onerror=alert(1)>.js`, "// x")

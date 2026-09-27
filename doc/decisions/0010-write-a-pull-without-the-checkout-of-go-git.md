@@ -3,7 +3,7 @@
 * Status: accepted
 * Version: 1.7.3, 1.8.5
 * Code: `writeTreeToWorktree`, `oldTrackedPaths`, `syncPull` and
-  `syncPullForce` in `backend/git_sync.go`
+  `syncPullForce` in `backend/git_pull.go`
 
 ## Context
 

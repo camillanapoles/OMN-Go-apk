@@ -3,7 +3,7 @@
 * Status: accepted
 * Version: 1.8.9, 26.07.52, 26.09.11
 * Code: `syncPush`, `isNonFastForward` and `unpushedState` in
-  `backend/git_sync.go`
+  `backend/git_push.go`
 
 ## Context
 

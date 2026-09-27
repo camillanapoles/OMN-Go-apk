@@ -6,9 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strings"
-	"time"
 
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/go-git/go-git/v5"
@@ -18,7 +16,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/filemode"
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"github.com/go-git/go-git/v5/plumbing/format/index"
-	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/go-git/go-git/v5/storage/filesystem"
@@ -29,11 +26,14 @@ import (
 // The repository: the ignore rules, the remotes, and the commit
 // ----------------------------------------------------------------------
 //
-// Four files hold the git code:
+// Seven files hold the git code:
 //
 //	git_fs.go        The go-billy wrappers for Android.
-//	git_repo.go      The ignore rules, the remotes, the SSH key, the commit.
-//	git_sync.go      The sync paths and SyncRepo.
+//	git_repo.go      The ignore rules, the remotes and the SSH key.
+//	git_commit.go    The commit, and the paths that it must not track.
+//	git_sync.go      SyncRepo, the sync errors and the shared helpers.
+//	git_pull.go      The pull paths.
+//	git_push.go      The push, and the test for commits that wait.
 //	git_handlers.go  The HTTP handlers of /api/sync.
 
 // gitignorePatterns is the one list for the sync .gitignore. ensureGitignore
@@ -482,202 +482,6 @@ func (a *App) getSSHAuth() (transport.AuthMethod, error) {
 	}
 	a.logDebugf(logSync, "SSH auth method created using inline key data")
 	return publicKeys, nil
-}
-
-// isDerivedTextPath reports whether a path is the html/ copy of a text file
-// that lives in md/. See note_files.go. Only the md/ file belongs in git. A
-// device that pulls it makes its own html/ copy.
-func isDerivedTextPath(name string) bool {
-	name = filepath.ToSlash(name)
-	return strings.HasPrefix(name, "html/") && isSyncedNoteFile(name)
-}
-
-// untrackReason says why a tracked path must leave the index, or "" when it
-// stays. The removal and the upload preview both read it. The preview thus
-// cannot promise more than the commit does.
-func untrackReason(name string) string {
-	switch {
-	case isLocalOnlyPath(name):
-		return localOnlyPreviewNote
-	case isDerivedTextPath(name):
-		return derivedTextPreviewNote
-	}
-	return ""
-}
-
-// untrackLocalOnlyPaths removes each path that untrackReason names from the
-// index, like "git rm --cached". The file stays on disk. The next commit
-// records a deletion, and a pull deletes the copy on another device. That is
-// correct for both rules. Worktree.Remove of go-git also deletes the file
-// from disk, thus this code writes the index itself.
-//
-// Only these two rules remove a path. An old repository can track
-// md/UserManual.md or a compiled page. A removal of each such file would
-// delete many files on the other devices.
-func (a *App) untrackLocalOnlyPaths(repo *git.Repository) int {
-	idx, err := repo.Storer.Index()
-	if err != nil {
-		a.logErrf(logSync, "cannot read the index to find the files to untrack: %v", err)
-		return 0
-	}
-
-	kept := make([]*index.Entry, 0, len(idx.Entries))
-	removed := 0
-	for _, entry := range idx.Entries {
-		if why := untrackReason(entry.Name); why != "" {
-			a.logDebugf(logSync, "%s%s", entry.Name, why)
-			removed++
-			continue
-		}
-		kept = append(kept, entry)
-	}
-	if removed == 0 {
-		return 0
-	}
-
-	idx.Entries = kept
-	if err := repo.Storer.SetIndex(idx); err != nil {
-		a.logErrf(logSync, "cannot write the index after the removal of %d file(s): %v", removed, err)
-		return 0
-	}
-	return removed
-}
-
-// localOnlyPreviewNote follows a path in the upload preview. The commit
-// deletes the file from the repository, and not from this device.
-const localOnlyPreviewNote = " (local-only: git stops to track it)"
-
-// derivedTextPreviewNote is the same note for a .txt under html/.
-const derivedTextPreviewNote = " (a copy of the file in md/: git stops to track it)"
-
-// untrackTrackedPaths answers each path that untrackLocalOnlyPaths would
-// remove, with the reason, in sorted order. It changes nothing. The upload
-// preview reads it.
-func (a *App) untrackTrackedPaths(repo *git.Repository) []string {
-	idx, err := repo.Storer.Index()
-	if err != nil {
-		a.logErrf(logSync, "cannot read the index to find the files to untrack: %v", err)
-		return nil
-	}
-	var out []string
-	for _, entry := range idx.Entries {
-		if why := untrackReason(entry.Name); why != "" {
-			out = append(out, entry.Name+why)
-		}
-	}
-	sort.Strings(out)
-	return out
-}
-
-func (a *App) commitLocalChanges(repo *git.Repository, wTree *git.Worktree, message string) (bool, error) {
-	matcher, err := a.loadGitignoreMatcher(wTree)
-	if err != nil {
-		a.logErrf(logSync, "could not load .gitignore: %v", err)
-		matcher = gitignore.NewMatcher(nil) // no ignore
-	}
-
-	// A local-only file can be in the index from a time before the rule, or
-	// before the file got its name. A .gitignore pattern does not remove a
-	// tracked file. Remove it before the status test, because an unchanged
-	// tracked file gives no status entry.
-	unstaged := a.untrackLocalOnlyPaths(repo)
-
-	a.logDebugf(logSync, "Checking worktree status")
-	status, err := wTree.Status()
-	if err != nil {
-		return false, fmt.Errorf("status check error: %v", err)
-	}
-	_, mergePending := a.loadMergeParent()
-	if status.IsClean() && !mergePending && unstaged == 0 {
-		a.logInfof(logSync, "Nothing to commit")
-		return false, nil
-	}
-
-	hasRealChanges := unstaged > 0
-	for name, fileStat := range status {
-
-		if matcher != nil && matcher.Match(strings.Split(name, string(filepath.Separator)), false) {
-			a.logDebugf(logSync, "Ignoring %s (matches .gitignore)", name)
-			continue
-		}
-
-		// config.json stays on this device. See cleanUntrackedFiles.
-		if name == "config.json" {
-			a.logDebugf(logSync, "Ignoring root config.json (preserve locally)")
-			continue
-		}
-
-		if fileStat.Worktree == git.Deleted {
-			a.logDebugf(logSync, "Staging deletion: %s", name)
-			_, err := wTree.Remove(name)
-			if err != nil {
-				a.logErrf(logSync, "failed to remove %s: %v", name, err)
-			} else {
-				hasRealChanges = true
-			}
-		} else if fileStat.Worktree != git.Unmodified || fileStat.Staging != git.Unmodified {
-			a.logDebugf(logSync, "Staging file: %s", name)
-			if err := a.manualStageFile(repo, wTree, name); err != nil {
-				a.logErrf(logSync, "manual staging failed for %s: %v", name, err)
-			} else {
-				a.logDebugf(logSync, "Staged %s successfully", name)
-				hasRealChanges = true
-			}
-		}
-	}
-
-	if !hasRealChanges && !mergePending {
-		a.logInfof(logSync, "No real changes could be staged (FUSE false-dirty or ignored)")
-		return false, nil
-	}
-
-	a.logDebugf(logSync, "Committing staged changes")
-	authorName := a.GetConfigAuthor()
-	authorEmail := strings.ReplaceAll(strings.ToLower(authorName), " ", ".") + "@omn-go.local"
-	sig := &object.Signature{
-		Name:  authorName,
-		Email: authorEmail,
-		When:  time.Now(),
-	}
-
-	commitOpts := &git.CommitOptions{
-		Author:    sig,
-		Committer: sig,
-	}
-
-	// A pending pull_mark merge makes a merge commit with two parents: HEAD
-	// and the remote tip. go-git fills Parents with HEAD only when the list
-	// is empty, thus the code names HEAD here.
-	var pendingMergeParent plumbing.Hash
-	hasPendingMerge := false
-	if h, ok := a.loadMergeParent(); ok {
-		headRef, hErr := repo.Head()
-		if hErr != nil {
-			return false, fmt.Errorf("could not resolve HEAD for pending merge commit: %v", hErr)
-		}
-		pendingMergeParent = h
-		hasPendingMerge = true
-		commitOpts.Parents = []plumbing.Hash{headRef.Hash(), h}
-		// A resolution can equal one parent, and the result is still a merge
-		// commit.
-		commitOpts.AllowEmptyCommits = true
-	}
-
-	commitHash, err := wTree.Commit(message, commitOpts)
-	if err == git.ErrEmptyCommit {
-		a.logInfof(logSync, "Commit aborted: git.ErrEmptyCommit")
-		return false, nil
-	} else if err != nil {
-		return false, fmt.Errorf("commit error: %v", err)
-	}
-
-	if hasPendingMerge {
-		a.clearMergeParent()
-		a.logInfof(logSync, "Committed merge with hash: %s (parents: HEAD, %s)", commitHash.String(), pendingMergeParent.String())
-	} else {
-		a.logInfof(logSync, "Committed with hash: %s", commitHash.String())
-	}
-	return true, nil
 }
 
 func (a *App) GetConfigAuthor() string {

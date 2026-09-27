@@ -863,7 +863,7 @@ func TestNonFastForwardReachesThePushConflictStatus(t *testing.T) {
 // The sync paths against a repository on disk
 // ----------------------------------------------------------------------
 //
-// The tests below read git_sync.go one function at a time. The tests
+// The tests below drive one function of the sync code at a time. The tests
 // above them drive a whole sync against a real remote.
 //
 // These call the shared helpers of git_repo_test.go, which build a
