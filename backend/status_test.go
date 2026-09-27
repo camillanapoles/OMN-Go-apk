@@ -515,12 +515,12 @@ func TestStatusPageIsAReaderOfTheEndpoint(t *testing.T) {
 	if !strings.Contains(body, "Loading…") {
 		t.Error("the page does not start empty; it must read /api/status")
 	}
-	// The script and the stylesheet are files since 26.09.61. This
-	// template was the one page template that held them inline.
+	// The script and the stylesheet are files, and not inline blocks of
+	// the template.
 	//
-	// The check here used to look for the word execCommand in the page. It
-	// matched a COMMENT of the inline script and never the code, thus it
-	// proved nothing about the clipboard. TestClipboardHasOneAuthority in
+	// The check does not look for the word execCommand in the page. That
+	// word can match a COMMENT and not the code, thus it proves nothing
+	// about the clipboard. TestClipboardHasOneAuthority in
 	// templates_test.go is what holds that rule, and it reads every
 	// embedded script and template.
 	if strings.Contains(statusPageTmpl, "<script>") {
@@ -540,7 +540,7 @@ func TestStatusPageAnswersAGuestWithAPage(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/OMNGoStatus.html", nil)
 	req.RemoteAddr = "192.168.1.44:51000" // another machine on the network
 	// A signed cookie, and not the bare word "guest": the server refuses
-	// an unsigned value since 26.09.6. See session.go.
+	// an unsigned value. See session.go.
 	req.AddCookie(sessionCookie(t, a, roleGuest))
 
 	rec := httptest.NewRecorder()

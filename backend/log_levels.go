@@ -7,11 +7,9 @@ package backend
 // /api/logs SSE stream, and the browser console of every open page. See
 // logger.go and the EventSource block at the end of omn-go-sse.js.
 //
-// Before this file existed, a line carried a bracketed subsystem name that
-// each call site typed by hand. 119 of 153 call sites had one, the other 34
-// had none, and one carried the literal text "[a.protectGitDirs]". A person
-// who opened the browser console therefore read the full detail of every
-// subsystem at once, and had no way to ask for less.
+// A person who opens the browser console must be able to ask for less
+// than the full detail of every subsystem. See
+// doc/decisions/0013-send-each-log-line-to-three-places-and-to-the-admin-only.md.
 //
 // This file gives a line two properties instead of one:
 //

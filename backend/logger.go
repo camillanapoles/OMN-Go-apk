@@ -9,9 +9,9 @@ package backend
 // browser console, and the sync progress overlay reads the same stream for
 // its stage text.
 //
-// broadcastLogLine is the only fan-out. It has THREE destinations since
-// 26.09.38: stdout, the SSE stream, and the history ring below. Two
-// callers reach it:
+// broadcastLogLine is the only fan-out. It has THREE destinations: stdout,
+// the SSE stream, and the history ring below. See
+// doc/decisions/0013-send-each-log-line-to-three-places-and-to-the-admin-only.md. Two callers reach it:
 //
 //	JSLogger.Write  the standard log package, for the two call sites that
 //	                cannot reach an *App. See TestNoDirectLogPrintf.
@@ -56,13 +56,13 @@ var (
 // The ring holds the last logHistoryCap lines, and /api/logs/history
 // answers with them.
 //
-// IT DOES NOT REPLAY ON THE STREAM. That was the first design, and it
-// breaks the sync progress overlay. applySyncLogLine in omn-go-sse.js
+// IT DOES NOT REPLAY ON THE STREAM. A replay breaks the sync progress
+// overlay. applySyncLogLine in omn-go-sse.js
 // reads "[sync] (debug)" lines off the raw stream to drive the stages.
 // A replay on connect feeds it the lines of a sync that ended an hour
 // ago. Each page load would then show a sync that is not running. The
 // ring therefore answers its own endpoint, and the stream carries live
-// lines alone, exactly as before.
+// lines alone.
 //
 // IT HOLDS EVERY LINE, the same as the stream. The stdout switches say
 // what a reader wants to SEE, and never what the application must keep.
@@ -140,8 +140,8 @@ func broadcastLogLine(msg string, toStdout bool) {
 type JSLogger struct{}
 
 func (l *JSLogger) Write(p []byte) (n int, err error) {
-	// A line from the standard log package carries no level. It reaches
-	// stdout, the same as before this file grew a filter.
+	// A line from the standard log package carries no level. It always
+	// reaches stdout, because no filter applies to it.
 	broadcastLogLine(string(p), true)
 	return len(p), nil
 }
@@ -212,15 +212,13 @@ func (a *App) logLineEnabled(lvl logLevel, tag logTag) bool {
 
 // initLogger sends the standard logger into the stream of /api/logs.
 //
-// It registered that route as well until 26.09.32, and it was the one
-// route outside the block of server.go. registerRoutes holds each route
-// now, thus a test reads the whole set from one place. Section 3 of
-// CLAUDE.md asks for that one block.
+// registerRoutes in server.go registers the route. Section 3 of CLAUDE.md
+// asks for one block of routes.
 //
-// It is unexported since 26.09.32. Nothing outside this package ever
-// called it: main_desktop.go and the Android layer use StartServer,
-// AssetsRefreshed, GetServerPort, WaitUntilReady, SetLANAddresses and
-// SetAndroidPackage. See section 3 of CLAUDE.md on the exported surface.
+// It is unexported. main_desktop.go and the Android layer use
+// StartServer, AssetsRefreshed, GetServerPort, WaitUntilReady,
+// SetLANAddresses and SetAndroidPackage. See section 3 of CLAUDE.md on the
+// exported surface.
 func (a *App) initLogger() {
 	log.SetOutput(&JSLogger{})
 }
@@ -303,15 +301,10 @@ func (a *App) serveLogsPage(w http.ResponseWriter, r *http.Request) {
 // banner of the ring above. A replay on the stream breaks the sync
 // progress overlay.
 //
-// IT IS ADMIN ONLY, and so is /api/logs since 26.09.59.
-//
-// The stream was open until then. The reasoning was that it carries what
-// happens while a person watches, and that the ring carries what
-// happened before that person arrived.
-//
-// That reasoning was wrong. A guest who opens a page holds the stream
-// open, thus the guest reads the transcript as it is written. To protect
-// the ring alone hid nothing. A LAN share now hands out no log line.
+// IT IS ADMIN ONLY, and so is /api/logs. A guest who holds the stream open
+// reads the transcript as it is written, thus a guard on the ring alone
+// hides nothing. A LAN share hands out no log line. See
+// doc/decisions/0013-send-each-log-line-to-three-places-and-to-the-admin-only.md.
 //
 // The answer follows section 1.4 of doc/API.md: JSON with a status word.
 func (a *App) handleLogHistory(w http.ResponseWriter, r *http.Request) {

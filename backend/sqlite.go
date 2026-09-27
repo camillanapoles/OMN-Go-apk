@@ -176,8 +176,9 @@ func returnsRows(query string) bool {
 // openUserDB call thus reopens the file from the start. It does not reuse a
 // handle that is tied to a now-stale file identity. It works with
 // isStaleDBHandleError below. The pair is what lets /api/sql self-heal from an
-// error of the SQLITE_READONLY_DBMOVED class. See syncPull in git_sync.go for
-// the one concrete cause that is already found and fixed. Without the pair,
+// error of the SQLITE_READONLY_DBMOVED class. See
+// doc/decisions/0010-write-a-pull-without-the-checkout-of-go-git.md for the
+// known cause. Without the pair,
 // every query against that database fails until a full process restart.
 func (a *App) evictUserDB(name string) {
 	a.sqlMu.Lock()

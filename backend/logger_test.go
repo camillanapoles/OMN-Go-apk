@@ -429,9 +429,9 @@ func TestLogHistoryEndpointRefusesAnotherMethod(t *testing.T) {
 
 // The endpoint is ADMIN ONLY, and so is the stream beside it.
 //
-// A LAN share hands out no log line, live or held. The stream was open
-// until 26.09.59, which made the guard on the ring useless. A guest who
-// held the stream open read the same lines as they were written.
+// A LAN share hands out no log line, live or held. An open stream would
+// make the guard on the ring useless. A guest who holds the stream open
+// reads the same lines as they are written.
 //
 // This test drives the REAL registration through a real mux. A guard
 // that registerRoutes forgets to wrap is then a failure here, and a test
@@ -465,7 +465,7 @@ func TestLogHistoryEndpointIsAdminOnly(t *testing.T) {
 	}
 }
 
-// The stream is ADMIN ONLY as well, since 26.09.59.
+// The stream is ADMIN ONLY as well.
 //
 // A log line names a note, a remote, a path and a fault. A guest of a LAN
 // share reads none of them now.
@@ -610,7 +610,7 @@ func TestLogsPageAnswersAGuestWithAPage(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/OMNGoLogs.html", nil)
 	req.RemoteAddr = "192.168.1.44:51000" // another machine on the network
 	// A signed cookie, and not the bare word "guest". The server refuses
-	// an unsigned value since 26.09.6. See session.go.
+	// an unsigned value. See session.go.
 	req.AddCookie(sessionCookie(t, a, roleGuest))
 
 	rec := httptest.NewRecorder()

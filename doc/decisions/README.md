@@ -84,3 +84,4 @@ the status of the old record to `replaced by NNNN`.
 | [0010](0010-write-a-pull-without-the-checkout-of-go-git.md) | Write a pull without the checkout of go-git. | `git_sync.go` |
 | [0011](0011-push-each-time-and-let-the-remote-answer.md) | Push each time, and let the remote answer. | `git_sync.go` |
 | [0012](0012-keep-one-remote-for-each-git-server-slot.md) | Keep one remote for each git server slot. | `git_repo.go` |
+| [0013](0013-send-each-log-line-to-three-places-and-to-the-admin-only.md) | Send each log line to three places, and to the admin only. | `log_levels.go`, `logger.go` |

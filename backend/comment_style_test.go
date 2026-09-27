@@ -613,7 +613,7 @@ var commentVersionDebt = map[string]int{
 	"backend/frontend/html/js/OMN-Go/omn-go-editor.js":         2,
 	"backend/frontend/html/js/OMN-Go/omn-go-logs.js":           1,
 	"backend/frontend/html/js/OMN-Go/omn-go-search.js":         1,
-	"backend/frontend/html/js/OMN-Go/omn-go-sse.js":            6,
+	"backend/frontend/html/js/OMN-Go/omn-go-sse.js":            5,
 	"backend/frontend/html/js/OMN-Go/omn-go-status.js":         2,
 	"backend/frontend/html/js/OMN-Go/omn-go-sync.js":           4,
 	"backend/frontend/test/editor.test.js":                     1,
@@ -623,12 +623,9 @@ var commentVersionDebt = map[string]int{
 	"backend/handlers_test.go":                                 2,
 	"backend/java_test.go":                                     4,
 	"backend/js_test.go":                                       5,
-	"backend/logger.go":                                        4,
-	"backend/logger_test.go":                                   3,
 	"backend/pipelines_test.go":                                1,
 	"backend/ports_test.go":                                    4,
 	"backend/session_test.go":                                  2,
-	"backend/status_test.go":                                   2,
 }
 
 // No file may hold more version numbers in its comments than the table
