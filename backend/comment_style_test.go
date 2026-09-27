@@ -662,3 +662,65 @@ func TestCommentVersionScannerFindsEachForm(t *testing.T) {
 		t.Errorf("a pointer line with no full version gave %d, want 0", got)
 	}
 }
+
+// ----------------------------------------------------------------------
+// The comment share of the Go production code
+// ----------------------------------------------------------------------
+//
+// A comment keeps each fact that the code cannot show, and it says it one
+// time. The share of whole line comments in the Go production files shows
+// whether the comments grow faster than the code. The target is 200 per
+// mille, which is 20 percent. Section 3 of CLAUDE.md gives the rules.
+//
+// THE CEILING FOLLOWS THE WORK. Each patch that shortens comments lowers
+// commentShareCeiling to its new result. The test fails when the share is
+// above the ceiling. While the ceiling is above the target, it also fails
+// when the share is more than 10 per mille below it.
+
+// commentShareCeiling is the highest share, in per mille, that the Go
+// production files may hold.
+const commentShareCeiling = 298
+
+// commentShareTarget is the share, in per mille, that the ceiling moves to.
+const commentShareTarget = 200
+
+// goCommentShare answers the whole line comments and the lines of the Go
+// production files: each Go file that is not a test.
+func goCommentShare(t *testing.T) (comments, lines int) {
+	t.Helper()
+	for _, rel := range commentStyleFiles(t) {
+		if filepath.Ext(rel) != ".go" || strings.HasSuffix(rel, "_test.go") {
+			continue
+		}
+		src, err := readRepoFile(rel)
+		if err != nil {
+			t.Fatalf("cannot read %s: %v", rel, err)
+		}
+		for _, line := range strings.Split(src, "\n") {
+			lines++
+			if styleCommentLineRe.MatchString(line) {
+				comments++
+			}
+		}
+	}
+	return comments, lines
+}
+
+// The Go production files may not hold more comments than the ceiling
+// allows.
+func TestCommentShare(t *testing.T) {
+	comments, lines := goCommentShare(t)
+	if lines == 0 {
+		t.Fatal("no Go production line was read, thus this test proves nothing")
+	}
+	share := comments * 1000 / lines
+	t.Logf("comment share: %d of %d lines, %d per mille", comments, lines, share)
+	if share > commentShareCeiling {
+		t.Errorf("the Go production files hold %d per mille of comments, and the ceiling is %d.\n"+
+			"  Say each fact one time. See section 3 of CLAUDE.md.", share, commentShareCeiling)
+	}
+	if commentShareCeiling > commentShareTarget && share < commentShareCeiling-10 {
+		t.Errorf("the share is %d per mille, and the ceiling is %d. Lower commentShareCeiling to %d.",
+			share, commentShareCeiling, share+1)
+	}
+}

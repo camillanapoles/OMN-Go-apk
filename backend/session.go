@@ -4,41 +4,24 @@ package backend
 // The session cookie
 // ----------------------------------------------------------------------
 //
-// A client on the network must not name its own role. The admin role
-// opens /api/sql, /api/upload, /api/import/note and /api/restart. See
+// A client on the network must not name its own role. See
 // doc/decisions/0001-sign-the-session-cookie.md.
 //
-// THE RULE: the server writes the role, the time it stops, and an
-// HMAC of the two. It accepts a cookie only when it can make the same
-// HMAC with the key of this install. A client cannot make that HMAC,
-// because it does not hold the key.
+// The server writes the role, the expiry time and an HMAC of the two. It
+// accepts a cookie only when the key of this install makes the same HMAC. The
+// key is 32 random bytes in <StorageDir>/session_secret. It is not a field of
+// Config, because GET /api/config and the Config page use the whole Config.
+// gitignorePatterns keeps it out of the sync.
 //
-// The key is 32 random bytes in <StorageDir>/session_secret, beside
-// config.json. It is NOT a field of Config, and the reason is exact.
-// GET /api/config marshals the whole Config struct. The Config page
-// renders from the same struct. A secret in that struct reaches both.
-// The file is in gitignorePatterns, thus a sync never carries the key of
-// one device to another.
-//
-// WHY THE COOKIE IS NOT HttpOnly, AND WHY A SECOND COOKIE EXISTS.
-// checkRole in omn-go-sse.js reads document.cookie to find out whether
-// the reader is a guest. It then disables each control that carries the
-// class admin-only. An HttpOnly cookie is invisible to that code, thus
-// a guest would see each admin control.
-//
-// The signed cookie is HttpOnly, and a second cookie carries the role
-// for the page alone:
+// There are two cookies:
 //
 //	session_role       HttpOnly, signed, the only thing the server reads
 //	session_role_hint  readable, NOT signed, display only
 //
-// The hint decides nothing. readSessionRole never looks at it, thus a
-// client that changes the hint changes what its own page shows and
-// nothing more. HttpOnly is worth the second cookie here: goldmark runs
-// with html.WithUnsafe(), thus a note can hold a script. A script that
-// can read the cookie can send it to another machine, and that machine
-// then holds the role for 30 days. A script that cannot read the cookie
-// must use the browser of the reader for each request it makes.
+// A note can hold a script, and a script that reads session_role could send
+// it to another machine. checkRole in omn-go-sse.js needs the role to hide
+// the admin controls, thus it reads the hint. A client that changes the hint
+// changes only its own page.
 
 import (
 	"crypto/hmac"
@@ -54,48 +37,35 @@ import (
 	"time"
 )
 
-// The two roles. handleLogin writes one of these, and hasRole compares
-// against them. An empty string means "no role", and it is never written
-// into a cookie.
+// The two roles. An empty string means "no role", and no cookie holds it.
 const (
 	roleAdmin = "admin"
 	roleGuest = "guest"
 )
 
 const (
-	// sessionCookieName holds the signed value that the server reads.
 	sessionCookieName = "session_role"
 
-	// sessionHintCookieName holds the plain role that the page reads. See
-	// the banner above. The server never reads this cookie.
+	// sessionHintCookieName is the plain role for the page. The server never
+	// reads it.
 	sessionHintCookieName = "session_role_hint"
 
-	// sessionSecretFilename holds the HMAC key. It sits in StorageDir,
-	// beside config.json and assets_version, and NOT under html/, where
-	// the server would serve it.
+	// sessionSecretFilename is in StorageDir, and NOT under html/, where the
+	// server would serve it.
 	sessionSecretFilename = "session_secret"
 
-	// sessionKeyBytes is the length of the HMAC key. 32 bytes is the
-	// block output of SHA-256, and more key than that adds nothing.
+	// sessionKeyBytes is the output size of SHA-256. A longer key adds
+	// nothing.
 	sessionKeyBytes = 32
 
-	// sessionTTL is how long a login lasts. A person on the network logs
-	// in one time each 30 days. A local connection needs no login at all,
-	// thus this value never applies to the device itself.
+	// sessionTTL is the length of a login. The device itself needs no login.
 	sessionTTL = 30 * 24 * time.Hour
 )
 
-// sessionSecret returns the HMAC key of this install.
-//
-// The key is read one time and kept for the life of the process. A first
-// start makes it and writes the file with mode 0600. A file that holds
-// something other than 64 hexadecimal characters is replaced, and the
-// replacement invalidates each cookie that the old key signed. That is
-// the correct answer to a damaged key file: a person logs in again.
-//
-// A failure to WRITE the file is not a failure to run. The key stays in
-// memory, thus each session ends at the next start of the process. The
-// line says so.
+// sessionSecret returns the HMAC key of this install. It reads the key one
+// time. A first start makes the key and writes it with mode 0600. A damaged
+// file gets a new key, and each person must enter the password again. When the write fails,
+// the key stays in memory until the process stops.
 func (a *App) sessionSecret() []byte {
 	a.sessionOnce.Do(func() {
 		path := filepath.Join(a.StorageDir, sessionSecretFilename)
@@ -111,10 +81,8 @@ func (a *App) sessionSecret() []byte {
 
 		key := make([]byte, sessionKeyBytes)
 		if _, err := rand.Read(key); err != nil {
-			// crypto/rand does not fail on a platform this application
-			// runs on. If it does, write no key at all. newSessionCookie
-			// then refuses to make a cookie, and each remote request gets
-			// 401. A guessable key would be worse than no login.
+			// With no random source, write no key. Each remote request then
+			// gets 401. A guessable key would be worse.
 			a.logErrf(logSession, "no random source for the session key: %v", err)
 			return
 		}
@@ -126,12 +94,8 @@ func (a *App) sessionSecret() []byte {
 	return a.sessionKey
 }
 
-// sessionMAC makes the HMAC of one role and one expiry time.
-//
-// The signed text is "role.expiry", which is the cookie value without its
-// third part. The separator is inside the signed text on purpose. A role
-// and an expiry hold no dot of their own. No pair of them can therefore
-// move text across the separator to make a second valid value.
+// sessionMAC makes the HMAC of "role.expiry". A role and an expiry hold no
+// dot, thus no text can move across the separator.
 func (a *App) sessionMAC(role string, expiry int64) string {
 	key := a.sessionSecret()
 	if key == nil {
@@ -142,11 +106,8 @@ func (a *App) sessionMAC(role string, expiry int64) string {
 	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 }
 
-// newSessionCookies makes the two cookies of one login. See the banner
-// for why there are two.
-//
-// The first return value is nil when the install has no key. A caller
-// must test it, and must answer the request with a fault.
+// newSessionCookies makes the two cookies of one login. signed is nil when
+// the install has no key, and the caller must then answer with a fault.
 func (a *App) newSessionCookies(role string) (signed, hint *http.Cookie) {
 	expiry := time.Now().Add(sessionTTL).Unix()
 	sig := a.sessionMAC(role, expiry)
@@ -162,13 +123,9 @@ func (a *App) newSessionCookies(role string) (signed, hint *http.Cookie) {
 		Path:     "/",
 		Expires:  expires,
 		HttpOnly: true,
-		// Lax and not Strict. A link from another application to a note
-		// of this server is a normal way to arrive. Strict would show
-		// the login page for such a link.
-		//
-		// Secure is absent because this server speaks HTTP. A Secure
-		// cookie on a plain connection is a cookie the browser never
-		// sends.
+		// SameSite is Lax, because a link from another application is a
+		// normal way to arrive. The cookie has no Secure flag, because this
+		// server uses HTTP. A browser never sends a Secure cookie over HTTP.
 		SameSite: http.SameSiteLaxMode,
 	}
 	hint = &http.Cookie{
@@ -181,20 +138,10 @@ func (a *App) newSessionCookies(role string) (signed, hint *http.Cookie) {
 	return signed, hint
 }
 
-// readSessionRole returns the role that the request carries, or "" when
-// it carries none that this install signed.
-//
-// It is the ONE reader of the session cookie. hasRole calls it, and
-// nothing else does. See CLAUDE.md section 1, rule 7.
-//
-// Each of these gives "":
-//
-//   - No cookie.
-//   - A value that is not three parts.
-//   - A role that is neither admin nor guest.
-//   - An expiry that is not a number, or one that passed.
-//   - An HMAC that this key does not make.
-//   - A value in the old, unsigned form, for example the bare word admin.
+// readSessionRole returns the role that the request carries, or "". It is the
+// ONE reader of the session cookie. It answers "" for no cookie, a wrong
+// shape, an unknown role, an expiry that passed, a wrong HMAC and the old
+// unsigned value.
 func (a *App) readSessionRole(r *http.Request) string {
 	cookie, err := r.Cookie(sessionCookieName)
 	if err != nil {
@@ -214,8 +161,8 @@ func (a *App) readSessionRole(r *http.Request) string {
 		return ""
 	}
 
-	// The MAC is tested before the clock. A value that this install did
-	// not sign is refused for that reason alone, whatever time it names.
+	// Test the MAC before the clock. A value that this install did not sign
+	// then fails for that reason alone.
 	want := a.sessionMAC(role, expiry)
 	if want == "" || !hmac.Equal([]byte(sig), []byte(want)) {
 		return ""

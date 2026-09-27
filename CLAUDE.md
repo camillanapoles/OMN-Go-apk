@@ -190,10 +190,15 @@ update these files.
   the form
   `a.Router.HandleFunc("/api/x", a.authMiddleware(a.handleX, true))`. The boolean is
   `requireAdmin`. Add a comment to any registration that differs from this form.
-* **Comments say what the code does now, and why.** Many files start with a
-  `// ---` banner. The banner gives the design decision and the rejected
+* **Comments say what the code does now, and why, one time.** Many files start
+  with a `// ---` banner. The banner gives the design decision and the rejected
   alternative. Write the same kind of justification for new code that is not
-  obvious.
+  obvious. Keep each fact that the code cannot show. Examples are a constraint
+  of a platform, a lock order, a rule that a "simplification" would break, and
+  the test that holds a rule. Do not repeat what the next line of code says.
+  Do not repeat a reason that another comment or a decision record gives.
+  Point to it.
+  `TestCommentShare` holds the share of comments in the Go production code.
 * **A comment tells no history.** Do not write a version number, "until", "used
   to" or the story of a past fault. The git log holds the history. When a past
   fault is the reason for a rule, write one sentence of the reason. Then put the

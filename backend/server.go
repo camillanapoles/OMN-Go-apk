@@ -16,11 +16,9 @@ type App struct {
 	Config      Config
 	ConfigMutex sync.RWMutex // guards all reads/writes of Config
 	StorageDir  string
-	// ActiveConns is an atomic.Int64, and not an int64 with
-	// atomic.AddInt64. A 64-bit atomic needs an address on an 8-byte
-	// boundary. On a 32-bit build, such as armeabi-v7a or x86, a bare
-	// int64 in this struct is not on one, and each request panics.
-	// atomic.Int64 carries its own alignment. See TestNoBare64BitAtomics.
+	// ActiveConns is an atomic.Int64, and not an int64. A 64-bit atomic needs
+	// an 8-byte boundary, and a 32-bit build (armeabi-v7a, x86) does not give
+	// one here. Each request then panics. See TestNoBare64BitAtomics.
 	ActiveConns atomic.Int64
 	GitMutex    sync.Mutex // serializes all on-disk git repo operations
 	Router      *http.ServeMux
@@ -28,49 +26,38 @@ type App struct {
 	sqlMu  sync.Mutex         // guards sqlDBs (see sqlite.go)
 	sqlDBs map[string]*sql.DB // lazily-opened user SQLite handles, by name
 
-	// dbRestoreMu serializes each database restore and each swap. That
-	// covers a manual restore and the bootstrap of a fresh device. See
-	// db_backup.go. Never take it while sqlMu is held.
+	// dbRestoreMu serializes each database restore and each swap. Never take
+	// it while you hold sqlMu.
 	dbRestoreMu sync.Mutex
 
-	// search is the global search index (see search_index.go). Non-nil from
-	// startup, but empty until global search is switched on - the memory
-	// belongs to the documents, not to the struct.
+	// search is the global index (search_index.go). It is empty until global
+	// search is on.
 	search *searchIndex
 
-	// defaultPort is the per-flavor fallback StartServer was given: the port
-	// to use when config.json does not name one. 0 means 8080. It is read
-	// by loadConfig, which is the only place that can honour it - see
-	// fallbackPort.
+	// defaultPort is the port of the flavor, for a config.json with no port.
+	// 0 means 8080. Only loadConfig can apply it: see fallbackPort.
 	defaultPort int
 
 	ready chan struct{} // closed once the HTTP listener is actually serving
 
-	// startedAt is when StartServer ran. boundAddr is what the listener
-	// bound, not what the config asked for. /api/status reports both
-	// (status.go). metaMu guards boundAddr. The goroutine that binds writes it, and
-	// request goroutines read it.
+	// boundAddr is what the listener bound, not what the config asked for.
+	// /api/status reports it with startedAt. metaMu guards boundAddr.
 	metaMu    sync.RWMutex
 	startedAt time.Time
 	boundAddr string
 
-	// logFilter caches the three log switches of the configuration. It
-	// holds a logFilter value, and it is empty until loadConfig runs.
-	// See applyLogFilter for why a log line reads this cache and never
-	// the configuration itself.
+	// logFilter caches the log switches of the configuration. See
+	// applyLogFilter.
 	logFilter atomic.Value
 
-	// sessionOnce and sessionKey hold the HMAC key that signs the session
-	// cookie. sessionSecret reads the key file one time and keeps the
-	// bytes here. The key is NOT a field of Config, because GET
-	// /api/config marshals that whole struct. See session.go.
+	// sessionKey is the HMAC key of the session cookie. It is not a field of
+	// Config, because GET /api/config sends the whole Config. See session.go.
 	sessionOnce sync.Once
 	sessionKey  []byte
 }
 
-// boundAddress reports the address the HTTP listener is actually on, as
-// host, port and the joined form. Every value is empty before the bind
-// (see statusServerSection, which falls back to the config then).
+// boundAddress reports the address of the listener as host, port and the
+// joined form. Each value is empty before the bind.
 func (a *App) boundAddress() (host, port, addr string) {
 	a.metaMu.RLock()
 	addr = a.boundAddr
@@ -91,12 +78,9 @@ func (a *App) setBoundAddress(addr string) {
 	a.metaMu.Unlock()
 }
 
-// fallbackPort is the port to use when config.json has nothing usable to say.
-//
-// The CONFIG LOADER must apply the per-flavor default, and no code after
-// it can. loadConfig writes a full default config.json on a fresh
-// install. It also fills in a port for a config.json that has none. A
-// default that a later step applies thus never reaches the file. See
+// fallbackPort is the port for a config.json with none. Only the config
+// loader can apply it. loadConfig writes the port into config.json on a fresh
+// install, and a later default would never reach the file. See
 // DEFAULT_SERVER_PORT in android/app/build.gradle.
 func (a *App) fallbackPort() int {
 	if a.defaultPort > 0 {
@@ -112,9 +96,8 @@ func (a *App) GetConfig() Config {
 	return a.Config
 }
 
-// WithConfig runs fn while it holds the config write lock. Use it for an
-// update that reads, changes and writes. The POST handler of handleConfig
-// is one such caller.
+// WithConfig runs fn under the config write lock, for a read, a change and a
+// write together.
 func (a *App) WithConfig(fn func(c *Config)) {
 	a.ConfigMutex.Lock()
 	defer a.ConfigMutex.Unlock()
@@ -130,38 +113,24 @@ func (a *App) WaitUntilReady() {
 //go:embed frontend/html frontend/md
 var staticFS embed.FS
 
-// templatesFS holds the page fragments that the server renders. Examples
-// are the Config dashboard and the wait page of the external editor.
-//
-// This tree is embedded apart from staticFS on purpose. The frontend/html
-// tree of staticFS reaches StorageDir/html at the first request for each
-// file. See serveLazyEmbed and serveStaticAsset. That tree is user
-// content: a person opens a file with ?edit=true and writes over it.
-//
-// A template is not user content. It is render logic of the Go side. A
-// template inside frontend/html would let a person edit it and damage it.
-// Each static-file listing would also need a line to hide it.
+// templatesFS holds the page fragments that the server renders. It is apart
+// from staticFS on purpose. The files of staticFS reach StorageDir/html, and
+// a person can edit them with ?edit=true. A template is render logic, and a
+// person must not damage it.
 //
 //go:embed frontend/templates
 var templatesFS embed.FS
 
 // StartServer starts the Go backend.
 //
-// A storageDir that is not empty replaces the default that initStorage
-// computes from runtime.GOOS. See backend/storage.go. Android passes its
-// own per-flavor external media directory here. See
-// ServerService.storageDir in android/.../ServerService.java. The Go
-// runtime cannot learn the applicationId of the running application,
-// which is net.basov.omngo or net.basov.omngo.fdroid. Each other caller
-// passes "" and keeps the default. main_desktop.go is one such caller.
+// A storageDir that is not empty replaces the default of initStorage. Android
+// passes the external media directory of its flavor, because the Go runtime
+// cannot learn the applicationId. The desktop passes "".
 //
-// A defaultPort above 0 becomes the server port when config.json carries
-// no positive server_port of its own. The reason is the same as the
-// reason for storageDir: the flavor knows, and this package cannot. A
-// person can install the standard flavor and the fdroid flavor side by
-// side, thus the two must not compete for one loopback port. See
-// DEFAULT_SERVER_PORT in android/app/build.gradle. Pass 0 for the port
-// 8080, as the desktop does.
+// A defaultPort above 0 is the port when config.json has none. The standard
+// and the fdroid flavor can run side by side, thus they need two ports. See
+// DEFAULT_SERVER_PORT in android/app/build.gradle. The desktop passes 0 for
+// 8080.
 func StartServer(storageDir string, defaultPort int) *App {
 	a := &App{
 		Router:    http.NewServeMux(),
@@ -169,9 +138,7 @@ func StartServer(storageDir string, defaultPort int) *App {
 		startedAt: time.Now(),
 	}
 
-	// Set this BEFORE initStorage. That function loads config.json, and
-	// on a fresh install it writes the file. It is the only place that
-	// can still apply the per-flavor default.
+	// Set it before initStorage, which writes config.json on a fresh install.
 	a.defaultPort = defaultPort
 
 	a.initStorage(storageDir) // Execute synchronously to ensure config is loaded instantly
@@ -183,45 +150,30 @@ func StartServer(storageDir string, defaultPort int) *App {
 			}
 		}()
 
-		// Every route of the application, in one block. See
-		// registerRoutes below.
 		a.initLogger()
 		a.registerRoutes(a.Router)
 
-		// Unlocked access here is safe: this runs before net.Listen/close(a.ready),
-		// i.e. before any HTTP handler can possibly be invoked concurrently.
-		//
-		// loadConfig has already resolved the port - a configured (positive)
-		// server_port wins, otherwise fallbackPort(). This is only a guard
-		// against a caller that reached here without going through it.
+		// This access needs no lock: no handler runs before net.Listen.
+		// loadConfig already set the port, thus this test is a guard only.
 		if a.Config.ServerPort <= 0 {
 			a.Config.ServerPort = a.fallbackPort()
 		}
 
-		// The socket decides who can connect. While "Share on LAN" is
-		// off, the listener binds the loopback address alone, and another
-		// device cannot connect. With sharing on, authMiddleware asks each
-		// client that is not local for a password. See
+		// The socket decides who can connect. With "Share on LAN" off, the
+		// listener binds the loopback address alone. See
 		// doc/decisions/0002-bind-the-loopback-address-when-lan-sharing-is-off.md.
-		//
-		// The listener binds one time. A change of this option on the
-		// Config page therefore applies at the next start.
+		// The listener binds one time, thus a change applies at the next
+		// start.
 		bindHost := "127.0.0.1"
 		if a.Config.ShareLAN {
 			bindHost = "0.0.0.0"
 		}
 		bindAddr := fmt.Sprintf("%s:%d", bindHost, a.Config.ServerPort)
 
-		// Bind the socket first. A caller such as main_desktop.go then
-		// learns that the server is reachable, and not that it is about
-		// to be.
-		//
-		// The bind retries for a short time. At a self-restart through
-		// /api/restart, the new process can reach this line before the
-		// old process closes its socket. A stop at the first EADDRINUSE
-		// would make each restart a matter of chance. Ten attempts of
-		// 300 ms cover that window, which is about 3 seconds. A port
-		// that another program holds still fails fast.
+		// Bind first, thus WaitUntilReady means "reachable". The bind retries
+		// for about 3 seconds: after /api/restart, the new process can reach
+		// this line before the old one closes its socket. A port that another
+		// program holds still fails.
 		var listener net.Listener
 		var err error
 		for attempt := 1; attempt <= 10; attempt++ {
@@ -238,8 +190,7 @@ func StartServer(storageDir string, defaultPort int) *App {
 			return
 		}
 
-		// The listener knows better than bindAddr does: a port of 0, or a
-		// retry that landed elsewhere, resolves here (see boundAddress).
+		// The listener knows the real port, for example after a port of 0.
 		a.setBoundAddress(listener.Addr().String())
 
 		a.logInfof(logServer, "OMN-Go Backend running on %s", bindAddr)
@@ -252,46 +203,33 @@ func StartServer(storageDir string, defaultPort int) *App {
 	return a
 }
 
-// a.GetServerPort safely exposes the configured port for frontend wrappers
+// GetServerPort answers the configured port, for main_desktop.go.
 func (a *App) GetServerPort() int {
 	return a.GetConfig().ServerPort
 }
 
-// registerRoutes writes each route of the application into mux.
+// registerRoutes writes each route of the application into mux. Section 3 of
+// CLAUDE.md asks for one block.
 //
-// IT TAKES AN INTERFACE AND NOT A *http.ServeMux. A ServeMux satisfies
-// routeTable, thus StartServer passes a.Router below and nothing changes
-// for the application. A test passes a recorder instead, and it then reads
-// the pattern of each route that this function really registers. The
-// baseline test thus checks the routes of the mux, and not the text of a
-// source file.
-//
-// EVERY ROUTE IS HERE, /api/logs included. Section 3 of CLAUDE.md asks for
-// one block.
+// It takes an interface and not a *http.ServeMux. StartServer passes
+// a.Router, and TestBaseline_RouteSet passes a recorder to read the real
+// patterns.
 type routeTable interface {
 	Handle(pattern string, handler http.Handler)
 	HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request))
 }
 
 func (a *App) registerRoutes(mux routeTable) {
-	// The log stream of /api/logs. logger.go holds the handler, and
-	// initLogger there sends the standard logger into it.
-	//
-	// It is admin only, the same as the history ring below. A guest on
-	// the LAN thus reads no log line, live or held. See the banner of
-	// handleLogHistory.
+	// /api/logs and /api/logs/history are admin only. A guest on the LAN
+	// reads no log line, live or held. See handleLogHistory.
 	mux.HandleFunc("/api/logs", a.authMiddleware(a.HandleLogsSSE, true))
 
-	// The history ring of /api/logs/history. It is admin only, the same
-	// as the stream above. See the banner of handleLogHistory.
 	mux.HandleFunc("/api/logs/history", a.authMiddleware(a.handleLogHistory, true))
 	mux.HandleFunc("/", a.serveFrontend)
 
-	// The /js, /css and /json trees hold embedded assets. One shared
-	// handler in serving.go extracts each file at its first request
-	// and serves it, and ?edit=true opens it. The root catch-all
-	// reaches the same serveEmbeddableAsset through serveFrontend
-	// and serveStaticAsset.
+	// The /js, /css and /json trees hold embedded assets.
+	// serveEmbeddableAsset extracts a file at its first request and serves
+	// it. ?edit=true opens the editor.
 	assetTree := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a.serveEmbeddableAsset(w, r, r.URL.Path)
 	})
@@ -299,10 +237,9 @@ func (a *App) registerRoutes(mux routeTable) {
 	mux.Handle("/css/", assetTree)
 	mux.Handle("/json/", assetTree)
 
-	// /images and /user_json are pure user content (never embedded),
-	// served straight from their storage subdirectory. Both resolve the
-	// content-type per file so /user_json serves .json as application/json
-	// and .jsonl as text/plain (see resolveContentType).
+	// /images and /user_json are user content, and the binary embeds none of
+	// it.
+	// resolveContentType gives each file its type.
 	mux.Handle("/images/", a.serveStorageSubdir("images", ""))
 	mux.Handle("/user_json/", a.serveStorageSubdir("user_json", ""))
 
@@ -312,11 +249,8 @@ func (a *App) registerRoutes(mux routeTable) {
 	mux.HandleFunc("/api/upload", a.authMiddleware(a.handleUpload, true))
 	mux.HandleFunc("/api/upload_json", a.authMiddleware(a.handleUploadJSON, true))
 	mux.HandleFunc("/api/note", a.handleGetNote)
-	// Registered WITHOUT authMiddleware, the same as /api/note above
-	// and the same as each page and each static route. Search
-	// collects nothing that a guest on the LAN cannot already read
-	// file by file. A gate here would add no confidentiality and
-	// would break the guest.
+	// This route has no authMiddleware, the same as /api/note and each page.
+	// Search collects nothing that a guest cannot read file by file.
 	mux.HandleFunc("/api/search", a.handleSearch)
 	mux.HandleFunc("/api/save", a.authMiddleware(a.handleSaveNote, true))
 	mux.HandleFunc("/api/newpage", a.authMiddleware(a.handleNewPage, true))
@@ -327,36 +261,23 @@ func (a *App) registerRoutes(mux routeTable) {
 	mux.HandleFunc("/api/db/backups", a.authMiddleware(a.handleDBBackupList, true))
 	mux.HandleFunc("/api/db/restore", a.authMiddleware(a.handleDBRestore, true))
 	mux.HandleFunc("/db_backups", a.authMiddleware(a.serveDBBackupsPage, true))
-	// A PAGE with its own route, and not an arm of serveHTMLPage.
-	// That switch sits behind the catch-all, which needs no
-	// authentication, and this listing is admin only.
-	//
-	// Registered WITHOUT authMiddleware on purpose. The handler asks
-	// hasRole itself. It can therefore answer a refusal with a page,
-	// and not with a line of plain text. An exact pattern wins
-	// against "/".
+	// This is a PAGE with its own route, because the catch-all needs no login
+	// and this listing is admin only. The handler asks hasRole itself, thus a
+	// refusal is a page and not a line of text.
 	mux.HandleFunc("/OMNGoFiles.html", a.serveFilesPage)
 	mux.HandleFunc("/api/sync", a.authMiddleware(a.handleSync, true))
 	mux.HandleFunc("/api/sync/preview", a.authMiddleware(a.handleSyncPreview, true))
 	mux.HandleFunc("/api/edit-external", a.authMiddleware(a.handleEditExternal, true))
-	// Note exchange. See note_exchange.go. Both routes are admin
-	// only. Import writes files, which is reason enough. Export is
-	// locked by decision, because it is a new way out of the note
-	// tree and a guest on the LAN needs none. A local connection
-	// passes authMiddleware, thus the device itself keeps both
-	// routes. On Android, where a person uses this feature, the
-	// caller IS the device.
+	// Note exchange. Both routes are admin only: import writes files, and
+	// export is a way out of the note tree. The device itself is always
+	// admin, and on Android the device is the caller.
 	mux.HandleFunc("/api/export/note", a.authMiddleware(a.handleExportNote, true))
 	mux.HandleFunc("/api/import/note", a.authMiddleware(a.handleImportNote, true))
-	// Admin only: the answer carries LAN addresses, absolute paths and
-	// a commit subject (see status.go).
+	// This route is admin only, because the answer holds LAN addresses,
+	// absolute paths and a commit subject.
 	mux.HandleFunc("/api/status", a.authMiddleware(a.handleStatus, true))
-	// The Status page. Registered WITHOUT authMiddleware for the same
-	// reason as /OMNGoFiles.html above. The handler asks hasRole
-	// itself, thus a guest gets a page and not a line of plain text.
+	// The Status page and the Log page ask hasRole themselves, the same as
+	// /OMNGoFiles.html.
 	mux.HandleFunc("/OMNGoStatus.html", a.serveStatusPage)
-	// The Log page. It reads /api/logs/history and /api/logs, and both
-	// are admin only. It is registered the same way as the Status page,
-	// thus a guest gets a page and not a line of plain text.
 	mux.HandleFunc("/OMNGoLogs.html", a.serveLogsPage)
 }

@@ -16,48 +16,32 @@ import (
 // The single asset-serving layer
 // ----------------------------------------------------------------------
 //
-// A static asset under html/ reaches the browser through exactly two
-// shared helpers here. One place thus answers "which code serves URL X,
-// and what content-type does it get":
+// Two helpers serve each static asset under html/:
 //
-//   - serveEmbeddableAsset backs the /js/, /css/, /json/ trees and the root
-//     catch-all (favicon.ico, robots.txt, ...). These ship embedded in the
-//     binary and are lazily extracted to html/ on first request.
-//   - serveStorageSubdir backs the /images/ and /user_json/ trees, which are
-//     pure user content (never embedded), served straight from html/<sub>/.
+//   - serveEmbeddableAsset: /js/, /css/, /json/ and the root catch-all.
+//     These files ship in the binary and reach html/ at the first request.
+//   - serveStorageSubdir: /images/ and /user_json/, user content only.
 //
-// Both resolve the content-type through resolveContentType, which is the
-// ONE MIME resolver. See doc/decisions/0003-use-one-table-for-each-content-type.md.
+// Both take the content type from resolveContentType, the ONE MIME resolver.
+// See doc/decisions/0003-use-one-table-for-each-content-type.md.
 
-// builtinMIME is the canonical content-type table of OMN-Go. It carries
-// JSON Lines, which is .jsonl and which the database backups in
-// db_backup.go use. It also keeps the web-font types explicit, for a
-// minimal container whose stdlib mime table is sparse.
+// builtinMIME is the content-type table of OMN-Go. It names the web fonts,
+// for a container whose own table is small.
 var builtinMIME = map[string]string{
 	".html": "text/html; charset=utf-8",
 	".css":  "text/css; charset=utf-8",
 	".js":   "text/javascript; charset=utf-8",
 	".mjs":  "text/javascript; charset=utf-8",
 	".json": "application/json",
-	// JSON Lines - database backups (db_backup.go). It is text/plain, and
-	// NOT application/jsonl. A browser renders text/plain inline. The
-	// Android WebView has no download handler at all. Any type that it
-	// cannot render thus leaves the user with a link that does nothing.
-	// The "view" link on the Database Backups page is exactly that link.
-	//
-	// It is not application/json either. A backup is JSON Lines, and not
-	// one JSON document. A browser JSON viewer thus reports a parse error
-	// on the second line, instead of showing the file.
+	// This row is for the database backups. The type is text/plain, because
+	// the Android WebView has no download handler and shows only what it can
+	// render. application/json would fail: a backup is JSON Lines, and a JSON
+	// viewer stops at the second line.
 	".jsonl": "text/plain; charset=utf-8",
 	".md":    "text/markdown; charset=utf-8",
-	// Go's own table has no ".txt", see mime/type.go and
-	// builtinTypesLower. A phone has no /etc/mime.types for the stdlib to
-	// read at init.
-	//
-	// editableFileType asks this same table whether a file is text.
-	// Without this row, a .txt on Android gets no edit link, and the
-	// editor refuses to open it. A file kept beside a note (note_files.go)
-	// is a .txt.
+	// The Go table has no ".txt", and a phone has no /etc/mime.types.
+	// editableFileType reads this table, thus without this row a .txt on
+	// Android gets no editor. A file beside a note is a .txt.
 	".txt":   "text/plain; charset=utf-8",
 	".svg":   "image/svg+xml",
 	".png":   "image/png",
@@ -71,18 +55,10 @@ var builtinMIME = map[string]string{
 	".ttf":   "font/ttf",
 }
 
-// resolveContentType is the single MIME resolver. It reads three sources
-// in this order:
-//
-//  1. Config.MimeTypes, the per-install override of config.json.
-//  2. builtinMIME, the canonical table of OMN-Go.
-//  3. mime.TypeByExtension, the fallback of the Go standard library.
-//
-// THE OVERRIDE IS EMPTY ON A NEW INSTALL, thus the table above answers in
-// practice. See legacyMimeSeeds in config.go.
-//
-// The answer is "" when no source knows the extension. The caller then
-// leaves the header unset and lets net/http read the content.
+// resolveContentType is the single MIME resolver. It reads Config.MimeTypes,
+// then builtinMIME, then mime.TypeByExtension. The override is empty on a new
+// install. The answer is "" when no source knows the extension, and net/http
+// then reads the content.
 func (a *App) resolveContentType(path string) string {
 	ext := strings.ToLower(filepath.Ext(path))
 	if ct, ok := a.GetConfig().MimeTypes[ext]; ok && ct != "" {
@@ -94,53 +70,32 @@ func (a *App) resolveContentType(path string) string {
 	return mime.TypeByExtension(ext)
 }
 
-// writeHTMLHeader sets the content type of a page. It is the ONE place
-// that names that type, the same as resolveContentType is the one place
-// that names each other type. See rule 7 of CLAUDE.md section 1.
-//
-// The charset is part of it. A page that the server renders on its own
-// carries no <meta charset> element. Without the charset, the browser
-// guesses the encoding.
-//
-// pageCacheWriter in middleware.go reads the prefix "text/html" of this
-// header to change no-cache into no-store. The value below still starts
-// with that prefix, and TestConnectionMiddlewareUsesNoStoreForAPage
-// holds it.
+// writeHTMLHeader is the ONE place that sets the type of a page, with the
+// charset: a page that the server renders has no <meta charset>.
+// pageCacheWriter in middleware.go reads the prefix "text/html". See
+// TestConnectionMiddlewareUsesNoStoreForAPage.
 func writeHTMLHeader(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", htmlContentType)
 }
 
-// htmlContentType is the value that writeHTMLHeader writes.
 const htmlContentType = "text/html; charset=utf-8"
 
 // hasKnownAssetExtension reports whether the last extension of name is one
-// that this install serves as a file. It is the one authority for the
-// question "is this name a note, or a file under html/". resolvePageName
-// asks it, and so do compilePage, rewriteInternalLink and
-// notFoundSuggestion.
-//
-// THE LAST EXTENSION DECIDES. A note name can hold a dot, for example
-// "Report.2026", and this function is what makes that true.
-//
-// The rule reads:
+// that this install serves as a file. It is the one answer to "is this name a
+// note, or a file under html/".
 //
 //	.md                     the source of a note.
-//	.html                   a compiled note. An .html always has a .md source.
+//	.html                   a compiled note.
 //	a known extension       a file under html/, for example .js or .txt.
 //	an unknown extension    a note, for example "Report.2026".
 //	no extension            a note.
 //
-// A note named "Draft.txt" thus has the source md/Draft.txt.md and compiles
-// to html/Draft.txt.html. The file html/Draft.txt is a different thing with
-// a different name. The two never collide, because each name carries each
-// of its extensions.
+// A note named "Draft.txt" is md/Draft.txt.md and html/Draft.txt.html, thus
+// it never collides with the file html/Draft.txt.
 //
-// IT MUST NOT CALL mime.TypeByExtension. resolveContentType above keeps
-// that fallback, because a Content-Type header can differ between two
-// devices with no harm. This answer cannot. The stdlib reads
-// /etc/mime.types, thus a desktop with mime-support knows ".doc" and a
-// phone does not. A note named "Plan.doc" would then be a file on one
-// device and a note on the other. Git sync carries that name to both.
+// IT MUST NOT CALL mime.TypeByExtension. The standard library reads
+// /etc/mime.types, which differs between devices. Git sync carries a name to
+// each device, and the name must be a note on each one or a file on each one.
 func (a *App) hasKnownAssetExtension(name string) bool {
 	ext := strings.ToLower(filepath.Ext(name))
 	if ext == "" {
@@ -153,19 +108,15 @@ func (a *App) hasKnownAssetExtension(name string) bool {
 	return ok
 }
 
-// legacyAssetPaths maps the OLD URL of each app asset to its place under
-// OMN-Go/. The table is built from versionDependentAssets and from
-// retiredFonts, thus it can never disagree with the move.
-//
-// The key and the value both start with a slash, because that is the
-// shape that materializeAsset holds.
+// legacyAssetPaths maps the old URL of each app asset to its place under
+// OMN-Go/. It comes from versionDependentAssets and retiredFonts, thus it
+// follows each move. Each key and value starts with a slash, the same as in
+// materializeAsset.
 var legacyAssetPaths = func() map[string]string {
 	out := map[string]string{}
 	add := func(rel string) {
-		// rel is "html/js/OMN-Go/x.js". The URL drops the "html" part.
 		urlNew := strings.TrimPrefix(rel, "html")
 		dir, name := path.Split(urlNew)
-		// dir is "/js/OMN-Go/". The old URL has no OMN-Go segment.
 		oldDir := strings.TrimSuffix(dir, "OMN-Go/")
 		out[oldDir+name] = urlNew
 	}
@@ -175,50 +126,31 @@ var legacyAssetPaths = func() map[string]string {
 		}
 	}
 	for _, rel := range retiredFonts {
-		// retiredFonts holds the OLD path, for example
-		// "html/css/fonts/KaTeX_Main-Regular.woff2".
 		name := path.Base(rel)
 		out["/css/fonts/"+name] = "/css/OMN-Go/fonts/" + name
 	}
 	return out
 }()
 
-// legacyAssetURL answers the question "is this the old URL of an app
-// asset, with no OMN-Go segment". It gives the new URL when the answer is
-// yes.
-//
-// WHY THIS EXISTS. md/Bookmarks.md loads /js/Bookmarker.js and
-// /css/Bookmarker.css by an absolute path. That note is USER-OWNED, thus
-// an upgrade never rewrites it, thus the Bookmarks page of each existing
-// install would stop working. The same holds for a note that a person
-// wrote with a link to /js/omn-go-core.js.
-//
-// The table covers the moved files alone. A user file such as
-// /js/mine.js is absent from it and still answers 404, thus this rule
-// hides no fault of a name.
+// legacyAssetURL gives the new URL for the old URL of an app asset.
+// md/Bookmarks.md and notes of the user name the old paths, and the server
+// never rewrites a note of the user. A user file such as /js/mine.js is not
+// in the table, and it still answers 404. See
+// doc/decisions/0007-keep-the-application-files-in-omn-go-directories.md.
 func legacyAssetURL(urlPath string) (string, bool) {
 	moved, ok := legacyAssetPaths[urlPath]
 	return moved, ok
 }
 
-// materializeAsset answers the on-disk path of the html/ asset for
-// urlPath. It extracts the asset from the embedded frontend on the first
-// request, when the asset is not on disk yet. ok is false for a genuine
-// 404, where the asset is neither on disk nor embedded. It is also false
-// when the path resolves to a directory.
-//
-// This is the ONE implementation of the lazy embed-extraction. The /js,
-// /css and /json routes and the root catch-all all come here.
+// materializeAsset answers the disk path of the html/ asset for urlPath, and
+// it extracts the embedded file at its first request. ok is false for a 404
+// and for a directory. This is the ONE lazy extraction.
 func (a *App) materializeAsset(urlPath string) (physPath string, ok bool) {
 	clean := filepath.Clean(urlPath)
 
-	// A request for the OLD place of an app asset resolves to the new
-	// one. See legacyAssetURL.
-	//
-	// This runs FIRST, and not after the two lookups below. An install
-	// that upgraded still holds the old file for the short time before
-	// removeRetiredAssets runs. The reader must get the file of this
-	// build in that window.
+	// An old URL resolves to the new place FIRST. An old copy can stay on
+	// disk until removeRetiredAssets runs, and the reader must get the file
+	// of this build.
 	if moved, isLegacy := legacyAssetURL(filepath.ToSlash(clean)); isLegacy {
 		clean = filepath.FromSlash(moved)
 	}
@@ -240,14 +172,9 @@ func (a *App) materializeAsset(urlPath string) (physPath string, ok bool) {
 	return "", false
 }
 
-// serveEmbeddableAsset serves one static asset under html/. That asset may
-// need a first-request extraction from the embedded frontend, see
-// materializeAsset. It backs the /js/, /css/ and /json/ trees, and the root
-// catch-all.
-//
-// An ?edit=true request is handed to the dedicated editor page. The /js, /css and /json routes reach this with edit intent.
-// serveFrontend already peels the edit intent off the catch-all, thus the
-// check here is a harmless no-op on that path.
+// serveEmbeddableAsset serves one static asset under html/, with the
+// extraction of materializeAsset. ?edit=true opens the editor. For the
+// catch-all, serveFrontend already handles the edit intent.
 func (a *App) serveEmbeddableAsset(w http.ResponseWriter, r *http.Request, urlPath string) {
 	if r.URL.Query().Get("edit") == "true" {
 		a.serveEditor(w, r, urlPath)
@@ -264,22 +191,17 @@ func (a *App) serveEmbeddableAsset(w http.ResponseWriter, r *http.Request, urlPa
 	http.ServeFile(w, r, physPath)
 }
 
-// serveStorageSubdir serves the pure-user-content trees /images/ and
-// /user_json/ from html/<subDir>/. forcedType, when non-empty, pins the
-// content-type for the whole tree (keeps /user_json/ as application/json
-// regardless of extension); otherwise resolveContentType decides per file.
-// These files are never embedded, so - unlike serveEmbeddableAsset - there
-// is no extraction step.
+// serveStorageSubdir serves /images/ or /user_json/ from html/<subDir>/. A
+// forcedType pins the content type of the whole tree. Otherwise
+// resolveContentType decides for each file. The binary embeds none of these
+// files, thus there is no extraction.
 func (a *App) serveStorageSubdir(subDir, forcedType string) http.Handler {
 	dirPath := filepath.Join(a.StorageDir, "html", subDir)
 	os.MkdirAll(dirPath, 0755)
 	fsHandler := http.StripPrefix("/"+subDir+"/", http.FileServer(http.Dir(dirPath)))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// "?edit=true opens any file that OMN-Go serves" holds for these
-		// two trees as well. They have their own routes, thus an edit
-		// request here never reaches serveFrontend. The documented link
-		// "[Edit shared data](/user_json/inventory.json?edit=true)" needs
-		// this check.
+		// ?edit=true opens the editor here too. The documented link "[Edit
+		// shared data](/user_json/inventory.json?edit=true)" needs it.
 		if r.URL.Query().Get("edit") == "true" {
 			a.serveEditor(w, r, r.URL.Path)
 			return
@@ -289,9 +211,8 @@ func (a *App) serveStorageSubdir(subDir, forcedType string) http.Handler {
 		} else if ct := a.resolveContentType(r.URL.Path); ct != "" {
 			w.Header().Set("Content-Type", ct)
 		}
-		// FileServer answers a missing file itself; intercept that one
-		// status so /images and /user_json report misses like everything
-		// else (see notFoundInterceptor).
+		// FileServer answers a missing file itself. notFoundInterceptor
+		// replaces that answer with serveNotFound.
 		fsHandler.ServeHTTP(&notFoundInterceptor{ResponseWriter: w, app: a, req: r}, r)
 	})
 }
@@ -300,40 +221,24 @@ func (a *App) serveStorageSubdir(subDir, forcedType string) http.Handler {
 // 404 handling
 // ----------------------------------------------------------------------
 //
-// Everything that can 404 funnels through serveNotFound so there is one
-// answer instead of net/http's bare "404 page not found" in three places.
-//
-// It content-negotiates, and it does not always emit HTML. A browser
-// navigation sends "Accept: text/html,..." and gets the full themed page.
-// A fetch() or XHR call sends Accept "*/*", and an <img> or <script> load
-// does the same. Each of those gets the same facts as plain text.
-//
-// That distinction matters. The 404 of /api/note is read as text by the
-// loadContent() of the editor, which shows it to the user directly. A page
-// of HTML there would replace a readable message with markup.
+// Each 404 goes through serveNotFound. A page navigation (Accept text/html)
+// gets a themed page. A fetch, an <img> or a <script> gets the same facts as
+// plain text, because the editor shows the text of a failed /api/note
+// directly.
 
-// wantsHTMLError reports whether the caller looks like a page navigation
-// rather than a programmatic fetch. Deliberately conservative: only an
-// explicit text/html in Accept counts, so anything unusual degrades to the
-// plain-text form, which is safe to show in any context.
+// wantsHTMLError reports a page navigation. Only an explicit text/html
+// counts. Anything else gets plain text, which is safe in any context.
 func wantsHTMLError(r *http.Request) bool {
 	return strings.Contains(r.Header.Get("Accept"), "text/html")
 }
 
-// notFoundSuggestion returns "<name>.html" when the failing path names a
-// note that exists. The reader wrote [text](name) and not
-// [text](name.html). That mistake is the most common way to reach a 404
-// here. A missing .html does not give a 404. serveHTMLPage rebuilds it,
-// see recompileMarkdownPage.
+// notFoundSuggestion answers "<name>.html" when the path names a note that
+// exists: the usual cause of a 404 is [text](name) in place of
+// [text](name.html). It asks hasKnownAssetExtension, thus /Report.2026 still
+// gets a suggestion.
 //
-// The guard below asks hasKnownAssetExtension, and not whether the name has
-// an extension at all. A note may hold a dot in its name, thus
-// /Report.2026 must still get its suggestion.
-//
-// It answers "" unless the lookup is provably safe and the note really
-// exists. The resolved path must stay inside StorageDir. A crafted request
-// of the "/../../etc/passwd" shape can thus neither confirm nor link to
-// anything outside the note tree.
+// It answers "" unless the resolved path stays inside StorageDir. A request
+// such as "/../../etc/passwd" can thus confirm nothing outside the note tree.
 func (a *App) notFoundSuggestion(urlPath string) string {
 	name := strings.TrimPrefix(urlPath, "/")
 	if name == "" || strings.Contains(name, "..") || a.hasKnownAssetExtension(name) {
@@ -366,18 +271,16 @@ func (a *App) notFoundSuggestion(urlPath string) string {
 	return ""
 }
 
-// serveNotFound writes the detailed 404. Callers must not have written a
-// body yet; any Content-Type already set (serveStorageSubdir pins one
-// before delegating) is overwritten here.
+// serveNotFound writes the detailed 404. The caller must not have written a
+// body. It overwrites a Content-Type that is already set.
 func (a *App) serveNotFound(w http.ResponseWriter, r *http.Request) {
 	requested := r.URL.Path
 	if r.URL.RawQuery != "" {
 		requested += "?" + r.URL.RawQuery
 	}
 
-	// Only a Referer that points at this same server is shown, and only as
-	// its path. It is echoed into an href. An off-site or malformed value
-	// is thus dropped, and it does not become a link out of the app.
+	// Show only a Referer of this server, and only its path. It goes into an
+	// href, and it must not become a link out of the app.
 	referer := ""
 	if raw := r.Referer(); raw != "" {
 		if ref, err := url.Parse(raw); err == nil && ref.Path != "" &&
@@ -394,8 +297,8 @@ func (a *App) serveNotFound(w http.ResponseWriter, r *http.Request) {
 		Suggested: a.notFoundSuggestion(r.URL.Path),
 	}
 
-	// One log line per miss, so a broken link is visible in the JS console
-	// and the /api/logs stream without having to reproduce it.
+	// One log line for each miss, thus a broken link shows in the console and
+	// in /api/logs.
 	a.logInfof(log404, "%s %s (referer %q)", view.Method, view.URL, view.Referer)
 
 	if !wantsHTMLError(r) {
@@ -420,14 +323,9 @@ func (a *App) serveNotFound(w http.ResponseWriter, r *http.Request) {
 	w.Write(a.injectRuntimeVars(compiled))
 }
 
-// serveNotEditable is the one answer for "you asked an editor to open a
-// file that is not text". It uses the same content negotiation as
-// serveNotFound. A browser navigation gets a page, and a fetch gets plain
-// text. The loadContent() of the editor shows that text to the user, thus
-// markup there would hide the reason.
-//
-// It answers 415 Unsupported Media Type, and not 404. The file exists and
-// is served normally. Only the editor refuses it.
+// serveNotEditable answers an editor request for a file that is not text:
+// 415, with the same negotiation as serveNotFound. The server still serves
+// the file normally.
 func (a *App) serveNotEditable(w http.ResponseWriter, r *http.Request, relPath string) {
 	urlPath := "/" + strings.TrimPrefix(relPath, "/")
 	ct := a.resolveContentType(relPath)
@@ -455,11 +353,9 @@ func (a *App) serveNotEditable(w http.ResponseWriter, r *http.Request, relPath s
 	w.Write(a.injectRuntimeVars(compiled))
 }
 
-// notFoundInterceptor lets a handler we do not control (http.FileServer,
-// behind serveStorageSubdir) keep its path-resolution and range handling
-// while its 404 is replaced with ours. Wrapping the ResponseWriter rather
-// than pre-checking the file avoids duplicating FileServer's traversal
-// defences, which is exactly the code you do not want two copies of.
+// notFoundInterceptor keeps the path handling and the range handling of
+// http.FileServer, and it replaces only its 404. A test of the file before
+// the call would copy the traversal defenses of FileServer.
 type notFoundInterceptor struct {
 	http.ResponseWriter
 	app      *App
@@ -477,9 +373,8 @@ func (w *notFoundInterceptor) WriteHeader(code int) {
 }
 
 func (w *notFoundInterceptor) Write(b []byte) (int, error) {
-	// Swallow the own "404 page not found" body of FileServer. serveNotFound
-	// has already written a complete response. A report of the full length
-	// keeps the wrapped handler from reading this as a short write.
+	// Drop the 404 body of FileServer. Report the full length, or the handler
+	// reads a short write.
 	if w.replaced {
 		return len(b), nil
 	}
