@@ -187,9 +187,9 @@ update these files.
   `StartServer` calls it with `a.Router`, a plain `http.ServeMux`. The parameter
   is the small `routeTable` interface, thus `TestBaseline_RouteSet` can pass a
   recorder and read the real table. Do not register a route anywhere else. Use
-  the form
-  `a.Router.HandleFunc("/api/x", a.authMiddleware(a.handleX, true))`. The boolean is
-  `requireAdmin`. Add a comment to any registration that differs from this form.
+  the form `a.Router.HandleFunc("/api/x", a.authMiddleware(a.handleX))`. A
+  protected route needs the admin role. Add a comment to any registration
+  that differs from this form.
 * **Comments say what the code does now, and why, one time.** Many files start
   with a `// ---` banner. The banner gives the design decision and the rejected
   alternative. Write the same kind of justification for new code that is not
@@ -348,19 +348,23 @@ update these files.
 
 ## 6. Version and release
 
-* `backend/version.go` holds the version as `const APP_VERSION = "YY.MM.NN"`.
+* `backend/version.go` holds the version as `const APP_VERSION = "YY.MM.S"`.
+  YY is the year, and MM is the month, with two digits each. S is the sequence
+  number of the change in that month. It starts at 1, and it has one, two or
+  three digits, with no leading zero. Examples: `26.10.1`, `26.09.37`,
+  `26.09.100`.
 * **Bump the version in every commit.** The maintainer can ask for an exception.
 * A bump changes **two files**:
   1. `backend/version.go`.
   2. `android/app/build.gradle`. Set `versionName`. Compute `versionCode` as
-     `YY*100000 + MM*1000 + NN`.
+     `YY*100000 + MM*1000 + S`. Example: 26.09.100 gives 2609100.
 * The F-Droid flavor multiplies `versionCode` by 10 and adds an offset for each ABI.
   See `android/app/fdroid-abi-versioncode.gradle`.
 * **The maintainer creates every tag.** Do not create a tag.
 * A tag without the `f` suffix starts the GitHub CI release build. That build
   publishes the desktop binaries and the APK.
 * A tag with the `f` suffix starts the F-Droid build. Example: `v26.08.51f`.
-* The `v1.x` tags use the old scheme. The `YY.MM.NN` scheme starts at `v26.07.36`.
+* The `v1.x` tags use the old scheme. The `YY.MM.S` scheme starts at `v26.07.36`.
 * An F-Droid release also needs a changelog file at
   `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`. Write each entry as
   a `•` bullet line. Commit it as `release(f-droid): ...`.
@@ -374,7 +378,7 @@ update these files.
 A commit message has three parts: a subject line, one empty line, and a list of
 the changes.
 
-1. Subject line: `type(scope): Sentence. vYY.MM.NN`. Write **at most 80
+1. Subject line: `type(scope): Sentence. vYY.MM.S`. Write **at most 80
    characters**. Count the version in that limit.
 2. One empty line.
 3. One `-` bullet for each change. Write one change in one bullet. Put a period

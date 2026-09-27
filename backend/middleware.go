@@ -82,26 +82,25 @@ func (a *App) ActiveConnCount() int64 {
 	return a.ActiveConns.Load()
 }
 
-// hasRole answers "may this request do a thing that needs this role". It is
-// the ONE answer. A connection from the device itself is always the owner,
-// thus the rule applies to another machine alone. A page such as the file
-// index calls it directly, thus it can answer a refusal with a page.
-func (a *App) hasRole(r *http.Request, requireAdmin bool) bool {
+// hasRole answers "may this request do a protected thing". It is the ONE
+// answer. A connection from the device itself is always the owner. Another
+// machine needs a signed admin cookie. No route accepts the guest role. A
+// page such as the file index calls it directly, thus it can answer a
+// refusal with a page.
+func (a *App) hasRole(r *http.Request) bool {
 	if a.isLocalConnection(r) {
 		return true
 	}
 	// readSessionRole answers "" for a cookie that this install did not sign.
 	// See doc/decisions/0001-sign-the-session-cookie.md.
-	role := a.readSessionRole(r)
-	if requireAdmin {
-		return role == roleAdmin
-	}
-	return role == roleAdmin || role == roleGuest
+	return a.readSessionRole(r) == roleAdmin
 }
 
-func (a *App) authMiddleware(next http.HandlerFunc, requireAdmin bool) http.HandlerFunc {
+// authMiddleware answers 401 with plain text when hasRole refuses the
+// request. A page answers a refusal with a page, and asks hasRole itself.
+func (a *App) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !a.hasRole(r, requireAdmin) {
+		if !a.hasRole(r) {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}

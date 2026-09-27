@@ -296,7 +296,7 @@ const statusDeniedBody = `<div class="config-panel">` +
 // shows the answer. It holds no facts of its own.
 func (a *App) serveStatusPage(w http.ResponseWriter, r *http.Request) {
 	body := statusPageTmpl
-	if !a.hasRole(r, true) {
+	if !a.hasRole(r) {
 		body = statusDeniedBody
 	}
 	compiled := a.compilePageWithBody("Status",

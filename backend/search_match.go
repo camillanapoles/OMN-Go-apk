@@ -27,10 +27,7 @@ package backend
 // the name roughly", and "I typed it wrong". One scorer for all three
 // questions gives an order that nobody can predict.
 
-import (
-	"strings"
-	"unicode"
-)
+import "unicode"
 
 // span is the range of a match in a candidate, in rune offsets.
 type span struct{ Start, Len int }
@@ -141,11 +138,6 @@ func fold(s string) []rune {
 		out = append(out, foldRune(r))
 	}
 	return out
-}
-
-// foldString is fold for callers that want a string back.
-func foldString(s string) string {
-	return string(fold(s))
 }
 
 // isShortTerm tells whether a term is too short to match a line alone. One
@@ -515,16 +507,4 @@ func mergeSpans(spans []span) []span {
 		out = append(out, s)
 	}
 	return out
-}
-
-// splitQuery splits a raw query at white space into folded terms. The caller
-// applies AND: each term must hit the document.
-func splitQuery(q string) [][]rune {
-	var terms [][]rune
-	for _, f := range strings.Fields(q) {
-		if r := fold(f); len(r) > 0 {
-			terms = append(terms, r)
-		}
-	}
-	return terms
 }

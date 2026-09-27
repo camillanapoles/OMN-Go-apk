@@ -103,11 +103,10 @@ A handler that writes `Cache-Control` later replaces this value.
    browser work without a login.
 2. For every other connection, the request must carry a **signed**
    `session_role` cookie with an accepted role. `readSessionRole`
-   (`backend/session.go`) is the one reader of that cookie. The server
-   registers every protected route with `requireAdmin = true`, so a remote
-   caller needs the `admin` role. `authMiddleware` accepts the `guest` role
-   only for a route registered with `requireAdmin = false`. No such route
-   exists today.
+   (`backend/session.go`) is the one reader of that cookie. `hasRole`
+   (`backend/middleware.go`) accepts only the `admin` role. The login still
+   accepts the guest password and writes a `guest` cookie, but no route
+   accepts that role today.
 3. A missing, changed or expired cookie gives `401 Unauthorized` with the
    body `Unauthorized`.
 

@@ -488,11 +488,6 @@ if (window.location.protocol !== 'file:') {
             }
         };
         db.readTransaction = db.transaction;
-
-        // db.exportBackup / db.restoreBackup were removed together with
-        // the per-table db_json backup mechanism: backups are now
-        // whole-database snapshots managed from the /db_backups page
-        // (see db_backup.go).
         return db;
     };
 

@@ -12,16 +12,13 @@ import (
 	"testing"
 )
 
-// This file replaces sqlite_backup_test.go. That suite tested the deleted
-// per-table db_json mirror. This one covers the whole-database JSONL engine
-// in db_backup.go, with the same intents. Those are the round trip, the full
-// replace, trigger safety, strictness and validation, and the endpoints. It
-// also covers the guarantees that are specific to the new format. Those are
-// indexes, sqlite_sequence, BLOBs, int64 fidelity, prune, fresh-device
-// bootstrap, and the rejection of a damaged file.
+// These tests cover the whole-database JSONL backups of db_backup.go. They
+// test the round trip, the full replace, trigger safety and the endpoints.
+// They also test indexes, sqlite_sequence, BLOBs, int64 values, the prune,
+// the bootstrap of a fresh device and the refusal of a damaged file.
 //
-// All helpers here are dbb-prefixed to avoid colliding with helpers in
-// the package's other _test.go files.
+// Each helper here has the prefix dbb, thus it cannot collide with a helper
+// of another test file.
 
 func dbbApp(t *testing.T) *App {
 	t.Helper()

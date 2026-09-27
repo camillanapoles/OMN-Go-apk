@@ -48,15 +48,6 @@ function compactDuplicates(){
   }
   durls = Object.keys(index);
 }
-function displayDuplicates(){
-  compactDuplicates();
-  let dupCounter = 0;
-  for(const url in index){
-    dupCounter++;
-  }
-  alert("Number of duplicate records sets: " + dupCounter);
-  showBookmarks(duplicateTag, '', duplicates = true);
-}
 function showBookmarks(onlyTag = '', search = '', duplicates = false) {
   // sort bookmarks by date (newest upper)
   bookmarks.sort((a, b) => { if (a.date > b.date) { return -1; } });
@@ -158,7 +149,6 @@ function showBookmarks(onlyTag = '', search = '', duplicates = false) {
     }
   }
   compactDuplicates();
-  //displayDuplicates();
   // display list of bookmarks
   document.querySelector('#bmlist').replaceChildren(ul);
   // collapse all details
@@ -377,25 +367,6 @@ No tags
     colexpall('collapse');
   };
   buttonsD.appendChild(buttonsBall);
-
-//   var buttonsBnoTags = document.createElement('button');
-//   buttonsBnoTags.className = 'colexp';
-//   buttonsBnoTags.innerHTML = 'No Tags';
-//   buttonsBnoTags.onclick = function(){
-//     showBookmarks(-1);
-//     colexpall('collapse');
-//   };
-//   buttonsD.appendChild(buttonsBnoTags);
-// 
-//   var buttonsBduplicates = document.createElement('button');
-//   buttonsBduplicates.className = 'colexp';
-//   buttonsBduplicates.innerHTML = 'DD';
-//   buttonsBduplicates.onclick = function(){
-//     compactDuplicates();
-//     //prompt('Duplicates:',Object.keys(index).join('\n\r'));
-//     displayDuplicates();
-//   };
-//   buttonsD.appendChild(buttonsBduplicates);
 
   searchD.after(buttonsD);
 /*

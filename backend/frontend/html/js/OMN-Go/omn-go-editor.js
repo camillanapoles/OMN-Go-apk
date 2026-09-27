@@ -67,8 +67,6 @@
         { id: 'toolWrap', icon: 'wrap_text', title: 'Toggle word wrap', action: function () { toggleWrap(); } },
         { id: 'toolLn', icon: 'format_list_numbered', title: 'Toggle line numbers (off while wrapping)', action: function () { toggleLineNumbers(); } },
         { id: 'toolFind', icon: 'search', title: 'Find / replace (Ctrl+F, Ctrl+H)', action: function () { openFind(false); } }
-        // Future tools go here, e.g.:
-        // { icon: 'format_bold', title: 'Bold selection', action: wrapBold },
     ];
 
     // ==================================================================

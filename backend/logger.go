@@ -239,7 +239,7 @@ const logsDeniedBody = `<div class="config-panel">` +
 // serveStatusPage, and it asks hasRole itself. See statusDeniedBody.
 func (a *App) serveLogsPage(w http.ResponseWriter, r *http.Request) {
 	body := logsPageTmpl
-	if !a.hasRole(r, true) {
+	if !a.hasRole(r) {
 		body = logsDeniedBody
 	}
 	compiled := a.compilePageWithBody("Log",

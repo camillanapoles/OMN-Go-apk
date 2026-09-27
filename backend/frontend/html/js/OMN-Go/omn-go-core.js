@@ -960,7 +960,7 @@ if (typeof currentNote === 'undefined') {
         // Copies the Quick Note text to the clipboard WITHOUT saving it. The
         // captured snippet can then be pasted somewhere else. A person types
         // that snippet, or shares it in from another Android app, or pushes
-        // it in with a barcode scan. See showQuickCapture in omn-go-sse.js.
+        // it in with a barcode scan. See omnGoInsertCapture in omn-go-sse.js.
         // Wired to the Copy button of the panel, which passes itself as btn,
         // thus the label can report the outcome.
         //
@@ -1074,10 +1074,8 @@ window.updateArrow = function() {
 
 // addEventListener, and NOT "window.onload = ...". A classic OMN note
 // often assigns window.onload itself, for example
-// "window.onload=createTOC()". When this file used the assignment form,
-// the two assignments overwrote each other, and the load order decided
-// which one won. With a listener both this handler and a note-assigned
-// window.onload run.
+// "window.onload=createTOC()". With a listener, this handler and the
+// window.onload of the note both run.
 window.addEventListener('load', () => {
             checkSession();
             applyPlatformUI();

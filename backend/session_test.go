@@ -57,7 +57,7 @@ func TestUnsignedCookieIsRefused(t *testing.T) {
 		if got := a.readSessionRole(r); got != "" {
 			t.Errorf("the value %q gave the role %q, want none", value, got)
 		}
-		if a.hasRole(r, true) {
+		if a.hasRole(r) {
 			t.Errorf("the value %q passed hasRole as an admin", value)
 		}
 	}
@@ -156,7 +156,7 @@ func TestHintCookieAloneGrantsNothing(t *testing.T) {
 	if got := a.readSessionRole(r); got != "" {
 		t.Errorf("the hint cookie alone gave the role %q, want none", got)
 	}
-	if a.hasRole(r, true) {
+	if a.hasRole(r) {
 		t.Error("the hint cookie alone passed hasRole as an admin")
 	}
 }
@@ -169,11 +169,11 @@ func TestLocalConnectionNeedsNoCookie(t *testing.T) {
 	for _, addr := range []string{"127.0.0.1:5555", "[::1]:5555"} {
 		r := httptest.NewRequest(http.MethodGet, "/api/status", nil)
 		r.RemoteAddr = addr
-		if !a.hasRole(r, true) {
+		if !a.hasRole(r) {
 			t.Errorf("a connection from %s is not an admin", addr)
 		}
 		r.AddCookie(&http.Cookie{Name: sessionCookieName, Value: "nonsense"})
-		if !a.hasRole(r, true) {
+		if !a.hasRole(r) {
 			t.Errorf("a connection from %s lost the admin role over a bad cookie", addr)
 		}
 	}

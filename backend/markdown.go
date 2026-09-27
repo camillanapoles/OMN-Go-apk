@@ -212,11 +212,6 @@ func (a *App) rewriteInternalLink(href string) string {
 	return dir + base + suffix
 }
 
-// htmlEscape calls escapeHTML in templates.go, the one escape function.
-func (a *App) htmlEscape(s string) string {
-	return escapeHTML(s)
-}
-
 func (a *App) compilePage(name string, mdContent []byte) []byte {
 	return a.compilePageWithBody(name, mdContent, "")
 }

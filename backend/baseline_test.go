@@ -38,7 +38,7 @@ import (
 )
 
 // ---------------------------------------------------------------------
-// Shared helpers (moved from phase0_regression_test.go)
+// Shared helpers
 // ---------------------------------------------------------------------
 
 // baseWriteMD writes a note into <storage>/md/<rel>, and it creates the
@@ -1094,10 +1094,8 @@ func TestBaseline_InjectedRuntimeVarSet(t *testing.T) {
 // ---------------------------------------------------------------------
 // 10. The compiled-page shape, across every write path
 //
-// Moved from phase0_regression_test.go, where it was written to prove a
-// refactor that has since shipped. It is kept because the invariant is still
-// the one that matters. Five different handlers write html/<name>.html through
-// renderAndCache. All five must keep making a page that the frontend can run.
+// Five different handlers write html/<name>.html through renderAndCache. All
+// five must make a page that the frontend can run.
 // ---------------------------------------------------------------------
 
 func assertCachedPageShape(t *testing.T, path string) {
@@ -1159,11 +1157,10 @@ func TestBaseline_CompiledHTMLShapeAcrossWritePaths(t *testing.T) {
 // ---------------------------------------------------------------------
 // 11. The /api/logs SSE lifecycle
 //
-// Also moved from phase0_regression_test.go. The desktop connection-stall bug
-// was every page that held its EventSource open forever. The client half
-// closes it on pagehide. This is the server half. HandleLogsSSE must register
-// a client on connect, and it must DE-register that client when the request
-// context is canceled. Break the deferred cleanup and the leak returns.
+// A page that holds its EventSource open forever stalls the desktop
+// connections. The client closes it on pagehide. This is the server half.
+// HandleLogsSSE must register a client on connect, and it must DE-register
+// that client when the request context ends.
 // ---------------------------------------------------------------------
 
 func countLogClients() int {

@@ -37,10 +37,6 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { newPage, run, source } = require('./page-stub.js');
 
-// The scripts that every note page loads, in the order of
-// templates/index.html.
-const PAGE_SCRIPTS = ['omn-go-core.js', 'omn-go-sse.js'];
-
 // lazyMap reads the omnLazy calls of omn-go-sse.js and answers
 // {file: [name, ...]}.
 //

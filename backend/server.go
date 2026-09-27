@@ -222,9 +222,9 @@ type routeTable interface {
 func (a *App) registerRoutes(mux routeTable) {
 	// /api/logs and /api/logs/history are admin only. A guest on the LAN
 	// reads no log line, live or held. See handleLogHistory.
-	mux.HandleFunc("/api/logs", a.authMiddleware(a.HandleLogsSSE, true))
+	mux.HandleFunc("/api/logs", a.authMiddleware(a.HandleLogsSSE))
 
-	mux.HandleFunc("/api/logs/history", a.authMiddleware(a.handleLogHistory, true))
+	mux.HandleFunc("/api/logs/history", a.authMiddleware(a.handleLogHistory))
 	mux.HandleFunc("/", a.serveFrontend)
 
 	// The /js, /css and /json trees hold embedded assets.
@@ -244,38 +244,38 @@ func (a *App) registerRoutes(mux routeTable) {
 	mux.Handle("/user_json/", a.serveStorageSubdir("user_json", ""))
 
 	mux.HandleFunc("/login", a.handleLogin)
-	mux.HandleFunc("/api/quick", a.authMiddleware(a.handleQuickNote, true))
-	mux.HandleFunc("/api/bookmark", a.authMiddleware(a.handleBookmark, true))
-	mux.HandleFunc("/api/upload", a.authMiddleware(a.handleUpload, true))
-	mux.HandleFunc("/api/upload_json", a.authMiddleware(a.handleUploadJSON, true))
+	mux.HandleFunc("/api/quick", a.authMiddleware(a.handleQuickNote))
+	mux.HandleFunc("/api/bookmark", a.authMiddleware(a.handleBookmark))
+	mux.HandleFunc("/api/upload", a.authMiddleware(a.handleUpload))
+	mux.HandleFunc("/api/upload_json", a.authMiddleware(a.handleUploadJSON))
 	mux.HandleFunc("/api/note", a.handleGetNote)
 	// This route has no authMiddleware, the same as /api/note and each page.
 	// Search collects nothing that a guest cannot read file by file.
 	mux.HandleFunc("/api/search", a.handleSearch)
-	mux.HandleFunc("/api/save", a.authMiddleware(a.handleSaveNote, true))
-	mux.HandleFunc("/api/newpage", a.authMiddleware(a.handleNewPage, true))
-	mux.HandleFunc("/api/config", a.authMiddleware(a.handleConfig, true))
-	mux.HandleFunc("/api/restart", a.authMiddleware(a.handleRestart, true))
-	mux.HandleFunc("/api/sql", a.authMiddleware(a.handleSQL, true))
-	mux.HandleFunc("/api/db/backup", a.authMiddleware(a.handleDBBackupCreate, true))
-	mux.HandleFunc("/api/db/backups", a.authMiddleware(a.handleDBBackupList, true))
-	mux.HandleFunc("/api/db/restore", a.authMiddleware(a.handleDBRestore, true))
-	mux.HandleFunc("/db_backups", a.authMiddleware(a.serveDBBackupsPage, true))
+	mux.HandleFunc("/api/save", a.authMiddleware(a.handleSaveNote))
+	mux.HandleFunc("/api/newpage", a.authMiddleware(a.handleNewPage))
+	mux.HandleFunc("/api/config", a.authMiddleware(a.handleConfig))
+	mux.HandleFunc("/api/restart", a.authMiddleware(a.handleRestart))
+	mux.HandleFunc("/api/sql", a.authMiddleware(a.handleSQL))
+	mux.HandleFunc("/api/db/backup", a.authMiddleware(a.handleDBBackupCreate))
+	mux.HandleFunc("/api/db/backups", a.authMiddleware(a.handleDBBackupList))
+	mux.HandleFunc("/api/db/restore", a.authMiddleware(a.handleDBRestore))
+	mux.HandleFunc("/db_backups", a.authMiddleware(a.serveDBBackupsPage))
 	// This is a PAGE with its own route, because the catch-all needs no login
 	// and this listing is admin only. The handler asks hasRole itself, thus a
 	// refusal is a page and not a line of text.
 	mux.HandleFunc("/OMNGoFiles.html", a.serveFilesPage)
-	mux.HandleFunc("/api/sync", a.authMiddleware(a.handleSync, true))
-	mux.HandleFunc("/api/sync/preview", a.authMiddleware(a.handleSyncPreview, true))
-	mux.HandleFunc("/api/edit-external", a.authMiddleware(a.handleEditExternal, true))
+	mux.HandleFunc("/api/sync", a.authMiddleware(a.handleSync))
+	mux.HandleFunc("/api/sync/preview", a.authMiddleware(a.handleSyncPreview))
+	mux.HandleFunc("/api/edit-external", a.authMiddleware(a.handleEditExternal))
 	// Note exchange. Both routes are admin only: import writes files, and
 	// export is a way out of the note tree. The device itself is always
 	// admin, and on Android the device is the caller.
-	mux.HandleFunc("/api/export/note", a.authMiddleware(a.handleExportNote, true))
-	mux.HandleFunc("/api/import/note", a.authMiddleware(a.handleImportNote, true))
+	mux.HandleFunc("/api/export/note", a.authMiddleware(a.handleExportNote))
+	mux.HandleFunc("/api/import/note", a.authMiddleware(a.handleImportNote))
 	// This route is admin only, because the answer holds LAN addresses,
 	// absolute paths and a commit subject.
-	mux.HandleFunc("/api/status", a.authMiddleware(a.handleStatus, true))
+	mux.HandleFunc("/api/status", a.authMiddleware(a.handleStatus))
 	// The Status page and the Log page ask hasRole themselves, the same as
 	// /OMNGoFiles.html.
 	mux.HandleFunc("/OMNGoStatus.html", a.serveStatusPage)

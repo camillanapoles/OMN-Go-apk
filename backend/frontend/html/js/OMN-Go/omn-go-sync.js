@@ -313,13 +313,6 @@ if (window.location.protocol !== 'file:') {
         document.getElementById('commitMessage').value = '';
     };
 
-    // NOTE: In-page editing was removed. To edit a note now opens the
-    // dedicated editor page. That is any URL with ?edit=true, served by the
-    // Go backend and driven by omn-go-editor.js. It fetches the source from
-    // /api/note itself. The view page therefore embeds no #editor textarea
-    // any more. The old toggleMode, loadNoteIntoEditor, setupEditorDragDrop
-    // and saveNote helpers that manipulated it are gone.
-
 } else {
     window.runSync = function() { printDebug('runSync'); };
     window.syncAction = function() { printDebug('syncAction'); };

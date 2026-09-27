@@ -47,8 +47,8 @@ final class OmnConfig {
     static final String FULLSCREEN_IMMERSIVE = "immersive";
 
     // The default upload cap. It mirrors defaultMaxUploadSizeMB in
-    // backend/config.go. TestAndroidDefaultsMatchTheGoDefaults in
-    // backend/java_test.go compares the two.
+    // backend/config.go. TestUploadLimitHasAJavaCopy in
+    // backend/ports_test.go compares the two.
     static final int DEFAULT_MAX_UPLOAD_MB = 3;
 
     private OmnConfig() {

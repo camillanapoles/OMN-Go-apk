@@ -376,11 +376,11 @@ func TestFoldingIsLengthPreserving(t *testing.T) {
 			t.Errorf("fold(%q) has %d runes, want %d", s, got, want)
 		}
 	}
-	if got := foldString("Ёлка"); got != "елка" {
-		t.Errorf("foldString(Ёлка) = %q, want елка - the letter people omit when typing", got)
+	if got := string(fold("Ёлка")); got != "елка" {
+		t.Errorf("fold(Ёлка) = %q, want елка - the letter people omit when typing", got)
 	}
-	if got := foldString("Café"); got != "cafe" {
-		t.Errorf("foldString(Café) = %q, want cafe", got)
+	if got := string(fold("Café")); got != "cafe" {
+		t.Errorf("fold(Café) = %q, want cafe", got)
 	}
 }
 
@@ -429,19 +429,6 @@ func TestMergeSpans(t *testing.T) {
 		if got[i] != want[i] {
 			t.Errorf("span %d = %+v, want %+v", i, got[i], want[i])
 		}
-	}
-}
-
-func TestSplitQuery(t *testing.T) {
-	terms := splitQuery("  Fecth   JSON  ")
-	if len(terms) != 2 {
-		t.Fatalf("got %d terms, want 2", len(terms))
-	}
-	if string(terms[0]) != "fecth" || string(terms[1]) != "json" {
-		t.Errorf("terms = %q, %q, want folded fecth, json", string(terms[0]), string(terms[1]))
-	}
-	if len(splitQuery("   ")) != 0 {
-		t.Error("whitespace-only query should produce no terms")
 	}
 }
 

@@ -594,7 +594,7 @@ func (a *App) serveFilesPage(w http.ResponseWriter, r *http.Request) {
 		Tree: normalizeFilesTree(r.URL.Query().Get("tree"), dir),
 	}
 
-	if !a.hasRole(r, true) {
+	if !a.hasRole(r) {
 		view.Denied = true
 		a.writeFilesPage(w, view)
 		return

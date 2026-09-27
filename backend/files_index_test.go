@@ -898,13 +898,13 @@ func TestFilesPage_Authorization(t *testing.T) {
 	}
 }
 
-// hasRole is the single definition of the rule, so authMiddleware must still
-// behave exactly as it did when it carried the condition inline.
+// authMiddleware asks hasRole, the one definition of the rule. A local
+// connection and an admin cookie pass. A guest cookie and no cookie get 401.
 func TestAuthMiddlewareStillRefusesAfterExtraction(t *testing.T) {
 	a := newTestApp(t)
 	h := a.authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("through"))
-	}, true)
+	})
 
 	cases := []struct {
 		remote, cookie string
