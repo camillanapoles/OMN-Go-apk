@@ -29,9 +29,8 @@ func readRepoFile(rel string) (string, error) {
 // display. That is a small loss, and it is a silent one, which is what
 // makes it worth a test.
 //
-// 26.09.15 removed three lines above the name that made a prefix from an
-// application id. See the banner of Bookmarker.js for why those lines
-// never ran and why the prefix answered no question.
+// The name has no prefix from an application id. See the banner of
+// Bookmarker.js for why such a prefix answers no question.
 
 // bookmarkerJS reads the embedded script.
 func bookmarkerJS(t *testing.T) string {
@@ -45,8 +44,7 @@ func bookmarkerJS(t *testing.T) string {
 
 // jsWithoutComments drops each line that holds a comment and nothing
 // else. A test of what the CODE names must not read the banner. The
-// banner of Bookmarker.js names each of the three faults that 26.09.15
-// removed.
+// banner of Bookmarker.js talks about a prefix and names PackageName.
 //
 // The rule takes a whole line, thus a line of code keeps each byte. A
 // comment that follows code on one line stays, which is safe here: no
@@ -94,17 +92,17 @@ func TestBookmarkerConfigKeyIsWellFormed(t *testing.T) {
 			"settings of the Bookmarks page for each reader, with no message.", m[1])
 	}
 
-	// One assignment. A second one is the fault that 26.09.15 removed,
-	// and a const cannot carry it.
+	// One assignment. A second one would change the name after the
+	// first, and a const cannot carry it.
 	if n := strings.Count(jsWithoutComments(js), "configKey ="); n != 1 {
 		t.Errorf("configKey is assigned %d times, want 1. A const that a second "+
 			"line assigns throws a TypeError and stops the whole page.", n)
 	}
 }
 
-// The three faults of the removed lines must not come back. Each one is
-// silent: the branch never started, thus no reader and no console ever
-// reported it.
+// Code that makes a prefix from an application id must not come back.
+// Each name below is a silent fault: a test of an undefined name is always
+// false, thus no reader and no console reports it.
 func TestBookmarkerHasNoDeadApplicationIdPrefix(t *testing.T) {
 	// The CODE, and not the banner. See jsWithoutComments.
 	js := jsWithoutComments(bookmarkerJS(t))

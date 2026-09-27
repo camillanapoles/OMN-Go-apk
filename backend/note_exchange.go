@@ -58,7 +58,7 @@ const (
 	// why the note starts with nothing else.
 	//
 	// A note with no marker, from a user who deleted it, takes its lines at
-	// the top of the body instead. That is what 26.08.34 did for every note.
+	// the top of the body instead.
 	incomingListMarker = "<!-- omn-go-incoming-list -->"
 
 	headerKeyFileName = "FileName"
@@ -419,8 +419,8 @@ func sanitizeImportSegment(seg string) string {
 // still inside it.
 //
 // filepath.Join RESOLVES a "..", and it does not refuse one. syncNoteFileToMD
-// had to guard against the same thing in 26.08.31. sanitizeImportPath drops
-// every ".." that it sees. This asks the resolved path itself, and that is
+// guards against the same thing. sanitizeImportPath drops every ".." that it
+// sees. This asks the resolved path itself, and that is
 // the only question that matters.
 func (a *App) incomingPath(rel string) (string, bool) {
 	root := filepath.Join(a.StorageDir, "md", incomingDirName)
@@ -851,8 +851,8 @@ func (a *App) handleImportNote(w http.ResponseWriter, r *http.Request) {
 // readImportBody reads at most limit bytes and reports an error when there
 // were more.
 //
-// This is NOT the readCapped of search.go. This function carried that name
-// until the two collided, and it must not reach for that one. The other one
+// This is NOT the readCapped of search.go, and it must not reach for that
+// one. The other one
 // takes a PATH and TRUNCATES on purpose. "Found nothing in the part I looked
 // at" is a useful answer about a 2 MB note. Half a note is not a
 // useful import. The two have opposite behavior at the cap, and they must

@@ -5,19 +5,9 @@ const config = {};
 const embedCont = document.querySelector('#preview');
 // The one key that holds the settings of this page in localStorage.
 //
-// A PREFIX OF THE APPLICATION ID STOOD HERE UNTIL 26.09.15, AND IT NEVER
-// RAN. The three lines held three faults:
-//
-//   * configKey was a const, thus the assignment threw a TypeError.
-//   * the test read packgeName and the body read packageName.
-//   * neither name existed anywhere in the frontend.
-//
-// The code was therefore dead. The test of an undefined name is always
-// false, thus the branch never started and nothing threw.
-//
-// THE PREFIX ALSO ANSWERED NO QUESTION. It was there to keep the settings
-// of the standard build apart from the settings of the F-Droid build. Two
-// rules already do that:
+// THE KEY HAS NO PREFIX OF THE APPLICATION ID. Such a prefix would keep
+// the settings of the standard build apart from the settings of the
+// F-Droid build. Two rules already do that:
 //
 //   * localStorage belongs to one origin, and an origin holds the port.
 //     The standard build serves 8080 and the F-Droid build serves 8081.

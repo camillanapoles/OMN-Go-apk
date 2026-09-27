@@ -9,9 +9,8 @@ package backend
 //   - it shows ONE directory of ONE tree. The whole design turns on that. A
 //     "flat list of everything" is what it drifted into two times while it
 //     was planned.
-//   - one NAME has one ROW. Until 26.08.53 a name that both shipped and sat
-//     on the device was printed two times, in two sections, with nothing to
-//     pair them.
+//   - one NAME has one ROW. A name that both ships and sits on the device
+//     is not printed two times.
 //   - it never WRITES. The obvious way to resolve an embedded path is
 //     materializeAsset, and that extracts the file as a side effect. A
 //     listing built that way would silently defeat lazy extraction for all
@@ -103,8 +102,8 @@ func TestFilesPage_FirstScreenIsThreeTrees(t *testing.T) {
 	}
 }
 
-// A link written before 26.08.54 has a dir and no tree. It must still land on
-// the tree it meant.
+// An old link has a dir and no tree. It must still land on the tree it
+// meant.
 func TestNormalizeFilesTree(t *testing.T) {
 	cases := []struct{ raw, dir, want string }{
 		{"", "", ""},
@@ -183,8 +182,8 @@ func TestFilesPage_NavigatesAndOffersAWayBack(t *testing.T) {
 	}
 }
 
-// The crumb reads as the path it is. Until 26.08.53 each label carried a slash
-// AND a separator span went between two labels, so html/js/ read "html/ / js/".
+// The crumb reads as the path it is. A label with a slash AND a separator
+// span between two labels would make html/js/ read "html/ / js/".
 func TestFilesCrumbs_HaveNoDoubledSlash(t *testing.T) {
 	a := newTestApp(t)
 	writeDiskFile(t, a, "js/mine.js", "// mine")
@@ -255,8 +254,7 @@ func TestFilesPage_OneNameOneRow(t *testing.T) {
 
 // The words that survive, and the color that says what happens to the file.
 //
-// The rule since 26.08.55: a row speaks only when the application is
-// involved. On a real installation nearly every file is the user's, and a
+// The rule: a row speaks only when the application is involved. On a real installation nearly every file is the user's, and a
 // word on each of those rows buried the words that matter.
 func TestFilesPage_StatesAndColours(t *testing.T) {
 	a := newTestApp(t)
@@ -273,9 +271,9 @@ func TestFilesPage_StatesAndColours(t *testing.T) {
 	// Never shipped: also silent.
 	writeDiskFile(t, a, "js/mine.js", "// mine")
 
-	// 26.09.12 moved each app-owned file into js/OMN-Go/, thus one
-	// listing no longer holds each of the three colors. The app states
-	// are in the OMN-Go directory, and the plain state is above it.
+	// Each app-owned file is in js/OMN-Go/, thus one listing does not
+	// hold each of the three colors. The app states are in the OMN-Go
+	// directory, and the plain state is above it.
 	body := served(t, a, "js%2FOMN-Go%2F")
 	for _, want := range []string{
 		"changed here", "not extracted",
@@ -292,7 +290,7 @@ func TestFilesPage_StatesAndColours(t *testing.T) {
 	if !strings.Contains(body, ">app-owned<") {
 		t.Error("no row spells out app-owned")
 	}
-	// The words of 26.08.54 that said "ordinary" are gone.
+	// No word says "ordinary".
 	for _, gone := range []string{"as shipped", "yours", "compiled"} {
 		if strings.Contains(body, gone) {
 			t.Errorf("the listing still says %q; the ordinary case must be silent", gone)
@@ -546,9 +544,9 @@ func TestFilesPage_SourceMarksLocalOnly(t *testing.T) {
 	}
 }
 
-// A directory speaks only when the application delivered files into it. Until
-// 26.08.55 the rule was inverted and nearly every directory of a real
-// installation carried a word that said "ordinary".
+// A directory speaks only when the application delivered files into it. The
+// inverted rule would give nearly every directory of a real installation a
+// word that says "ordinary".
 func TestFilesDirNote_MarksOnlyAppFiles(t *testing.T) {
 	a := newTestApp(t)
 	writeDiskFile(t, a, "Journal/2026-08-01.html", "<html></html>")
@@ -857,7 +855,7 @@ func remoteFilesRequest(t *testing.T, a *App, cookie string) *httptest.ResponseR
 	req := httptest.NewRequest(http.MethodGet, "/OMNGoFiles.html?tree=served&dir=js%2F", nil)
 	req.RemoteAddr = "192.168.1.50:41234"
 	// A signed cookie, and not the bare word: the server refuses an
-	// unsigned value since 26.09.6. See session.go.
+	// unsigned value. See session.go.
 	if cookie != "" {
 		req.AddCookie(sessionCookie(t, a, cookie))
 	}

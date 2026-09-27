@@ -242,8 +242,8 @@ func TestImportNoteCannotEscape(t *testing.T) {
 
 	// The list of files that the setup made. The test asks what the
 	// IMPORT wrote, thus it compares against this list and not against
-	// an empty tree. newTestApp writes config.json since 26.09.18, and
-	// a later change of the setup can add another file.
+	// an empty tree. newTestApp writes config.json, and a later change of
+	// the setup can add another file.
 	before := map[string]bool{}
 	for _, rel := range filesUnder(t, a.StorageDir) {
 		before[rel] = true
@@ -700,7 +700,7 @@ func TestIncomingIndexWithoutMarker(t *testing.T) {
 }
 
 // ----------------------------------------------------------------------
-// The documentation links (26.08.40)
+// The documentation links
 // ----------------------------------------------------------------------
 
 // Two bundled notes link to the Incoming notes page. That link is the ONLY
@@ -751,7 +751,7 @@ func TestIncomingIndexLinkRewrites(t *testing.T) {
 }
 
 // ----------------------------------------------------------------------
-// The description block (26.08.41)
+// The description block
 // ----------------------------------------------------------------------
 
 // The text a note offers as the MESSAGE beside the file. The fence is
@@ -845,7 +845,7 @@ func TestHandleExportNoteDescriptionHeader(t *testing.T) {
 }
 
 // ----------------------------------------------------------------------
-// The incoming index: link text and the receive box (26.08.44)
+// The incoming index: link text and the receive box
 // ----------------------------------------------------------------------
 
 // The link text is the note's own Title. The FILE name is what OMN-Go had to

@@ -14,19 +14,15 @@ package backend
 //	Served   what a URL finds - StorageDir/html, minus db_backup/.
 //	Source   what you wrote - StorageDir/md.
 //
-// Until 26.08.53 there were two of these on ONE screen, as two sections, and
-// the reader had to pair the rows by eye. A name that appeared in both was
-// printed twice and neither row said how the two were related. Each tree is
-// its own screen now, and inside a tree each NAME has exactly one row that
-// states the relation.
+// Each tree is its own screen, and inside a tree each NAME has exactly one
+// row that states the relation. The reader never pairs two rows by eye.
 //
 // SILENCE IS THE ORDINARY CASE. On a real installation most files belong to
 // the user. Those are the notes they wrote, the pages that OMN-Go compiled
 // from those notes, and the images they put in them.
 //
-// 26.08.54 gave each of those a word, which was "yours", "compiled" or "as
-// shipped". The words that mattered drowned in them. A row now speaks ONLY
-// when the application is involved:
+// A word on each of those rows would drown the words that matter. A row
+// thus speaks ONLY when the application is involved:
 //
 //	not extracted     the build carries this file and this device has no
 //	                  copy.
@@ -278,9 +274,8 @@ func normalizeFilesDir(raw string) string {
 
 // normalizeFilesTree keeps ?tree= to the three known values.
 //
-// An address with a dir and no tree is the shape every link of 26.08.53 had,
-// when the page served the html/ tree alone. Such a link still lands where it
-// did.
+// An address with a dir and no tree is an old link. The page then served
+// the html/ tree alone, thus such a link still lands on the served tree.
 func normalizeFilesTree(raw, dir string) string {
 	switch raw {
 	case filesTreeBundled, filesTreeServed, filesTreeSource:
@@ -734,8 +729,8 @@ const filesFromTheApp = "from the app"
 // The route deliberately does NOT wrap authMiddleware. That middleware
 // answers a refusal with one line of plain text. That is right for /api/*
 // and wrong for an address that a person can link to from their own note.
-// The 404 of the search page in 26.08.2 taught that lesson. This route asks
-// the same question through hasRole, and it answers with a page.
+// This route asks the same question through hasRole, and it answers with a
+// page.
 func (a *App) serveFilesPage(w http.ResponseWriter, r *http.Request) {
 	dir := normalizeFilesDir(r.URL.Query().Get("dir"))
 	view := filesPageView{
@@ -934,8 +929,7 @@ func (a *App) writeFilesPage(w http.ResponseWriter, view filesPageView) {
 // directory last.
 //
 // Each crumb carries its own trailing slash and NOTHING separates two crumbs.
-// Until 26.08.53 the labels carried a slash and a separator span was written
-// between them as well, so the crumb of html/js/ read "html/ / js/".
+// A separator as well would make the crumb of html/js/ read "html/ / js/".
 func filesCrumbs(tree, dir string) []filesCrumb {
 	root := "bundled/"
 	switch tree {
