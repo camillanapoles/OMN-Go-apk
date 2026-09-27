@@ -29,50 +29,29 @@ import (
 // The repository: the ignore rules, the remotes, and the commit
 // ----------------------------------------------------------------------
 //
-// FOUR FILES HOLD THE GIT CODE. A reader who looks for one part does not
-// read past the other three:
+// Four files hold the git code:
 //
 //	git_fs.go        The go-billy wrappers for Android.
-//	git_repo.go      This file. The ignore rules, the remotes, the
-//	                 SSH key, the staging, and commitLocalChanges.
-//	git_sync.go      The six sync paths, the merge checkpoints, and
-//	                 SyncRepo, which chooses between them.
-//	git_handlers.go  handleSync, handleSyncPreview, and the two JSON
-//	                 writers that they answer with.
-//
-// This file answers the question "what does the repository look like
-// before a sync starts". It makes the repository and it writes
-// .gitignore. It holds one remote for each configured server slot, and
-// it reads the SSH key of the active slot. Last, it stages and commits
-// what the device changed.
-// ---------------------------------------------------------------
-// Repository initialisation
-// ---------------------------------------------------------------
+//	git_repo.go      The ignore rules, the remotes, the SSH key, the commit.
+//	git_sync.go      The sync paths and SyncRepo.
+//	git_handlers.go  The HTTP handlers of /api/sync.
 
-// gitignorePatterns is the one authority for the sync .gitignore. Both the
-// initial file and the backfill that updates an existing install are built
-// from this one list. gitignoreBase in ensureGitignore makes the initial
-// file. A new pattern here is thus all it takes, and the two can no longer
-// drift.
+// gitignorePatterns is the one list for the sync .gitignore. ensureGitignore
+// writes it for a new install, and it adds each missing line to an old one.
 //
-// Order matters: a "!negation" must follow the pattern it re-includes
-// (e.g. "/html/images/*" before "!/html/images/*.svg"). The bare
-// "!/html/images/" / "!/html/images/icons/" negations are deliberately NOT
-// here: with go-git's matcher a directory-only negation re-includes every
-// file under the directory, silently undoing "/html/images/*". ensureGitignore
-// actively strips those buggy lines from any file that still has them.
+// The order is part of the rule. A "!" line must follow the pattern that it
+// includes again. A negation of a directory alone, for example
+// "!/html/images/", is NOT here. With the go-git matcher, it includes each
+// file below the directory, and "/html/images/*" then has no effect.
 //
-// gitignoreLocalOnlyPattern is the last entry, and the position is part
-// of the rule. go-git's matcher reads the patterns from the end and
-// stops at the first match, thus the last pattern wins. A file with a
-// local-only name thus stays out of git below a "!" negation, for
-// example html/images/local-map.svg.
+// Keep gitignoreLocalOnlyPattern last. The go-git matcher reads the patterns
+// from the end, thus the last match wins. A local-only name thus stays out of
+// git below a "!" line, for example html/images/local-map.svg.
 var gitignorePatterns = []string{
 	"config.json",
 	"assets_version",
-	// The HMAC key of the session cookie. It belongs to one device, and a
-	// device that holds the key of another device can make a valid cookie
-	// for it. See session.go.
+	// session_secret is the HMAC key of the session cookie. A device with the
+	// key of another device can make a valid cookie for it.
 	"session_secret",
 	"/asset_backups/",
 	"*.html",
@@ -102,11 +81,8 @@ var gitignorePatterns = []string{
 	"/html/js/OMN-Go/katex.min.js",
 	"/html/js/OMN-Go/highlight.min.js",
 	"/html/js/OMN-Go/Bookmarker.js",
-	// A .txt beside a note is written in md/ and COPIED into html/, which is
-	// where its URL resolves (note_files.go). Only the md/ copy is
-	// the file; the html/ one is made from it at every start. Two copies of
-	// one text in git is one too many, and the pair of them is what a merge
-	// conflict looks for.
+	// A .txt beside a note lives in md/, and the server copies it into html/.
+	// Only the md/ file goes to git. See isDerivedTextPath.
 	"/html/**/*.txt",
 	"/md/AndroidIntents.md",
 	"/md/BookmarksHowTo.md",
@@ -121,32 +97,17 @@ var gitignorePatterns = []string{
 	gitignoreLocalOnlyPattern,
 }
 
-// ---------------------------------------------------------------
-// The local-only name rule
-// ---------------------------------------------------------------
+// The local-only name rule: a file or a directory with a name that starts
+// with "local-" stays on this device.
 //
-// A name that starts with "local-" makes a file, or a whole directory,
-// stay on this device. The database backups had this rule first: a
-// database with a name such as local-page_counters kept its backups out
-// of git through the pattern "/html/db_backup/local-*/". The rule is now
-// general and applies to each path.
+//	html/user_json/local-data.json     a file name
+//	md/local-drafts/Monday.md          a directory name
+//	html/db_backup/local-counters/...  a database backup
 //
-// Examples of a path that git ignores:
-//
-//	html/user_json/local-data.json     a name that starts with local-
-//	md/local-drafts/Monday.md          a directory that starts with local-
-//	html/db_backup/local-counters/...  the database rule, as before
-//
-// The match is on a complete path segment and it is case-sensitive, the
-// same as each other pattern in a .gitignore file. "mylocal-data.json"
-// is thus a normal file that git tracks.
-//
-// The rule gives two results:
-//
-//   - The file does not go to the other devices. A commit does not
-//     contain it, and a push does not send it.
-//   - A force pull keeps the file. cleanUntrackedFiles deletes an
-//     untracked file, but not one that .gitignore matches.
+// The match is on a whole path segment, and it is case-sensitive, thus
+// "mylocal-data.json" is a normal file. A commit does not take a local-only
+// file. A force pull keeps it, because cleanUntrackedFiles keeps an ignored
+// file.
 const localOnlyPrefix = "local-"
 
 // gitignoreLocalOnlyPattern is the .gitignore form of the same rule. The
@@ -154,13 +115,10 @@ const localOnlyPrefix = "local-"
 // path, at each depth.
 const gitignoreLocalOnlyPattern = localOnlyPrefix + "*"
 
-// isLocalOnlyPath tells if a StorageDir-relative path is local-only: the
-// name of the file, or the name of a directory above it, starts with
-// "local-".
-//
-// The function is the rule for the index (see untrackLocalOnlyPaths).
-// The .gitignore pattern is the rule for a new file. The two must agree,
-// and a test compares them.
+// isLocalOnlyPath tells if the name of the file, or of a directory above it,
+// starts with "local-". It is the rule for the index.
+// gitignoreLocalOnlyPattern is the rule for a new file.
+// TestGitignoreMatchesEachLocalOnlyPath compares the two.
 func isLocalOnlyPath(name string) bool {
 	for _, segment := range strings.Split(filepath.ToSlash(name), "/") {
 		if strings.HasPrefix(segment, localOnlyPrefix) {
@@ -170,24 +128,16 @@ func isLocalOnlyPath(name string) bool {
 	return false
 }
 
-// obsoleteGitignoreLines are the lines that ensureGitignore deletes from
-// an existing file. The "append what is missing" loop cannot do this,
-// because the lines are present.
+// obsoleteGitignoreLines are the lines that ensureGitignore deletes from an
+// existing file.
 var obsoleteGitignoreLines = map[string]bool{
-	// A directory-only negation re-includes each file below the
-	// directory with the go-git matcher. It thus undoes
-	// "/html/images/*". The long note in ensureGitignore gives the
-	// details.
+	// These lines negate a directory alone. See gitignorePatterns.
 	"!/html/images/":       true,
 	"!/html/images/icons/": true,
-	// The general "local-*" rule replaced this line. The result for a
-	// database backup is the same, and each other file now gets it too.
+	// The general local-* rule covers the same files.
 	"/html/db_backup/local-*/": true,
-	// The old place of each app asset, before the move below
-	// html/js/OMN-Go/ and html/css/OMN-Go/, and html/css/markdown.css.
-	// Remove these lines, or .gitignore keeps a line for a file that
-	// does not exist. removeRetiredAssets in assets.go
-	// deletes the files themselves. See retiredAssets.
+	// These lines name the old places of the app files. removeRetiredAssets
+	// in assets.go deletes the files. See retiredAssets.
 	"/html/css/omn-go-core.css":           true,
 	"/html/css/Bookmarker.css":            true,
 	"/html/css/highlight.default.min.css": true,
@@ -205,27 +155,6 @@ var obsoleteGitignoreLines = map[string]bool{
 
 func (a *App) ensureGitignore() {
 	gitignorePath := filepath.Join(a.StorageDir, ".gitignore")
-	//gitignoreBase := "# OMN-Go sync ignore\nconfig.json\n*.html\n/md/local/\n"
-	//
-	// NOTE: there is no "!/html/images/" or "!/html/images/icons/"
-	// re-inclusion line here. An earlier revision had them. They would be
-	// needed with the real `git` CLI, because its directory-ignore pruning
-	// stops it from ever looking inside an ignored directory. The negation
-	// re-opens the door, thus the *.svg exception below is still seen.
-	//
-	// This app never uses the `git` binary. commitLocalChanges and
-	// syncPush check each individual file path from wTree.Status()
-	// directly against the gitignore matcher, thus that traversal problem
-	// does not apply here.
-	//
-	// Verified against the plumbing/format/gitignore matcher of go-git.
-	// The globMatch of a bare "!/html/images/" pattern does not require
-	// the whole path to be consumed. That holds for a directory-only
-	// pattern, unless the path stops exactly there. It therefore matches
-	// every file anywhere under html/images/, and re-includes it, and not
-	// the directory entry alone. That silently undoes "/html/images/*" for
-	// every file in it, and a plain test PNG dropped there counts. The
-	// same fault applies to the icons/ subtree.
 	gitignoreBase := "# OMN-Go sync ignore\n" + strings.Join(gitignorePatterns, "\n") + "\n"
 	content, err := os.ReadFile(gitignorePath)
 	if os.IsNotExist(err) {
@@ -237,14 +166,8 @@ func (a *App) ensureGitignore() {
 		return
 	}
 
-	// Delete each obsolete line from a .gitignore that still has it.
-	// Three kinds of install have such a line. One got the buggy
-	// gitignoreBase. One got a file that a previous version of the
-	// backfill loop wrote. One carries the old database-only rule for
-	// the local-* names. The "append what is missing" loop below cannot do
-	// this, because the lines are present. They are filtered out and the
-	// file is written again. See obsoleteGitignoreLines for the reason of
-	// each line.
+	// Delete each obsolete line. The loop below cannot do it, because the
+	// lines are present. See obsoleteGitignoreLines.
 	rewritten := false
 	{
 		var kept []string
@@ -260,18 +183,10 @@ func (a *App) ensureGitignore() {
 		}
 	}
 
-	// The file already exists on every install that predates a given
-	// entry. Append the entries that are missing, and do not handle the
-	// file-absent case alone. Without this, /db/ would silently stay
-	// unignored on every existing installation. That directory holds
-	// binary SQLite files, and they must never be committed.
-	//
-	// Append any pattern from gitignorePatterns that is not already
-	// present as an EXACT line. That is a whole-line match, and not a
-	// substring. "*.woff" is a substring of "*.woff2", and strings.Contains
-	// would wrongly read that as already present. An existing install thus
-	// picks up a pattern added to the list after its .gitignore was first
-	// written.
+	// Add each missing pattern to an existing file. Without this, an old
+	// install never ignores a new entry, for example the SQLite files in
+	// /db/. The test is a whole-line match, because "*.woff" is a substring
+	// of "*.woff2".
 	present := map[string]bool{}
 	for _, line := range strings.Split(string(content), "\n") {
 		present[strings.TrimSpace(line)] = true
@@ -328,51 +243,32 @@ func (a *App) getOrInitRepo() (*git.Repository, error) {
 		a.logInfof(logSync, "Repo initialized")
 	} else {
 		a.logDebugf(logSync, "Repo opened successfully")
-		// Backfill any .gitignore entry added to gitignoreBase after this
-		// repo was first created. See the appended-entries loop in
-		// ensureGitignore. It runs at each open, on each platform. Without
-		// it, a commit takes a file that .gitignore must cover, for example
-		// a test image.
+		// Add each new pattern at each open. Without this, a commit can take
+		// a file that .gitignore must cover, for example a test image.
 		a.ensureGitignore()
 	}
 
-	// The setup and the selection of a remote happen separately, in
-	// ensureRemotesAndGetActive. A sync operation alone needs it, because
-	// a plain status or preview read touches no remote. It is thus not
-	// done unconditionally here.
+	// Only a sync needs a remote, thus ensureRemotesAndGetActive sets the
+	// remotes. A status read touches no remote.
 	return repo, nil
 }
 
-// ---------------------------------------------------------------
-// Remote management — one git remote per configured server slot
-// ---------------------------------------------------------------
-//
-// Each server keeps a remote, a history and an identity of its own. See
+// The app keeps one git remote for each server slot. See
 // doc/decisions/0012-keep-one-remote-for-each-git-server-slot.md.
 //
-//   - "origin" is a one-time bootstrap remote. It is created only when it
-//     does not already exist, and it is seeded from whatever server is
-//     active at that moment. It is never modified again. It exists as a
-//     fallback for the case where the active slot has no URL configured.
-//     It does not track a config change.
-//   - Every server slot with a non-empty URL gets its own persistent
-//     remote. The name comes from the slot index, as "gitserver0" through
-//     "gitserver4", and not from the "Name" field that the user can edit.
-//     A rename of a server in Config thus does not orphan its remote.
-//     These ARE kept in step with the config on every call. One is added
-//     when a slot gains a URL, updated when the URL of a slot changes, and
-//     removed when a slot is cleared.
-//   - A sync operation uses the remote of the active slot. It falls back
-//     to "origin" only when that slot has no URL.
+// "origin" gets the URL of the active slot one time, and it never changes. A
+// sync uses it only when the active slot has no URL. Each slot with a URL has
+// the remote gitserver<index>. The name does not come from the Name field,
+// because a person can change that field. ensureSlotRemotes adds, changes and
+// removes these remotes at each sync.
 
-// slotRemoteName returns the deterministic git remote name for a given
-// GitServers slot index.
+// slotRemoteName answers the remote name of a slot index.
 func slotRemoteName(index int) string {
 	return fmt.Sprintf("gitserver%d", index)
 }
 
-// ensureOriginRemote creates "origin" the first time it is missing, seeded
-// from fallbackURL, and otherwise leaves it untouched.
+// ensureOriginRemote makes "origin" from fallbackURL when it is missing. It
+// never changes an existing origin.
 func (a *App) ensureOriginRemote(repo *git.Repository, fallbackURL string) error {
 	if _, err := repo.Remote("origin"); err == nil {
 		return nil // already exists — this remote is never modified again
@@ -388,10 +284,8 @@ func (a *App) ensureOriginRemote(repo *git.Repository, fallbackURL string) error
 	return err
 }
 
-// ensureSlotRemotes adds, updates or removes one remote for each
-// GitServers slot, to match cfg. It answers the remote name that a sync
-// must use. That is the own remote of the active slot when the slot has a
-// URL configured, and "origin" as a fallback.
+// ensureSlotRemotes makes the remotes match cfg. It answers the remote of the
+// active slot, or "origin" when that slot has no URL.
 func (a *App) ensureSlotRemotes(repo *git.Repository, cfg Config) (activeRemoteName string, err error) {
 	for i, gs := range cfg.GitServers {
 		name := slotRemoteName(i)
@@ -438,9 +332,8 @@ func (a *App) ensureSlotRemotes(repo *git.Repository, cfg Config) (activeRemoteN
 	return "origin", nil
 }
 
-// ensureRemotesAndGetActive reconciles every git remote against the current
-// config. See the block comment above. It answers the remote name that the
-// caller must use for this sync.
+// ensureRemotesAndGetActive makes each remote match the config. It answers
+// the remote for this sync.
 func (a *App) ensureRemotesAndGetActive(repo *git.Repository) (string, error) {
 	cfg := a.GetConfig()
 
@@ -479,15 +372,10 @@ func (a *App) manualGitInit(dir string) error {
 	return nil
 }
 
-// loadGitignoreMatcher answers a matcher for the .gitignore file of the
-// worktree plus the built-in list gitignorePatterns.
-//
-// The built-in list comes last, thus it wins over the file. A force pull
-// writes the .gitignore of the remote into the worktree. That file can
-// come from an older version, or a person can change it. When the
-// matcher read the file alone, a force pull deleted each file that only
-// the built-in list protects. Examples are the database files in /db/,
-// each local- file and session_secret.
+// loadGitignoreMatcher answers a matcher for the .gitignore of the worktree
+// and gitignorePatterns. The built-in list comes last, thus it wins. A force
+// pull can write an old or a changed .gitignore from the remote. The list
+// then still protects /db/, each local- file and session_secret.
 func (a *App) loadGitignoreMatcher(wt *git.Worktree) (gitignore.Matcher, error) {
 	patterns, err := gitignore.ReadPatterns(wt.Filesystem, []string{})
 	if err != nil {
@@ -499,11 +387,8 @@ func (a *App) loadGitignoreMatcher(wt *git.Worktree) (gitignore.Matcher, error) 
 	return gitignore.NewMatcher(patterns), nil
 }
 
-// ---------------------------------------------------------------
-// Manual staging (bypasses go‑git’s Add entirely)
-// ---------------------------------------------------------------
-
-// a.manualStageFile streams the file content into a new blob and updates the index.
+// manualStageFile writes the file into a new blob and sets its index entry.
+// It does not use Add of go-git.
 func (a *App) manualStageFile(repo *git.Repository, wt *git.Worktree, name string) error {
 	fullPath := filepath.Join(a.StorageDir, name)
 	stat, err := os.Lstat(fullPath)
@@ -520,7 +405,7 @@ func (a *App) manualStageFile(repo *git.Repository, wt *git.Worktree, name strin
 	}
 	defer f.Close()
 
-	// Stream file to object database (memory‑safe)
+	// Stream the file, thus a large file needs little memory.
 	obj := repo.Storer.NewEncodedObject()
 	obj.SetType(plumbing.BlobObject)
 	w, err := obj.Writer()
@@ -538,7 +423,6 @@ func (a *App) manualStageFile(repo *git.Repository, wt *git.Worktree, name strin
 		return err
 	}
 
-	// Update or add index entry
 	idx, err := repo.Storer.Index()
 	if err != nil {
 		return err
@@ -562,15 +446,9 @@ func (a *App) manualStageFile(repo *git.Repository, wt *git.Worktree, name strin
 	return repo.Storer.SetIndex(idx)
 }
 
-// ---------------------------------------------------------------
-// SSH authentication
-// ---------------------------------------------------------------
-
 func (a *App) getSSHAuth() (transport.AuthMethod, error) {
-	// Take one consistent snapshot, and not four separate reads of
-	// a.Config. A concurrent POST to /api/config could otherwise change
-	// ActiveGitIndex or GitServers between two reads, and mix fields from
-	// two different server entries.
+	// Read one copy of the config. Two separate reads could mix the fields of
+	// two servers.
 	cfg := a.GetConfig()
 	gs := cfg.GitServers[cfg.ActiveGitIndex]
 
@@ -606,25 +484,17 @@ func (a *App) getSSHAuth() (transport.AuthMethod, error) {
 	return publicKeys, nil
 }
 
-// ---------------------------------------------------------------
-// Staging & committing (manual staging with gitignore filter)
-// ---------------------------------------------------------------
-
-// isDerivedTextPath reports whether a path is a copy that html/ holds of a
-// text file whose original is in md/ (note_files.go).
-//
-// The md/ copy is the file. The html/ copy is made from it at every start,
-// because that is where its URL resolves. Only one of the two belongs in
-// git, and a device that pulls the md/ one rebuilds its own html/ one.
+// isDerivedTextPath reports whether a path is the html/ copy of a text file
+// that lives in md/. See note_files.go. Only the md/ file belongs in git. A
+// device that pulls it makes its own html/ copy.
 func isDerivedTextPath(name string) bool {
 	name = filepath.ToSlash(name)
 	return strings.HasPrefix(name, "html/") && isSyncedNoteFile(name)
 }
 
-// untrackReason says why a tracked path must leave the index. It answers ""
-// when the path must stay. It is the one rule, and the removal below and
-// the upload preview both read it. The preview thus cannot promise
-// something that the commit does not do.
+// untrackReason says why a tracked path must leave the index, or "" when it
+// stays. The removal and the upload preview both read it. The preview thus
+// cannot promise more than the commit does.
 func untrackReason(name string) string {
 	switch {
 	case isLocalOnlyPath(name):
@@ -636,25 +506,14 @@ func untrackReason(name string) string {
 }
 
 // untrackLocalOnlyPaths removes each path that untrackReason names from the
-// index and returns the number of the paths that it removed. The files stay
-// on the disk: only the index entry goes away, the same as "git rm --cached".
-// The next commit thus records a deletion, and a pull deletes the copy on
-// the other device.
+// index, like "git rm --cached". The file stays on disk. The next commit
+// records a deletion, and a pull deletes the copy on another device. That is
+// correct for both rules. Worktree.Remove of go-git also deletes the file
+// from disk, thus this code writes the index itself.
 //
-// That is the correct result for both rules. A local-only name says "this
-// device only". A .txt under html/ is a copy of the file in md/. The other
-// device makes its own copy from the md/ file it already has. See
-// syncNoteFilesToHTML, which SyncRepo also runs after a pull.
-//
-// The function reads the index directly, as manualStageFile does.
-// go-git's Worktree.Remove deletes the file from the disk too, thus it is
-// not usable here.
-//
-// ONLY these two rules cause a removal. The other patterns in the
-// .gitignore list must not. A file such as md/UserManual.md, or a
-// compiled *.html page, can be in the index of an old repository. A
-// removal of each of those at one time would delete many files on the
-// other devices.
+// Only these two rules remove a path. An old repository can track
+// md/UserManual.md or a compiled page. A removal of each such file would
+// delete many files on the other devices.
 func (a *App) untrackLocalOnlyPaths(repo *git.Repository) int {
 	idx, err := repo.Storer.Index()
 	if err != nil {
@@ -684,19 +543,16 @@ func (a *App) untrackLocalOnlyPaths(repo *git.Repository) int {
 	return removed
 }
 
-// localOnlyPreviewNote goes after a path in the upload preview. The file
-// is in the list, but the commit deletes it from the repository. It does
-// not delete it from this device.
+// localOnlyPreviewNote follows a path in the upload preview. The commit
+// deletes the file from the repository, and not from this device.
 const localOnlyPreviewNote = " (local-only: git stops to track it)"
 
-// derivedTextPreviewNote is the same for a .txt under html/. The file stays
-// on this device and is made again at every start from the copy in md/.
+// derivedTextPreviewNote is the same note for a .txt under html/.
 const derivedTextPreviewNote = " (a copy of the file in md/: git stops to track it)"
 
-// untrackTrackedPaths reads the index. It answers each path that git still
-// tracks and that untrackLocalOnlyPaths is about to remove, with the note
-// that says why, in sorted order. It changes nothing. The upload preview
-// uses it to show what the commit does.
+// untrackTrackedPaths answers each path that untrackLocalOnlyPaths would
+// remove, with the reason, in sorted order. It changes nothing. The upload
+// preview reads it.
 func (a *App) untrackTrackedPaths(repo *git.Repository) []string {
 	idx, err := repo.Storer.Index()
 	if err != nil {
@@ -714,21 +570,16 @@ func (a *App) untrackTrackedPaths(repo *git.Repository) []string {
 }
 
 func (a *App) commitLocalChanges(repo *git.Repository, wTree *git.Worktree, message string) (bool, error) {
-	// Load gitignore matcher
 	matcher, err := a.loadGitignoreMatcher(wTree)
 	if err != nil {
 		a.logErrf(logSync, "could not load .gitignore: %v", err)
 		matcher = gitignore.NewMatcher(nil) // no ignore
 	}
 
-	// A local-only file can be in the index from a time before the rule,
-	// or from before the user gave the file that name. A .gitignore
-	// pattern does not remove a file from the index, thus the file keeps
-	// its old behavior. A commit does not take the new content, and a
-	// force pull writes the old content of the repository over the local
-	// file. The removal below is the one-time answer. It must run before
-	// the status test, because an unchanged tracked file makes no entry in
-	// the status.
+	// A local-only file can be in the index from a time before the rule, or
+	// before the file got its name. A .gitignore pattern does not remove a
+	// tracked file. Remove it before the status test, because an unchanged
+	// tracked file gives no status entry.
 	unstaged := a.untrackLocalOnlyPaths(repo)
 
 	a.logDebugf(logSync, "Checking worktree status")
@@ -745,13 +596,12 @@ func (a *App) commitLocalChanges(repo *git.Repository, wTree *git.Worktree, mess
 	hasRealChanges := unstaged > 0
 	for name, fileStat := range status {
 
-		// Skip ignored files
 		if matcher != nil && matcher.Match(strings.Split(name, string(filepath.Separator)), false) {
 			a.logDebugf(logSync, "Ignoring %s (matches .gitignore)", name)
 			continue
 		}
 
-		// Exclude root config.json explicitly
+		// config.json stays on this device. See cleanUntrackedFiles.
 		if name == "config.json" {
 			a.logDebugf(logSync, "Ignoring root config.json (preserve locally)")
 			continue
@@ -795,14 +645,9 @@ func (a *App) commitLocalChanges(repo *git.Repository, wTree *git.Worktree, mess
 		Committer: sig,
 	}
 
-	// When a pull_mark 3-way merge is pending, this commit must be a merge
-	// commit, and not a plain linear commit. Its parents are the local
-	// HEAD and the remote tip that was merged in. Without them no real git
-	// merge ever took place. The divergent remote history would then
-	// vanish from the graph, and that is the history the user resolved the
-	// conflict markers against. go-git auto-fills Parents with HEAD only
-	// when the caller leaves it empty. HEAD thus has to be named here,
-	// beside the pending remote parent.
+	// A pending pull_mark merge makes a merge commit with two parents: HEAD
+	// and the remote tip. go-git fills Parents with HEAD only when the list
+	// is empty, thus the code names HEAD here.
 	var pendingMergeParent plumbing.Hash
 	hasPendingMerge := false
 	if h, ok := a.loadMergeParent(); ok {
@@ -813,9 +658,8 @@ func (a *App) commitLocalChanges(repo *git.Repository, wTree *git.Worktree, mess
 		pendingMergeParent = h
 		hasPendingMerge = true
 		commitOpts.Parents = []plumbing.Hash{headRef.Hash(), h}
-		// The merge resolution may leave the tree identical to one parent
-		// (e.g. purely a "take remote's version" resolution) - that is
-		// still a legitimate merge commit, not an empty no-op commit.
+		// A resolution can equal one parent, and the result is still a merge
+		// commit.
 		commitOpts.AllowEmptyCommits = true
 	}
 
@@ -836,10 +680,6 @@ func (a *App) commitLocalChanges(repo *git.Repository, wTree *git.Worktree, mess
 	return true, nil
 }
 
-// ---------------------------------------------------------------
-// Utilities
-// ---------------------------------------------------------------
-
 func (a *App) GetConfigAuthor() string {
 	if author := a.GetConfig().Author; author != "" {
 		return author
@@ -847,12 +687,12 @@ func (a *App) GetConfigAuthor() string {
 	return "OMN-Go User"
 }
 
-// Prevent Android media scanner delete critical empty directoryes
+// protectGitDirs keeps the empty .git/objects directory on Android. The media
+// scanner can delete an empty directory.
 func (a *App) protectGitDirs() {
 	if runtime.GOOS != "android" {
 		return
 	}
-	//for _, dir := range []string{"objects", "refs"} {
 	for _, dir := range []string{"objects"} {
 		p := filepath.Join(a.StorageDir, ".git", dir)
 		if err := os.MkdirAll(p, 0755); err != nil {

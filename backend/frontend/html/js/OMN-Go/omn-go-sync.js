@@ -38,10 +38,6 @@ if (window.location.protocol !== 'file:') {
     // action, force and message together, and it always expects a JSON
     // {status, message} response.
     //
-    // The backend reads "action" from the body of the POST. It ignores an
-    // action in the URL query string alone, and it then does a plain
-    // "pull".
-    //
     // Both syncAction and the conflict modal handler, which is performSync
     // below, go through this one function. The two thus cannot drift apart.
     window.runSync = async function(action, opts) {

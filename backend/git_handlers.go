@@ -16,28 +16,19 @@ import (
 // The sync HTTP handlers
 // ----------------------------------------------------------------------
 //
-// See the banner of git_repo.go for what each of the four git files holds.
-//
-// Two endpoints reach the sync code. /api/sync runs one action and
-// answers with a status word. /api/sync/preview answers with what a sync
-// would do, and it changes nothing. doc/API.md holds both shapes.
-// ---------------------------------------------------------------
-// HTTP handler
-// ---------------------------------------------------------------
+// /api/sync runs one action and answers with a status word. /api/sync/preview
+// tells what an upload would send, and it changes nothing. doc/API.md holds
+// both shapes. The banner of git_repo.go says what each git file holds.
 
-// writeSyncJSON writes a small {"status":..., "message":...} JSON body.
-// It uses json.Marshal, and not a JSON literal from fmt.Sprintf as the
-// original code did. An error message that holds a quote or a backslash
-// thus cannot make the body invalid.
+// writeSyncJSON writes a {"status", "message"} JSON body. The encoder escapes
+// a quote in an error message, thus the body stays valid.
 func writeSyncJSON(w http.ResponseWriter, status, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": status, "message": message})
 }
 
-// writeSyncConflictJSON is writeSyncJSON's conflict variant: it adds the list
-// of files in contention under "files" so the conflict modal can list them.
-// files is always an array (never null) in the JSON, so the frontend can map
-// over it without a guard.
+// writeSyncConflictJSON also sends "files", the paths in conflict, for the
+// conflict dialog. The list is never null, thus the page needs no guard.
 func writeSyncConflictJSON(w http.ResponseWriter, message string, files []string) {
 	if files == nil {
 		files = []string{}
@@ -51,12 +42,9 @@ func writeSyncConflictJSON(w http.ResponseWriter, message string, files []string
 }
 
 func (a *App) handleSync(w http.ResponseWriter, r *http.Request) {
-	// r.FormValue reads from both the URL query string and a POST body,
-	// which is application/x-www-form-urlencoded or multipart. The
-	// frontend uses both conventions in different places. omn-go-sse.js
-	// posts action, force and message in the body, and the
-	// conflict-resolution buttons in index.html reach this endpoint with a
-	// query string. This handler thus accepts either one.
+	// r.FormValue reads the form body first, and then the query string. The
+	// page posts a form. TestHandleSyncReadsTheQueryString tests the query
+	// string.
 	if err := r.ParseForm(); err != nil {
 		writeSyncJSON(w, "error", fmt.Sprintf("bad request: %v", err))
 		return
@@ -69,9 +57,8 @@ func (a *App) handleSync(w http.ResponseWriter, r *http.Request) {
 	message := r.FormValue("message")
 	force := r.FormValue("force") == "true"
 
-	// The "Force" checkbox of the UI is a separate field, and not a
-	// distinct action name. It is translated into the canonical *_force
-	// action here, thus SyncRepo reads one vocabulary only.
+	// The Force checkbox is a separate field. The handler changes the action
+	// to its *_force name, thus SyncRepo reads one set of action names.
 	if force {
 		switch action {
 		case "pull", "pull_ff", "download":
@@ -83,11 +70,8 @@ func (a *App) handleSync(w http.ResponseWriter, r *http.Request) {
 
 	if err := a.SyncRepo(action, message); err != nil {
 		if status, msg, ok := syncErrorStatus(err); ok {
-			// A conflict carries the list of files in contention (see
-			// syncConflictError); surface it so the modal can show which
-			// files "Mark Conflicts" would touch. Any other status - or a
-			// bare ErrSyncConflict with no file list attached - falls back
-			// to the plain {status, message} body.
+			// A conflict carries the paths in conflict, and the dialog lists
+			// them. Each other status gets the plain body.
 			var ce *syncConflictError
 			if status == "conflict" && errors.As(err, &ce) {
 				writeSyncConflictJSON(w, msg, ce.Files)
@@ -114,8 +98,7 @@ func (a *App) handleSyncPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Same reasoning as handleSync: do not let a status/preview read run
-	// concurrently with an in-progress checkout/reset from another sync.
+	// GitMutex stops this read while a sync changes the worktree.
 	a.GitMutex.Lock()
 	defer a.GitMutex.Unlock()
 
@@ -143,7 +126,7 @@ func (a *App) handleSyncPreview(w http.ResponseWriter, r *http.Request) {
 
 	var files []string
 	for name, fileStat := range status {
-		// Skip ignored and root config.json
+		// Skip an ignored path and the config.json at the root.
 		if matcher != nil && matcher.Match(strings.Split(name, string(filepath.Separator)), false) {
 			continue
 		}
@@ -155,37 +138,24 @@ func (a *App) handleSyncPreview(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// A path that git still tracks but must not leaves the repository at
-	// the next commit. See untrackLocalOnlyPaths. Such a path is a
-	// local-only name, or a .txt under html/ that is a copy of the file in
-	// md/. The status finds no such file if the content did not change,
-	// thus the index gets its own read here. The preview must show each
-	// change that the commit makes, and this one deletes a file on the
-	// other devices.
+	// A tracked path that git must not track leaves the repository at the
+	// next commit, and the other devices delete it. See
+	// untrackLocalOnlyPaths. The status does not show such a path when its
+	// content did not change, thus the preview reads the index too.
 	files = append(files, a.untrackTrackedPaths(repo)...)
 
-	// No database dry-run here anymore. A backup is an ordinary file under
-	// html/db_backup/, written when the user presses "Backup now". See
-	// db_backup.go. A pending backup thus already shows up in the status
-	// scan above, like every other changed file. The preview needs no
-	// special database handling to stay accurate.
-
-	// A clean worktree does not mean there is nothing to upload. A commit
-	// whose push failed leaves commits that this remote has never seen,
-	// and so does a profile switched after a successful push. An answer
-	// about "what is pending" alone is what let the frontend say "Nothing
-	// to commit" and stop.
-	//
-	// Only asked when there is nothing pending anyway: with files to commit
-	// the upload proceeds regardless, and the answer would not change what
-	// happens next.
+	// A clean worktree can still hold a commit that the remote does not have:
+	// a push failed, or the active profile changed. The page must then offer
+	// the push. The check runs only when no file waits. With a file to
+	// commit, the upload pushes in all cases. See
+	// doc/decisions/0011-push-each-time-and-let-the-remote-answer.md.
 	ahead := unpushedState{}
 	if len(files) == 0 {
 		if remoteName, rErr := a.ensureRemotesAndGetActive(repo); rErr != nil {
 			ahead.Error = rErr.Error()
 		} else if auth, aErr := a.getSSHAuth(); aErr != nil {
-			// No usable key. The local half of the comparison still stands,
-			// and it is the half that catches a failed push.
+			// With no usable key, the local half of the check still finds a
+			// failed push.
 			ahead = a.aheadOfRemote(repo, remoteName, nil)
 			if !ahead.Verified && ahead.Error == "" {
 				ahead.Error = aErr.Error()
@@ -195,8 +165,7 @@ func (a *App) handleSyncPreview(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// files is always an array, never null, so the frontend can read .length
-	// without a guard.
+	// The list is never null, thus the page reads .length with no guard.
 	if files == nil {
 		files = []string{}
 	}

@@ -25,23 +25,13 @@ import (
 // The sync paths
 // ----------------------------------------------------------------------
 //
-// See the banner of git_repo.go for what each of the four git files holds.
+// SyncRepo at the end of this file is the one entry point. It reads an action
+// word and calls one path. The banner of git_repo.go says what each git file
+// holds.
 //
-// SyncRepo at the end of this file is the one entry point. It reads an
-// action word and calls one of the paths above it. Each path leaves the
-// repository in a state that the next action can start from. The two
-// checkpoint files at the top of this file are what makes a failed merge
-// reversible.
-// ---------------------------------------------------------------
-// Pre-merge checkpoint (backs "pull_abort")
-// ---------------------------------------------------------------
-//
-// pull_mark moves the local branch ref forward to the remote tip. A later
-// commit can then fast-forward-push cleanly, once the user resolves the
-// injected conflict markers. pull_abort has to undo that. The local HEAD
-// hash from *before* pull_mark ran is thus stashed in a small file under
-// .git/. A file survives an app restart, and it needs no change to the App
-// struct in server.go. An in-memory App field would do neither.
+// Two files under .git/ make a merge reversible. A file stays through a
+// restart of the app, and a field of App does not. OMNGO_PREMERGE_HEAD holds
+// the HEAD from before pull_mark, and pull_abort resets to it.
 
 func (a *App) premergeHeadPath() string {
 	return filepath.Join(a.StorageDir, ".git", "OMNGO_PREMERGE_HEAD")
@@ -69,21 +59,9 @@ func (a *App) clearPremergeHead() {
 	os.Remove(a.premergeHeadPath())
 }
 
-// ---------------------------------------------------------------
-// Pending merge parent (backs a real two-parent merge commit)
-// ---------------------------------------------------------------
-//
-// pull_mark writes conflict markers into the working tree. It must not
-// pretend that a merge happened, and a move of the branch ref onto the
-// remote tip would do that. Such a move discards the local commit from the
-// history of the branch, and only OMNGO_PREMERGE_HEAD can then recover it.
-// It also makes a plain linear commit on top of remote, and not a real git
-// merge.
-//
-// HEAD stays where it is, and the remote tip is recorded here. The next
-// real commit, in commitLocalChanges, reads this and includes it as a
-// second parent. That makes a real merge commit, once the user has
-// resolved the injected conflict markers by hand.
+// OMNGO_MERGE_PARENT holds the remote tip that pull_mark merges. HEAD does
+// not move. At the next commit, commitLocalChanges reads the file and makes a
+// real merge commit with two parents.
 
 func (a *App) mergeParentPath() string {
 	return filepath.Join(a.StorageDir, ".git", "OMNGO_MERGE_PARENT")
@@ -111,13 +89,9 @@ func (a *App) clearMergeParent() {
 	os.Remove(a.mergeParentPath())
 }
 
-// ---------------------------------------------------------------
-// Force-pull cleanup
-// ---------------------------------------------------------------
-
-// cleanUntrackedFiles deletes any file the worktree reports as Untracked,
-// *unless* it matches a .gitignore pattern. Only "force pull" calls this —
-// a plain pull/push must never touch files outside git's own tracked set.
+// cleanUntrackedFiles deletes each untracked file that .gitignore does not
+// match. Only a force pull calls it. A plain pull or push never touches a
+// file that git does not track.
 func (a *App) cleanUntrackedFiles(wTree *git.Worktree, matcher gitignore.Matcher) {
 	status, err := wTree.Status()
 	if err != nil {
@@ -128,17 +102,10 @@ func (a *App) cleanUntrackedFiles(wTree *git.Worktree, matcher gitignore.Matcher
 		if fileStat.Worktree != git.Untracked {
 			continue
 		}
-		// Explicit safety net, the same as in commitLocalChanges,
-		// syncPush and handleSyncPreview. config.json holds the local
-		// admin and guest passwords of this device, and its server
-		// list. A sync must never touch it, whatever .gitignore says at
-		// that moment.
-		//
-		// The matcher alone is not safe here. The checkout of a force
-		// pull can leave .gitignore in a state where the matcher no
-		// longer protects the file. The file comes from the remote, it
-		// can lack this line, and it can be stale for a moment. That is
-		// exactly what deleted it.
+		// The name test is a safety net, the same as in commitLocalChanges,
+		// syncPush and handleSyncPreview. config.json holds the passwords and
+		// the server list of this device. A sync must never touch it,
+		// whatever the .gitignore of the remote says.
 		if name == "config.json" {
 			a.logDebugf(logSync, "force pull: keeping root config.json (preserve locally)")
 			continue
@@ -156,27 +123,12 @@ func (a *App) cleanUntrackedFiles(wTree *git.Worktree, matcher gitignore.Matcher
 	}
 }
 
-// ---------------------------------------------------------------
-// pull
-// ---------------------------------------------------------------
-
-// syncPull fast-forwards local to origin/master when possible. When it is
-// not possible it returns ErrSyncConflict. The caller can then offer the
-// user a choice between "pull_abort" and "pull_mark", which is the 3-way
-// merge. A diverged history makes it impossible, and so does an unstaged
-// local change in the way.
-//
-// trackedWorktreeIsDirty reports whether any TRACKED file has a local
-// modification that has not been committed. Untracked content never
-// counts, for example a new note not yet committed or a db_json export.
-// A tracked file is exactly what writeTreeToWorktree in syncPull below
-// would silently overwrite with the copy of the remote.
-//
-// The native Worktree.Pull() of go-git, used here previously, refused on
-// its own to fast-forward over a dirty tracked file, with
-// ErrUnstagedChanges. Our own worktree-writing logic replaced it, thus
-// that same check has to be explicit now. Without it a pull would quietly
-// discard an uncommitted edit.
+// trackedWorktreeIsDirty reports whether a TRACKED file has a change that is
+// not committed. An untracked file never counts, for example a new note. A
+// pull overwrites each tracked file, thus it must refuse such a change first.
+// The native Pull of go-git made this check (ErrUnstagedChanges), and this
+// code replaces that Pull. See
+// doc/decisions/0010-write-a-pull-without-the-checkout-of-go-git.md.
 func trackedWorktreeIsDirty(wTree *git.Worktree) (bool, error) {
 	status, err := wTree.Status()
 	if err != nil {
@@ -193,31 +145,19 @@ func trackedWorktreeIsDirty(wTree *git.Worktree) (bool, error) {
 	return false, nil
 }
 
-// syncProgressWriter relays the sideband progress of git into the normal
-// log. An example line is "Counting objects: 45% ...". The line thus
-// reaches the browser over the /api/logs SSE stream, like every other log
-// line, and it shows in the sync progress overlay.
+// syncProgressWriter sends the sideband progress of git to the log, for
+// example "Counting objects: 45%". The line thus reaches the sync overlay
+// over /api/logs. Without it, the network phase shows nothing, and it is the
+// longest part of a sync.
 //
-// It is passed as FetchOptions.Progress and as PushOptions.Progress.
-// Without it the network phase reports nothing at all between "fetching"
-// and "complete", and that phase is reliably the longest part of a sync.
+// A progress line ends with '\r', because the remote writes one line again in
+// place. A split on '\n' alone would hold a whole transfer as one message.
+// The writer sends one line for each interval, because JSLogger drops a line
+// when the channel of a client is full. See logger.go.
 //
-// Two details that the sideband format forces:
-//   - A progress line ends with '\r', and not with '\n'. The remote
-//     rewrites one line in place to animate a percentage. A split on '\n'
-//     alone would buffer a whole transfer into one message.
-//   - Those rewrites arrive fast. JSLogger drops a message when the
-//     channel of a client is full, see logger.go. An unthrottled relay
-//     would flood that buffer and push out the more useful stage lines.
-//     One line for each interval is enough for a progress display.
-//
-// go-git writes to Progress from the one goroutine that drains the pack
-// stream, thus the unsynchronised buffer below is safe. Each call site
-// passes its own instance anyway.
+// go-git calls Write from one goroutine, thus the buffer needs no lock.
 type syncProgressWriter struct {
-	// app is the only way this writer can reach a logger. go-git owns the
-	// call, so the sideband text arrives with no receiver of its own. Every
-	// construction site is a method on *App and passes itself.
+	// go-git makes the call, thus the writer carries the App that logs.
 	app  *App
 	buf  []byte
 	last time.Time
@@ -227,8 +167,8 @@ const syncProgressInterval = 300 * time.Millisecond
 
 func (w *syncProgressWriter) Write(p []byte) (int, error) {
 	w.buf = append(w.buf, p...)
-	// Keep only what follows the last terminator. A newer line replaces
-	// each earlier progress line.
+	// Keep the text after the last terminator. A newer progress line replaces
+	// an older one.
 	if i := bytes.LastIndexAny(w.buf, "\r\n"); i != -1 {
 		line := string(w.buf[:i])
 		w.buf = append(w.buf[:0], w.buf[i+1:]...)
@@ -236,20 +176,22 @@ func (w *syncProgressWriter) Write(p []byte) (int, error) {
 			line = line[j+1:]
 		}
 		line = strings.TrimSpace(line)
-		// Servers normally send bare progress text and the "remote:" label is
-		// the client's convention (mirrored here). Strip it if a server does
-		// send one, so the line cannot come out as "remote: remote: ...".
+		// The client adds the label "remote:". Remove a label that the server
+		// sent, or the line reads "remote: remote:".
 		line = strings.TrimSpace(strings.TrimPrefix(line, "remote:"))
 		if line != "" && time.Since(w.last) >= syncProgressInterval {
 			w.last = time.Now()
 			w.app.logDebugf(logSync, "remote: %s", line)
 		}
 	}
-	// Never report an error: failing to log progress must not abort a fetch
-	// or push that is otherwise working fine.
+	// Never return an error. A fault of the progress log must not stop a
+	// fetch or a push.
 	return len(p), nil
 }
 
+// syncPull fast-forwards the local branch to the remote tip. It returns a
+// conflict for a diverged history or for a tracked change that is not
+// committed. The page then offers pull_abort and pull_mark.
 func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport.AuthMethod, remoteName string) error {
 	a.logInfof(logSync, "Pull: fetching %s", remoteName)
 	err := repo.Fetch(&git.FetchOptions{RemoteName: remoteName, Auth: auth, Progress: &syncProgressWriter{app: a}})
@@ -268,8 +210,7 @@ func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport
 		return nil
 	}
 
-	// Refuse when a tracked file has changes, the same as the native Pull of
-	// go-git (ErrUnstagedChanges). See trackedWorktreeIsDirty.
+	// Refuse when a tracked file has a change. See trackedWorktreeIsDirty.
 	dirty, dErr := trackedWorktreeIsDirty(wTree)
 	if dErr != nil {
 		return fmt.Errorf("status check failed: %v", dErr)
@@ -279,13 +220,9 @@ func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport
 		return a.newSyncConflict(repo, wTree, remoteRef)
 	}
 
-	// Fast-forward only. Refuse when the local HEAD is not an ancestor of
-	// the remote tip. The refusal uses the same sentinel that the caller
-	// already handles, and it matches the ErrNonFastForwardUpdate of the
-	// native Pull. Such a HEAD means that this device has unpushed commits
-	// of its own. A blind jump to the tree of the remote would strand
-	// them. An unborn local branch, with nothing committed here yet,
-	// counts as "already an ancestor". There is nothing to strand.
+	// Allow only a fast-forward. A HEAD that is not an ancestor of the remote
+	// tip holds commits that the remote does not have. A jump to the remote
+	// tree would lose them. An unborn branch has nothing to lose.
 	if headErr == nil {
 		localCommit, cErr := repo.CommitObject(localHead.Hash())
 		if cErr != nil {
@@ -305,11 +242,9 @@ func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport
 		}
 	}
 
-	// What was tracked before this pull. A file that the remote deleted can
-	// then be told apart from a file that was never tracked at all. The
-	// second kind is config.json, the .sqlite file of a user database, or
-	// anything else that this app manages outside git. None of those is
-	// ever a candidate for removal here.
+	// Read the paths that HEAD tracks. A pull removes a path that the remote
+	// deleted. It never removes a path that git never tracked, for example
+	// config.json or a database file.
 	oldPaths, err := oldTrackedPaths(repo)
 	if err != nil {
 		return fmt.Errorf("failed to read current tracked tree: %v", err)
@@ -324,23 +259,17 @@ func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport
 		return fmt.Errorf("remote tree lookup failed: %v", err)
 	}
 
-	// writeTreeToWorktree, which syncPullForce shares, only creates or
-	// overwrites the paths that the tree of the remote holds. It touches
-	// nothing else.
-	//
-	// The native Worktree.Pull() of go-git does not limit its work to the
-	// files that git tracks. It can delete and write again the .sqlite
-	// file of a user database, and an open connection then fails with
-	// SQLITE_READONLY_DBMOVED. See
+	// writeTreeToWorktree writes only the paths of the remote tree. The
+	// checkout of go-git can delete and write again the .sqlite file of a
+	// database. See
 	// doc/decisions/0010-write-a-pull-without-the-checkout-of-go-git.md.
 	newPaths, err := a.writeTreeToWorktree(repo, wTree, remoteTree)
 	if err != nil {
 		return fmt.Errorf("failed to write remote tree: %v", err)
 	}
 
-	// Remove files that WERE tracked before this pull but are no longer
-	// part of the remote's tree (e.g. a note deleted on another device).
-	// Only ever considers paths that were genuinely tracked.
+	// Remove each path that HEAD tracked and that the remote tree does not
+	// hold, for example a note that another device deleted.
 	for p := range oldPaths {
 		if newPaths[p] {
 			continue
@@ -362,18 +291,12 @@ func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport
 	return nil
 }
 
-// syncPullMerge implements the "3 way diff merge" option that follows a
-// pull conflict. It writes standard diff3-style conflict markers into
-// every locally modified file that also differs from the remote copy.
-// Those markers are <<<<<<< LOCAL, ||||||| BASE, ======= and >>>>>>>
-// REMOTE. The BASE section comes from the git merge-base where one can be
-// found.
-//
-// The local branch ref then moves to the remote tip, and the contents of
-// the working tree stay as they are. The user resolves the markers by hand
-// and commits, and the parent of that commit is then the remote tip. A
-// normal push can fast-forward. The pre-merge HEAD is saved, thus
-// "pull_abort" can undo this.
+// syncPullMerge is the action pull_mark after a pull conflict. It writes
+// diff3 conflict markers into each file that conflictingPaths names. The BASE
+// part comes from the merge base, when one exists. HEAD does not move. The
+// user resolves the markers by hand, and the next commit becomes a merge
+// commit. See OMNGO_MERGE_PARENT above. It saves the HEAD from before for
+// pull_abort.
 func (a *App) syncPullMerge(repo *git.Repository, wTree *git.Worktree, auth transport.AuthMethod, remoteName string) error {
 	err := repo.Fetch(&git.FetchOptions{RemoteName: remoteName, Auth: auth, Progress: &syncProgressWriter{app: a}})
 	if err != nil && err != git.NoErrAlreadyUpToDate {
@@ -407,10 +330,7 @@ func (a *App) syncPullMerge(repo *git.Repository, wTree *git.Worktree, auth tran
 		}
 	}
 
-	// Same set of files the conflict modal previewed (see conflictingPaths):
-	// tracked, locally modified, and differing from the remote copy. Sharing
-	// this helper is what guarantees the marked files match what the user was
-	// shown.
+	// conflictingPaths gives the same list that the conflict dialog showed.
 	paths, err := conflictingPaths(wTree, remoteTree)
 	if err != nil {
 		return fmt.Errorf("status error: %v", err)
@@ -424,9 +344,6 @@ func (a *App) syncPullMerge(repo *git.Repository, wTree *git.Worktree, auth tran
 		localContent, _ := io.ReadAll(file)
 		file.Close()
 
-		// conflictingPaths already found that the remote has this file, and
-		// that its content differs from the local one. The remote copy is
-		// read again here only to build the marker body.
 		remoteFile, err := remoteTree.File(path)
 		if err != nil {
 			continue
@@ -451,26 +368,16 @@ func (a *App) syncPullMerge(repo *git.Repository, wTree *git.Worktree, auth tran
 		}
 	}
 
-	// Record the remote tip as a pending second parent. Do not move the
-	// local branch ref onto it. A reset of HEAD to remoteRef here was the
-	// previous approach, and it is not a real git merge. No merge commit
-	// is ever created. The real local commit becomes unreachable from any
-	// branch, and only OMNGO_PREMERGE_HEAD can recover it. Nothing beyond
-	// a log line records that a merge was needed. The next commit of the
-	// user then reads as a plain commit on the tip of the remote.
-	//
-	// commitLocalChanges looks for this pending parent. The user resolves
-	// the conflict markers by hand and commits. It then makes a real
-	// two-parent merge commit from the local HEAD and this remote tip.
-	// That is what a "3-way merge" has to produce.
+	// Record the remote tip as the second parent of the next commit. Do not
+	// move HEAD onto it. That makes no merge commit, and the local commit
+	// becomes unreachable.
 	a.saveMergeParent(remoteRef.Hash())
 	a.logInfof(logSync, "Pull: 3-way conflict markers written, awaiting manual resolution")
 	return nil
 }
 
-// syncPullAbort discards an in-progress pull_mark, restoring local state
-// (both the branch ref and the working tree) to what it was immediately
-// before pull_mark ran. If there is nothing to abort, this is a no-op.
+// syncPullAbort resets the branch and the working tree to the HEAD from
+// before pull_mark. With no saved HEAD, it does nothing.
 func (a *App) syncPullAbort(wTree *git.Worktree) error {
 	hash, ok := a.loadPremergeHead()
 	if !ok {
@@ -486,23 +393,12 @@ func (a *App) syncPullAbort(wTree *git.Worktree) error {
 	return nil
 }
 
-// writeTreeToWorktree writes every blob of tree into the filesystem of
-// wTree. It answers the set of paths that it wrote. It deliberately does
-// NOT ask go-git to reconcile the rest of the worktree against tree, the
-// way Worktree.Checkout and Worktree.Reset do inside. It only creates or
-// overwrites the exact paths that tree holds, and it touches nothing else.
-//
-// See the comment in syncPullForce for why that distinction is the whole
-// point. Checkout(Force: true), even called correctly, does not limit its
-// "make the worktree match" behavior to the files that git knows about.
-//
-// Two states make it fall back. The first is a repo with no commit yet to
-// diff against, which is a fresh install before this device has ever
-// completed a sync. The second is a partially-reconciled state. The
-// fallback reconciles everything on disk against the target tree, and it
-// deletes whatever is not part of that tree. config.json goes with it,
-// although the file was never tracked and is always in .gitignore. The
-// fallback reads neither the tracked status nor .gitignore.
+// writeTreeToWorktree writes each blob of tree into the worktree, and it
+// answers the paths that it wrote. It creates or overwrites those paths and
+// touches nothing else. Checkout and Reset of go-git can fall back to a full
+// match of the worktree. That fallback deletes each file outside the tree,
+// also config.json. See
+// doc/decisions/0010-write-a-pull-without-the-checkout-of-go-git.md.
 func (a *App) writeTreeToWorktree(repo *git.Repository, wTree *git.Worktree, tree *object.Tree) (map[string]bool, error) {
 	newIndex := &index.Index{Version: 2}
 	written := map[string]bool{}
@@ -562,10 +458,8 @@ func (a *App) writeTreeToWorktree(repo *git.Repository, wTree *git.Worktree, tre
 	return written, nil
 }
 
-// oldTrackedPaths answers every path that the current HEAD commit of the
-// repo tracks. It answers an empty set when there is no HEAD yet, which is
-// an unborn branch. That is the fresh-install case, where nothing has ever
-// been tracked.
+// oldTrackedPaths answers each path that HEAD tracks. An unborn branch gives
+// an empty set.
 func oldTrackedPaths(repo *git.Repository) (map[string]bool, error) {
 	paths := map[string]bool{}
 	head, err := repo.Head()
@@ -589,9 +483,9 @@ func oldTrackedPaths(repo *git.Repository) (map[string]bool, error) {
 	return paths, err
 }
 
-// syncPullForce resets local to match origin/master exactly. It then
-// deletes each file that git does not track and that .gitignore does not
-// cover. Only a *force* pull may delete such a file.
+// syncPullForce makes the local branch match the remote tip. It then deletes
+// each file that git does not track and that .gitignore does not cover. Only
+// a force pull may delete such a file.
 func (a *App) syncPullForce(repo *git.Repository, wTree *git.Worktree, auth transport.AuthMethod, remoteName string) error {
 	a.logInfof(logSync, "Force pull: fetching %s", remoteName)
 
@@ -612,11 +506,7 @@ func (a *App) syncPullForce(repo *git.Repository, wTree *git.Worktree, auth tran
 		return fmt.Errorf("failed to find %s/master: %v", remoteName, err)
 	}
 
-	// What was tracked before this pull. A file that the remote deleted is
-	// safe to remove, and a file that was never tracked at all is not. The
-	// second kind is config.json, or anything else that this app manages
-	// outside git. Neither is ever a candidate for removal here, whatever
-	// the new tree holds.
+	// Read the paths that HEAD tracks. See syncPull.
 	oldPaths, err := oldTrackedPaths(repo)
 	if err != nil {
 		return fmt.Errorf("failed to read current tracked tree: %v", err)
@@ -636,10 +526,7 @@ func (a *App) syncPullForce(repo *git.Repository, wTree *git.Worktree, auth tran
 		return fmt.Errorf("failed to write remote tree: %v", err)
 	}
 
-	// Remove files that WERE tracked before this pull but are no longer
-	// part of the remote's tree (e.g. a note deleted on another device).
-	// Only ever considers paths that were genuinely tracked, so nothing
-	// this app manages outside git is a candidate for removal here.
+	// Remove each path that the remote dropped. See syncPull.
 	for p := range oldPaths {
 		if newPaths[p] {
 			continue
@@ -670,34 +557,17 @@ func (a *App) syncPullForce(repo *git.Repository, wTree *git.Worktree, auth tran
 	return nil
 }
 
-// ---------------------------------------------------------------
-// push
-// ---------------------------------------------------------------
-
-// syncPush implements both "push" and "force push":
+// syncPush is the action push, or push_force when force is true.
 //
-//   - With nothing uncommitted, this still attempts the real push.
-//     repo.Push itself reports git.NoErrAlreadyUpToDate safely when the
-//     active remote truly has nothing new. That report is the ONLY thing
-//     this function trusts for that decision. Do not add a check that
-//     skips the push. See doc/decisions/0011-push-each-time-and-let-the-remote-answer.md.
-//   - With uncommitted local changes, a commit message is required.
-//     Without one it returns ErrCommitMessageRequired.
-//   - A force push always requires a commit message up front, also with
-//     no pending change to commit. It is a destructive operation on the
-//     remote.
-//   - A non-force push that is rejected as non-fast-forward returns
-//     ErrPushConflict, and it does nothing further. Per the spec, no
-//     auto-pull and no auto-merge is attempted.
-//   - A force push always pushes with Force:true. It overwrites the
-//     remote to match local, whatever the divergence is.
+// It always tries the push, also with nothing to commit. Only
+// NoErrAlreadyUpToDate from the remote says that nothing is new. Do not add a
+// check that skips the push. See
+// doc/decisions/0011-push-each-time-and-let-the-remote-answer.md.
+//
+// A change to commit needs a message, and a force push always needs one. A
+// refused push without force returns ErrPushConflict and does nothing more:
+// no pull and no merge. A force push writes the local branch over the remote.
 func (a *App) syncPush(repo *git.Repository, wTree *git.Worktree, auth transport.AuthMethod, remoteName, message string, force bool) error {
-	// NOTE: a database is deliberately NOT exported here anymore. A backup
-	// is a manual whole-database snapshot file, made from the /db_backups
-	// page. See db_backup.go. Each backup file under html/db_backup/ is
-	// committed and pushed like any other tracked file. The push never
-	// invents new database state on its own.
-
 	matcher, mErr := a.loadGitignoreMatcher(wTree)
 	if mErr != nil {
 		matcher = gitignore.NewMatcher(nil)
@@ -721,10 +591,8 @@ func (a *App) syncPush(repo *git.Repository, wTree *git.Worktree, auth transport
 		}
 	}
 
-	// A pending pull_mark merge must always end in a real commit. The
-	// hand-resolution of the user can match HEAD exactly, and the status
-	// then looks clean. Without this the merge parent record stays
-	// forever, and no merge commit is ever produced.
+	// A pending pull_mark merge must end in a commit, also when the
+	// resolution equals HEAD and the status is clean.
 	if _, mergePending := a.loadMergeParent(); mergePending {
 		hasRelevantChanges = true
 	}
@@ -766,23 +634,16 @@ func (a *App) syncPush(repo *git.Repository, wTree *git.Worktree, auth transport
 // refuses a push. See isNonFastForward.
 const nonFastForwardText = "non-fast-forward update"
 
-// isNonFastForward tells whether a push failed because the remote holds a
+// isNonFastForward tells whether the remote refused a push because it holds a
 // commit that this device does not have.
 //
-// THE TEST OF THE MESSAGE IS NOT A CHOICE. go-git builds this error with
-// fmt.Errorf at three places in remote.go, and it wraps no sentinel. See
-// go-git v5.13.1, remote.go lines 828, 1106 and 1115.
-//
-// The value git.ErrNonFastForwardUpdate lives in worktree.go and belongs
-// to Pull alone. A test of that value against the answer of Push is
-// therefore never true.
-//
-// A miss here gives the status "error" in place of "push_conflict". The
-// frontend then shows a plain alert, and not the push-conflict modal that
-// offers a force push. See showPushConflictModal in omn-go-sse.js.
+// The test of the text is necessary. go-git makes this error with fmt.Errorf,
+// and it wraps no sentinel. git.ErrNonFastForwardUpdate belongs to Pull
+// alone. TestIsNonFastForward holds the known text. A miss gives the status
+// "error" and a plain alert, in place of the dialog that offers a force push.
 //
 // The value test stays first. A later go-git that wraps the sentinel then
-// matches without a change here.
+// matches with no change here.
 func isNonFastForward(err error) bool {
 	if err == nil {
 		return false
@@ -793,47 +654,28 @@ func isNonFastForward(err error) bool {
 	return strings.HasPrefix(err.Error(), nonFastForwardText)
 }
 
-// ---------------------------------------------------------------
-// "Is there anything to push?" - for the upload preview
-// ---------------------------------------------------------------
-
-// unpushedState answers, for the ACTIVE remote, the question the upload
-// preview needs: is there a local commit this remote has not got?
+// unpushedState answers the question of the upload preview: does the active
+// remote lack a local commit? A clean worktree does not answer it. A push can
+// fail after its commit, and another profile can point to a remote that never
+// got the commit.
 //
-// A worktree with nothing pending is NOT the same thing as nothing to push,
-// and conflating the two is how commits get stranded. Two ways it happens,
-// both reported from real use:
-//
-//   - a commit succeeds, the push that follows fails (the network dropped).
-//     The worktree is now clean and the commit exists only locally; pressing
-//     Upload again must retry the push, not report "nothing to commit".
-//   - the git profile is switched. The commit was pushed to slot 0 and the
-//     worktree is clean, but slot 1's remote has never seen it.
-//
-// The direction matters, and it is the whole design here. A check that
-// skips a push can suppress a push that is needed. This one can only
-// offer a push that turns out to be unnecessary, and repo.Push reports
-// NoErrAlreadyUpToDate for that harmlessly.
+// The check can offer a push that is not necessary, and it must never hide a
+// push that is necessary. repo.Push answers NoErrAlreadyUpToDate for the
+// first case, at no cost.
 type unpushedState struct {
-	// Unpushed is "there is, or may be, something to push". It errs towards
-	// true on purpose: a needless push attempt costs a round trip, a
-	// suppressed one costs the user their commits.
+	// Unpushed leans toward true. A push that is not necessary costs a round
+	// trip. A hidden push costs the commits.
 	Unpushed bool
 	Remote   string
-	// Verified records that the remote itself was asked, and not the local
-	// remote-tracking ref alone. Only the "nothing to push" answer is worth
-	// a round trip. This is thus false whenever the local refs alone
-	// settled it, and that covers every case where they made Unpushed true.
+	// Verified is true when the remote itself answered, and not only the
+	// local tracking ref.
 	Verified bool
 	Error    string
 }
 
-// syncPreviewResponse is the body of GET /api/sync/preview?action=upload.
-//
-// Files alone are not the whole answer. An empty list does not mean
-// "nothing to do", because the page must offer the push again for a commit
-// whose push failed. The
-// three fields after it are the other half of the answer.
+// syncPreviewResponse is the body of GET /api/sync/preview?action=upload. An
+// empty Files list does not mean "nothing to do". The three fields after it
+// tell whether a commit waits for its push.
 type syncPreviewResponse struct {
 	Files       []string `json:"files"`
 	Unpushed    bool     `json:"unpushed"`
@@ -842,23 +684,17 @@ type syncPreviewResponse struct {
 	RemoteError string   `json:"remote_error,omitempty"`
 }
 
-// aheadOfRemote compares local HEAD with the active remote.
-//
-// It looks locally FIRST. It goes to the network only to check the one
-// answer that would stop the user pushing. Each slot owns its own named
-// remote, see ensureSlotRemotes. refs/remotes/<slot>/master is thus the
-// view of that profile, and a slot that was never contacted has no such
-// ref. That reads as "might be ahead", and that is the safe reading.
-//
-// The remote round trip is a refs listing, which is git ls-remote, and not
-// a fetch. It downloads no object, and it is reached only when the local
-// view already says there is nothing to do.
+// aheadOfRemote compares the local HEAD with the active remote. It reads the
+// local tracking ref first. Each slot has its own remote, thus a slot that
+// the device never reached has no ref, and that reads as "maybe ahead". Only
+// the answer "level" goes to the network. The request lists the refs, like
+// git ls-remote, and downloads no object.
 func (a *App) aheadOfRemote(repo *git.Repository, remoteName string, auth transport.AuthMethod) unpushedState {
 	out := unpushedState{Remote: remoteName}
 
 	head, err := repo.Head()
 	if err != nil {
-		// No commits yet: nothing to push, and nothing to check.
+		// With no commit, nothing waits for a push.
 		a.logDebugf(logSync, "preview: no local HEAD (%v)", err)
 		return out
 	}
@@ -876,9 +712,8 @@ func (a *App) aheadOfRemote(repo *git.Repository, remoteName string, auth transp
 		return out
 	}
 
-	// The local view says level. That is the claim that would stop the user
-	// pushing, and it is the claim that was wrong before. It is thus worth
-	// a round trip.
+	// The local view says level. That answer can stop a necessary push, thus
+	// the remote must confirm it.
 	remote, rErr := repo.Remote(remoteName)
 	if rErr != nil {
 		out.Error = rErr.Error()
@@ -886,9 +721,8 @@ func (a *App) aheadOfRemote(repo *git.Repository, remoteName string, auth transp
 	}
 	refs, lErr := remote.List(&git.ListOptions{Auth: auth})
 	if lErr != nil {
-		// Unreachable. Report that, and do not claim to have checked. A
-		// push would fail with the same error, thus an offer of one gains
-		// nothing. To imply silently that the remote agreed would be a lie.
+		// The remote cannot answer. Report that, and claim no check. A push
+		// would fail with the same error.
 		a.logErrf(logSync, "preview: could not list %s: %v", remoteName, lErr)
 		out.Error = lErr.Error()
 		return out
@@ -905,42 +739,28 @@ func (a *App) aheadOfRemote(repo *git.Repository, remoteName string, auth transp
 			return out
 		}
 	}
-	// The remote has no master branch at all - an empty repository, or one
-	// this profile has never been pushed to. The first push creates it.
+	// The remote has no master branch. The first push makes it.
 	a.logDebugf(logSync, "preview: %s has no master branch yet", remoteName)
 	out.Unpushed = true
 	return out
 }
 
-// ---------------------------------------------------------------
-// Dispatcher
-// ---------------------------------------------------------------
-
-// Sentinel errors for the sync state machine. These are the signals that a
-// sync operation raises for a condition that the USER must resolve, and not
-// for a real failure. handleSync translates each one into its wire status
-// with errors.Is, through syncErrorStatus. A producer and a consumer can
-// thus never drift apart over a bare string, the way the previous
-// fmt.Errorf("CONFLICT_DETECTED") sentinels could.
+// These are the sentinel errors of the sync. Each one is a state that the
+// user must resolve, and not a failure. syncErrorStatus maps each one to its
+// wire status with errors.Is.
 var (
-	// ErrSyncConflict: a plain pull cannot fast-forward - diverged history,
-	// or uncommitted local changes in the way. The user chooses abort or a
-	// 3-way merge.
+	// ErrSyncConflict: a plain pull cannot fast-forward. The user chooses
+	// abort or a 3-way merge.
 	ErrSyncConflict = errors.New("sync: fast-forward not possible")
-	// ErrPushConflict: a non-force push was rejected because the remote has
-	// commits the local branch does not have. The user must pull first.
+	// ErrPushConflict: the remote refused a push without force. The user must
+	// pull first.
 	ErrPushConflict = errors.New("sync: push rejected, remote has new commits")
-	// ErrCommitMessageRequired: there are changes to commit (or a force push
-	// was requested) but no commit message was supplied.
+	// ErrCommitMessageRequired: a commit or a force push needs a message.
 	ErrCommitMessageRequired = errors.New("sync: commit message required")
 )
 
-// syncConflictError wraps ErrSyncConflict with the list of files in
-// contention, thus handleSync can show them in the conflict modal. It
-// unwraps to ErrSyncConflict. errors.Is(err, ErrSyncConflict), and thus
-// syncErrorStatus, keeps matching it exactly as before. A caller that reads
-// the status alone is unaffected, and handleSync can take the file list out
-// with errors.As.
+// syncConflictError carries the paths in conflict to the dialog. It unwraps
+// to ErrSyncConflict, thus errors.Is still matches it.
 type syncConflictError struct {
 	Files []string
 }
@@ -948,21 +768,11 @@ type syncConflictError struct {
 func (e *syncConflictError) Error() string { return ErrSyncConflict.Error() }
 func (e *syncConflictError) Unwrap() error { return ErrSyncConflict }
 
-// conflictingPaths answers the sorted list of worktree paths that a 3-way
-// "Mark Conflicts" merge would fill with conflict markers. syncPullMerge is
-// that merge. A path qualifies when it is a tracked file with an
-// uncommitted local modification whose content also differs from the
-// incoming remote copy.
-//
-// This is the one authority, and two readers share it. The first is the
-// conflict PREVIEW, which is the file list shown in the conflict modal and
-// threaded out of syncPull through syncConflictError. The second is the
-// marker-writing loop of syncPullMerge. The list that the user sees can
-// thus never disagree with the files that later get markers.
-//
-// A file that the remote does not have is not a conflict, and neither is
-// one whose local content already equals the remote copy. Both are left
-// out, and that matches the own skips of syncPullMerge exactly.
+// conflictingPaths answers, in sorted order, each tracked path with a change
+// that is not committed and a content that differs from the remote copy. It
+// is the one authority for two readers: the file list of the conflict dialog
+// and the marker loop of syncPullMerge. The list that the user sees thus
+// always equals the files that get markers.
 func conflictingPaths(wTree *git.Worktree, remoteTree *object.Tree) ([]string, error) {
 	status, err := wTree.Status()
 	if err != nil {
@@ -994,11 +804,9 @@ func conflictingPaths(wTree *git.Worktree, remoteTree *object.Tree) ([]string, e
 	return paths, nil
 }
 
-// newSyncConflict builds the error that wraps ErrSyncConflict and carries
-// the list of files in contention with the fetched remote tip. A failure
-// during the computation of that list falls back to the bare
-// ErrSyncConflict sentinel. The conflict is still reported, without the
-// file breakdown. This can thus never turn a conflict into a hard error.
+// newSyncConflict answers a syncConflictError with the paths in conflict.
+// When the list fails, it answers the bare ErrSyncConflict. A conflict thus
+// never becomes a hard error.
 func (a *App) newSyncConflict(repo *git.Repository, wTree *git.Worktree, remoteRef *plumbing.Reference) error {
 	remoteCommit, err := repo.CommitObject(remoteRef.Hash())
 	if err != nil {
@@ -1015,11 +823,9 @@ func (a *App) newSyncConflict(repo *git.Repository, wTree *git.Worktree, remoteR
 	return &syncConflictError{Files: files}
 }
 
-// syncErrorStatus maps a sync error to the wire {status, message} the
-// frontend understands (see runSync in omn-go-sse.js). ok is false for a nil
-// error or a generic failure, in which case the caller reports a plain
-// "error" with the raw message. Keyed on errors.Is, so it keeps matching
-// even if a sentinel is later wrapped with %w for extra context.
+// syncErrorStatus maps a sync error to the {status, message} that runSync in
+// omn-go-sync.js reads. ok is false for each other error, and the caller then
+// answers "error".
 func syncErrorStatus(err error) (status, message string, ok bool) {
 	switch {
 	case errors.Is(err, ErrSyncConflict):
@@ -1033,29 +839,16 @@ func syncErrorStatus(err error) (status, message string, ok bool) {
 	}
 }
 
-// SyncRepo implements the git sync operations. message is used only by the
-// "push"/"push_force" actions (empty for the rest):
+// SyncRepo runs one sync action under GitMutex. Only push and push_force read
+// message.
 //
-//	pull        fast-forward if possible. It returns ErrSyncConflict if it
-//	            is not possible, from a diverged history or from local
-//	            changes in the way. Aliases: "pull_ff", "download".
-//	pull_mark   after a "pull" conflict. It writes 3-way conflict markers,
-//	            thus the user can resolve them by hand. The UI calls this
-//	            "make 3 way diff merge".
-//	pull_abort  after a "pull" conflict. It discards the conflict and
-//	            restores the local state. Alias: "abort".
-//	pull_force  resets local to match the remote exactly. It also deletes
-//	            each file that is neither tracked nor covered by
-//	            .gitignore. Alias: "download_force".
-//	push        commits with the given message when there are local
-//	            changes, and then pushes. It does nothing further on a
-//	            conflict. Alias: "upload".
-//	push_force  commits with the given message when needed, and then
-//	            force-pushes. That resets the remote to the local state.
-//	            Alias: "upload_force".
-//
-// All repo mutation is serialized via a.GitMutex, so this is safe to call
-// from multiple goroutines at once (e.g. concurrent HTTP requests).
+//	pull        Fast-forward, or ErrSyncConflict. Aliases: pull_ff, download.
+//	pull_mark   After a conflict: write 3-way conflict markers.
+//	pull_abort  After a conflict: restore the state from before. Alias: abort.
+//	pull_force  Match the remote, and delete each untracked file that
+//	            .gitignore does not cover. Alias: download_force.
+//	push        Commit when necessary, then push. Alias: upload.
+//	push_force  Commit when necessary, then force the push. Alias: upload_force.
 func (a *App) SyncRepo(action string, message string) error {
 	a.GitMutex.Lock()
 	defer a.GitMutex.Unlock()
@@ -1077,12 +870,9 @@ func (a *App) SyncRepo(action string, message string) error {
 		return err
 	}
 
-	// After a pull, remake the html/ copy of every text file beside a note.
-	// Git carries the md/ original and not the copy. See isDerivedTextPath.
-	// A pull can bring a new md/log.txt, or delete the html/ copy that an
-	// older commit still tracked. The URL of that file then has nothing
-	// behind it until the next start. The walk reads nothing until it finds
-	// a file to copy, thus this is cheap enough to run every time.
+	// After a pull, make the html/ copy of each text file beside a note
+	// again. Git carries only the md/ file. See isDerivedTextPath. The walk
+	// is cheap when nothing changed.
 	pullDone := func(err error) error {
 		if err == nil {
 			a.syncNoteFilesToHTML()
