@@ -37,7 +37,7 @@
 //     lazy omnSearchOpen.
 //  5. THE LOG STREAM AND THE SESSION CHECK. Each page starts both.
 
-// printDebug is defined OUTSIDE the guard below. Each stub of the else
+// This file defines printDebug OUTSIDE the guard below. Each stub of the else
 // branch calls it, and the split files each carry a branch of their own.
 // One definition, at the top, answers for all of them.
 window.printDebug = function (funcName) {

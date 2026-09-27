@@ -302,8 +302,8 @@ func (a *App) serveLogsPage(w http.ResponseWriter, r *http.Request) {
 // progress overlay.
 //
 // IT IS ADMIN ONLY, and so is /api/logs. A guest who holds the stream open
-// reads the transcript as it is written, thus a guard on the ring alone
-// hides nothing. A LAN share hands out no log line. See
+// reads the transcript as the server writes it, thus a guard on the ring
+// alone hides nothing. A LAN share gives no log line. See
 // doc/decisions/0013-send-each-log-line-to-three-places-and-to-the-admin-only.md.
 //
 // The answer follows section 1.4 of doc/API.md: JSON with a status word.

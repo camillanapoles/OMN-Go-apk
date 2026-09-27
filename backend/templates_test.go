@@ -215,7 +215,7 @@ func TestRenderConfigPage(t *testing.T) {
 	if strings.Contains(out, "%%") {
 		t.Fatalf("unfilled placeholder left in output:\n%s", out)
 	}
-	// Stored-XSS check: attacker-ish values must arrive escaped. The view
+	// Stored-XSS check: hostile values must arrive escaped. The view
 	// holds no password, thus the git server name carries this check. See
 	// TestConfigPageCarriesNoSecret.
 	if !strings.Contains(out, "srv &quot;one&quot;") {

@@ -268,8 +268,8 @@ func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport
 		return nil
 	}
 
-	// Refuse over dirty tracked files, the same as the native Pull of go-git
-	// (ErrUnstagedChanges) - see trackedWorktreeIsDirty.
+	// Refuse when a tracked file has changes, the same as the native Pull of
+	// go-git (ErrUnstagedChanges). See trackedWorktreeIsDirty.
 	dirty, dErr := trackedWorktreeIsDirty(wTree)
 	if dErr != nil {
 		return fmt.Errorf("status check failed: %v", dErr)
@@ -831,7 +831,8 @@ type unpushedState struct {
 // syncPreviewResponse is the body of GET /api/sync/preview?action=upload.
 //
 // Files alone are not the whole answer. An empty list does not mean
-// "nothing to do", because a commit whose push failed must be retried. The
+// "nothing to do", because the page must offer the push again for a commit
+// whose push failed. The
 // three fields after it are the other half of the answer.
 type syncPreviewResponse struct {
 	Files       []string `json:"files"`

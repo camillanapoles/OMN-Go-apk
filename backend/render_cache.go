@@ -19,7 +19,7 @@ import (
 //
 // Six callers write a page: handleSaveNote, handleQuickNote, handleBookmark,
 // handleNewPage, recompileMarkdownPage and precompileAllPages. Each one
-// calls renderAndCache, thus the cache-write behavior is defined one time.
+// calls renderAndCache, thus the cache-write behavior has one definition.
 //
 // The cached HTML is deliberately an INCOMPLETE template. It carries a
 // runtimeVarsMarker (see templates.go). injectRuntimeVars fills that marker

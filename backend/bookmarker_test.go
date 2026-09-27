@@ -100,7 +100,7 @@ func TestBookmarkerConfigKeyIsWellFormed(t *testing.T) {
 	}
 }
 
-// Code that makes a prefix from an application id must not come back.
+// Code that makes a prefix from an application id must not return.
 // Each name below is a silent fault: a test of an undefined name is always
 // false, thus no reader and no console reports it.
 func TestBookmarkerHasNoDeadApplicationIdPrefix(t *testing.T) {

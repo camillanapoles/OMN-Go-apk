@@ -11,8 +11,8 @@ import (
 // ----------------------------------------------------------------------
 //
 // A setting of OMN-Go touches three places: the POST handler, the loader
-// and the checkbox list of the Config page. One table ties the three
-// together, thus none of them can go out of step.
+// and the checkbox list of the Config page. One table holds the three, thus
+// they cannot disagree.
 //
 // The table below is the one authority for the form side of a setting.
 // See rule 7 of CLAUDE.md section 1. Each row says how a request writes
@@ -228,7 +228,7 @@ var configFields = []configField{
 // what it governs, and a name in that list counts as sent. See
 // configFieldSent in handlers.go for the whole rule.
 //
-// A checkbox that is not in the list cannot be cleared. The table writes
+// A person cannot clear a checkbox that is not in the list. The table writes
 // the list, thus a new row needs no edit of the markup.
 func configCheckboxFields() string {
 	var keys []string
@@ -325,7 +325,7 @@ func applyConfigField(f configField, c *Config, r *http.Request, sent func(strin
 //
 // Each field follows the same sent rule as a field of the table. The
 // Config page does not carry the SSH key or the key password. A save that
-// changes the name alone must thus not write an empty key over the real
+// changes the name alone must thus not replace the real key with an empty
 // one. See doc/decisions/0005-keep-each-secret-out-of-the-config-page.md.
 func applyGitServerForm(c *Config, r *http.Request, sent func(string) bool) {
 	// The active slot is an index and not a count. Zero is a valid

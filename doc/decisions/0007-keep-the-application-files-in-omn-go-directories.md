@@ -24,9 +24,10 @@ directory could not tell which file belongs to whom.
   `md/Bookmarks.md`, thus keeps working. The server never changes a note
   of the user.
 * At the first start of a new version, `removeRetiredAssets` deletes the
-  old copy of each moved file. A copy that a person changed goes to
-  `asset_backups` first.
-* `html/css/markdown.css` went away. No template and no note loaded it.
+  old copy of each moved file. It first moves a copy that a person changed
+  to `asset_backups`.
+* The build does not ship `html/css/markdown.css`. No template and no note
+  loaded it.
 
 ## Consequences
 

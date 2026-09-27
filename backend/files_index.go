@@ -274,7 +274,7 @@ func normalizeFilesDir(raw string) string {
 
 // normalizeFilesTree keeps ?tree= to the three known values.
 //
-// An address with a dir and no tree is an old link. The page then served
+// An address with a dir and no tree is an old link. An older page served
 // the html/ tree alone, thus such a link still lands on the served tree.
 func normalizeFilesTree(raw, dir string) string {
 	switch raw {

@@ -42,7 +42,7 @@ func defaultHostname() string {
 // so does the hostname row of configFields. A cleared box on the Config
 // page therefore resets the label.
 //
-// A request that does not carry "hostname" leaves the label alone. The
+// A request that does not carry "hostname" does not change the label. The
 // name of each database backup carries the label, thus a save of an
 // unrelated setting must not rename the device.
 //

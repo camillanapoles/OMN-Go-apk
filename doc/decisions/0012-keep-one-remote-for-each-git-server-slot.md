@@ -20,10 +20,10 @@ remote-tracking refs of its own.
   person can edit. A rename thus keeps the remote.
 * The server keeps these remotes the same as the configuration at each
   sync. It adds a remote when a slot gets a URL, changes it when the URL
-  changes, and removes it when the slot is cleared.
+  changes, and removes it when a person clears the slot.
 * A sync uses the remote of the active slot.
-* `origin` is made one time, from the active slot at that moment, and the
-  server never changes it. A sync uses it only when the active slot has
+* The server makes `origin` one time, from the active slot at that
+  moment, and it never changes `origin`. A sync uses it only when the active slot has
   no URL.
 
 ## Consequences

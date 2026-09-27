@@ -86,8 +86,8 @@ func isHeaderFirstLine(line string) bool {
 //
 // Both conditions matter. Content can follow a header at once, as a
 // "<style>" block, a prose paragraph, or a whitespace-only separator. With
-// a blank line as the only end, the header would run on to the first truly
-// empty line. It would then read a CSS "--var: #hex;" line as metadata.
+// a blank line as the only end, the header would continue to the first
+// truly empty line. It would then read a CSS "--var: #hex;" line as metadata.
 //
 // A header with neither a blank line nor a non-header line after it is a
 // note that is only metadata. Such a note has an empty body. With no header

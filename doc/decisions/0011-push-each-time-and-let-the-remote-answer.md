@@ -18,8 +18,8 @@ and pressed Upload. The log said "nothing to commit, nothing to push",
 and server 2 never got the commit.
 
 The upload preview had the same fault. It showed only the changed files,
-and the page read an empty list as "nothing to do". A commit whose push
-failed on the network could thus not be pushed again.
+and the page read an empty list as "nothing to do". A person thus could
+not push a commit again after its push failed on the network.
 
 A refused push also had a fault. go-git makes the non-fast-forward error
 with `fmt.Errorf` and wraps no sentinel. `git.ErrNonFastForwardUpdate`
@@ -32,8 +32,8 @@ then showed a plain alert, and not the dialog that offers a force push.
 * `syncPush` always calls `repo.Push`. `git.NoErrAlreadyUpToDate` from the
   remote is the only answer that means "nothing to push".
 * The upload preview answers `unpushedState` beside the file list. When
-  the local refs cannot prove that the remote is level, it says "maybe"
-  and offers a push. A push that is not necessary costs one round trip. A
+  the local refs cannot prove that the remote has each local commit, it
+  says "maybe" and offers a push. A push that is not necessary costs one round trip. A
   push that the page hides costs the commits of the person.
 * `isNonFastForward` tests the sentinel first, and then the text
   "non-fast-forward update". A later go-git that wraps the sentinel thus
@@ -41,8 +41,8 @@ then showed a plain alert, and not the dialog that offers a force push.
 
 ## Consequences
 
-* Do not add a check that skips the push. Such a check can be wrong about
-  a remote that the push itself would ask correctly.
+* Do not add a check that skips the push. Such a check can give a wrong
+  answer. The push itself always asks the correct remote.
 * A go-git upgrade that changes the text of the error breaks the
   push-conflict dialog. The tests of `git_sync_test.go` push against a
   real remote and check the status `push_conflict`.

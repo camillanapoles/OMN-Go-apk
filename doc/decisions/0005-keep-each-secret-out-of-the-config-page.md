@@ -8,15 +8,15 @@
 
 ## Context
 
-The server compiles the Config page into a file in the storage
-directory. Each reader of the device can open that file. Before 26.09.7,
-the page held the admin password, the guest password, each SSH key and
-each key password as the value of a box.
+The server renders the Config page for each request, and `/Config.html`
+needs no login. A guest of a LAN share can thus open the page and read
+its source. Before 26.09.7, the page held the admin password, the guest
+password, each SSH key and each key password as the value of a box.
 
 The save of the page had a second fault. For each git server slot, the
 server wrote all four fields when one of them was not empty. When the
-key box was empty, a save that changed only the name wrote an empty key
-over the real one.
+key box was empty, a save that changed only the name replaced the real
+key with an empty one.
 
 ## Decision
 

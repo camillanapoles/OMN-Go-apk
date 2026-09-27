@@ -32,8 +32,8 @@ meets all three conditions:
 * The term matches the row verbatim, and not as scattered letters.
 
 The order is part of the rule. The window of ten comes first, and the cut
-comes second. A cut before the window would let a weaker row move up into
-the ten.
+comes second. With the cut first, a weaker row from below the ten would
+take the place of each removed row.
 
 When no row of the window carries a word, the window is the answer. A
 note that matched always shows something.

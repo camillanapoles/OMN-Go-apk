@@ -260,8 +260,7 @@ func renderEditorPage(v editorPageView) string {
 //
 // It carries NO SSH key and NO key password, and configPageView carries no
 // admin password and no guest password. A secret in a view reaches the HTML
-// of the page. The page is a file on disk, and each reader of the device
-// can open it. The boxes are thus empty, and the reader presses "Show
+// of the page, and /Config.html needs no login. The boxes are thus empty, and the reader presses "Show
 // passwords" to read the values from GET /api/config. See omn-go-config.js
 // and doc/decisions/0005-keep-each-secret-out-of-the-config-page.md.
 type gitServerView struct {

@@ -173,9 +173,9 @@ The cases live in `backend/frontend/test/header-cases.json`, and both
 languages read that one file. Add a case there when you find a note shape
 that the two might read differently.
 
-A copy of a rule that nobody runs moves apart from the original. This
-pair did: four of eight note shapes read differently before this test
-existed.
+A copy of a rule that no test runs drifts from the original. This pair
+drifted. Before this test existed, the two read four of eight note shapes
+differently.
 
 ---
 
@@ -202,7 +202,7 @@ That is the most that a test here can do.
 A browser test is a fourth thing that this gate does not do. Chromium in
 the build image would add about 300 MB against about 50 MB for Node, and
 each cold build would pay it. A session or a separate job can drive a real
-browser without touching the release build.
+browser, and the release build stays as it is.
 
 ---
 
@@ -232,8 +232,7 @@ A Linux build stands for the Android ABI of the same CPU.
 
 **The baseline.** `backend/testdata/binary_size_baseline.json` holds the
 git reference of the baseline build, its sizes, and the Go version that
-made them. A different Go
-version also changes the size. The report then says so, and the growth
+made them. A different Go version also changes the size. The report then says so, and the growth
 limit does not apply.
 
 | Setting | Effect |

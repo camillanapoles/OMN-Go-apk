@@ -21,8 +21,8 @@ and "not part of this request" thus look the same to the server.
 ## Decision
 
 * A field that the request does not carry keeps its value.
-* A field that the request carries is written, also when the value is
-  empty. A person must be able to clear the author name or a password.
+* The server writes a field that the request carries, also when the
+  value is empty. A person must be able to clear the author name or a password.
 * The Config page names each checkbox that it governs in one hidden
   field, `config_fields`. A name in that list counts as sent, also when
   the form has no value for it. That is what a checkbox that is not

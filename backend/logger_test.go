@@ -429,9 +429,9 @@ func TestLogHistoryEndpointRefusesAnotherMethod(t *testing.T) {
 
 // The endpoint is ADMIN ONLY, and so is the stream beside it.
 //
-// A LAN share hands out no log line, live or held. An open stream would
-// make the guard on the ring useless. A guest who holds the stream open
-// reads the same lines as they are written.
+// A LAN share gives no log line, live or held. An open stream would make
+// the guard on the ring useless. A guest who holds the stream open reads
+// the same lines as the server writes them.
 //
 // This test drives the REAL registration through a real mux. A guard
 // that registerRoutes forgets to wrap is then a failure here, and a test

@@ -31,8 +31,9 @@ much larger.
   * A JavaScript string in an inline `<script>`: `escapeJS`.
   * A JavaScript string in an HTML attribute, for example `onclick`:
     `escapeHTML(escapeJS(v))`.
-* HTML that the server made, for example the body of a note, goes in
-  as it is. No function escapes it a second time.
+* A render function puts HTML that the server made, for example the body
+  of a note, into the page as it is. No function escapes it a second
+  time.
 
 ## Consequences
 

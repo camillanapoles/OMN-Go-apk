@@ -44,9 +44,8 @@ func secretsApp(t *testing.T) *App {
 	return a
 }
 
-// The compiled Config page is a file on disk in the storage directory,
-// and each reader of the device can open it. It must therefore hold no
-// password and no SSH key.
+// /Config.html needs no login, thus a guest of a LAN share can read the
+// source of the page. It must therefore hold no password and no SSH key.
 func TestConfigPageCarriesNoSecret(t *testing.T) {
 	a := secretsApp(t)
 	page := a.getConfigPageBody()

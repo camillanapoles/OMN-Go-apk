@@ -597,7 +597,7 @@ func readIfExists(path string) ([]byte, error) {
 // exists, and doc/decisions/0009-show-only-the-search-rows-that-carry-a-word-of-the-query.md
 // for the measurement that asked for it.
 //
-// Four other signals were measured, and each one failed:
+// Four other signals failed in a measurement:
 //
 //   - the character mask of the index. It answers "could match" and it
 //     saturates. The word "cat" reads as present in 96 percent of the

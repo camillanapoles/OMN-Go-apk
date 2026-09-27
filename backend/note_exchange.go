@@ -851,7 +851,7 @@ func (a *App) handleImportNote(w http.ResponseWriter, r *http.Request) {
 // readImportBody reads at most limit bytes and reports an error when there
 // were more.
 //
-// This is NOT the readCapped of search.go, and it must not reach for that
+// This is NOT the readCapped of search.go, and it must not call that
 // one. The other one
 // takes a PATH and TRUNCATES on purpose. "Found nothing in the part I looked
 // at" is a useful answer about a 2 MB note. Half a note is not a

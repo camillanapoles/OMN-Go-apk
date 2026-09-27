@@ -45,7 +45,7 @@ import (
 // a version-dependent file finds that copy in the backup directory, and can
 // merge it back. The log carries the path. While the version stamp already
 // matches APP_VERSION, the function does cheap work and writes nothing, thus
-// nothing is touched between upgrades. See
+// the function touches nothing between upgrades. See
 // doc/decisions/0006-replace-the-application-files-at-each-new-version.md.
 
 // assetsVersionFilename stores the APP_VERSION that most recently refreshed
@@ -269,7 +269,7 @@ func (a *App) refreshEmbeddedAssets() {
 
 	prevLabel := prev
 	if prevLabel == "" {
-		// An install with no version stamp, or with a wiped one.
+		// This is an install with no version stamp, or with a wiped one.
 		prevLabel = "unknown"
 	}
 	prevLabel = backupLabelSanitizer.ReplaceAllString(prevLabel, "_")

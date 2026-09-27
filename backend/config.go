@@ -40,8 +40,8 @@ func normalizeTheme(s string) string {
 // Android system-bar modes accepted in Config.AndroidFullscreen.
 //
 // Note that the default is FullscreenOn, and NOT the zero value.
-// AndroidManifest.xml sets Theme.NoTitleBar.Fullscreen, thus the status bar
-// is hidden when config.json says nothing. A plain bool would make "field
+// AndroidManifest.xml sets Theme.NoTitleBar.Fullscreen, thus the app hides
+// the status bar when config.json says nothing. A plain bool would make "field
 // absent" mean false, and each install with no such key would change how it
 // looks. A string enum lets normalizeFullscreen map absent onto the manifest
 // behavior, the same as normalizeTheme maps absent onto auto.
@@ -159,7 +159,7 @@ func normalizeLogTags(tags []string) []string {
 	return out
 }
 
-// normalizeSearchScope maps anything unrecognised, an empty value included,
+// normalizeSearchScope maps each unknown value, an empty value included,
 // onto SearchScopeAll.
 func normalizeSearchScope(s string) string {
 	if strings.ToLower(strings.TrimSpace(s)) == SearchScopePage {
@@ -275,7 +275,7 @@ type Config struct {
 	// 0.0.0.0, thus another device on the network can connect. The admin and
 	// guest passwords protect that connection, through authMiddleware. A
 	// change takes effect on the next application start, because the socket
-	// is bound one time. See
+	// binds one time. See
 	// doc/decisions/0002-bind-the-loopback-address-when-lan-sharing-is-off.md.
 	ShareLAN         bool              `json:"share_lan"`
 	Hostname         string            `json:"hostname"`
@@ -418,8 +418,8 @@ func (a *App) loadConfig(storageDir string) {
 			a.logErrf(logConfig, "loadConfig: failed to parse %s (using defaults for any unparsed fields): %v", configPath, err)
 		}
 	}
-	// A config.json with no server_port, or with a value below 1, falls
-	// back the same way a fresh install does.
+	// A config.json with no server_port, or with a value below 1, gets the
+	// fallback port, the same as a fresh install.
 	if a.Config.ServerPort <= 0 {
 		a.Config.ServerPort = a.fallbackPort()
 	}

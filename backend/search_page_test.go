@@ -150,7 +150,7 @@ func TestSearchPage_EmptyStateNamesTheCorpus(t *testing.T) {
 //
 // A person can put a "Search" link on a note, thus the address is
 // legitimate and permanent. A 404 would be a dead end that names neither
-// the cause nor the cure. The cure is one settings toggle away.
+// the cause nor the cure. One setting on the Config page is the cure.
 func TestSearchPage_ExplainsHowToEnableGlobalSearch(t *testing.T) {
 	a := newTestApp(t)
 	a.search = &searchIndex{}

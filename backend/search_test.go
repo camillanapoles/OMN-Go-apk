@@ -714,7 +714,7 @@ func TestPhraseTierIsLiteralAndAdjacent(t *testing.T) {
 //
 // A long note answers a common query on hundreds of lines. The panel asks
 // for ten. Without a cut, the last rows carry the lines that match a
-// one-letter term and nothing else. cutSnippets takes those rows out of the
+// one-letter term and nothing else. cutSnippets removes those rows from the
 // answer.
 // ---------------------------------------------------------------------
 

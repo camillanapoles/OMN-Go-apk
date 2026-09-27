@@ -44,4 +44,4 @@ server wrote it. The guard on the history protected nothing.
 * A guest of a LAN share reads no log line, live or held.
 * The ring costs about 60 KB for the life of the process.
 * A client with a full channel loses a line and does not block the
-  writer. The stream must thus never drive state that needs each line.
+  writer. The stream must thus never control state that needs each line.

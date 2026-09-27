@@ -219,7 +219,7 @@ func TestBaseline_ServeHTMLPageDispatch(t *testing.T) {
 		// external-editor flow and not the editor page.
 		//
 		// loadConfig sets UseInternalEd to true on a fresh install, thus
-		// the subtest sets false itself and puts the default back.
+		// the subtest sets false itself and then sets the default again.
 		a.WithConfig(func(c *Config) { c.UseInternalEd = false })
 		defer a.WithConfig(func(c *Config) { c.UseInternalEd = true })
 
@@ -643,7 +643,7 @@ func TestBaseline_ViewDoesNotRewriteSource(t *testing.T) {
 // ---------------------------------------------------------------------
 // 6. Config POST semantics
 //
-// The rule: a field the request does not carry is left as it is. See
+// The rule: a field the request does not carry keeps its value. See
 // doc/decisions/0014-change-only-the-settings-that-a-request-names.md. A field
 // it DOES carry is applied, empty value included, so the Config page can
 // still clear a text box.

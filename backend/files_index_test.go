@@ -9,8 +9,8 @@ package backend
 //   - it shows ONE directory of ONE tree. The whole design turns on that. A
 //     "flat list of everything" is what it drifted into two times while it
 //     was planned.
-//   - one NAME has one ROW. A name that both ships and sits on the device
-//     is not printed two times.
+//   - one NAME has one ROW. The page prints a name that both ships and
+//     sits on the device one time.
 //   - it never WRITES. The obvious way to resolve an embedded path is
 //     materializeAsset, and that extracts the file as a side effect. A
 //     listing built that way would silently defeat lazy extraction for all

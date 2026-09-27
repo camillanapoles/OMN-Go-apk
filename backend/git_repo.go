@@ -185,7 +185,7 @@ var obsoleteGitignoreLines = map[string]bool{
 	"/html/db_backup/local-*/": true,
 	// The old place of each app asset, before the move below
 	// html/js/OMN-Go/ and html/css/OMN-Go/, and html/css/markdown.css.
-	// These lines must go, or .gitignore keeps a line for a file that
+	// Remove these lines, or .gitignore keeps a line for a file that
 	// does not exist. removeRetiredAssets in assets.go
 	// deletes the files themselves. See retiredAssets.
 	"/html/css/omn-go-core.css":           true,
@@ -331,8 +331,8 @@ func (a *App) getOrInitRepo() (*git.Repository, error) {
 		// Backfill any .gitignore entry added to gitignoreBase after this
 		// repo was first created. See the appended-entries loop in
 		// ensureGitignore. It runs at each open, on each platform. Without
-		// it, a file meant to be ignored, for example a test image, goes
-		// into commits.
+		// it, a commit takes a file that .gitignore must cover, for example
+		// a test image.
 		a.ensureGitignore()
 	}
 

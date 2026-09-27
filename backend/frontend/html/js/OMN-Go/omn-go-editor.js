@@ -782,7 +782,7 @@
     //   "Title: X\nprose\n\nmore"
     //       The caret goes past the first paragraph of the body.
     //   "Title: X\n   \nbody"
-    //       A separator of spaces goes unread.
+    //       The search misses a separator of spaces.
     //
     // TestHeaderBodyStartHasAFrontendCopy compares the two sides against a
     // table of notes. Change this function and header_block.go together.

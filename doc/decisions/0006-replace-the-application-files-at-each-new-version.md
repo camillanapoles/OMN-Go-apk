@@ -17,7 +17,7 @@ It is not correct for a file of the application:
 
 * After an update, the old copy on disk hides the new file of the build.
 * A note that a new version adds, for example `md/SQLImport.md`, never
-  gets to an existing install.
+  reaches an existing install.
 
 After an update, the Android WebView also used its own cached copy of the
 old scripts. Some pages did not operate correctly until the person
@@ -30,8 +30,8 @@ cleared the cache.
 * `assets_version` in the storage directory holds the version that last
   wrote the files. When the version of the build is different,
   `refreshEmbeddedAssets` writes each listed file from the build.
-* A copy on disk that differs from the build goes to
-  `asset_backups/<previous-version>/` first. When the backup fails, the
+* `refreshEmbeddedAssets` first moves a copy on disk that differs from the
+  build to `asset_backups/<previous-version>/`. When the backup fails, the
   file stays as it is.
 * `refreshEmbeddedAssets` writes the version stamp after the loop. When
   the process stops during the refresh, the next start does it again.

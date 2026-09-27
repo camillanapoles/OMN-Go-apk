@@ -238,7 +238,7 @@ func indexWords(rs []rune, into map[string]bool) {
 }
 
 // commonWords answers the set of words that carry little in this
-// collection. It answers nil when no index is built, and cutSnippets then
+// collection. It answers nil when no index exists, and cutSnippets then
 // counts no word as common.
 func (a *App) commonWords() map[string]bool {
 	if a.search == nil {

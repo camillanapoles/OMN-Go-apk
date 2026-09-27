@@ -43,7 +43,7 @@ presses a control: a sync button, the bookmark button or the magnifier.
 * After the split, each press of "Commit & Push" threw "SYNC_TITLES is not
   defined". The map stayed in `omn-go-sse.js`, and `omn-go-sync.js` read
   it. 26.09.41 moved the map into `omn-go-sync.js`.
-* A function that another file calls goes on `window` by name. Annex B
+* Put a function that another file calls on `window`, by name. Annex B
   of JavaScript lifts a function of an `if` block to the global scope,
   but a `const` stays in the block. Do not depend on that difference.
 * `lazy.test.js` runs each lazy file alone in `page-stub.js`, where

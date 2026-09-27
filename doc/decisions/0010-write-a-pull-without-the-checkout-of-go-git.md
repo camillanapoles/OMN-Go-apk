@@ -31,8 +31,8 @@ A pull does not call the checkout of go-git. It writes the files itself:
   touches no other file. It also writes a new index.
 * `oldTrackedPaths` gives each path that the old HEAD tracks.
 * After the write, a pull removes each path that the old HEAD tracked and
-  the new tree does not hold. A note that another device deleted thus
-  goes away. A file that git never tracked never goes away.
+  the new tree does not hold. The pull thus deletes a note that another
+  device deleted. It never deletes a file that git never tracked.
 * Only a force pull removes a file that git does not track, and only
   when `.gitignore` does not cover it.
 

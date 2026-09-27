@@ -30,17 +30,17 @@ if (window.location.protocol !== 'file:') {
         push: 'Upload', upload: 'Upload', push_force: 'Force upload'
     };
 
-    // The whole body of this file sits inside the protocol guard, thus a
-    // name here reaches no other file unless it goes on window. An IIFE
+    // The whole body of this file sits inside the protocol guard. A name here
+    // thus reaches no other file, unless the code puts it on window. An IIFE
     // around the functions below would add a scope and hide nothing.
 
     // runSync is the one place that talks to /api/sync. It always POSTs
     // action, force and message together, and it always expects a JSON
     // {status, message} response.
     //
-    // The backend reads "action" from the body of the POST. An action in
-    // the URL query string alone would be ignored, and the request would
-    // fall back to a plain "pull".
+    // The backend reads "action" from the body of the POST. It ignores an
+    // action in the URL query string alone, and it then does a plain
+    // "pull".
     //
     // Both syncAction and the conflict modal handler, which is performSync
     // below, go through this one function. The two thus cannot drift apart.
