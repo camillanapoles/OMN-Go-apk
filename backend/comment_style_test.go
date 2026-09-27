@@ -672,16 +672,17 @@ func TestCommentVersionScannerFindsEachForm(t *testing.T) {
 // whether the comments grow faster than the code. The target is 200 per
 // mille, which is 20 percent. Section 3 of CLAUDE.md gives the rules.
 //
-// THE CEILING FOLLOWS THE WORK. Each patch that shortens comments lowers
-// commentShareCeiling to its new result. The test fails when the share is
-// above the ceiling. While the ceiling is above the target, it also fails
-// when the share is more than 10 per mille below it.
+// THE CEILING IS THE TARGET. The test fails when the share is above
+// commentShareCeiling. A new long comment thus needs a shorter one in
+// another place. A ceiling above the target must follow the share: the test
+// then also fails when the share is more than 10 per mille below it.
 
 // commentShareCeiling is the highest share, in per mille, that the Go
 // production files may hold.
-const commentShareCeiling = 207
+const commentShareCeiling = 200
 
-// commentShareTarget is the share, in per mille, that the ceiling moves to.
+// commentShareTarget is the share, in per mille, that the code must not
+// pass: 20 percent.
 const commentShareTarget = 200
 
 // goCommentShare answers the whole line comments and the lines of the Go

@@ -73,23 +73,17 @@ func (a *App) getExternalEditPageBody(fileName string, viewURL string) string {
 // configFormMaxMemory is the defaultMaxMemory of net/http.
 const configFormMaxMemory = 32 << 20
 
-// configFieldSent reports whether a POST to /api/config carries a value for
-// one config field. A field that the request does not carry keeps its value.
-// See doc/decisions/0014-change-only-the-settings-that-a-request-names.md.
-//
-// A browser sends nothing for an unticked checkbox. The Config page thus
-// names each checkbox that it governs in the hidden field config_fields, and
-// a name in that list counts as sent:
-//
-//	<input type="hidden" name="config_fields" value="share_lan,search_enabled,…">
-//
-// The server writes a field that IS sent, also when its value is empty.
+// configFieldSent reports whether a POST to /api/config carries one field. A
+// field that the request does not carry keeps its value. See
+// doc/decisions/0014-change-only-the-settings-that-a-request-names.md. A
+// browser sends nothing for a clear checkbox. The Config page thus names its
+// checkboxes in the hidden field config_fields, and each name there counts as
+// sent.
 func configFieldSent(r *http.Request) func(field string) bool {
 	if r.Form == nil {
-		// The Config page posts multipart FormData, and other callers post
-		// urlencoded forms. ParseMultipartForm fills r.Form for both. For an
-		// urlencoded form it then reports ErrNotMultipart, which is not a
-		// failure.
+		// ParseMultipartForm fills r.Form for multipart and for urlencoded
+		// bodies. For urlencoded, it reports ErrNotMultipart, and that is not
+		// a failure.
 		_ = r.ParseMultipartForm(configFormMaxMemory)
 	}
 
@@ -110,12 +104,8 @@ func configFieldSent(r *http.Request) func(field string) bool {
 	}
 }
 
-// handleConfig answers GET and POST on /api/config. A POST runs
-// applyConfigForm and applyGitServerForm (config_fields.go), then
-// persistConfig and applyConfigChange below.
-//
-// A GET answers with the whole Config struct, each password included. It is
-// admin only, and the "Show passwords" button reads it.
+// handleConfig answers GET and POST on /api/config. A GET answers the whole
+// Config with each password, for "Show passwords". It is admin only.
 func (a *App) handleConfig(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -170,12 +160,9 @@ func (a *App) persistConfig(cfg Config) error {
 	return nil
 }
 
-// applyConfigChange starts the work that a saved change needs. It takes the
-// configuration from before and after the save.
-//
-// Each change applies at once, except share_lan: the server binds the listen
-// socket one time, at the start. A person who stops global search wants the
-// memory now, and not at the next start.
+// applyConfigChange starts the work that a saved change needs. Each change
+// applies at once, except share_lan, because the socket binds one time at the
+// start.
 func (a *App) applyConfigChange(prev, next Config) {
 	a.applyLogFilter(next)
 
@@ -204,17 +191,11 @@ func searchIndexNeedsRebuild(prev, next Config) bool {
 		strings.Join(normalizeSearchKinds(next.SearchKinds), ",")
 }
 
-// handleRestart restarts the process, thus the listen address and each other
-// start-time value come from the saved config. The frontend calls it after a
-// save that changed share_lan. The handler sends the answer before the
-// restart, and the exit runs on a delayed goroutine.
-//
-//   - Android: os.Exit(0). ServerService is START_STICKY, thus the system
-//     starts it again with the new config. The person opens the UI again.
-//   - Desktop: start a new copy of the executable with OMN_GO_RESTARTED=1,
-//     thus main_desktop.go opens no second browser tab. Then stop. The
-//     bind-retry loop of server.go covers the moment when both processes
-//     race for the socket.
+// handleRestart restarts the process, thus the start-time values come from
+// the saved config. It answers first and exits on a delayed goroutine. On
+// Android, it calls os.Exit(0), and START_STICKY starts ServerService again.
+// On the desktop, it starts a new copy with OMN_GO_RESTARTED=1, thus no
+// second browser tab opens.
 func (a *App) handleRestart(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -257,17 +238,10 @@ func (a *App) restartProcess() {
 	os.Exit(0)
 }
 
-// resolveAndroidEditName computes the name for the omngo://edit intent.
-// MainActivity.shouldOverrideUrlLoading picks md/ or html/ by one test alone:
-// whether the name ends in ".md".
-//
-// The incoming name is the URL on screen, for example "Welcome.html". The
-// name of a page must thus be baseName + ".md", or Android opens the compiled
-// cache and not the source. A file that is not a page keeps its name.
-// handleEditExternal of the desktop makes the same decision.
-//
-// It is a pure function with no runtime.GOOS test, thus a test on any
-// platform can call it.
+// resolveAndroidEditName makes the name for the omngo://edit intent.
+// MainActivity picks md/ or html/ by the ".md" suffix alone, thus a page must
+// become baseName + ".md". A file that is not a page keeps its name. It has
+// no runtime.GOOS test, thus each platform can test it.
 func resolveAndroidEditName(name, baseName string, isPage bool) string {
 	if isPage {
 		return baseName + ".md"
@@ -344,15 +318,10 @@ func (a *App) handleEditExternal(w http.ResponseWriter, r *http.Request) {
 	w.Write(a.injectRuntimeVars(compiledWait))
 }
 
-// resolveNewPageTarget resolves a new page name the same way as a relative
-// link on the source page (see rewriteInternalLink):
-//
-//   - a bare name with no "/" is a sibling of source,
-//   - a leading "/" is absolute, from the storage root,
-//   - a target with its own directory stays as it is.
-//
-// The function first trims a stray slash at either end of source.
-// "path/file/" would otherwise give "path/file/new" and not "path/new".
+// resolveNewPageTarget resolves a new page name the same way as a link on the
+// source page. A bare name is a sibling of source, a leading "/" is absolute,
+// and a target with a directory stays. It first trims a stray slash at each
+// end of source.
 func (a *App) resolveNewPageTarget(source, target string) string {
 	target = strings.TrimSpace(target)
 	if target == "" {
@@ -379,13 +348,9 @@ func (a *App) resolveNewPageTarget(source, target string) string {
 	return dir + "/" + target
 }
 
-// handleLogin exchanges a password for the two session cookies. Only a caller
-// on the network needs it, because a local connection is always the owner
-// (see hasRole).
-//
-// The comparison is constant-time, because the time of "==" tells how much of
-// the password is correct. An EMPTY configured password matches nothing, or
-// each caller on the network could log in with an empty password.
+// handleLogin changes a password into the two session cookies. Only a caller
+// on the network needs it. The comparison is constant-time, and an EMPTY
+// configured password matches nothing.
 func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 	cfg := a.GetConfig()
 	pwd := r.FormValue("password")
@@ -474,11 +439,8 @@ func (a *App) handleBookmark(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	// A semicolon separates notes, and a comma separates tags, the same as in
-	// OMN. The code trims each entry and drops an empty one.
-	//
-	// json.MarshalIndent below writes the entries into the <script> block of
-	// Bookmarks.md. It escapes '"', '<', '>' and '&', thus a note cannot close
-	// the script element.
+	// OMN. json.MarshalIndent below escapes '<', '>' and '&', thus a note
+	// cannot close the <script> of Bookmarks.md.
 	notesList := []string{}
 	for n := range strings.SplitSeq(notes, ";") {
 		if trimmed := strings.TrimSpace(n); trimmed != "" {
@@ -514,9 +476,8 @@ func (a *App) handleBookmark(w http.ResponseWriter, r *http.Request) {
 }
 
 // imageUploadExtensions and jsonUploadExtensions list what saveUploadedFile
-// accepts. The share-to-QuickNote path of MainActivity.java writes to disk
-// without these handlers, and it has its own copy of the two lists. Keep the
-// copies the same.
+// accepts. MainActivity.java has a copy of both lists for its share path.
+// Keep the copies the same.
 var (
 	imageUploadExtensions = []string{".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
 	jsonUploadExtensions  = []string{".json", ".jsonl"}
@@ -529,12 +490,9 @@ type uploadRejected struct{ msg string }
 func (e *uploadRejected) Error() string { return e.msg }
 
 // saveUploadedFile does the shared work of handleUpload and handleUploadJSON.
-// It parses the form, takes the file field, checks it against allowedExt and
-// maxBytes, and copies it to destDir/<file name>. It returns each failure to
-// the caller, thus a full disk is not a success.
-//
-// allowedExt matches without regard to case, and an empty list skips the
-// check. maxBytes <= 0 skips the size check. Only a test passes such a value.
+// It checks the file field against allowedExt and maxBytes, and copies it to
+// destDir. It returns each failure, thus a full disk is not a success. An
+// empty allowedExt, or maxBytes <= 0, skips that check, for the tests.
 func (a *App) saveUploadedFile(r *http.Request, formField, destDir string, allowedExt []string, maxBytes int64) (filename string, err error) {
 	if err := r.ParseMultipartForm(10 << 20); err != nil { // 10MB in-memory threshold before spilling to temp files; NOT the size cap (see maxBytes below)
 		return "", fmt.Errorf("parse form: %w", err)
@@ -609,12 +567,9 @@ func (a *App) handleUpload(w http.ResponseWriter, r *http.Request) {
 		a.writeUploadError(w, "handleUpload", err)
 		return
 	}
-	// An <img> element, and not Markdown image syntax, because only HTML can
-	// carry the class. goldmark runs with html.WithUnsafe(), thus the element
-	// stays in the page. omn-go-core.css gives .omn-imported-image a default
-	// width.
-	//
-	// Use a double-quoted string. A raw string keeps "\n" as two characters.
+	// Use an <img> element, because only HTML can carry the class. Use a
+	// double-quoted string, because a raw string keeps "\n" as two
+	// characters.
 	escaped := html.EscapeString(filename)
 	w.Write(fmt.Appendf(nil, "\n<img src=\"/images/%s\" alt=\"%s\" class=\"omn-imported-image\" />\n", escaped, escaped))
 }
@@ -646,11 +601,9 @@ func (a *App) handleGetNote(w http.ResponseWriter, r *http.Request) {
 		}
 		data, err := os.ReadFile(htmlPath)
 		if err != nil {
-			// Not on disk. A shipped html/ asset reaches the disk only at its
-			// first request, see materializeAsset. A 404 here makes the
-			// editor open an EMPTY buffer. The first Save then replaces the
-			// shipped content with nothing. json/bookmarker-tags.json is an
-			// example. Extract the file, then read it.
+			// The file is not on disk yet. Extract it first. A 404 would open
+			// an EMPTY editor, and the first Save would erase the shipped
+			// content.
 			if physPath, ok := a.materializeAsset("/" + strings.TrimPrefix(filepath.ToSlash(name), "/")); ok {
 				data, err = os.ReadFile(physPath)
 			}
@@ -733,12 +686,10 @@ func (a *App) handleNewPage(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			content := string(sourceData)
 
-			// The link in source must resolve, on a click, to the new page.
-			// The browser resolves a bare name relative to the directory of
-			// source, the same as rawTarget. The link thus holds a bare
-			// rawTarget as it is. The resolved target, such as "path/new",
-			// would resolve a second time to "path/path/new". A rawTarget
-			// with its own directory, or an absolute one, gets a leading "/".
+			// The link in source must resolve to the new page. The browser
+			// resolves a bare name relative to source, thus a bare rawTarget
+			// stays as it is. A rawTarget with its own directory, or an
+			// absolute one, gets a leading "/".
 			linkHref := strings.TrimSpace(rawTarget)
 			if strings.Contains(linkHref, "/") {
 				linkHref = "/" + target
@@ -854,13 +805,10 @@ func (a *App) serveFrontend(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) serveHTMLPage(w http.ResponseWriter, r *http.Request, path string) {
-	// requested keeps ".html", and name drops it. name selects a page that
-	// the server builds. requested goes to resolvePageName, which reads the
-	// LAST extension. A note named "Draft.txt" arrives as "Draft.txt.html".
-	// With the ".html", it resolves to md/Draft.txt.md. Without it, it would
-	// be the file html/Draft.txt.
-	//
-	// Do not strip ".md". "Welcome.md" is a valid note name.
+	// requested keeps ".html" for resolvePageName, which reads the LAST
+	// extension: "Draft.txt.html" is the note md/Draft.txt.md, and
+	// "Draft.txt" is a file. Do not strip ".md", because "Welcome.md" is a
+	// valid note name.
 	requested := strings.TrimPrefix(path, "/")
 	name := strings.TrimSuffix(requested, ".html")
 
@@ -966,17 +914,12 @@ func (a *App) serveEditor(w http.ResponseWriter, r *http.Request, path string) {
 }
 
 // renderInternalEditor writes the editor page for relPath. The page fetches
-// the text from /api/note, thus no view page carries a second copy of its
-// source. serveEditor and the edit branch of /js, /css and /json both call
-// it.
+// the text from /api/note, thus no view page carries a second copy.
 func (a *App) renderInternalEditor(w http.ResponseWriter, relPath string) {
 	_, _, baseName, isPage := a.resolvePageName(relPath)
 
-	// name goes to /api/note and /api/save. viewURL is where Save and Cancel
-	// return. title is what the reader sees.
-	//
-	// A page sends baseName + ".md". Both endpoints read the LAST extension,
-	// and "Draft.txt" alone would name the file html/Draft.txt.
+	// name goes to /api/note and /api/save. A page sends baseName + ".md",
+	// because both endpoints read the LAST extension.
 	name := relPath
 	viewURL := "/" + relPath
 	pageExt := filepath.Ext(relPath)

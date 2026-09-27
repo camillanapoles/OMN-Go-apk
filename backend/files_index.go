@@ -6,41 +6,19 @@ package backend
 //
 // Three trees, one directory at a time:
 //
-//	Bundled  What this build carries: staticFS, which embeds frontend/html
-//	         and frontend/md. The templates are in a separate embed.
-//	         TestFilesPage_NeverListsTemplates holds that.
+//	Bundled  What this build carries: staticFS. The templates are in a
+//	         separate embed. TestFilesPage_NeverListsTemplates holds that.
 //	Served   What a URL finds: StorageDir/html, without db_backup/.
 //	Source   What the person wrote: StorageDir/md.
 //
-// Each NAME has one row in its tree, and the row states the relation. The
-// reader never pairs two rows by eye.
+// Each NAME has one row in its tree. SILENCE IS THE NORMAL CASE: a row speaks
+// ONLY when the app is involved. The word says what the file IS, and the
+// color says what HAPPENS to it. The table in filesLegend lists each word and
+// each color. The color never works alone.
 //
-// SILENCE IS THE NORMAL CASE. Most files belong to the user: notes, compiled
-// pages and images. A row speaks ONLY when the app is involved:
-//
-//	not extracted      The build carries the file, and the device has no copy.
-//	changed here       The build carries it, and the copy here differs.
-//	edited outside     A .txt copy in html/ is newer than the file in md/.
-//	waits for restart  The .txt copy is older, and the next start repairs it.
-//	same size          Too large to compare, and the two sizes agree.
-//
-// TWO CHANNELS FOR EACH ROW. The word says what the file IS. The color says
-// what HAPPENS to it:
-//
-//	orange  The next version of the app replaces this file.
-//	red     The same, and the copy on the device differs, thus that work
-//	        goes to a backup. Also the .txt case that no start repairs.
-//	green   The person changed a file that OMN-Go keeps.
-//	teal    OMN-Go repairs this at the next start.
-//	grey    Nothing is at stake.
-//
-// The color never works alone. "app-owned" is a WORD on the second line of
-// each row that it applies to.
-//
-// NOTHING HERE MAY WRITE. Above all, never call materializeAsset. A listing
-// that extracts each embedded file would defeat the lazy extraction. A read
-// of an embedded file for a comparison is not a write.
-// TestFilesPage_WritesNothing holds the rule.
+// NOTHING HERE MAY WRITE. Never call materializeAsset, because a listing
+// would then extract each embedded file. TestFilesPage_WritesNothing holds
+// the rule.
 
 import (
 	"bytes"
@@ -64,11 +42,9 @@ const filesDirLimit = 200
 // decision and not a security control.
 const filesExcludedDir = "db_backup"
 
-// filesCompareMax limits the byte comparison between "as shipped" and
-// "changed here". The walk gives the sizes, thus a different size needs no
-// read. Two files of the SAME size need their bytes, because a fixed typo
-// often keeps the length. Above this limit, the row says "same size", and it
-// claims nothing more.
+// filesCompareMax limits the byte comparison of two files with the SAME size,
+// because a fixed typo often keeps the length. Above this limit, the row says
+// "same size".
 const filesCompareMax = 2 << 20
 
 // These are the three trees. The key is the value of ?tree= and the text of
@@ -79,22 +55,19 @@ const (
 	filesTreeSource  = "source"
 )
 
-// indexedFile is one file in one tree, keyed by its LOGICAL path. That path
-// has slashes, is relative to the root of the tree, and has no leading slash.
-// In the Bundled tree, frontend/html/js/x.js becomes "js/x.js" and
-// frontend/md/Note.md becomes "md/Note.md". The two cannot collide, because
-// storage has no md/ inside html/.
+// indexedFile is one file in one tree, keyed by its LOGICAL path: relative to
+// the root of the tree, with slashes. In the Bundled tree,
+// frontend/html/js/x.js is "js/x.js", and frontend/md/Note.md is
+// "md/Note.md".
 type indexedFile struct {
 	path string
 	size int64
 	mod  time.Time // zero for embedded files; embed.FS has no mtime
 }
 
-// filesEntry is one NAME in one tree, with the two sides that can hold it:
-//
-//	Bundled  ships only, thus device is always nil
-//	Served   ships = frontend/html/<path>, device = StorageDir/html/<path>
-//	Source   ships = frontend/md/<path>,   device = StorageDir/md/<path>
+// filesEntry is one NAME in one tree, with its two sides. In the Bundled
+// tree, device is always nil. In the Served and Source trees, ships is the
+// embedded file, and device is the file in StorageDir.
 type filesEntry struct {
 	path   string
 	ships  *indexedFile
@@ -205,10 +178,9 @@ func (a *App) treeEntries(tree string) []filesEntry {
 	return out
 }
 
-// normalizeFilesDir changes ?dir= into a logical directory prefix: "" for the
-// root, or a string that ends with "/". The code uses it ONLY as a string
-// prefix against the paths of the walk. It never joins it into a file system
-// path. A dir that names nothing shows an empty directory.
+// normalizeFilesDir changes ?dir= into a logical directory prefix, "" or a
+// string that ends with "/". The code uses it ONLY as a string prefix, and
+// never joins it into a file system path.
 func normalizeFilesDir(raw string) string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -243,10 +215,9 @@ func normalizeFilesTree(raw, dir string) string {
 	return ""
 }
 
-// foldToDir splits one tree at dir into the directories directly below it and
-// the entries directly in it. The totals of a directory are RECURSIVE,
-// because "this subtree is 4 MB" is the question of the page. A name counts
-// one time, also when both sides hold it.
+// foldToDir splits one tree at dir into the directories below it and the
+// entries in it. The directory totals are RECURSIVE, and a name counts one
+// time.
 func foldToDir(entries []filesEntry, dir string) (dirs []filesDirRow, here []filesEntry, bytes int64, count int) {
 	byDir := map[string]*filesDirRow{}
 	for _, e := range entries {
@@ -351,16 +322,9 @@ func filesKindIcon(name string, isDir bool) string {
 	return "insert_drive_file"
 }
 
-// filesEditable decides whether a row offers an "edit" link. It excludes two
-// cases:
-//
-//   - A compiled .html page. The page already has an Edit button that
-//     opens the markdown source.
-//   - A file that is not text. See editableFileType.
-//
-// The content-type table decides the second case, and not a new extension
-// list. SVG is image/svg+xml, thus it gets no edit link, although it is text.
-// The rule is "an image is not editable here".
+// filesEditable decides whether a row offers an "edit" link. A compiled .html
+// page has its own Edit button. A file that is not text gets no link. See
+// editableFileType. SVG is an image, thus it gets no link.
 func (a *App) filesEditable(logical string) bool {
 	if strings.HasSuffix(strings.ToLower(logical), ".html") {
 		return false
@@ -369,10 +333,8 @@ func (a *App) filesEditable(logical string) bool {
 }
 
 // editableFileType reports whether the content type of logical is text that
-// an editor can open. The editor routes use it without the .html rule,
-// because ?edit=true on a compiled page opens its source. A picture, a font,
-// an audio file or a video file must not open an editor. See serveEditor,
-// handleEditExternal, handleGetNote and handleSaveNote.
+// an editor can open. The editor routes use it too. A picture, a font, an
+// audio file or a video file must not open an editor.
 func (a *App) editableFileType(logical string) bool {
 	ct := a.resolveContentType(logical)
 	if i := strings.IndexByte(ct, ';'); i >= 0 {
@@ -402,8 +364,7 @@ func (a *App) editableFileType(logical string) bool {
 	return false
 }
 
-// isVersionDependent reports whether the app owns a path: the next version
-// replaces it, after a backup of the copy of the user. It reads
+// isVersionDependent reports whether the app owns a path, from
 // versionDependentAssets in assets.go. want is relative to the storage
 // directory.
 func isVersionDependent(want string) bool {
@@ -415,10 +376,8 @@ func isVersionDependent(want string) bool {
 	return false
 }
 
-// filesSameBytes answers whether two copies are the same file. The caller
-// compares the sizes first. The function reads the bytes only up to
-// filesCompareMax. Above that, checked is false, and the row says "same
-// size".
+// filesSameBytes answers whether two copies are the same file. It reads the
+// bytes only up to filesCompareMax. Above that, checked is false.
 func filesSameBytes(embeddedLogical, diskPath string, size int64) (same bool, checked bool) {
 	if size > filesCompareMax {
 		return false, false
@@ -434,16 +393,11 @@ func filesSameBytes(embeddedLogical, diskPath string, size int64) (same bool, ch
 	return bytes.Equal(emb, disk), true
 }
 
-// filesMirrorState describes the .txt pair of note_files.go: md/x.txt is the
-// file, and html/x.txt is its copy. copyFileWithTime gives the copy the mtime
-// of its source, thus an equal size and mtime is the answer with no read.
-// When they differ, the direction decides:
-//
-//	copy older  The next start refreshes it. The row says "waits for restart".
-//	copy newer  An editor outside OMN-Go wrote html/, and nothing repairs it.
-//	            One save in the app editor copies it back.
-//
-// A pair that agrees says NOTHING, because that is the normal state.
+// filesMirrorState describes the .txt pair of note_files.go. An equal size
+// and mtime is the answer with no read, because copyFileWithTime copies the
+// mtime. An older copy "waits for restart". A newer copy was "edited
+// outside", and one save in the app editor copies it back. A pair that agrees
+// says NOTHING.
 func filesMirrorState(source, copyOf *indexedFile) (word, color string, extra string) {
 	if source == nil || copyOf == nil {
 		return "", "", ""
@@ -471,10 +425,9 @@ func (a *App) filesRowFor(tree string, e filesEntry) filesFileRow {
 	case filesTreeBundled:
 		row.AppOwned = isVersionDependent(filesStoragePath(tree, e.path))
 		row.OwnerColor = filesColorApp
-		// A starter note opens as its PAGE, and each other embedded file at
-		// its own address. This tree has no edit link, because an edit
-		// changes the copy on the device. That copy has its own row in the
-		// Served or the Source tree.
+		// A starter note opens as its PAGE. This tree has no edit link,
+		// because an edit changes the copy on the device, which has its own
+		// row.
 		if md, ok := strings.CutPrefix(e.path, "md/"); ok {
 			row.URL = "/" + strings.TrimSuffix(md, ".md") + ".html"
 		} else {
@@ -585,10 +538,8 @@ func (a *App) filesState(tree string, e filesEntry, row *filesFileRow) {
 		}
 
 	default:
-		// The file is only on the device: a note, an upload, or a compiled
-		// page. Each is the normal case of its tree and says NOTHING. The
-		// exception is the .txt pair of note_files.go, when the two copies
-		// differ.
+		// A file only on the device says NOTHING. The .txt pair of
+		// note_files.go is the exception, when the two copies differ.
 		if !isSyncedNoteFile(e.path) {
 			return
 		}
@@ -632,13 +583,9 @@ func (a *App) filesStat(sub, logical string) *indexedFile {
 // filesLegend must find the same text, thus it is a constant.
 const filesFromTheApp = "from the app"
 
-// serveFilesPage answers GET /OMNGoFiles.html. It has its own exact route,
-// because it needs a login, and serveHTMLPage is under the catch-all route
-// with no login. /db_backups is the same.
-//
-// The route does NOT use authMiddleware. That middleware answers a refusal
-// with one line of plain text, and a person can link to this page from a
-// note. The handler asks hasRole, and it answers with a page.
+// serveFilesPage answers GET /OMNGoFiles.html. It needs a login, thus it has
+// its own route outside the catch-all. It asks hasRole and answers a refusal
+// with a page, not with the plain text of authMiddleware.
 // TestFilesPage_Authorization holds the rule.
 func (a *App) serveFilesPage(w http.ResponseWriter, r *http.Request) {
 	dir := normalizeFilesDir(r.URL.Query().Get("dir"))
@@ -731,11 +678,9 @@ func filesSummary(count int, bytes int64, below bool, rows []filesFileRow) strin
 	return out
 }
 
-// filesLegend explains the words that THIS page uses, and nothing more. The
-// key is the pair of the word and the color, because one word can have two
-// outcomes. "changed here" is green on a file that OMN-Go keeps, and red on a
-// file that the next version replaces. The page folds the legend by default.
-// See renderFilesListing.
+// filesLegend explains the words that THIS page uses. The key is the pair of
+// word and color, because "changed here" is green on a kept file and red on a
+// replaced one.
 func filesLegend(tree string, rows []filesFileRow, dirs []filesDirRow) []filesLegendItem {
 	type key struct{ word, color string }
 	seen := map[key]bool{}
