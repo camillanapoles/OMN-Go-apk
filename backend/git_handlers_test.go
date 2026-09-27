@@ -4,13 +4,9 @@ package backend
 // The two sync endpoints
 // ----------------------------------------------------------------------
 //
-// git_handlers.go held 4 of 73 statements under test before 26.09.36.
-// That is 5.5 percent, and it was the lowest number in the package.
-//
-// B1 and B2 built the harness of git_sync_test.go and tested the sync
-// PATHS. Each one calls SyncRepo or a syncXxx method directly. No test
-// went through an http.Request, thus nothing held the layer between the
-// browser and the sync code:
+// git_sync_test.go tests the sync PATHS. Each test there calls SyncRepo or
+// a syncXxx method directly. The tests here go through an http.Request.
+// They hold the layer between the browser and the sync code:
 //
 //   - the translation of the force checkbox into a *_force action.
 //   - the default action when the request names none.
@@ -572,8 +568,8 @@ func TestSyncPreviewAnswersAnArrayAndNeverNull(t *testing.T) {
 // although the worktree is clean.
 //
 // A clean worktree does not mean that there is nothing to send. A push
-// that failed, or a profile that changed, leaves a commit behind. The
-// page said "Nothing to commit" and stopped before this answer existed.
+// that failed, or a profile that changed, leaves a commit behind. See
+// doc/decisions/0011-push-each-time-and-let-the-remote-answer.md.
 func TestSyncPreviewReportsAnUnpushedCommit(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})
@@ -705,7 +701,7 @@ func TestSyncPreviewListsATrackedIgnoredPathOneTime(t *testing.T) {
 // that acts. getOrInitRepo backfills each line of gitignorePatterns into
 // .gitignore on EVERY open, thus config.json is always covered by the
 // time loadGitignoreMatcher reads the file. The check by name is
-// unreachable behind it. See the report of 26.09.36.
+// unreachable behind it.
 //
 // This test holds the OUTCOME and not one guard. It also holds the fact
 // that the chain rests on: the backfill puts the line back.

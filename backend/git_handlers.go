@@ -16,8 +16,7 @@ import (
 // The sync HTTP handlers
 // ----------------------------------------------------------------------
 //
-// This file was part of git_helper.go until 26.09.22. See the banner of
-// git_repo.go for the split and for what each file holds.
+// See the banner of git_repo.go for what each of the four git files holds.
 //
 // Two endpoints reach the sync code. /api/sync runs one action and
 // answers with a status word. /api/sync/preview answers with what a sync

@@ -81,3 +81,6 @@ the status of the old record to `replaced by NNNN`.
 | [0007](0007-keep-the-application-files-in-omn-go-directories.md) | Keep the application files in OMN-Go directories. | `assets.go`, `serving.go`, `git_repo.go` |
 | [0008](0008-render-the-pages-without-html-template.md) | Render the pages without html/template. | `templates.go` |
 | [0009](0009-show-only-the-search-rows-that-carry-a-word-of-the-query.md) | Show only the search rows that carry a word of the query. | `search.go`, `search_index.go` |
+| [0010](0010-write-a-pull-without-the-checkout-of-go-git.md) | Write a pull without the checkout of go-git. | `git_sync.go` |
+| [0011](0011-push-each-time-and-let-the-remote-answer.md) | Push each time, and let the remote answer. | `git_sync.go` |
+| [0012](0012-keep-one-remote-for-each-git-server-slot.md) | Keep one remote for each git server slot. | `git_repo.go` |

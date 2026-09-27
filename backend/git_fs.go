@@ -11,9 +11,7 @@ import (
 // Filesystem workarounds for Android
 // ----------------------------------------------------------------------
 //
-// This file was part of git_helper.go until 26.09.22. That file held
-// 2195 lines and four separate concerns. See the banner of git_repo.go
-// for the split and for what each file holds.
+// See the banner of git_repo.go for what each of the four git files holds.
 //
 // go-git speaks to the worktree and to the object store through a
 // go-billy filesystem. The two wrappers below change what that

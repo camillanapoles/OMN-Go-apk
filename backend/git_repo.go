@@ -29,11 +29,8 @@ import (
 // The repository: the ignore rules, the remotes, and the commit
 // ----------------------------------------------------------------------
 //
-// THE SPLIT OF git_helper.go. That file held 2195 lines until 26.09.22.
-// It held the Android filesystem wrappers, the repository setup, each
-// sync path, and the two HTTP handlers. A reader who looked for one of
-// them read past the other three. Four files hold that code now, and no
-// line of it changed in the move:
+// FOUR FILES HOLD THE GIT CODE. A reader who looks for one part does not
+// read past the other three:
 //
 //	git_fs.go        The go-billy wrappers for Android.
 //	git_repo.go      This file. The ignore rules, the remotes, the
@@ -106,7 +103,7 @@ var gitignorePatterns = []string{
 	"/html/js/OMN-Go/highlight.min.js",
 	"/html/js/OMN-Go/Bookmarker.js",
 	// A .txt beside a note is written in md/ and COPIED into html/, which is
-	// where its URL resolves (note_files.go, 26.08.31). Only the md/ copy is
+	// where its URL resolves (note_files.go). Only the md/ copy is
 	// the file; the html/ one is made from it at every start. Two copies of
 	// one text in git is one too many, and the pair of them is what a merge
 	// conflict looks for.
@@ -186,10 +183,10 @@ var obsoleteGitignoreLines = map[string]bool{
 	// The general "local-*" rule replaced this line. The result for a
 	// database backup is the same, and each other file now gets it too.
 	"/html/db_backup/local-*/": true,
-	// 26.09.12 moved each app asset below html/js/OMN-Go/ and
-	// html/css/OMN-Go/, and it dropped html/css/markdown.css. The old
-	// lines must go, or .gitignore grows a line for a file that no
-	// longer exists at each version. removeRetiredAssets in assets.go
+	// The old place of each app asset, before the move below
+	// html/js/OMN-Go/ and html/css/OMN-Go/, and html/css/markdown.css.
+	// These lines must go, or .gitignore keeps a line for a file that
+	// does not exist. removeRetiredAssets in assets.go
 	// deletes the files themselves. See retiredAssets.
 	"/html/css/omn-go-core.css":           true,
 	"/html/css/Bookmarker.css":            true,
@@ -333,11 +330,9 @@ func (a *App) getOrInitRepo() (*git.Repository, error) {
 		a.logDebugf(logSync, "Repo opened successfully")
 		// Backfill any .gitignore entry added to gitignoreBase after this
 		// repo was first created. See the appended-entries loop in
-		// ensureGitignore. This used to run again on Android only, through
-		// syncPullForce. An already-existing repo on every other platform
-		// thus never got a new pattern such as /html/images/*. A file meant
-		// to be ignored, for example a test image dropped into the app,
-		// kept going into commits on a desktop install.
+		// ensureGitignore. It runs at each open, on each platform. Without
+		// it, a file meant to be ignored, for example a test image, goes
+		// into commits.
 		a.ensureGitignore()
 	}
 
@@ -352,11 +347,8 @@ func (a *App) getOrInitRepo() (*git.Repository, error) {
 // Remote management — one git remote per configured server slot
 // ---------------------------------------------------------------
 //
-// Earlier revisions of this file kept one "origin" remote and rewrote its
-// URL to match whichever server slot was active. That turned out to be
-// unwanted. A switch of the active slot, or an edit of its URL, silently
-// repointed "origin" every time. No server then had a history or an
-// identity of its own. The model here is different.
+// Each server keeps a remote, a history and an identity of its own. See
+// doc/decisions/0012-keep-one-remote-for-each-git-server-slot.md.
 //
 //   - "origin" is a one-time bootstrap remote. It is created only when it
 //     does not already exist, and it is seeded from whatever server is

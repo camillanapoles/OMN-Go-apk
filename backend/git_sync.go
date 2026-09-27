@@ -25,8 +25,7 @@ import (
 // The sync paths
 // ----------------------------------------------------------------------
 //
-// This file was part of git_helper.go until 26.09.22. See the banner of
-// git_repo.go for the split and for what each file holds.
+// See the banner of git_repo.go for what each of the four git files holds.
 //
 // SyncRepo at the end of this file is the one entry point. It reads an
 // action word and calls one of the paths above it. Each path leaves the
@@ -269,8 +268,8 @@ func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport
 		return nil
 	}
 
-	// Refuse over dirty tracked files, exactly like the native Pull this
-	// replaces used to (ErrUnstagedChanges) - see trackedWorktreeIsDirty.
+	// Refuse over dirty tracked files, the same as the native Pull of go-git
+	// (ErrUnstagedChanges) - see trackedWorktreeIsDirty.
 	dirty, dErr := trackedWorktreeIsDirty(wTree)
 	if dErr != nil {
 		return fmt.Errorf("status check failed: %v", dErr)
@@ -327,22 +326,13 @@ func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport
 
 	// writeTreeToWorktree, which syncPullForce shares, only creates or
 	// overwrites the paths that the tree of the remote holds. It touches
-	// nothing else. That is the real fix.
+	// nothing else.
 	//
-	// The native Worktree.Pull() of go-git, used here previously, applies
-	// a fast-forward through the same worktree-reconciliation machinery as
-	// Checkout and Reset. Force Pull already found that this machinery
-	// does not limit itself to the files that git tracks. See the doc
-	// comment of that function.
-	//
-	// A gitignored file that is never tracked can live in the same
-	// directory tree, and the .sqlite file of a user database is one. That
-	// machinery could delete and silently recreate it, even on a PLAIN
-	// pull. The on-disk identity of the file then changes under an open
-	// connection to it. That is exactly what "attempt to write a readonly
-	// database (1032)", or SQLITE_READONLY_DBMOVED, means. On its next
-	// write the connection sees that the file it opened is no longer the
-	// file at that path.
+	// The native Worktree.Pull() of go-git does not limit its work to the
+	// files that git tracks. It can delete and write again the .sqlite
+	// file of a user database, and an open connection then fails with
+	// SQLITE_READONLY_DBMOVED. See
+	// doc/decisions/0010-write-a-pull-without-the-checkout-of-go-git.md.
 	newPaths, err := a.writeTreeToWorktree(repo, wTree, remoteTree)
 	if err != nil {
 		return fmt.Errorf("failed to write remote tree: %v", err)
@@ -684,36 +674,13 @@ func (a *App) syncPullForce(repo *git.Repository, wTree *git.Worktree, auth tran
 // push
 // ---------------------------------------------------------------
 
-// NOTE: this file also held a hasUnpushedCommits() helper here. syncPush()
-// below called it to skip the repo.Push call entirely. It did that
-// whenever a fresh repo.Fetch against the ACTIVE remote showed the local
-// HEAD already matching the master of that remote.
-//
-// It was removed, and the comment on syncPush says why. It made "push"
-// silently do nothing against whichever remote it happened to check. That
-// is exactly wrong with several remotes in play, which are the git server
-// profiles or slots. It is wrong when the remote that was switched to has
-// not seen the local HEAD yet.
-
 // syncPush implements both "push" and "force push":
 //
 //   - With nothing uncommitted, this still attempts the real push.
 //     repo.Push itself reports git.NoErrAlreadyUpToDate safely when the
-//     active remote truly has nothing new. That report is now the ONLY
-//     thing this function trusts for that decision.
-//   - An earlier version tried to predict the answer ahead of time. It
-//     used a separate hasUnpushedCommits fetch-and-compare against the
-//     active remote, only to skip the push call when nothing seemed to
-//     have changed. That produced a real bug with several configured git
-//     remotes, the profiles. A person committed and pushed while profile
-//     1 was active, switched to profile 2, and pressed upload again. The
-//     log then said "nothing to commit, nothing to push", and the remote
-//     of profile 2 was never contacted, although profile 2 had never seen
-//     that commit. The working tree was clean, and correctly so, because
-//     there was nothing NEW to commit. The own fetch-and-compare of the
-//     pre-check against profile 2 could be wrong in ways that a real
-//     repo.Push attempt against profile 2 is not. It was removed, and the
-//     real remote is now always asked through the push itself.
+//     active remote truly has nothing new. That report is the ONLY thing
+//     this function trusts for that decision. Do not add a check that
+//     skips the push. See doc/decisions/0011-push-each-time-and-let-the-remote-answer.md.
 //   - With uncommitted local changes, a commit message is required.
 //     Without one it returns ErrCommitMessageRequired.
 //   - A force push always requires a commit message up front, also with
@@ -810,12 +777,9 @@ const nonFastForwardText = "non-fast-forward update"
 // to Pull alone. A test of that value against the answer of Push is
 // therefore never true.
 //
-// Until 26.09.11 syncPush made exactly that test. Each rejected push
-// therefore left this function as a general fault. syncErrorStatus then
-// gave the status "error" in place of "push_conflict". The frontend shows
-// a plain alert for the first word and the push-conflict modal for the
-// second. The reader thus lost the one control that offers a force push.
-// See showPushConflictModal in omn-go-sse.js.
+// A miss here gives the status "error" in place of "push_conflict". The
+// frontend then shows a plain alert, and not the push-conflict modal that
+// offers a force push. See showPushConflictModal in omn-go-sse.js.
 //
 // The value test stays first. A later go-git that wraps the sentinel then
 // matches without a change here.
@@ -846,13 +810,8 @@ func isNonFastForward(err error) bool {
 //   - the git profile is switched. The commit was pushed to slot 0 and the
 //     worktree is clean, but slot 1's remote has never seen it.
 //
-// This is deliberately the second time that this file has had to learn
-// that lesson. syncPush once carried a hasUnpushedCommits() pre-check that
-// SKIPPED the push, and it was removed for causing exactly the
-// profile-switch failure above. See the note above syncPush.
-//
-// The difference in direction matters, and it is the whole design here.
-// That check could suppress a push that was needed. This one can only
+// The direction matters, and it is the whole design here. A check that
+// skips a push can suppress a push that is needed. This one can only
 // offer a push that turns out to be unnecessary, and repo.Push reports
 // NoErrAlreadyUpToDate for that harmlessly.
 type unpushedState struct {
@@ -871,10 +830,9 @@ type unpushedState struct {
 
 // syncPreviewResponse is the body of GET /api/sync/preview?action=upload.
 //
-// Files alone used to be the whole answer, and the frontend read an empty
-// list as "nothing to do". That is why a commit whose push failed could not
-// be retried. The three fields after it are the missing half of that
-// answer.
+// Files alone are not the whole answer. An empty list does not mean
+// "nothing to do", because a commit whose push failed must be retried. The
+// three fields after it are the other half of the answer.
 type syncPreviewResponse struct {
 	Files       []string `json:"files"`
 	Unpushed    bool     `json:"unpushed"`
@@ -1094,11 +1052,6 @@ func syncErrorStatus(err error) (status, message string, ok bool) {
 //	push_force  commits with the given message when needed, and then
 //	            force-pushes. That resets the remote to the local state.
 //	            Alias: "upload_force".
-//
-// Previously this was two methods, SyncRepo(action) and
-// SyncRepoWithMessage(action, message), kept as a backward-compat pair.
-// The message-taking form is now the only one, and nothing calls the old
-// signature.
 //
 // All repo mutation is serialized via a.GitMutex, so this is safe to call
 // from multiple goroutines at once (e.g. concurrent HTTP requests).

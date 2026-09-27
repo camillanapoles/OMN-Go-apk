@@ -4,13 +4,10 @@ package backend
 // The sync test harness
 // ----------------------------------------------------------------------
 //
-// git_helper.go was the largest file of the project and the least
-// tested. It became four files in 26.09.22, and git_sync.go holds the
-// code below. Before this file, syncPull, syncPullMerge, syncPullForce, syncPullAbort,
-// syncPush, SyncRepo, getOrInitRepo, manualStageFile and getSSHAuth each
-// had NO test at all. That is the code that can destroy the notes of a
-// user. The banners of syncPull and writeTreeToWorktree each name a
-// data-loss fault that already happened.
+// syncPull, syncPullMerge, syncPullForce, syncPullAbort, syncPush,
+// SyncRepo, getOrInitRepo, manualStageFile and getSSHAuth are the code
+// that can destroy the notes of a user. See
+// doc/decisions/0010-write-a-pull-without-the-checkout-of-go-git.md.
 //
 // The reason for the gap was the belief that a sync needs a git server.
 // It does not. go-git talks to a BARE REPOSITORY ON DISK with no git
@@ -866,8 +863,7 @@ func TestNonFastForwardReachesThePushConflictStatus(t *testing.T) {
 // The sync paths against a repository on disk
 // ----------------------------------------------------------------------
 //
-// Each test below moved here from git_helper_test.go in 26.09.22, when
-// git_helper.go became four files. They read git_sync.go, and the tests
+// The tests below read git_sync.go one function at a time. The tests
 // above them drive a whole sync against a real remote.
 //
 // These call the shared helpers of git_repo_test.go, which build a
@@ -1004,8 +1000,8 @@ func TestConflictingPaths(t *testing.T) {
 }
 
 // Fresh install: no commit exists yet. oldTrackedPaths must report an
-// empty set (not an error) - this is the exact state in which the old
-// Checkout(Force:true) path deleted config.json.
+// empty set (not an error). In this state, Checkout(Force:true) of go-git
+// deletes config.json.
 func TestOldTrackedPathsUnbornRepo(t *testing.T) {
 	_, repo, _ := newTestRepo(t)
 	paths, err := oldTrackedPaths(repo)

@@ -15,9 +15,8 @@ import (
 
 // Tests for git_repo.go: the ignore rules, the staging, and the commit.
 //
-// This file and git_sync_test.go were one file, git_helper_test.go, until
-// 26.09.22. git_helper.go became four files in that version, and each
-// test followed the code that it reads. See the banner of git_repo.go.
+// git_sync_test.go holds the tests of git_sync.go. See the banner of
+// git_repo.go for what each of the four git files holds.
 //
 // THE SHARED HELPERS LIVE HERE. newTestRepo, testCommit, writeAndAdd,
 // headTree, mustRead and overwrite build a real repository on disk, and
@@ -102,9 +101,7 @@ func gitignoreLines(t *testing.T, a *App) map[string]int {
 
 // A fresh install writes the .gitignore straight from gitignorePatterns.
 // This pins the exact bytes, thus an accidental edit to gitignorePatterns
-// is caught. A reorder counts, and so does a dropped or an added entry. It
-// also proves that the single-source join makes the same file that the old
-// hand-written literal did.
+// is caught. A reorder counts, and so does a dropped or an added entry.
 func TestEnsureGitignoreFreshInstall(t *testing.T) {
 	a := &App{StorageDir: t.TempDir()}
 	a.ensureGitignore()
