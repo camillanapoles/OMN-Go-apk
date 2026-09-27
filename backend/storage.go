@@ -8,25 +8,22 @@ import (
 	"time"
 )
 
-// initStorage computes a.StorageDir and prepares its layout. An overrideDir
-// that is not empty is used as it is. The doc comment of StartServer says why
-// Android needs this, and not the runtime.GOOS branch below. The applicationId
-// of the app, and thus its external media directory, differs between the
-// standard and the fdroid product flavor. This package cannot know that on its
-// own.
+// initStorage sets a.StorageDir and makes its layout. A non-empty overrideDir
+// wins. The applicationId, and thus the media directory, differs between the
+// standard and the fdroid flavor, and this package cannot know it. See
+// StartServer.
 func (a *App) initStorage(overrideDir string) {
 	if overrideDir != "" {
 		a.StorageDir = overrideDir
 	} else if runtime.GOOS == "android" {
-		// Fallback only: reached if a future Android caller ever starts
-		// the server without passing its own directory. Matches the
-		// standard flavor's applicationId, not fdroid's.
+		// This is a fallback for an Android caller that passes no directory.
+		// It uses the applicationId of the standard flavor.
 		a.StorageDir = "/storage/emulated/0/Android/media/net.basov.omngo"
 	} else {
 		a.StorageDir = "./data"
 	}
 
-	// 1. Create Isolated Storage
+	// 1. Make the storage directory.
 	if err := os.MkdirAll(a.StorageDir, 0755); err != nil {
 		a.logErrf(logStorage, "Failed to create storage: %v", err)
 	}
@@ -37,13 +34,13 @@ func (a *App) initStorage(overrideDir string) {
 	htmlDir := filepath.Join(a.StorageDir, "html")
 	os.MkdirAll(htmlDir, 0755)
 
-	// Migrate legacy root md files recursively
+	// Move the .md files at the root of an old storage layout into md/.
 	files, _ := filepath.Glob(filepath.Join(a.StorageDir, "*.md"))
 	for _, f := range files {
 		os.Rename(f, filepath.Join(mdDir, filepath.Base(f)))
 	}
 
-	// Migrate static directories inside html/
+	// Move the static directories of an old layout into html/.
 	dirsToMove := []string{"images", "user_json", "css", "js", "json", "fonts"}
 	for _, d := range dirsToMove {
 		oldPath := filepath.Join(a.StorageDir, d)
@@ -53,20 +50,20 @@ func (a *App) initStorage(overrideDir string) {
 		}
 	}
 
-	// Bring the extracted embedded assets (html/js, html/css, ...) up to
-	// date with this build. Runs synchronously so no request is ever
-	// served a stale asset; a no-op unless APP_VERSION changed since the
-	// last start (see assets.go).
+	// Bring the version-dependent files up to date with this build. See
+	// assets.go. It runs before the first request, and it does nothing while
+	// APP_VERSION stays the same.
 	a.refreshEmbeddedAssets()
 
-	// 2. Init Config
+	// 2. Read the configuration.
 	a.loadConfig(a.StorageDir)
 
-	// The index struct exists from the start; it stays empty (and free) until
-	// global search is switched on.
+	// The index struct exists from the start. It stays empty until a person
+	// turns global search on.
 	a.search = &searchIndex{}
 
-	// 3. Extract all embedded MD files first
+	// 3. Extract each embedded starter note at the top of frontend/md that is
+	// absent.
 	if entries, err := staticFS.ReadDir("frontend/md"); err == nil {
 		for _, entry := range entries {
 			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".md") {
@@ -80,7 +77,7 @@ func (a *App) initStorage(overrideDir string) {
 		}
 	}
 
-	// 4. Init Default Notes fallback (if embedFS fails)
+	// 4. Write a fallback note when the embed has no copy.
 	initDefaultPage := func(fileName, defaultContent string) {
 		p := filepath.Join(mdDir, fileName)
 		if _, err := os.Stat(p); os.IsNotExist(err) {
@@ -89,9 +86,8 @@ func (a *App) initStorage(overrideDir string) {
 	}
 
 	// The two large buttons of the start page are markup in the note, and not
-	// page chrome. See the .omn-start-buttons block in omn-go-core.css. This
-	// fallback thus carries them too. An install that lands here must still
-	// get the same two entry points as the embedded Welcome.md.
+	// page chrome. See .omn-start-buttons in omn-go-core.css. The fallback
+	// thus holds them too.
 	initDefaultPage("Welcome.md", `Title: Welcome
 Date: 2026-06-14 12:00:00
 Category: System
@@ -137,22 +133,18 @@ Tags: Bookmarks
 <!-- Don't edit body below this line -->
 ];
 </script>`)
-	// A plain file kept beside a note (md/log.txt) is copied into html/, which
-	// is where its URL resolves. See note_files.go. It is synchronous, and it
-	// runs before the precompile below. The walk reads nothing until it finds
-	// a file to copy. A link tapped in the first second after start must not
-	// race the copy that makes it work.
+	// Copy each plain file beside a note into html/. See note_files.go. This
+	// runs before the start ends, because a link tap in the first second must
+	// find the copy.
 	a.syncNoteFilesToHTML()
 
-	// The incoming index (note_exchange.go), created when it is absent, the
-	// same way the four starter notes above are. It has to exist before the
-	// first note arrives: on the desktop the receive box ON that page is how
-	// a note arrives at all.
+	// Make the incoming index when it is absent. See note_exchange.go. On the
+	// desktop, the receive box on that page is how a note arrives.
 	if err := a.ensureIncomingIndex(time.Now()); err != nil {
 		a.logErrf(logStorage, "initStorage: incoming index: %v", err)
 	}
 
-	// Precompile all notes to data/html/ at startup in the background
+	// Compile each note into html/ in the background.
 	go a.precompileAllPages()
 }
 
@@ -161,10 +153,9 @@ func (a *App) precompileAllPages() {
 	htmlDir := filepath.Join(a.StorageDir, "html")
 	os.MkdirAll(htmlDir, 0755)
 
-	// This runs in a background goroutine at startup. A note opened before it
-	// finishes is thus compiled on demand by serveHTMLPage. The user waits,
-	// with no way to tell why. A log of the run makes that visible on the
-	// /api/logs stream, and it does not stay invisible.
+	// This runs in the background at the start. serveHTMLPage compiles a note
+	// that a person opens before this pass ends, and the person waits. The
+	// log lines show that wait on /api/logs.
 	a.logDebugf(logPrecompile, "Compiling notes in background")
 	started := time.Now()
 	compiled := 0
@@ -175,7 +166,8 @@ func (a *App) precompileAllPages() {
 			if err == nil {
 				relPath, _ := filepath.Rel(mdDir, f)
 				name := strings.TrimSuffix(filepath.ToSlash(relPath), ".md")
-				// renderAndCache is the single cache writer (render_cache.go).
+				// renderAndCache is the one cache writer. See
+				// render_cache.go.
 				if _, err := a.renderAndCache(name, content); err != nil {
 					a.logErrf(logPrecompile, "precompileAllPages: %v", err)
 				} else {
@@ -189,20 +181,16 @@ func (a *App) precompileAllPages() {
 	a.logInfof(logPrecompile, "Compiled %d notes in %s", compiled,
 		time.Since(started).Round(time.Millisecond))
 
-	// After every note is compiled, generate the Tags index again. This makes
-	// sure that html/OMNGoTags.html exists, and that it is current in the
-	// offline artifact, even when no person views it. A tag pill is the only
-	// way to reach it. This runs at the end of the background startup
-	// precompile, thus it never blocks the server start. See tags.go.
+	// After each note, make the Tags page again. html/OMNGoTags.html then
+	// exists, and it is current in the offline copy, also when nobody opens
+	// it. This runs in the background, thus it never blocks the start.
 	if err := a.generateTagsPage(); err != nil {
 		a.logErrf(logTags, "precompileAllPages: tags: %v", err)
 	}
 
-	// Warm the search index, if the user asked for one. It is deliberately
-	// last, and on this same background goroutine. It is the cheapest of the
-	// three startup passes, because it builds masks and trigrams and renders
-	// no markdown. A build here also makes the first search after launch
-	// instant, and no request pays for that build.
+	// Build the search index last, when the person turned global search on.
+	// It renders no markdown, thus it is cheap. The first search after the
+	// start then needs no build.
 	if a.GetConfig().SearchEnabled {
 		a.rebuildSearchIndex()
 	}

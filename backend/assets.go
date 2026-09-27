@@ -11,93 +11,58 @@ import (
 )
 
 // ----------------------------------------------------------------------
-// Version-stamped refresh of extracted embedded assets
+// The refresh of the embedded files at each new version
 // ----------------------------------------------------------------------
 //
-// The frontend/html tree (js/, css/, json/, ...) and the frontend/md
-// starter notes are embedded in the binary. Files reach StorageDir in two
-// different ways, and this file draws a hard line between them:
+// The binary embeds frontend/html and the starter notes of frontend/md. A
+// file reaches StorageDir in one of two ways:
 //
-//   - USER-OWNED files are created from embedFS ONLY when they are absent.
-//     That is a lazy cache. serveLazyEmbed (server.go) extracts an html/
-//     file the first time a person asks for it. The initial md/ extraction
-//     seeds the starter notes one time. After that the on-disk copy is
-//     yours. A user edits it (?edit=true), and a version change must never
-//     overwrite it. md/Welcome.md and html/json/bookmarker-tags.json are the
-//     canonical examples. They are meant to be edited and kept.
+//	- A USER file comes from the embed ONLY when it is absent.
+//	  materializeAsset in serving.go extracts an html/ file at the first
+//	  request, and the start extracts the starter notes one time. After
+//	  that, the copy belongs to the user, for example md/Welcome.md.
+//	- A VERSION-DEPENDENT file (versionDependentAssets) must match the
+//	  running build: the app scripts, the app styles and the system notes.
 //
-//   - VERSION-DEPENDENT files (versionDependentAssets below) ship as part
-//     of the application, and they must match the running build. Those are
-//     the JS and the CSS of the app, and the system documentation notes.
-//     Lazy extraction alone cannot keep these correct through an upgrade.
-//     An already-extracted copy from the previous version shadows the new
-//     one forever. A note ADDED in a new release, for example
-//     md/SQLImport.md, would never appear at all. A missing note is
-//     synthesized blank, and it is not pulled from embedFS.
-//     refreshEmbeddedAssets closes both gaps.
-//
-// One time for each APP_VERSION change, refreshEmbeddedAssets walks the
-// version-dependent list. For each entry it writes the embedded copy of this
-// build. It CREATES the file when the file is missing, thus a new bundled
-// note lands on an existing install. When an on-disk copy DIFFERS, it first
-// moves that copy to StorageDir/asset_backups/<previous-version>/, and then
-// it replaces the file. Nothing is ever silently lost. A user who customized
-// a version-dependent file finds that copy in the backup directory, and can
-// merge it back. The log carries the path. While the version stamp already
-// matches APP_VERSION, the function does cheap work and writes nothing, thus
-// the function touches nothing between upgrades. See
+// A lazy extract alone keeps the old copy of a version-dependent file after
+// an upgrade. A new note in a new release would also never appear. At each
+// change of APP_VERSION, refreshEmbeddedAssets writes the embedded copy of
+// each listed file. It first moves a copy on disk that differs to
+// asset_backups/<previous-version>/, thus nothing is lost. See
 // doc/decisions/0006-replace-the-application-files-at-each-new-version.md.
 
-// assetsVersionFilename stores the APP_VERSION that most recently refreshed
-// the extracted assets. The file sits in StorageDir, next to config.json. It
-// is NOT under html/, where the server would serve it and the sync would
-// carry it.
+// assetsVersionFilename holds the APP_VERSION of the last refresh. It is in
+// StorageDir beside config.json, and NOT under html/, where the server would
+// send it and the sync would carry it.
 const assetsVersionFilename = "assets_version"
 
-// assetsRefreshed tells if refreshEmbeddedAssets wrote a minimum of one
-// file after this process started. A start that finds the same version
-// stamp writes no file, thus the value stays false.
-//
-// The Android WebView keeps a copy of a script and of a style sheet in
-// its own disk cache. After an update of the application the new pages
-// can use the old scripts, and some pages then do not operate correctly.
-// The Android layer reads this value, and clears the cache only when the
-// assets changed. See AssetsRefreshed.
+// assetsRefreshed tells whether refreshEmbeddedAssets wrote a file in this
+// process. The Android WebView keeps scripts and styles in its own disk
+// cache, thus new pages can use old scripts after an update. The Android
+// layer reads this value through AssetsRefreshed.
 var assetsRefreshed atomic.Bool
 
-// AssetsRefreshed tells if this start installed or replaced a minimum of
-// one version-dependent asset. The value stays the same until the
-// process stops.
-//
-// The function is exported for the gomobile binding. MainActivity.java
-// calls it immediately before the first loadUrl. If the answer is true,
-// the activity calls WebView.clearCache(true) one time. A start with no
-// change of the assets thus keeps the cache.
+// AssetsRefreshed tells whether this start installed or replaced a
+// version-dependent file. gomobile exports it. MainActivity.java calls it
+// before the first loadUrl, and on true it calls WebView.clearCache(true) one
+// time. A start with no change keeps the cache.
 func AssetsRefreshed() bool {
 	return assetsRefreshed.Load()
 }
 
-// backupLabelSanitizer keeps backup directory names safe regardless of
-// what an old/garbled version stamp contains.
+// backupLabelSanitizer keeps a backup directory name safe, whatever an old
+// version stamp holds.
 var backupLabelSanitizer = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 
-// versionDependentAssets are the StorageDir-relative files that ship with
-// OMN-Go and must track the running build. See the banner of this file.
-// The embedded source of each entry is "frontend/" plus the path, because
-// staticFS embeds frontend/html and frontend/md. A file that is NOT here
-// is user-owned. Such a file is made when it is absent and never again,
+// versionDependentAssets lists the StorageDir-relative files that ship with
+// OMN-Go and must match the running build. The embedded source of each is
+// "frontend/" plus the path. Each file that is NOT here belongs to the user,
 // and a version change leaves it alone.
 //
-// EACH FILE BELOW html/ SITS UNDER AN OMN-Go DIRECTORY. That rule
-// separates what the application owns from what the user owns, and
-// TestEveryAppAssetIsUnderOMNGo holds it. The two user files stay at
-// html/js/omn-go-custom.js and html/css/omn-go-custom.css. The demo files
-// of the Test tree stay beside them, because a note of that tree names
-// each one by an absolute path.
-//
-// The old paths are in retiredAssets below. legacyAssetURL in serving.go
-// answers a request for one of them from the new place, thus a note that
-// names an old path keeps working. See
+// EACH FILE BELOW html/ IS IN AN OMN-Go DIRECTORY.
+// TestEveryAppAssetIsUnderOMNGo holds that rule. The two user files stay at
+// html/js/omn-go-custom.js and html/css/omn-go-custom.css. legacyAssetURL in
+// serving.go answers a request for an old path from the new place. See
 // doc/decisions/0007-keep-the-application-files-in-omn-go-directories.md.
 var versionDependentAssets = []string{
 	"html/js/OMN-Go/omn-go-compat.js",
@@ -129,22 +94,14 @@ var versionDependentAssets = []string{
 	"md/UserManual.md",
 }
 
-// retiredAssets are the StorageDir-relative paths that this build no
-// longer owns. Two kinds of path are here:
+// retiredAssets lists the StorageDir-relative paths that this build does not
+// own any more. They are the old place of each moved file, and
+// html/css/markdown.css, which no page loaded. THE LIST ONLY GROWS, because
+// an install can skip versions.
 //
-//   - The old place of a file that moved into an OMN-Go directory. The two
-//     directories are html/js/OMN-Go/ and html/css/OMN-Go/.
-//   - A file that the application dropped. html/css/markdown.css was
-//     24 899 bytes of github-markdown-css that no template and no note
-//     loaded, and the class it styles is absent from the whole tree.
-//
-// THE LIST ONLY GROWS. A path stays here after each later version, because
-// an install can skip any number of versions.
-//
-// removeRetiredAssets deletes the on-disk copy of each path. That is not
-// tidiness. gitignorePatterns does not name these paths. A copy that
-// stays on disk thus becomes a TRACKED file at the next commit, and it
-// reaches each other device through the sync.
+// removeRetiredAssets deletes each copy on disk. gitignorePatterns does not
+// name these paths, thus a copy that stays would become a TRACKED file at the
+// next commit.
 var retiredAssets = []string{
 	"html/js/omn-go-compat.js",
 	"html/js/omn-go-core.js",
@@ -161,13 +118,9 @@ var retiredAssets = []string{
 	"html/css/markdown.css",
 }
 
-// retiredFonts adds the old place of each web font to retiredAssets.
-//
-// A font is not a version-dependent asset. serveLazyEmbed writes one when
-// a page asks for it, thus an install holds none, some or each of them.
-//
-// The list is read from the embedded tree at start, and not written by
-// hand. A font that a later version adds or drops thus needs no edit
+// retiredFonts adds the old place of each web font to retiredAssets. A font
+// is not version-dependent: materializeAsset writes it when a page asks for
+// it. The list comes from the embedded tree, thus a new font needs no change
 // here.
 var retiredFonts = func() []string {
 	entries, err := staticFS.ReadDir("frontend/html/css/OMN-Go/fonts")
@@ -183,20 +136,16 @@ var retiredFonts = func() []string {
 	return out
 }()
 
-// retiredAssetDirs are the directories that hold nothing after the
-// removal above. Each one goes away when it is empty. A directory that
-// holds a file of the user stays, because os.Remove refuses it.
+// retiredAssetDirs lists the directories that the removal can leave empty.
+// os.Remove refuses a directory that still holds a file of the user.
 var retiredAssetDirs = []string{
 	"html/css/fonts",
 }
 
-// removeRetiredAssets deletes each path of retiredAssets from the storage
-// directory. A copy that differs from the bytes of the build that shipped
-// it goes to asset_backups/<previous>/ first. That is the rule that the
-// refresh below uses. A person who changed a file thus keeps that work.
-//
-// It runs one time for each version change, under the same version stamp
-// that guards refreshEmbeddedAssets.
+// removeRetiredAssets deletes each path of retiredAssets. A copy that differs
+// from the shipped bytes goes to asset_backups/<previous>/ first, thus the
+// work of a person stays. It runs one time for each version change, under the
+// version stamp of refreshEmbeddedAssets.
 func (a *App) removeRetiredAssets(backupDir string) int {
 	removed := 0
 	for _, rel := range append(append([]string(nil), retiredAssets...), retiredFonts...) {
@@ -206,9 +155,8 @@ func (a *App) removeRetiredAssets(backupDir string) int {
 			continue // absent, which is the normal state after the first run
 		}
 
-		// The bytes that this build ships at the NEW place are the bytes
-		// that an unchanged old copy holds. A copy that differs is the
-		// work of a person, thus it goes to the backup directory.
+		// An unchanged old copy holds the bytes that this build ships at the
+		// NEW place. A copy that differs is the work of a person.
 		if !bytes.Equal(diskData, embeddedTwinOf(rel)) {
 			backupPath := filepath.Join(backupDir, filepath.FromSlash(rel))
 			if err := os.MkdirAll(filepath.Dir(backupPath), 0755); err == nil {
@@ -241,12 +189,9 @@ func (a *App) removeRetiredAssets(backupDir string) int {
 	return removed
 }
 
-// embeddedTwinOf returns the bytes that this build ships for the file
-// that once sat at rel. It is the file of the same name below OMN-Go/.
-//
-// The answer is nil for a file that the application dropped. Each copy of
-// such a file thus counts as the work of a person, and it reaches the
-// backup directory.
+// embeddedTwinOf answers the bytes that this build ships for the file that
+// was at rel: the same name below OMN-Go/. It answers nil for a dropped file,
+// thus each copy of such a file goes to the backup.
 func embeddedTwinOf(rel string) []byte {
 	dir, name := path.Split(rel)
 	data, err := staticFS.ReadFile("frontend/" + dir + "OMN-Go/" + name)
@@ -276,17 +221,14 @@ func (a *App) refreshEmbeddedAssets() {
 
 	backupDir := filepath.Join(a.StorageDir, "asset_backups", prevLabel)
 
-	// Delete the old copy of each asset that moved or went away, BEFORE
-	// the install loop below. The order matters for one reason. The
-	// install loop writes each file at its new place. A reader who
-	// watches the storage directory must never see two copies of one
-	// script. See retiredAssets.
+	// Delete the old copies BEFORE the install loop. A reader of the storage
+	// directory must never see two copies of one script. See retiredAssets.
 	refreshed := a.removeRetiredAssets(backupDir)
 
 	for _, rel := range versionDependentAssets {
 		embedData, eerr := staticFS.ReadFile("frontend/" + rel)
 		if eerr != nil {
-			// Listed but not embedded in this build - nothing to install.
+			// The list names the file, but this build does not embed it.
 			a.logErrf(logAssets, "%s not embedded in this build: %v", rel, eerr)
 			continue
 		}
@@ -306,10 +248,9 @@ func (a *App) refreshEmbeddedAssets() {
 			continue
 		}
 
-		// A differing on-disk copy is preserved before it is overwritten. That
-		// copy is an extract of an older version, or a user edit. Never
-		// overwrite without a successful backup. A MISSING file has nothing to
-		// preserve, thus it is only installed.
+		// Save a copy on disk that differs before the loop overwrites it: it
+		// is an older extract or an edit of the user. Never write without a
+		// backup. A MISSING file needs no backup.
 		existed := rerr == nil
 		if existed {
 			bakPath := filepath.Join(backupDir, filepath.FromSlash(rel))
@@ -335,15 +276,15 @@ func (a *App) refreshEmbeddedAssets() {
 		}
 	}
 
-	// Stamp AFTER the loop. If the process dies during a refresh, the next
-	// start runs the refresh again. An already-current file compares equal and
-	// is skipped, thus the refresh is idempotent.
+	// Write the stamp AFTER the loop. When the process stops during a
+	// refresh, the next start runs it again, and the loop skips an equal
+	// file.
 	if err := os.WriteFile(verFile, []byte(APP_VERSION+"\n"), 0644); err != nil {
 		a.logErrf(logAssets, "cannot write version stamp %s: %v", verFile, err)
 	}
 	if refreshed > 0 {
-		// The client caches must go. AssetsRefreshed tells the Android
-		// layer to clear the cache of the WebView one time.
+		// AssetsRefreshed tells the Android layer to clear the WebView cache
+		// one time.
 		assetsRefreshed.Store(true)
 		a.logInfof(logAssets, "%d embedded asset(s) refreshed for v%s (previous: %s)", refreshed, APP_VERSION, prevLabel)
 	}

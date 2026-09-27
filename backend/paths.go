@@ -8,48 +8,35 @@ import (
 )
 
 // containedName makes a name from a request safe to join under a storage
-// directory. It answers a clean, slash-separated, relative name.
+// directory. It answers a clean, relative name with slashes. A ".." cannot
+// climb above the root of the name: "../../x" gives "x", and "a/../../b"
+// gives "b". The function removes a leading slash. On Windows, a backslash
+// counts as a separator.
 //
-// A ".." element cannot climb above the root of the name. Thus
-// "../../x" gives "x", and "a/../../b" gives "b". A leading slash goes.
-// On Windows, a backslash counts as a separator before the clean.
-//
-// WHY. filepath.Join cleans its result, and a ".." in the name then
-// climbs out of the storage directory. Without this function,
-// /api/save?name=../../x wrote a file outside the storage directory.
-// /api/note read and created such a file with no login. Each path that a
-// request names must pass through this function.
+// filepath.Join resolves a ".." in a name, and the result can leave the
+// storage directory. /api/save and /api/note would then write and read files
+// outside it. Each path that a request names must pass through this function.
+// TestContainedName holds the rule.
 func containedName(name string) string {
 	return strings.TrimPrefix(path.Clean("/"+filepath.ToSlash(name)), "/")
 }
 
-// resolvePageName is the single place that answers two questions about a
-// "name" that comes from a user or a URL. The first is whether the name
-// refers to a markdown page. The second is where the source (.md) and the
-// compiled (.html) file of that page live on disk.
+// resolvePageName is the one place that answers two questions about a name
+// from a user or a URL. Is it a markdown page? Where are its .md source and
+// its .html file? It accepts three forms of the same page:
 //
-// Three shapes of "name" are accepted, matching how the frontend and the
-// various handlers refer to pages:
-//   - a bare page name, e.g. "Welcome" or "Report.2026"
-//   - a markdown filename, e.g. "Welcome.md"
-//   - a compiled HTML filename, e.g. "Welcome.html"
+//   - a page name, for example "Welcome" or "Report.2026"
+//   - a markdown file name, for example "Welcome.md"
+//   - a compiled file name, for example "Welcome.html"
 //
-// This function treats all three as the same page. It returns mdPath and
-// htmlPath together, thus a caller reads or writes the one it needs and
-// derives nothing a second time.
+// It answers mdPath and htmlPath together, thus no caller builds a path a
+// second time. A name that ends in a known file extension, for example ".js"
+// or ".txt", is a file under html/. isPage is then false, and mdPath is
+// empty.
 //
-// A name that ends in a known file extension, such as ".js", ".css",
-// ".json", ".png" or ".txt", is not a markdown page. It is a file that only
-// ever lives under html/, thus isPage is false, only htmlPath means
-// anything, and mdPath stays empty.
-//
-// hasKnownAssetExtension (serving.go) is the one authority for that
-// decision. Read its banner before you change this switch. In short: the
-// LAST extension decides, and an unknown extension is a page. A note named
-// "Report.2026" is thus a page.
-//
-// handleGetNote, handleSaveNote, handleEditExternal and serveEditor all
-// call this function. Keep the decision here, and do not copy it.
+// hasKnownAssetExtension in serving.go is the one authority for that test:
+// the LAST extension decides, and an unknown extension is a page. Keep the
+// decision here, and do not copy it.
 func (a *App) resolvePageName(name string) (mdPath, htmlPath, baseName string, isPage bool) {
 	switch {
 	case strings.HasSuffix(name, ".md"):
@@ -62,25 +49,22 @@ func (a *App) resolvePageName(name string) (mdPath, htmlPath, baseName string, i
 		baseName = name
 		isPage = true
 	default:
-		// The name ends in an extension that this install serves as a
-		// file. See hasKnownAssetExtension.
+		// The name ends in an extension that this install serves as a file.
+		// See hasKnownAssetExtension.
 		name = containedName(name)
 		return "", filepath.Join(a.StorageDir, "html", filepath.FromSlash(name)), name, false
 	}
 
-	// pageHTMLPath (render_cache.go) is the single formula for a page's
-	// compiled-HTML path; use it here so the two never drift apart.
+	// pageHTMLPath in render_cache.go is the one formula for the path of a
+	// compiled page.
 	baseName = containedName(baseName)
 	mdPath = filepath.Join(a.StorageDir, "md", filepath.FromSlash(baseName+".md"))
 	htmlPath = a.pageHTMLPath(baseName)
 	return mdPath, htmlPath, baseName, true
 }
 
-// fileExists reports whether p is a file that is there to be read. A
-// directory is not a file, thus a directory answers false.
-//
-// It is here because this file is about paths on disk, and no caller of
-// this helper owns it. note_exchange.go is a caller.
+// fileExists reports whether p is a file that can be read. A directory
+// answers false.
 func fileExists(p string) bool {
 	st, err := os.Stat(p)
 	return err == nil && !st.IsDir()
