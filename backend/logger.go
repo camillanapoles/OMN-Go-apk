@@ -24,7 +24,6 @@ package backend
 // needs each event.
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -261,8 +260,7 @@ func (a *App) handleLogHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	lines := logHistorySnapshot()
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{
+	a.writeJSON(w, http.StatusOK, map[string]any{
 		"status": "success",
 		"cap":    logHistoryCap,
 		"lines":  lines,

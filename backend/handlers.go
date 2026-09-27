@@ -109,8 +109,7 @@ func configFieldSent(r *http.Request) func(field string) bool {
 func (a *App) handleConfig(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(a.GetConfig())
+		a.writeJSON(w, http.StatusOK, a.GetConfig())
 
 	case http.MethodPost:
 		prev := a.GetConfig()

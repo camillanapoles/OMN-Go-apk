@@ -65,13 +65,32 @@ There is no single envelope. The server uses three shapes:
 1. **Plain text** — short status words (`Saved`, `OK`, `Restarting`) or a
    fragment to splice into a note. The legacy note and upload endpoints
    return this shape.
-2. **JSON** — `/api/config` (GET), `/api/sql`, `/api/db/*`, `/api/sync`,
-   `/api/sync/preview`.
+2. **JSON** — `/api/config` (GET), `/api/sql`, `/api/db/backup`,
+   `/api/db/backups`, `/api/db/restore`, `/api/sync`, `/api/sync/preview`,
+   `/api/search`, `/api/status`, `/api/logs/history`, `/api/import/note`, and
+   an error of `/api/export/note`.
 3. **`text/event-stream`** — `/api/logs` only.
 
+One function writes each JSON answer: `writeJSON` in
+`backend/json_response.go`. It sets `Content-Type: application/json` and
+the status code, and it writes one JSON value. A test fails when another
+file encodes an answer.
+
 `http.Error` sends `text/plain; charset=utf-8` with the message in the body.
-The JSON endpoints keep their JSON shape for an error and add
-`"status": "error"`.
+
+A JSON endpoint answers an error in one of three shapes:
+
+1. `{"status": "error", "message": "..."}` with a 4xx or 5xx code.
+   `writeJSONError` writes this shape. `/api/db/*`, `/api/sql` and the two
+   note exchange endpoints use it. `/api/sql` can also send
+   `failed_statement`.
+2. The same shape with the code `200`. `/api/sync` uses it, because the
+   status word carries the result. Section 4.11 lists each status word.
+3. The normal answer object with `status` and `error` set. `/api/search`
+   uses it.
+
+`/api/status`, `/api/sync/preview` and `/api/logs/history` answer an error
+with `http.Error`, as plain text.
 
 **Cache-Control.** Each response carries `Cache-Control: no-cache`. The
 header is set in `connectionMiddleware` (`backend/middleware.go`). That

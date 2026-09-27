@@ -11,7 +11,6 @@ package backend
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -529,43 +528,30 @@ func headerValue(content, key string) (string, bool) {
 // ----------------------------------------------------------------------
 //
 // Both endpoints are ADMIN-ONLY. An import writes files, and an export is a
-// way out of the note tree. The device itself passes authMiddleware.
-
-// exchangeJSON answers with one JSON object. A person reads an error of these
-// endpoints, as a toast on Android or as a line on the incoming page.
-func (a *App) exchangeJSON(w http.ResponseWriter, status int, v interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(v); err != nil {
-		a.logErrf(logExchange, "encode response: %v", err)
-	}
-}
-
-func (a *App) exchangeErr(w http.ResponseWriter, status int, err error) {
-	a.exchangeJSON(w, status, map[string]string{"status": "error", "message": err.Error()})
-}
+// way out of the note tree. The device itself passes authMiddleware. A person
+// reads an error answer as a toast on Android or as a line on the incoming page.
 
 // handleExportNote answers GET /api/export/note?name=<note> with the Markdown
 // of the note, FileName: set, as a download. MainActivity gives the bytes to
 // the share sheet.
 func (a *App) handleExportNote(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		a.exchangeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("GET only"))
+		a.writeJSONError(w, http.StatusMethodNotAllowed, "GET only")
 		return
 	}
 	name := r.URL.Query().Get("name")
 	if name == "" {
-		a.exchangeErr(w, http.StatusBadRequest, fmt.Errorf("no note named"))
+		a.writeJSONError(w, http.StatusBadRequest, "no note named")
 		return
 	}
 
 	data, filename, err := a.exportNoteSource(name)
 	if err != nil {
 		if os.IsNotExist(err) {
-			a.exchangeErr(w, http.StatusNotFound, fmt.Errorf("no note %q", name))
+			a.writeJSONError(w, http.StatusNotFound, fmt.Sprintf("no note %q", name))
 			return
 		}
-		a.exchangeErr(w, http.StatusBadRequest, err)
+		a.writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -587,7 +573,7 @@ func (a *App) handleExportNote(w http.ResponseWriter, r *http.Request) {
 // checks ?name=, the fallback for a note with no FileName: line.
 func (a *App) handleImportNote(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		a.exchangeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("POST only"))
+		a.writeJSONError(w, http.StatusMethodNotAllowed, "POST only")
 		return
 	}
 
@@ -597,17 +583,17 @@ func (a *App) handleImportNote(w http.ResponseWriter, r *http.Request) {
 
 	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
 		if err := r.ParseMultipartForm(limit); err != nil {
-			a.exchangeErr(w, http.StatusBadRequest, fmt.Errorf("cannot read the upload: %w", err))
+			a.writeJSONError(w, http.StatusBadRequest, "cannot read the upload: "+err.Error())
 			return
 		}
 		file, header, err := r.FormFile("file")
 		if err != nil {
-			a.exchangeErr(w, http.StatusBadRequest, fmt.Errorf("no file in the upload"))
+			a.writeJSONError(w, http.StatusBadRequest, "no file in the upload")
 			return
 		}
 		defer file.Close()
 		if content, err = readImportBody(file, limit); err != nil {
-			a.exchangeErr(w, http.StatusRequestEntityTooLarge, err)
+			a.writeJSONError(w, http.StatusRequestEntityTooLarge, err.Error())
 			return
 		}
 		if displayName == "" && header != nil {
@@ -616,7 +602,7 @@ func (a *App) handleImportNote(w http.ResponseWriter, r *http.Request) {
 	} else {
 		var err error
 		if content, err = readImportBody(r.Body, limit); err != nil {
-			a.exchangeErr(w, http.StatusRequestEntityTooLarge, err)
+			a.writeJSONError(w, http.StatusRequestEntityTooLarge, err.Error())
 			return
 		}
 	}
@@ -624,7 +610,7 @@ func (a *App) handleImportNote(w http.ResponseWriter, r *http.Request) {
 	res, err := a.importNote(content, displayName, time.Now())
 	if res.Name == "" {
 		// The import wrote nothing. This is the only real failure.
-		a.exchangeErr(w, http.StatusBadRequest, err)
+		a.writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -642,7 +628,7 @@ func (a *App) handleImportNote(w http.ResponseWriter, r *http.Request) {
 		a.logErrf(logExchange, "%v", err)
 	}
 	a.logInfof(logExchange, "imported %s", res.Name)
-	a.exchangeJSON(w, http.StatusOK, out)
+	a.writeJSON(w, http.StatusOK, out)
 }
 
 // readImportBody reads at most limit bytes, and it answers an error when the

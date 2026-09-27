@@ -77,7 +77,7 @@ func ghPreview(t *testing.T, a *App, method, query string) *httptest.ResponseRec
 }
 
 // ghBody decodes a JSON answer into a map. It fails the test when the
-// body is not JSON, which is the fault that writeSyncJSON exists to stop.
+// body is not JSON.
 func ghBody(t *testing.T, w *httptest.ResponseRecorder) map[string]interface{} {
 	t.Helper()
 	var out map[string]interface{}
@@ -129,7 +129,7 @@ func ghCommitLocally(t *testing.T, a *App, rel, content, message string) plumbin
 }
 
 // ----------------------------------------------------------------------
-// The two JSON writers
+// The two sync answers
 // ----------------------------------------------------------------------
 
 // The answer of /api/sync must be JSON, and it must stay JSON when the
@@ -140,7 +140,8 @@ func ghCommitLocally(t *testing.T, a *App, rel, content, message string) plumbin
 // the page showed nothing at all. json.Marshal escapes it.
 func TestSyncJSONWriterEscapesTheMessage(t *testing.T) {
 	w := httptest.NewRecorder()
-	writeSyncJSON(w, "error", `a "quoted" name and a \ backslash`)
+	msg := `a "quoted" name and a \ backslash`
+	newTestApp(t).writeJSON(w, http.StatusOK, jsonStatus{Status: "error", Message: msg})
 
 	if got := w.Header().Get("Content-Type"); got != "application/json" {
 		t.Errorf("the content type is %q, want application/json", got)
@@ -161,7 +162,7 @@ func TestSyncJSONWriterEscapesTheMessage(t *testing.T) {
 // no way forward.
 func TestSyncConflictWriterAlwaysSendsAnArray(t *testing.T) {
 	w := httptest.NewRecorder()
-	writeSyncConflictJSON(w, "diverged", nil)
+	newTestApp(t).writeJSON(w, http.StatusOK, newSyncConflict("diverged", nil))
 
 	if strings.Contains(w.Body.String(), `"files":null`) {
 		t.Errorf("the body carries a null file list: %s", w.Body.String())

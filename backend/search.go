@@ -11,7 +11,6 @@ package backend
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
@@ -840,34 +839,36 @@ func (a *App) handleSearch(w http.ResponseWriter, r *http.Request) {
 		Results: []searchResult{},
 	}
 
+	code := http.StatusOK
 	switch scope {
 	case SearchScopePage:
 		a.searchPage(&resp, qs)
 	case SearchScopeAll:
-		if !a.GetConfig().SearchEnabled {
+		switch {
+		case !a.GetConfig().SearchEnabled:
 			// This is not an empty result. "Nothing matched" is about the
 			// notes, and this answer is about the settings.
+			code = http.StatusServiceUnavailable
 			resp.Status = "disabled"
 			resp.Error = "global search is off (Settings -> Search)"
-			a.writeSearchJSON(w, http.StatusServiceUnavailable, &resp, started)
-			return
-		}
-		if !a.ensureSearchIndex() {
+		case !a.ensureSearchIndex():
+			code = http.StatusServiceUnavailable
 			resp.Status = "unavailable"
 			resp.Error = "the search index is not ready"
-			a.writeSearchJSON(w, http.StatusServiceUnavailable, &resp, started)
-			return
+		default:
+			a.searchGlobal(&resp, qs)
 		}
-		a.searchGlobal(&resp, qs)
 	default:
+		code = http.StatusBadRequest
 		resp.Status = "error"
 		resp.Error = "unknown scope " + strconv.Quote(scope)
-		a.writeSearchJSON(w, http.StatusBadRequest, &resp, started)
-		return
 	}
 
-	resp.Highlight = highlightTerms(parseQuery(resp.Query))
-	a.writeSearchJSON(w, http.StatusOK, &resp, started)
+	if code == http.StatusOK {
+		resp.Highlight = highlightTerms(parseQuery(resp.Query))
+	}
+	resp.TookMS = time.Since(started).Milliseconds()
+	a.writeJSON(w, code, resp)
 }
 
 // searchPage fills resp from the one document that "on" names.
@@ -1083,15 +1084,6 @@ func buildMatches(doc *searchDocument, hits []lineHit) ([]searchMatch, string) {
 		out = append(out, m)
 	}
 	return out, anchor
-}
-
-func (a *App) writeSearchJSON(w http.ResponseWriter, status int, resp *searchResponse, started time.Time) {
-	resp.TookMS = time.Since(started).Milliseconds()
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		a.logErrf(logSearch, "encode: %v", err)
-	}
 }
 
 // serveSearchPage renders /OMNGoSearch.html for each request. It has no md/

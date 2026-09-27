@@ -131,9 +131,12 @@ update these files.
   repair. Write a predicate as a question: `isLocalOnlyPath`, `fileExists`, `hasRole`.
   Compile each regular expression once into a package-level `xxxRe` variable.
 * **Branch on `runtime.GOOS`, not on a build tag.** The tree holds one build tag.
-* **Errors.** Wrap an error with `fmt.Errorf("...: %w", err)`. Send an HTTP failure
-  with `http.Error(w, msg, code)`. `doc/API.md` section 1.4 fixes the response
-  shapes. A response is plain-text status words, or JSON with
+* **Errors.** Wrap an error with `fmt.Errorf("...: %w", err)`. Send the HTTP failure
+  of a plain-text endpoint with `http.Error(w, msg, code)`.
+* **JSON answers.** Send each JSON answer with `a.writeJSON(w, code, v)`. Send a JSON
+  failure with `a.writeJSONError(w, code, msg)`. Do not write a second JSON encoder.
+  `TestOnlyWriteJSONEncodesAnAnswer` enforces this. `doc/API.md` section 1.4 fixes
+  the response shapes. A response is plain-text status words, or JSON with
   `"status":"success"` or `"status":"error"`, or `text/event-stream` for `/api/logs`.
 * **Logging.** Do not call `log.Printf`. Write a step with
   `a.logDebugf(tag, format, ...)`, an outcome with `a.logInfof(tag, format, ...)`

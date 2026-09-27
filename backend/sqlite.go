@@ -142,14 +142,6 @@ type sqlResponse struct {
 	Results         []sqlResult `json:"results,omitempty"`
 }
 
-func (a *App) writeSQLResponse(w http.ResponseWriter, httpStatus int, resp sqlResponse) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(httpStatus)
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		a.logErrf(logDB, "handleSQL: failed to encode response: %v", err)
-	}
-}
-
 // returnsRows chooses Query or Exec from the first keyword. "WITH ... INSERT"
 // counts as a query and loses its rows_affected. The fault is on the safe
 // side: an empty result or a zero count, never damaged data.
@@ -265,36 +257,36 @@ func (a *App) runSQLBatchWithRetry(dbName string, statements []sqlStatement) ([]
 // for the protocol.
 func (a *App) handleSQL(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		a.writeSQLResponse(w, http.StatusMethodNotAllowed, sqlResponse{Status: "error", Message: "POST only"})
+		a.writeJSON(w, http.StatusMethodNotAllowed, sqlResponse{Status: "error", Message: "POST only"})
 		return
 	}
 
 	var req sqlRequest
 	r.Body = http.MaxBytesReader(w, r.Body, sqlMaxBodyBytes)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		a.writeSQLResponse(w, http.StatusBadRequest, sqlResponse{Status: "error", Message: "bad request: " + err.Error()})
+		a.writeJSON(w, http.StatusBadRequest, sqlResponse{Status: "error", Message: "bad request: " + err.Error()})
 		return
 	}
 	if len(req.Statements) == 0 {
-		a.writeSQLResponse(w, http.StatusBadRequest, sqlResponse{Status: "error", Message: "no statements"})
+		a.writeJSON(w, http.StatusBadRequest, sqlResponse{Status: "error", Message: "no statements"})
 		return
 	}
 	if len(req.Statements) > sqlMaxStatements {
-		a.writeSQLResponse(w, http.StatusBadRequest, sqlResponse{Status: "error",
+		a.writeJSON(w, http.StatusBadRequest, sqlResponse{Status: "error",
 			Message: fmt.Sprintf("too many statements (%d > %d)", len(req.Statements), sqlMaxStatements)})
 		return
 	}
 
 	results, failedIdx, err := a.runSQLBatchWithRetry(req.DB, req.Statements)
 	if err != nil {
-		a.writeSQLResponse(w, http.StatusBadRequest, sqlResponse{
+		a.writeJSON(w, http.StatusBadRequest, sqlResponse{
 			Status:          "error",
 			Message:         err.Error(),
 			FailedStatement: failedIdx,
 		})
 		return
 	}
-	a.writeSQLResponse(w, http.StatusOK, sqlResponse{Status: "success", Results: results})
+	a.writeJSON(w, http.StatusOK, sqlResponse{Status: "success", Results: results})
 }
 
 func runStatement(tx *sql.Tx, stmt sqlStatement) (sqlResult, error) {

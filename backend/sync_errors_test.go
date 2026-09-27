@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 )
@@ -69,15 +70,17 @@ func TestSyncConflictErrorWrapsSentinel(t *testing.T) {
 	}
 }
 
-// TestWriteSyncConflictJSON pins the wire shape that the conflict modal
+// TestSyncConflictAnswerShape pins the wire shape that the conflict modal
 // reads. That shape is status "conflict", the message, and a files array
 // that is ALWAYS present. The array is [] and never null, also when there
 // is no per-file conflict, thus the frontend can iterate it with no nil
 // guard.
-func TestWriteSyncConflictJSON(t *testing.T) {
+func TestSyncConflictAnswerShape(t *testing.T) {
+	a := newTestApp(t)
+
 	// With files.
 	rec := httptest.NewRecorder()
-	writeSyncConflictJSON(rec, "Fast-forward not possible.", []string{"md/A.md"})
+	a.writeJSON(rec, http.StatusOK, newSyncConflict("Fast-forward not possible.", []string{"md/A.md"}))
 	var body struct {
 		Status  string   `json:"status"`
 		Message string   `json:"message"`
@@ -92,7 +95,7 @@ func TestWriteSyncConflictJSON(t *testing.T) {
 
 	// Nil files must serialize as [] (never null) and never omit the key.
 	rec2 := httptest.NewRecorder()
-	writeSyncConflictJSON(rec2, "diverged", nil)
+	a.writeJSON(rec2, http.StatusOK, newSyncConflict("diverged", nil))
 	raw := rec2.Body.String()
 	if !contains(raw, `"files":[]`) {
 		t.Errorf("nil files did not serialize as []: %s", raw)

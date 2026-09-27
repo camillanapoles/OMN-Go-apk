@@ -759,35 +759,23 @@ func (a *App) serveDBBackupsPage(w http.ResponseWriter, r *http.Request) {
 	w.Write(a.injectRuntimeVars(compiled))
 }
 
-func (a *App) writeBackupJSON(w http.ResponseWriter, httpStatus int, v interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(httpStatus)
-	if err := json.NewEncoder(w).Encode(v); err != nil {
-		a.logErrf(logDBBackup, "encode response: %v", err)
-	}
-}
-
-func (a *App) backupErr(w http.ResponseWriter, httpStatus int, err error) {
-	a.writeBackupJSON(w, httpStatus, map[string]string{"status": "error", "message": err.Error()})
-}
-
 // handleDBBackupCreate answers POST /api/db/backup?db=NAME.
 func (a *App) handleDBBackupCreate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		a.backupErr(w, http.StatusMethodNotAllowed, fmt.Errorf("POST only"))
+		a.writeJSONError(w, http.StatusMethodNotAllowed, "POST only")
 		return
 	}
 	name := r.URL.Query().Get("db")
 	if !dbNameRe.MatchString(name) {
-		a.backupErr(w, http.StatusBadRequest, fmt.Errorf("invalid db name %q", name))
+		a.writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("invalid db name %q", name))
 		return
 	}
 	file, pruned, err := a.createDBBackup(name)
 	if err != nil {
-		a.backupErr(w, http.StatusInternalServerError, err)
+		a.writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	a.writeBackupJSON(w, http.StatusOK, map[string]interface{}{
+	a.writeJSON(w, http.StatusOK, map[string]interface{}{
 		"status": "success",
 		"file":   file,
 		"pruned": pruned,
@@ -797,27 +785,27 @@ func (a *App) handleDBBackupCreate(w http.ResponseWriter, r *http.Request) {
 // handleDBRestore answers POST /api/db/restore?db=NAME&file=FILENAME.
 func (a *App) handleDBRestore(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		a.backupErr(w, http.StatusMethodNotAllowed, fmt.Errorf("POST only"))
+		a.writeJSONError(w, http.StatusMethodNotAllowed, "POST only")
 		return
 	}
 	name := r.URL.Query().Get("db")
 	fileName := r.URL.Query().Get("file")
 	if !dbNameRe.MatchString(name) {
-		a.backupErr(w, http.StatusBadRequest, fmt.Errorf("invalid db name %q", name))
+		a.writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("invalid db name %q", name))
 		return
 	}
 	if !backupFileRe.MatchString(fileName) {
-		a.backupErr(w, http.StatusBadRequest, fmt.Errorf("invalid backup filename %q", fileName))
+		a.writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("invalid backup filename %q", fileName))
 		return
 	}
 	a.dbRestoreMu.Lock()
 	err := a.restoreDBFromBackup(name, fileName)
 	a.dbRestoreMu.Unlock()
 	if err != nil {
-		a.backupErr(w, http.StatusInternalServerError, err)
+		a.writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	a.writeBackupJSON(w, http.StatusOK, map[string]string{"status": "success"})
+	a.writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 
 type backupFileView struct {
@@ -846,7 +834,7 @@ type backupDBView struct {
 // bootstrap restore, and a listing must change nothing.
 func (a *App) handleDBBackupList(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		a.backupErr(w, http.StatusMethodNotAllowed, fmt.Errorf("GET only"))
+		a.writeJSONError(w, http.StatusMethodNotAllowed, "GET only")
 		return
 	}
 
@@ -951,7 +939,7 @@ func (a *App) handleDBBackupList(w http.ResponseWriter, r *http.Request) {
 		dbs = append(dbs, v)
 	}
 
-	a.writeBackupJSON(w, http.StatusOK, map[string]interface{}{
+	a.writeJSON(w, http.StatusOK, map[string]interface{}{
 		"status":      "success",
 		"hostname":    a.GetConfig().Hostname,
 		"prune_depth": depth,

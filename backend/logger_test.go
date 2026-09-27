@@ -403,7 +403,7 @@ func TestLogHistoryEndpointAnswersTheRing(t *testing.T) {
 // An empty ring answers an array, and never null.
 //
 // A reader of the answer maps over lines without a guard, the same as
-// the sync answers do. See writeSyncConflictJSON.
+// the sync answers do. See newSyncConflict.
 func TestLogHistoryEndpointAnswersAnArrayWhenEmpty(t *testing.T) {
 	lgClearHistory(t)
 	a := newTestApp(t)

@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -20,25 +19,21 @@ import (
 // tells what an upload would send, and it changes nothing. doc/API.md holds
 // both shapes. The banner of git_repo.go says what each git file holds.
 
-// writeSyncJSON writes a {"status", "message"} JSON body. The encoder escapes
-// a quote in an error message, thus the body stays valid.
-func writeSyncJSON(w http.ResponseWriter, status, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": status, "message": message})
+// syncConflict is the conflict answer of /api/sync. It also sends "files",
+// the paths in conflict, for the conflict dialog.
+type syncConflict struct {
+	Status  string   `json:"status"`
+	Message string   `json:"message"`
+	Files   []string `json:"files"`
 }
 
-// writeSyncConflictJSON also sends "files", the paths in conflict, for the
-// conflict dialog. The list is never null, thus the page needs no guard.
-func writeSyncConflictJSON(w http.ResponseWriter, message string, files []string) {
+// newSyncConflict makes a conflict answer. The list is never null, thus the
+// dialog needs no guard.
+func newSyncConflict(message string, files []string) syncConflict {
 	if files == nil {
 		files = []string{}
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":  "conflict",
-		"message": message,
-		"files":   files,
-	})
+	return syncConflict{Status: "conflict", Message: message, Files: files}
 }
 
 func (a *App) handleSync(w http.ResponseWriter, r *http.Request) {
@@ -46,7 +41,7 @@ func (a *App) handleSync(w http.ResponseWriter, r *http.Request) {
 	// page posts a form. TestHandleSyncReadsTheQueryString tests the query
 	// string.
 	if err := r.ParseForm(); err != nil {
-		writeSyncJSON(w, "error", fmt.Sprintf("bad request: %v", err))
+		a.writeJSON(w, http.StatusOK, jsonStatus{Status: "error", Message: "bad request: " + err.Error()})
 		return
 	}
 
@@ -74,17 +69,17 @@ func (a *App) handleSync(w http.ResponseWriter, r *http.Request) {
 			// them. Each other status gets the plain body.
 			var ce *syncConflictError
 			if status == "conflict" && errors.As(err, &ce) {
-				writeSyncConflictJSON(w, msg, ce.Files)
+				a.writeJSON(w, http.StatusOK, newSyncConflict(msg, ce.Files))
 			} else {
-				writeSyncJSON(w, status, msg)
+				a.writeJSON(w, http.StatusOK, jsonStatus{Status: status, Message: msg})
 			}
 		} else {
-			writeSyncJSON(w, "error", err.Error())
+			a.writeJSON(w, http.StatusOK, jsonStatus{Status: "error", Message: err.Error()})
 		}
 		return
 	}
 
-	writeSyncJSON(w, "success", "")
+	a.writeJSON(w, http.StatusOK, jsonStatus{Status: "success"})
 }
 
 func (a *App) handleSyncPreview(w http.ResponseWriter, r *http.Request) {
@@ -169,8 +164,7 @@ func (a *App) handleSyncPreview(w http.ResponseWriter, r *http.Request) {
 	if files == nil {
 		files = []string{}
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(syncPreviewResponse{
+	a.writeJSON(w, http.StatusOK, syncPreviewResponse{
 		Files:       files,
 		Unpushed:    ahead.Unpushed,
 		Remote:      ahead.Remote,

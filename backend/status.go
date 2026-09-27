@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -276,12 +275,7 @@ func (a *App) handleStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(res); err != nil {
-		a.logErrf(logStatus, "encode failed: %v", err)
-	}
+	a.writeJSON(w, http.StatusOK, res)
 }
 
 // statusDeniedBody is the page that a guest sees, the same as on the file
