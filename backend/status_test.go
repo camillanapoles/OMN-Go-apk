@@ -421,16 +421,6 @@ func TestStatusMarkdownFormat(t *testing.T) {
 	}
 }
 
-// Only GET.
-func TestStatusRejectsPost(t *testing.T) {
-	a := newTestApp(t)
-	rec := httptest.NewRecorder()
-	a.handleStatus(rec, httptest.NewRequest(http.MethodPost, "/api/status", nil))
-	if rec.Code != http.StatusMethodNotAllowed {
-		t.Errorf("status %d, want 405", rec.Code)
-	}
-}
-
 // SetAndroidPackage wins over the derivation, and the derivation answers
 // when the setter never ran.
 func TestStatusAndroidPackage(t *testing.T) {

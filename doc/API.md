@@ -43,11 +43,19 @@ Routing uses the Go standard library `http.ServeMux`. This has four effects:
   `/images/`, `/user_json/`) matches the whole subtree.
 * `/` is the catch-all. `serveFrontend` receives every request that the
   routes above do not match.
-* **`ServeMux` does not dispatch on method.** Any method reaches the
-  endpoint, unless that endpoint checks `r.Method` (the table in §3 says
-  which endpoints do). `r.FormValue` reads the URL query string *and* an
-  `application/x-www-form-urlencoded` / `multipart/form-data` body. Most
-  form-style endpoints therefore accept parameters either way.
+* **Each route except the catch-all and the asset trees names its
+  method**, for example `POST /api/save`. A `GET` route also takes `HEAD`.
+  The table in §3 gives the method of each route.
+* **The router answers another method with `405`.** The body is the plain
+  text `Method Not Allowed`, and the `Allow` header names the methods of
+  the route. The router sends this answer before `authMiddleware` runs.
+  `ServeMux` cannot send it alone, because the catch-all `/` takes
+  each path. `route` in `backend/server.go` also registers the bare path
+  with a handler that answers `405`.
+* **A `GET` writes nothing.** `r.FormValue` reads the URL query string
+  *and* the form body. A write route takes `POST` only, thus a link or an
+  image on another site cannot save a note. A form on another site can
+  still send a `POST`.
 
 ### 1.3 Request encodings
 
@@ -188,38 +196,43 @@ what its own page shows and gets no permission.
 
 ## 3. Endpoint index
 
-| Method(s) | URL | Enforces method? | Auth | Response |
-| --- | --- | --- | --- | --- |
-| any | `/login` | no | none | text |
-| GET | `/api/note` | no | none | raw file |
-| GET | `/api/search` | no | **none — deliberately open** | JSON |
-| any | `/api/save` | no | admin | text |
-| any | `/api/newpage` | no | admin | text |
-| any | `/api/quick` | no | admin | text |
-| any | `/api/bookmark` | no | admin | text |
-| POST | `/api/upload` | no | admin | text (HTML fragment) |
-| POST | `/api/upload_json` | no | admin | text (Markdown fragment) |
-| GET, POST | `/api/config` | yes (405 otherwise) | admin | JSON / text |
-| POST | `/api/restart` | yes (405 otherwise) | admin | text |
-| POST | `/api/sql` | yes (405 otherwise) | admin | JSON |
-| POST | `/api/db/backup` | yes (405 otherwise) | admin | JSON |
-| GET | `/api/db/backups` | yes (405 otherwise) | admin | JSON |
-| POST | `/api/db/restore` | yes (405 otherwise) | admin | JSON |
-| any | `/api/sync` | no | admin | JSON |
-| GET | `/api/sync/preview` | yes (405 otherwise) | admin | JSON |
-| GET | `/api/export/note` | yes (405 otherwise) | admin | Markdown download |
-| POST | `/api/import/note` | yes (405 otherwise) | admin | JSON |
-| GET | `/api/edit-external` | no | admin | HTML or 303 |
-| GET | `/api/logs` | no | admin | SSE |
-| GET | `/api/status` | yes (405 otherwise) | admin | JSON / Markdown |
-| GET | `/db_backups` | no | admin | HTML |
-| GET | `/OMNGoSearch.html` | no | none | HTML (explains how to turn global search on when it is off; used to 404) |
-| GET | `/OMNGoFiles.html` | no | admin | HTML (a page for a guest, not a 401) |
-| GET | `/OMNGoStatus.html` | no | admin | HTML (a page for a guest, not a 401) |
-| GET | `/OMNGoLogs.html` | no | admin | HTML (a page for a guest, not a 401) |
-| GET | `/`, `/<name>.html`, `/<asset>` | no | none | HTML / asset |
-| GET | `/js/…`, `/css/…`, `/json/…` | no | none | asset |
-| GET | `/images/…`, `/user_json/…` | no | none | asset |
+The router refuses each method that the first column does not list, with
+`405`. A `GET` route also takes `HEAD`. The last four rows go through the
+catch-all and the asset trees, and these take each method. See §1.2.
+
+| Method(s) | URL | Auth | Response |
+| --- | --- | --- | --- |
+| POST | `/login` | none | text |
+| GET | `/api/note` | none | raw file |
+| GET | `/api/search` | **none — deliberately open** | JSON |
+| POST | `/api/save` | admin | text |
+| POST | `/api/newpage` | admin | text |
+| POST | `/api/quick` | admin | text |
+| POST | `/api/bookmark` | admin | text |
+| POST | `/api/upload` | admin | text (HTML fragment) |
+| POST | `/api/upload_json` | admin | text (Markdown fragment) |
+| GET, POST | `/api/config` | admin | JSON / text |
+| POST | `/api/restart` | admin | text |
+| POST | `/api/sql` | admin | JSON |
+| POST | `/api/db/backup` | admin | JSON |
+| GET | `/api/db/backups` | admin | JSON |
+| POST | `/api/db/restore` | admin | JSON |
+| POST | `/api/sync` | admin | JSON |
+| GET | `/api/sync/preview` | admin | JSON |
+| GET | `/api/export/note` | admin | Markdown download |
+| POST | `/api/import/note` | admin | JSON |
+| GET | `/api/edit-external` | admin | HTML or 303 |
+| GET | `/api/logs` | admin | SSE |
+| GET | `/api/logs/history` | admin | JSON |
+| GET | `/api/status` | admin | JSON / Markdown |
+| GET | `/db_backups` | admin | HTML |
+| GET | `/OMNGoFiles.html` | admin | HTML (a page for a guest, not a 401) |
+| GET | `/OMNGoStatus.html` | admin | HTML (a page for a guest, not a 401) |
+| GET | `/OMNGoLogs.html` | admin | HTML (a page for a guest, not a 401) |
+| any | `/OMNGoSearch.html` | none | HTML (explains how to turn global search on when it is off; used to 404) |
+| any | `/`, `/<name>.html`, `/<asset>` | none | HTML / asset |
+| any | `/js/…`, `/css/…`, `/json/…` | none | asset |
+| any | `/images/…`, `/user_json/…` | none | asset |
 
 ---
 
@@ -567,7 +580,7 @@ description cannot contain one.
 | `400` | `{"status":"error","message":"no note named"}` | `name` is absent |
 | `400` | `{"status":"error","message":"… is not a note"}` | `name` is a static asset |
 | `404` | `{"status":"error","message":"no note …"}` | No such note |
-| `405` | `{"status":"error","message":"GET only"}` | Another method |
+| `405` | `Method Not Allowed` (plain text, from the router) | Another method |
 
 #### `POST /api/import/note`
 
@@ -658,7 +671,7 @@ is not an error — a second copy is not the repair.
 | --- | --- | --- |
 | `400` | `{"status":"error","message":"the note is empty"}` | Nothing but space arrived |
 | `400` | `{"status":"error","message":"no file in the upload"}` | `multipart/form-data` with no `file` field |
-| `405` | `{"status":"error","message":"POST only"}` | Another method |
+| `405` | `Method Not Allowed` (plain text, from the router) | Another method |
 | `413` | `{"status":"error","message":"the note is larger than …"}` | Larger than `max_upload_size_mb` |
 
 ---
@@ -1172,7 +1185,7 @@ other three as they are. A carried empty value clears that field alone.
 | --- | --- | --- |
 | `200` | `Saved` | Written to `config.json` |
 | `200` | `RestartRequired` | Written, but `share_lan` changed — the frontend reacts to this exact string by calling `/api/restart` |
-| `405` | `Method Not Allowed` | Any method other than GET/POST |
+| `405` | `Method Not Allowed` (plain text, from the router) | Any method other than GET, HEAD or POST |
 | `500` | `Failed to save configuration` | Marshal or write failure |
 
 ---
@@ -1316,7 +1329,7 @@ person arrived, which is the shape a reader on the LAN would want. See
 the sync progress overlay. A replay on connect would show a sync that is
 not running.
 
-No parameters. Any method but `GET` answers `405`.
+No parameters. Any method but `GET` and `HEAD` answers `405`.
 
 **Response** `200`, `application/json`:
 
@@ -1422,7 +1435,7 @@ that returns no rows has no `columns` field and no `rows` field.
 | `400` | `too many statements (501 > 500)` | Over the batch limit |
 | `400` | `invalid database name "…"` | `db` fails the whitelist |
 | `400` | *driver message* | A statement failed; `failed_statement` holds its 0-based index |
-| `405` | `POST only` | Wrong method |
+| `405` | `Method Not Allowed` (plain text, from the router) | Wrong method |
 
 ---
 
@@ -1477,7 +1490,7 @@ Creates a backup and deletes the older backups beyond `backup_prune_depth`.
 | --- | --- |
 | `200` | `{"status":"success","file":"20260727T140500Z_pixel7.jsonl","pruned":["html/db_backup/mydata/20260101T…jsonl"]}` |
 | `400` | `{"status":"error","message":"invalid db name \"…\""}` |
-| `405` | `{"status":"error","message":"POST only"}` |
+| `405` | `Method Not Allowed` (plain text, from the router) |
 | `500` | `{"status":"error","message":"<reason>"}` |
 
 `pruned` holds the paths of the removed files, relative to the storage
@@ -1542,7 +1555,7 @@ A backup entry with `"valid": false` carries `"error": "<reason>"`.
 
 | Status | Body |
 | --- | --- |
-| `405` | `{"status":"error","message":"GET only"}` |
+| `405` | `Method Not Allowed` (plain text, from the router) |
 
 #### `POST /api/db/restore`
 
@@ -1565,7 +1578,7 @@ backup. The state dot on the page therefore reads `insync` at once.
 | --- | --- |
 | `200` | `{"status":"success"}` |
 | `400` | `{"status":"error","message":"invalid db name \"…\""}` or `invalid backup filename "…"` |
-| `405` | `{"status":"error","message":"POST only"}` |
+| `405` | `Method Not Allowed` (plain text, from the router) |
 | `500` | `{"status":"error","message":"<reason>"}` |
 
 ---
@@ -1820,7 +1833,7 @@ address, and it is not a secret.
 | `200` | the status document, as JSON or as Markdown |
 | `400` | `unknown section: <name>` |
 | `401` | `Unauthorized` |
-| `405` | `GET only` |
+| `405` | `Method Not Allowed` (plain text, from the router) |
 
 A section that fails does not fail the answer. The section is absent, and
 `errors` names it with the reason.
@@ -2142,7 +2155,7 @@ stream:
 | `400 Bad Request` | Missing/invalid parameters, rejected uploads, SQL errors |
 | `401 Unauthorized` | `/login` with a wrong password. `authMiddleware` for a remote caller with no valid admin cookie, which covers a missing, a changed and an expired one. |
 | `404 Not Found` | Missing static asset or `/api/note` for a missing non-page file |
-| `405 Method Not Allowed` | `/api/config`, `/api/restart`, `/api/sql`, `/api/db/*`, `/api/sync/preview` |
+| `405 Method Not Allowed` | Each route of §3 except the catch-all and the asset trees, for a method that §3 does not list |
 | `500 Internal Server Error` | Disk/permission failures, git repo errors, restore failures |
 
 ---

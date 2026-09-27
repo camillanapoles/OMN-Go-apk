@@ -83,10 +83,6 @@ func (a *App) handleSync(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleSyncPreview(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		http.Error(w, "Method Not Allowed", 405)
-		return
-	}
 	action := r.URL.Query().Get("action")
 	if action != "upload" {
 		http.Error(w, "Only upload preview supported", 400)

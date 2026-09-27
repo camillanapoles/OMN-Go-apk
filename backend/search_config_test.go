@@ -126,7 +126,7 @@ func TestConfigPost_SearchKinds(t *testing.T) {
 		c.SearchKinds = []string{SearchKindMD, SearchKindBookmarks}
 	})
 
-	postForm(t, a.handleConfig, "/api/config", url.Values{
+	postForm(t, a.handleConfigPost, "/api/config", url.Values{
 		"search_enabled": {"true"},
 		"search_kinds":   {"md", "js"},
 		"search_scope":   {"page"},
@@ -145,7 +145,7 @@ func TestConfigPost_SearchKinds(t *testing.T) {
 	// Now untick everything. The form DECLARES search_kinds (config_fields),
 	// thus no value at all means none, and not "reset to default". It has to
 	// persist that way.
-	postForm(t, a.handleConfig, "/api/config", url.Values{
+	postForm(t, a.handleConfigPost, "/api/config", url.Values{
 		"config_fields":  {configFormFields},
 		"search_enabled": {"true"},
 	})
@@ -174,7 +174,7 @@ func TestConfigPost_SearchKinds(t *testing.T) {
 	// A DECLARED checkbox that sends no value clears the boolean, which is
 	// what unticking it on the Config page does. An undeclared one is left
 	// alone - see TestBaseline_ConfigPostSemantics.
-	postForm(t, a.handleConfig, "/api/config", url.Values{"config_fields": {configFormFields}})
+	postForm(t, a.handleConfigPost, "/api/config", url.Values{"config_fields": {configFormFields}})
 	if a.GetConfig().SearchEnabled {
 		t.Error("a declared, unticked search_enabled did not clear")
 	}

@@ -547,7 +547,7 @@ func postConfig(t *testing.T, a *App, form url.Values) *httptest.ResponseRecorde
 	req := httptest.NewRequest(http.MethodPost, "/api/config", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
-	a.handleConfig(rec, req)
+	a.handleConfigPost(rec, req)
 	return rec
 }
 

@@ -361,6 +361,36 @@ func TestBaseline_RouteSet(t *testing.T) {
 		"/OMNGoStatus.html",
 		// The Log page. The same shape as the Status page above.
 		"/OMNGoLogs.html",
+		// The method of each route. The bare path of each route above
+		// answers 405 for another method. See route in server.go.
+		"GET /OMNGoFiles.html",
+		"GET /OMNGoLogs.html",
+		"GET /OMNGoStatus.html",
+		"GET /api/config",
+		"GET /api/db/backups",
+		"GET /api/edit-external",
+		"GET /api/export/note",
+		"GET /api/logs",
+		"GET /api/logs/history",
+		"GET /api/note",
+		"GET /api/search",
+		"GET /api/status",
+		"GET /api/sync/preview",
+		"GET /db_backups",
+		"POST /api/bookmark",
+		"POST /api/config",
+		"POST /api/db/backup",
+		"POST /api/db/restore",
+		"POST /api/import/note",
+		"POST /api/newpage",
+		"POST /api/quick",
+		"POST /api/restart",
+		"POST /api/save",
+		"POST /api/sql",
+		"POST /api/sync",
+		"POST /api/upload",
+		"POST /api/upload_json",
+		"POST /login",
 	}
 	sort.Strings(want)
 
@@ -692,7 +722,7 @@ func TestBaseline_ConfigPostSemantics(t *testing.T) {
 	})
 
 	// A form carrying only "theme" changes only the theme.
-	rec := postForm(t, a.handleConfig, "/api/config", url.Values{"theme": {"light"}})
+	rec := postForm(t, a.handleConfigPost, "/api/config", url.Values{"theme": {"light"}})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d, body %s", rec.Code, rec.Body.String())
 	}
@@ -732,7 +762,7 @@ func TestBaseline_ConfigPostSemantics(t *testing.T) {
 	})
 
 	// Explicit zero/garbage is ignored the same way an absent value is.
-	postForm(t, a.handleConfig, "/api/config", url.Values{
+	postForm(t, a.handleConfigPost, "/api/config", url.Values{
 		"server_port":        {"0"},
 		"max_upload_size_mb": {"not-a-number"},
 	})
@@ -748,18 +778,18 @@ func TestBaseline_ConfigPostSemantics(t *testing.T) {
 	// A field that IS sent applies even when its value is empty. The Config
 	// page clears a text box when it sends that box empty. That must keep
 	// working now that absence means something else.
-	postForm(t, a.handleConfig, "/api/config", url.Values{"author": {""}})
+	postForm(t, a.handleConfigPost, "/api/config", url.Values{"author": {""}})
 	if got := a.GetConfig().Author; got != "" {
 		t.Errorf("a sent-but-empty field did not clear: author = %q", got)
 	}
 
 	// Only a ShareLAN flip asks for a restart. Every other change applies
 	// live. The frontend keys off this exact word.
-	rec = postForm(t, a.handleConfig, "/api/config", url.Values{"share_lan": {"true"}})
+	rec = postForm(t, a.handleConfigPost, "/api/config", url.Values{"share_lan": {"true"}})
 	if body := strings.TrimSpace(rec.Body.String()); body != "RestartRequired" {
 		t.Errorf("share_lan flip answered %q, want RestartRequired", body)
 	}
-	rec = postForm(t, a.handleConfig, "/api/config", url.Values{"share_lan": {"true"}})
+	rec = postForm(t, a.handleConfigPost, "/api/config", url.Values{"share_lan": {"true"}})
 	if body := strings.TrimSpace(rec.Body.String()); body != "Saved" {
 		t.Errorf("unchanged share_lan answered %q, want Saved", body)
 	}
@@ -794,7 +824,7 @@ func TestConfigPost_PartialRequestKeepsTheRest(t *testing.T) {
 	})
 
 	// Exactly what the Theme Customizer note sends.
-	postForm(t, a.handleConfig, "/api/config", url.Values{
+	postForm(t, a.handleConfigPost, "/api/config", url.Values{
 		"theme":               {"custom"},
 		"custom_theme_bg":     {"#101010"},
 		"custom_theme_accent": {"#4488ff"},
@@ -858,7 +888,7 @@ func TestConfigPost_DeclaredCheckboxesStillClear(t *testing.T) {
 		c.GitServers = make([]GitServerConfig, maxGitServers)
 	})
 
-	postForm(t, a.handleConfig, "/api/config", url.Values{
+	postForm(t, a.handleConfigPost, "/api/config", url.Values{
 		"config_fields": {configFormFields},
 		"theme":         {"light"},
 	})
@@ -878,7 +908,7 @@ func TestConfigPost_DeclaredCheckboxesStillClear(t *testing.T) {
 	// A caller with no form behind it can do the same thing one field at a
 	// time, by value, without declaring anything.
 	a.WithConfig(func(c *Config) { c.SearchEnabled = true; c.ShareLAN = true })
-	postForm(t, a.handleConfig, "/api/config", url.Values{"search_enabled": {"false"}})
+	postForm(t, a.handleConfigPost, "/api/config", url.Values{"search_enabled": {"false"}})
 	cfg = a.GetConfig()
 	if cfg.SearchEnabled {
 		t.Error("search_enabled=false did not clear it")
@@ -951,7 +981,7 @@ func TestConfigPost_HostnameClearedFallsBack(t *testing.T) {
 		c.Hostname = "pixel7"
 		c.GitServers = make([]GitServerConfig, maxGitServers)
 	})
-	postForm(t, a.handleConfig, "/api/config", url.Values{"hostname": {""}})
+	postForm(t, a.handleConfigPost, "/api/config", url.Values{"hostname": {""}})
 	if got := a.GetConfig().Hostname; got == "" || got == "pixel7" {
 		t.Errorf("hostname = %q, want the OS-derived default", got)
 	}

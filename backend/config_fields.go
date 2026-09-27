@@ -113,7 +113,7 @@ var configFields = []configField{
 	},
 	{
 		// The socket binds one time at the start, thus a change applies at
-		// the next start. handleConfig answers "RestartRequired" when the
+		// the next start. handleConfigPost answers "RestartRequired" when the
 		// value changes.
 		Key: "share_lan", Kind: cfBool,
 		Bool: func(c *Config) *bool { return &c.ShareLAN },

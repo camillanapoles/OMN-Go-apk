@@ -18,7 +18,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/http/httptest"
 	"strconv"
 	"testing"
 	"time"
@@ -109,8 +108,8 @@ func TestStartServerReturnsWhenThePortIsTaken(t *testing.T) {
 }
 
 // The restart endpoint must answer before the restart, thus the browser
-// gets the answer. A GET must not restart. The test replaces restartHook,
-// because the real hook stops the process.
+// gets the answer. A GET through the router must not restart. The test
+// replaces restartHook, because the real hook stops the process.
 func TestRestartAnswersAndThenRestarts(t *testing.T) {
 	called := make(chan struct{}, 2)
 	prev := restartHook
@@ -119,14 +118,12 @@ func TestRestartAnswersAndThenRestarts(t *testing.T) {
 
 	a := newTestApp(t)
 
-	rec := httptest.NewRecorder()
-	a.handleRestart(rec, httptest.NewRequest(http.MethodGet, "/api/restart", nil))
+	rec := routeReq(a, http.MethodGet, "/api/restart")
 	if rec.Code != http.StatusMethodNotAllowed {
 		t.Errorf("GET: status %d, want 405", rec.Code)
 	}
 
-	rec = httptest.NewRecorder()
-	a.handleRestart(rec, httptest.NewRequest(http.MethodPost, "/api/restart", nil))
+	rec = routeReq(a, http.MethodPost, "/api/restart")
 	if rec.Code != http.StatusOK || rec.Body.String() != "Restarting" {
 		t.Errorf("POST: status %d, body %q, want 200 and Restarting", rec.Code, rec.Body.String())
 	}

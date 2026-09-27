@@ -190,9 +190,11 @@ update these files.
   `StartServer` calls it with `a.Router`, a plain `http.ServeMux`. The parameter
   is the small `routeTable` interface, thus `TestBaseline_RouteSet` can pass a
   recorder and read the real table. Do not register a route anywhere else. Use
-  the form `a.Router.HandleFunc("/api/x", a.authMiddleware(a.handleX))`. A
-  protected route needs the admin role. Add a comment to any registration
-  that differs from this form.
+  the form `route(mux, "POST", "/api/x", a.authMiddleware(a.handleX))`. Give a
+  route that reads the method GET. Give a route that writes the method POST.
+  `route` also registers the bare path, and that path answers 405 for another
+  method. Do not check `r.Method` in a handler. A protected route needs the
+  admin role. Add a comment to any registration that differs from this form.
 * **Comments say what the code does now, and why, one time.** Many files start
   with a `// ---` banner. The banner gives the design decision and the rejected
   alternative. Write the same kind of justification for new code that is not
@@ -444,9 +446,9 @@ subject line, also when it has no list.
   either as "you broke it" or as "you changed it on purpose, so update the golden
   value".
 * `baseline_test.go` pins behavior with golden sets. When you add a route, update
-  `TestBaseline_RouteSet`. Also add a line to the changelog in that file header, and
-  key the line to the version. The same rule covers a new injected runtime variable
-  and a change to the `serveHTMLPage` dispatch table.
+  `TestBaseline_RouteSet`, with one comment that says why the route is there. The
+  same rule covers a new injected runtime variable and a change to the
+  `serveHTMLPage` dispatch table.
 * Some tests scan the source and act as lint rules. Respect them.
 * Run the tests with `go vet ./backend/... && go test ./backend/...`.
 

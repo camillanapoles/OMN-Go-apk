@@ -761,10 +761,6 @@ func (a *App) serveDBBackupsPage(w http.ResponseWriter, r *http.Request) {
 
 // handleDBBackupCreate answers POST /api/db/backup?db=NAME.
 func (a *App) handleDBBackupCreate(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		a.writeJSONError(w, http.StatusMethodNotAllowed, "POST only")
-		return
-	}
 	name := r.URL.Query().Get("db")
 	if !dbNameRe.MatchString(name) {
 		a.writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("invalid db name %q", name))
@@ -784,10 +780,6 @@ func (a *App) handleDBBackupCreate(w http.ResponseWriter, r *http.Request) {
 
 // handleDBRestore answers POST /api/db/restore?db=NAME&file=FILENAME.
 func (a *App) handleDBRestore(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		a.writeJSONError(w, http.StatusMethodNotAllowed, "POST only")
-		return
-	}
 	name := r.URL.Query().Get("db")
 	fileName := r.URL.Query().Get("file")
 	if !dbNameRe.MatchString(name) {
@@ -833,10 +825,6 @@ type backupDBView struct {
 // /db_backups page. It never opens a database, because an open can start the
 // bootstrap restore, and a listing must change nothing.
 func (a *App) handleDBBackupList(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		a.writeJSONError(w, http.StatusMethodNotAllowed, "GET only")
-		return
-	}
 
 	// Take each database that has a .sqlite file or only backups, as on a
 	// fresh device before the first open.

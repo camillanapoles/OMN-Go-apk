@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -222,9 +223,10 @@ type routeTable interface {
 func (a *App) registerRoutes(mux routeTable) {
 	// /api/logs and /api/logs/history are admin only. A guest on the LAN
 	// reads no log line, live or held. See handleLogHistory.
-	mux.HandleFunc("/api/logs", a.authMiddleware(a.HandleLogsSSE))
+	route(mux, "GET", "/api/logs", a.authMiddleware(a.HandleLogsSSE))
+	route(mux, "GET", "/api/logs/history", a.authMiddleware(a.handleLogHistory))
 
-	mux.HandleFunc("/api/logs/history", a.authMiddleware(a.handleLogHistory))
+	// The catch-all and the asset trees take each method.
 	mux.HandleFunc("/", a.serveFrontend)
 
 	// The /js, /css and /json trees hold embedded assets.
@@ -238,46 +240,70 @@ func (a *App) registerRoutes(mux routeTable) {
 	mux.Handle("/json/", assetTree)
 
 	// /images and /user_json are user content, and the binary embeds none of
-	// it.
-	// resolveContentType gives each file its type.
+	// it. resolveContentType gives each file its type.
 	mux.Handle("/images/", a.serveStorageSubdir("images", ""))
 	mux.Handle("/user_json/", a.serveStorageSubdir("user_json", ""))
 
-	mux.HandleFunc("/login", a.handleLogin)
-	mux.HandleFunc("/api/quick", a.authMiddleware(a.handleQuickNote))
-	mux.HandleFunc("/api/bookmark", a.authMiddleware(a.handleBookmark))
-	mux.HandleFunc("/api/upload", a.authMiddleware(a.handleUpload))
-	mux.HandleFunc("/api/upload_json", a.authMiddleware(a.handleUploadJSON))
-	mux.HandleFunc("/api/note", a.handleGetNote)
+	route(mux, "POST", "/login", a.handleLogin)
+	route(mux, "POST", "/api/quick", a.authMiddleware(a.handleQuickNote))
+	route(mux, "POST", "/api/bookmark", a.authMiddleware(a.handleBookmark))
+	route(mux, "POST", "/api/upload", a.authMiddleware(a.handleUpload))
+	route(mux, "POST", "/api/upload_json", a.authMiddleware(a.handleUploadJSON))
+	route(mux, "GET", "/api/note", a.handleGetNote)
 	// This route has no authMiddleware, the same as /api/note and each page.
 	// Search collects nothing that a guest cannot read file by file.
-	mux.HandleFunc("/api/search", a.handleSearch)
-	mux.HandleFunc("/api/save", a.authMiddleware(a.handleSaveNote))
-	mux.HandleFunc("/api/newpage", a.authMiddleware(a.handleNewPage))
-	mux.HandleFunc("/api/config", a.authMiddleware(a.handleConfig))
-	mux.HandleFunc("/api/restart", a.authMiddleware(a.handleRestart))
-	mux.HandleFunc("/api/sql", a.authMiddleware(a.handleSQL))
-	mux.HandleFunc("/api/db/backup", a.authMiddleware(a.handleDBBackupCreate))
-	mux.HandleFunc("/api/db/backups", a.authMiddleware(a.handleDBBackupList))
-	mux.HandleFunc("/api/db/restore", a.authMiddleware(a.handleDBRestore))
-	mux.HandleFunc("/db_backups", a.authMiddleware(a.serveDBBackupsPage))
+	route(mux, "GET", "/api/search", a.handleSearch)
+	route(mux, "POST", "/api/save", a.authMiddleware(a.handleSaveNote))
+	route(mux, "POST", "/api/newpage", a.authMiddleware(a.handleNewPage))
+	mux.HandleFunc("GET /api/config", a.authMiddleware(a.handleConfigGet))
+	mux.HandleFunc("POST /api/config", a.authMiddleware(a.handleConfigPost))
+	mux.HandleFunc("/api/config", refuseMethod("GET", "POST"))
+	route(mux, "POST", "/api/restart", a.authMiddleware(a.handleRestart))
+	route(mux, "POST", "/api/sql", a.authMiddleware(a.handleSQL))
+	route(mux, "POST", "/api/db/backup", a.authMiddleware(a.handleDBBackupCreate))
+	route(mux, "GET", "/api/db/backups", a.authMiddleware(a.handleDBBackupList))
+	route(mux, "POST", "/api/db/restore", a.authMiddleware(a.handleDBRestore))
+	route(mux, "GET", "/db_backups", a.authMiddleware(a.serveDBBackupsPage))
 	// This is a PAGE with its own route, because the catch-all needs no login
 	// and this listing is admin only. The handler asks hasRole itself, thus a
 	// refusal is a page and not a line of text.
-	mux.HandleFunc("/OMNGoFiles.html", a.serveFilesPage)
-	mux.HandleFunc("/api/sync", a.authMiddleware(a.handleSync))
-	mux.HandleFunc("/api/sync/preview", a.authMiddleware(a.handleSyncPreview))
-	mux.HandleFunc("/api/edit-external", a.authMiddleware(a.handleEditExternal))
+	route(mux, "GET", "/OMNGoFiles.html", a.serveFilesPage)
+	route(mux, "POST", "/api/sync", a.authMiddleware(a.handleSync))
+	route(mux, "GET", "/api/sync/preview", a.authMiddleware(a.handleSyncPreview))
+	route(mux, "GET", "/api/edit-external", a.authMiddleware(a.handleEditExternal))
 	// Note exchange. Both routes are admin only: import writes files, and
 	// export is a way out of the note tree. The device itself is always
 	// admin, and on Android the device is the caller.
-	mux.HandleFunc("/api/export/note", a.authMiddleware(a.handleExportNote))
-	mux.HandleFunc("/api/import/note", a.authMiddleware(a.handleImportNote))
+	route(mux, "GET", "/api/export/note", a.authMiddleware(a.handleExportNote))
+	route(mux, "POST", "/api/import/note", a.authMiddleware(a.handleImportNote))
 	// This route is admin only, because the answer holds LAN addresses,
 	// absolute paths and a commit subject.
-	mux.HandleFunc("/api/status", a.authMiddleware(a.handleStatus))
-	// The Status page and the Log page ask hasRole themselves, the same as
-	// /OMNGoFiles.html.
-	mux.HandleFunc("/OMNGoStatus.html", a.serveStatusPage)
-	mux.HandleFunc("/OMNGoLogs.html", a.serveLogsPage)
+	route(mux, "GET", "/api/status", a.authMiddleware(a.handleStatus))
+	// These two pages ask hasRole themselves, the same as /OMNGoFiles.html.
+	route(mux, "GET", "/OMNGoStatus.html", a.serveStatusPage)
+	route(mux, "GET", "/OMNGoLogs.html", a.serveLogsPage)
+}
+
+// route registers h for one method on one path. The pattern "GET /x" also
+// takes HEAD. The bare path answers 405 for another method. See
+// doc/decisions/0016-give-each-route-one-method.md.
+func route(mux routeTable, method, path string, h http.HandlerFunc) {
+	mux.HandleFunc(method+" "+path, h)
+	mux.HandleFunc(path, refuseMethod(method))
+}
+
+// refuseMethod answers 405, and the Allow header names the methods.
+func refuseMethod(methods ...string) http.HandlerFunc {
+	var allow []string
+	for _, m := range methods {
+		allow = append(allow, m)
+		if m == http.MethodGet {
+			allow = append(allow, http.MethodHead)
+		}
+	}
+	header := strings.Join(allow, ", ")
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Allow", header)
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+	}
 }

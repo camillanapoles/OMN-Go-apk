@@ -256,10 +256,6 @@ func (a *App) runSQLBatchWithRetry(dbName string, statements []sqlStatement) ([]
 // handleSQL runs one atomic batch against one named database. See the banner
 // for the protocol.
 func (a *App) handleSQL(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		a.writeJSON(w, http.StatusMethodNotAllowed, sqlResponse{Status: "error", Message: "POST only"})
-		return
-	}
 
 	var req sqlRequest
 	r.Body = http.MaxBytesReader(w, r.Body, sqlMaxBodyBytes)

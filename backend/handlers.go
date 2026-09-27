@@ -104,42 +104,38 @@ func configFieldSent(r *http.Request) func(field string) bool {
 	}
 }
 
-// handleConfig answers GET and POST on /api/config. A GET answers the whole
-// Config with each password, for "Show passwords". It is admin only.
-func (a *App) handleConfig(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		a.writeJSON(w, http.StatusOK, a.GetConfig())
+// handleConfigGet answers GET /api/config with the whole Config and each
+// password, for "Show passwords". It is admin only.
+func (a *App) handleConfigGet(w http.ResponseWriter, r *http.Request) {
+	a.writeJSON(w, http.StatusOK, a.GetConfig())
+}
 
-	case http.MethodPost:
-		prev := a.GetConfig()
+// handleConfigPost answers POST /api/config. It saves the fields of the form.
+func (a *App) handleConfigPost(w http.ResponseWriter, r *http.Request) {
+	prev := a.GetConfig()
 
-		sent := configFieldSent(r)
+	sent := configFieldSent(r)
 
-		var next Config
-		a.WithConfig(func(c *Config) {
-			applyConfigForm(c, r, sent)
-			applyGitServerForm(c, r, sent)
-			next = *c
-		})
+	var next Config
+	a.WithConfig(func(c *Config) {
+		applyConfigForm(c, r, sent)
+		applyGitServerForm(c, r, sent)
+		next = *c
+	})
 
-		if err := a.persistConfig(next); err != nil {
-			http.Error(w, "Failed to save configuration", http.StatusInternalServerError)
-			return
-		}
-		a.applyConfigChange(prev, next)
-
-		if next.ShareLAN != prev.ShareLAN {
-			// saveConfig in omn-go-config.js reads this exact word and then
-			// calls /api/restart.
-			w.Write([]byte("RestartRequired"))
-			return
-		}
-		w.Write([]byte("Saved"))
-
-	default:
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+	if err := a.persistConfig(next); err != nil {
+		http.Error(w, "Failed to save configuration", http.StatusInternalServerError)
+		return
 	}
+	a.applyConfigChange(prev, next)
+
+	if next.ShareLAN != prev.ShareLAN {
+		// saveConfig in omn-go-config.js reads this exact word and then
+		// calls /api/restart.
+		w.Write([]byte("RestartRequired"))
+		return
+	}
+	w.Write([]byte("Saved"))
 }
 
 // persistConfig writes one configuration to config.json. It runs OUTSIDE the
@@ -196,10 +192,6 @@ func searchIndexNeedsRebuild(prev, next Config) bool {
 // On the desktop, it starts a new copy with OMN_GO_RESTARTED=1, thus no
 // second browser tab opens.
 func (a *App) handleRestart(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	a.logInfof(logRestart, "restart requested via /api/restart")
 	w.Write([]byte("Restarting"))
 

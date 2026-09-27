@@ -142,8 +142,7 @@ type logFilter struct {
 // A LOG LINE MUST NEVER TAKE THE CONFIG LOCK. loadConfig holds the write lock
 // and can write a log line, and a Go RWMutex is not reentrant. A read of the
 // config from emitLog would thus deadlock the start. An atomic value costs
-// one load for each line. loadConfig and the POST branch of handleConfig
-// refresh the cache.
+// one load for each line. loadConfig and handleConfigPost refresh the cache.
 func (a *App) applyLogFilter(c Config) {
 	f := logFilter{
 		debug: c.LogDebug,
@@ -255,10 +254,6 @@ func (a *App) serveLogsPage(w http.ResponseWriter, r *http.Request) {
 // doc/decisions/0013-send-each-log-line-to-three-places-and-to-the-admin-only.md.
 // The answer follows section 1.4 of doc/API.md: JSON with a status word.
 func (a *App) handleLogHistory(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "GET only", http.StatusMethodNotAllowed)
-		return
-	}
 	lines := logHistorySnapshot()
 	a.writeJSON(w, http.StatusOK, map[string]any{
 		"status": "success",

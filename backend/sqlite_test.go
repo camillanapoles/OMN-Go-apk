@@ -126,12 +126,4 @@ func TestSQLRequestLimits(t *testing.T) {
 	if rec.Code != http.StatusBadRequest || resp.Status != "error" {
 		t.Errorf("empty batch: expected 400/error, got %d/%s", rec.Code, resp.Status)
 	}
-
-	// GET refused.
-	req := httptest.NewRequest(http.MethodGet, "/api/sql", nil)
-	rec2 := httptest.NewRecorder()
-	a.handleSQL(rec2, req)
-	if rec2.Code != http.StatusMethodNotAllowed {
-		t.Errorf("GET: status %d, want 405", rec2.Code)
-	}
 }

@@ -415,18 +415,6 @@ func TestLogHistoryEndpointAnswersAnArrayWhenEmpty(t *testing.T) {
 	}
 }
 
-// The endpoint reads and changes nothing, thus it takes GET alone.
-func TestLogHistoryEndpointRefusesAnotherMethod(t *testing.T) {
-	a := newTestApp(t)
-	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodDelete} {
-		rec := httptest.NewRecorder()
-		a.handleLogHistory(rec, httptest.NewRequest(method, "/api/logs/history", nil))
-		if rec.Code != http.StatusMethodNotAllowed {
-			t.Errorf("%s answered %d, want 405", method, rec.Code)
-		}
-	}
-}
-
 // The endpoint is ADMIN ONLY, and so is the stream beside it.
 //
 // A LAN share gives no log line, live or held. An open stream would make

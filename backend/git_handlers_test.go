@@ -447,17 +447,6 @@ func TestHandleSyncAnswersABadForm(t *testing.T) {
 // handleSyncPreview
 // ----------------------------------------------------------------------
 
-// The preview reads and changes nothing, thus it takes GET alone.
-func TestSyncPreviewRefusesAnotherMethod(t *testing.T) {
-	a := gsApp(t, gsRemote(t))
-	for _, method := range []string{"POST", "PUT", "DELETE"} {
-		w := ghPreview(t, a, method, "action=upload")
-		if w.Code != http.StatusMethodNotAllowed {
-			t.Errorf("%s answered %d, want 405", method, w.Code)
-		}
-	}
-}
-
 // The preview answers for the upload action alone. A download preview
 // would need a fetch, and no page asks for one.
 func TestSyncPreviewRefusesAnotherAction(t *testing.T) {

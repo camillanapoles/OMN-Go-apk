@@ -535,10 +535,6 @@ func headerValue(content, key string) (string, bool) {
 // of the note, FileName: set, as a download. MainActivity gives the bytes to
 // the share sheet.
 func (a *App) handleExportNote(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		a.writeJSONError(w, http.StatusMethodNotAllowed, "GET only")
-		return
-	}
 	name := r.URL.Query().Get("name")
 	if name == "" {
 		a.writeJSONError(w, http.StatusBadRequest, "no note named")
@@ -572,10 +568,6 @@ func (a *App) handleExportNote(w http.ResponseWriter, r *http.Request) {
 // posts raw bytes, and the desktop posts a form file. The sanitizer also
 // checks ?name=, the fallback for a note with no FileName: line.
 func (a *App) handleImportNote(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		a.writeJSONError(w, http.StatusMethodNotAllowed, "POST only")
-		return
-	}
 
 	limit := a.maxUploadBytes()
 	displayName := r.URL.Query().Get("name")

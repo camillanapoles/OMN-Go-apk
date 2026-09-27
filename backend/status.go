@@ -253,10 +253,6 @@ type statusStorage struct {
 // ----------------------------------------------------------------------
 
 func (a *App) handleStatus(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "GET only", http.StatusMethodNotAllowed)
-		return
-	}
 
 	want, unknown := parseStatusSections(r.URL.Query().Get("sections"))
 	if len(unknown) > 0 {

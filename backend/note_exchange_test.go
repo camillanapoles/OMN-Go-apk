@@ -522,9 +522,6 @@ func TestHandleExportNote(t *testing.T) {
 	if rec := exchangeReq(t, a.handleExportNote, http.MethodGet, "/api/export/note?name=Nope", nil, ""); rec.Code != http.StatusNotFound {
 		t.Errorf("a missing note gave %d, want 404", rec.Code)
 	}
-	if rec := exchangeReq(t, a.handleExportNote, http.MethodPost, "/api/export/note?name=x", nil, ""); rec.Code != http.StatusMethodNotAllowed {
-		t.Errorf("POST gave %d, want 405", rec.Code)
-	}
 }
 
 // The Android caller: raw bytes, with the attachment's name as ?name= .
@@ -577,9 +574,6 @@ func TestHandleImportNoteMultipart(t *testing.T) {
 func TestHandleImportNoteRefusals(t *testing.T) {
 	a := newTestApp(t)
 
-	if rec := exchangeReq(t, a.handleImportNote, http.MethodGet, "/api/import/note", nil, ""); rec.Code != http.StatusMethodNotAllowed {
-		t.Errorf("GET gave %d, want 405", rec.Code)
-	}
 	if rec := exchangeReq(t, a.handleImportNote, http.MethodPost, "/api/import/note",
 		strings.NewReader("   \n"), "text/markdown"); rec.Code != http.StatusBadRequest {
 		t.Errorf("an empty note gave %d, want 400", rec.Code)

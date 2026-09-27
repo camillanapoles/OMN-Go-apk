@@ -368,12 +368,7 @@ func TestDBBackupEndpoints(t *testing.T) {
 		t.Fatalf("restore via endpoint did not bring data back: %d", n)
 	}
 
-	// Method and parameter validation.
-	rec = httptest.NewRecorder()
-	a.handleDBBackupCreate(rec, httptest.NewRequest(http.MethodGet, "/api/db/backup?db=t1", nil))
-	if rec.Code != http.StatusMethodNotAllowed {
-		t.Fatalf("backup GET not rejected: %d", rec.Code)
-	}
+	// Parameter validation.
 	rec = httptest.NewRecorder()
 	a.handleDBBackupCreate(rec, httptest.NewRequest(http.MethodPost, "/api/db/backup?db=../evil", nil))
 	if rec.Code != http.StatusBadRequest {
@@ -502,8 +497,7 @@ func TestDBRestoreFailsWholeAtEachStep(t *testing.T) {
 	}
 }
 
-// The restore endpoint checks the method and each name before it takes
-// the lock. Each fault gives the JSON error shape that the Database
+// The restore endpoint checks each name before it takes the lock. Each fault gives the JSON error shape that the Database
 // Backups page reads. A valid name of a missing backup gives 500.
 func TestDBRestoreEndpointFaults(t *testing.T) {
 	a := dbbApp(t)
@@ -512,7 +506,6 @@ func TestDBRestoreEndpointFaults(t *testing.T) {
 		why, method, query string
 		code               int
 	}{
-		{"a GET", http.MethodGet, "db=t1&file=20260101T000000Z_t1.jsonl", http.StatusMethodNotAllowed},
 		{"a bad database name", http.MethodPost, "db=../t1&file=20260101T000000Z_t1.jsonl", http.StatusBadRequest},
 		{"a bad file name", http.MethodPost, "db=t1&file=../../config.json", http.StatusBadRequest},
 		{"a backup that does not exist", http.MethodPost, "db=t1&file=20260101T000000Z_t1.jsonl", http.StatusInternalServerError},
