@@ -3,14 +3,12 @@ package backend
 import "strings"
 
 // ----------------------------------------------------------------------
-// The single header-block ("Pelican header") parser
+// The one header block parser
 // ----------------------------------------------------------------------
 //
-// "header block" is the name that doc/TERMINOLOGY.md requires, and the
-// code uses the same one.
-//
-// A note may begin with a block of "Key: Value" metadata lines terminated
-// by a blank line, e.g.:
+// doc/TERMINOLOGY.md calls this the "header block", and the code uses the
+// same name. A note can start with "Key: Value" lines that an empty line
+// ends:
 //
 //	Title: My Note
 //	Date: 2026-01-01 00:00:00
@@ -18,47 +16,36 @@ import "strings"
 //
 //	Body starts here.
 //
-// Four callers ask "where does the header end and the body begin?". They
-// are compilePageWithBody, ensureHeaderModified, handleNewPage, and
-// firstLineAfterHeader in the JavaScript of the editor. Copies of the
-// decision disagree on edge cases. A Markdown heading such as "# Head:
-// subtitle" is the classic one, because it holds a ':'.
-//
-// parseHeaderBlock is the ONE authority. Every Go caller goes through
-// it, and the firstLineAfterHeader of the editor mirrors isHeaderFirstLine
-// exactly. See backend/frontend/html/js/OMN-Go/omn-go-editor.js.
+// parseHeaderBlock is the ONE authority for the question "where does the
+// header end?". Each Go caller uses it. isHeaderFirstLine and
+// firstLineAfterHeader in omn-go-editor.js are a port of this rule.
+// TestHeaderPortAgreesWithTheRealJavaScript compares them. A heading such as
+// "# Head: subtitle" holds a ':', and a copy of the rule gets such a case
+// wrong.
 
-// headerBlock is the parsed split of note content into its optional header
-// and its body.
+// headerBlock is a note split into its header and its body.
 type headerBlock struct {
-	// HasHeader is true when the content begins with a metadata header
-	// block (see parseHeaderBlock for the exact rule).
+	// HasHeader is true when the content starts with a header block. See
+	// parseHeaderBlock.
 	HasHeader bool
-	// Header is the raw header block - the metadata lines joined by "\n",
-	// WITHOUT the terminating blank line. Empty when HasHeader is false.
+	// Header holds the header lines joined by "\n", WITHOUT the empty line
+	// that ends them. It is empty when HasHeader is false.
 	Header string
-	// Body is everything after the header's terminating blank line, or the
-	// entire content when there is no header.
+	// Body is the text after the header, or the whole content when there is
+	// no header.
 	Body string
-	// BodyOffset is the byte offset into the ORIGINAL content at which Body
-	// begins (0 when there is no header). This is the authoritative
-	// "first line after the header" position, matched by the editor caret.
+	// BodyOffset is the byte offset in the ORIGINAL content where Body
+	// starts, or 0 with no header. The caret of the editor uses the same
+	// position.
 	BodyOffset int
 }
 
-// isHeaderFirstLine reports whether line looks like a metadata key line, as
-// in "Key: Value". The line is the FIRST line of a note. It must contain a
-// ':', and it must NOT start with a space, a '#' or a '<'.
-//
-// Those three mark a line of Markdown or of raw HTML body that happens to
-// contain a colon. Examples are "# Heading: subtitle", an indented
-// continuation, and "<script>let x: 1".
-//
-// A trailing CR is ignored, thus a CRLF file classifies the same as an LF
-// one.
-//
-// The editor's isHeaderFirstLine (JS) is a direct port of this rule; keep
-// the two in sync.
+// isHeaderFirstLine reports whether the FIRST line of a note is a header
+// line, as in "Key: Value". It must hold a ':', and it must NOT start with a
+// space, a '#' or a '<'. Those three mark Markdown or HTML with a colon, for
+// example "# Heading: subtitle" or "<script>let x: 1". The function ignores a
+// trailing CR, thus a CRLF file gives the same answer. Keep the JavaScript
+// port the same.
 func isHeaderFirstLine(line string) bool {
 	line = strings.TrimSuffix(line, "\r")
 	if !strings.Contains(line, ":") {
@@ -72,26 +59,18 @@ func isHeaderFirstLine(line string) bool {
 	return true
 }
 
-// parseHeaderBlock parses content into its optional metadata header and its
-// body. A header is present only when the FIRST line satisfies
-// isHeaderFirstLine. The header then continues line by line, and it ends at
-// the FIRST of these two:
-//   - a blank line, which is empty after a trim of the whitespace. A
-//     "separator" line that carries stray spaces or tabs thus still counts,
-//     and real notes have such a line. The blank line is the separator and
-//     is dropped, and the body starts after it.
-//   - a line that is not itself a "Key: Value" header line, which is a line
-//     that fails isHeaderFirstLine. Examples are "<style>" and a prose line
-//     with no colon. That line is the first BODY line, and it is kept.
+// parseHeaderBlock splits content into its optional header and its body. A
+// header exists only when the FIRST line passes isHeaderFirstLine. The header
+// ends at the FIRST of two lines:
 //
-// Both conditions matter. Content can follow a header at once, as a
-// "<style>" block, a prose paragraph, or a whitespace-only separator. With
-// a blank line as the only end, the header would continue to the first
-// truly empty line. It would then read a CSS "--var: #hex;" line as metadata.
+//   - An empty line, also one with only spaces or tabs. The parser drops
+//     it, and the body starts after it.
+//   - A line that fails isHeaderFirstLine, for example "<style>" or prose
+//     with no colon. That line is the first BODY line, and it stays.
 //
-// A header with neither a blank line nor a non-header line after it is a
-// note that is only metadata. Such a note has an empty body. With no header
-// at all, the whole content is the body.
+// Both ends are necessary. A "<style>" block can follow the header directly.
+// With only the first rule, the parser would read a CSS line "--var: #hex;"
+// as a header line. A note with only header lines has an empty body.
 func parseHeaderBlock(content string) headerBlock {
 	firstLine := content
 	if nl := strings.IndexByte(content, '\n'); nl >= 0 {
@@ -103,8 +82,8 @@ func parseHeaderBlock(content string) headerBlock {
 
 	lines := strings.Split(content, "\n")
 
-	// makeResult builds the split given the body's starting line index and
-	// whether the line before it was a dropped blank separator.
+	// makeResult makes the split from the first body line and the end of the
+	// header.
 	makeResult := func(bodyStart int, headerEndExclusive int) headerBlock {
 		offset := 0
 		for i := 0; i < bodyStart; i++ {
@@ -123,48 +102,38 @@ func parseHeaderBlock(content string) headerBlock {
 
 	for i := 1; i < len(lines); i++ {
 		if strings.TrimSpace(lines[i]) == "" {
-			// Blank separator line. It is dropped, and the body starts
+			// This is an empty line. The parser drops it, and the body starts
 			// on the next line.
 			return makeResult(i+1, i)
 		}
 		if !isHeaderFirstLine(lines[i]) {
-			// Not a header line: this line itself is the start of the body.
+			// This line is not a header line, thus it is the first body line.
 			return makeResult(i, i)
 		}
 	}
 
-	// Every line was a header line (header-only note, no body).
+	// Each line is a header line, thus the body is empty.
 	return headerBlock{HasHeader: true, Header: content, BodyOffset: len(content)}
 }
 
 // ----------------------------------------------------------------------
-// Reading and writing ONE header key
+// Read and write ONE header key
 // ----------------------------------------------------------------------
 //
-// Note exchange, in note_exchange.go, has to put "FileName:" on a note that
-// it sends, and "Imported:" on a note that it receives. It has to take
-// "FileName:" off again at the other end. Both must SET a key, which means
-// to replace the line when it is already there. Neither may append a second
-// line with the same key.
+// note_exchange.go SETS "FileName:" on a note that it sends, and "Imported:"
+// on a note that it receives. SET means that it replaces the line when it
+// exists. A note can travel from A to B to C. An append would then give two
+// "Imported:" lines, and a header with one key twice has no defined meaning.
 //
-// That is not fussiness. A note can make more than one hop, as when A sends
-// to B and B sends to C. An append on the second import would leave the note
-// with two "Imported:" lines. A header block with one key twice has no
-// defined meaning. parseHeaderBlock would hand the first one to whatever
-// reads it. Which of the two is first is an accident of the order that the
-// hops ran in.
-//
-// Both functions splice the header back into the ORIGINAL string. They do
-// not re-join a parse of it. The separator between the header and the body
-// is one newline when the header ended at a non-header line. "<style>" on
-// the next line is such a line. It is two when the header ended at a blank
-// line. A rebuild with a fixed "\n\n" would thus silently insert a blank
-// line into the first kind. The three pieces below always satisfy
-// header + separator + body == content.
+// These functions put the header back into the ORIGINAL string, and they do
+// not join a parsed copy. The separator is one newline after a header that
+// ends at a body line, and two after an empty line. A fixed "\n\n" would add
+// an empty line to the first kind. header + separator + body is always equal
+// to content.
 
-// splitHeaderRegion cuts content into its header text, the separator run that
-// follows it, and the body. Concatenating the three reproduces content byte
-// for byte. header and sep are empty when there is no header block.
+// splitHeaderRegion cuts content into the header, the separator after it, and
+// the body. The three together are content, byte for byte. header and sep are
+// empty when there is no header block.
 func splitHeaderRegion(content string) (header, sep, body string) {
 	hb := parseHeaderBlock(content)
 	if !hb.HasHeader {
@@ -173,8 +142,8 @@ func splitHeaderRegion(content string) (header, sep, body string) {
 	return content[:len(hb.Header)], content[len(hb.Header):hb.BodyOffset], content[hb.BodyOffset:]
 }
 
-// headerKeyOf returns the key of a "Key: value" header line, or "" when the
-// line carries no colon. The key is returned as written.
+// headerKeyOf answers the key of a "Key: value" line as written, or "" when
+// the line has no colon.
 func headerKeyOf(line string) string {
 	i := strings.IndexByte(line, ':')
 	if i < 0 {
@@ -183,21 +152,18 @@ func headerKeyOf(line string) string {
 	return strings.TrimSpace(line[:i])
 }
 
-// setHeaderKey returns content with "key: value" in its header block.
-//
-// An existing line with that key is REPLACED where it stands, so the order of
-// a note's metadata does not change under it. A new key is appended as the
-// last header line. A note with no header block gets one.
-//
-// The key is matched without regard to case (a sender may write "filename:"),
-// and written back in the caller's spelling.
+// setHeaderKey answers content with "key: value" in its header block. It
+// REPLACES an existing line with that key where it is, thus the order of the
+// metadata stays. It adds a new key as the last header line. A note with no
+// header block gets one. The key match ignores case, and the new line uses
+// the spelling of the caller.
 func setHeaderKey(content, key, value string) string {
 	line := key + ": " + value
 	header, sep, body := splitHeaderRegion(content)
 
 	if header == "" {
-		// No header block at all. One is created, with the blank line that
-		// separates it from what is now the body.
+		// With no header block, make one, with the empty line before the
+		// body.
 		if body == "" {
 			return line + "\n"
 		}

@@ -7,43 +7,34 @@ import (
 )
 
 // ----------------------------------------------------------------------
-// The single compiled-HTML cache pipeline
+// The one pipeline for the compiled HTML cache
 // ----------------------------------------------------------------------
 //
-// CACHE CONTRACT (the one place it is written down):
+// THE CACHE RULES, written here and nowhere else:
 //
-//   - md/<name>.md is the SOURCE OF TRUTH. Only the save/edit paths write it.
-//   - html/<name>.html is a DERIVED CACHE. renderAndCache is its ONLY writer.
-//   - serveHTMLPage's mtime check (md newer than html, or html missing, or an
-//     explicit ?refresh) is its ONLY invalidator.
+//	- md/<name>.md is the SOURCE. Only a save or an edit writes it,
+//	  and the Tags page of tags.go is the one exception.
+//	- html/<name>.html is a CACHE. renderAndCache is its ONLY writer.
+//	- The mtime test of serveHTMLPage is its ONLY invalidator: md newer
+//	  than html, html missing, or ?refresh.
 //
-// Six callers write a page: handleSaveNote, handleQuickNote, handleBookmark,
-// handleNewPage, recompileMarkdownPage and precompileAllPages. Each one
-// calls renderAndCache, thus the cache-write behavior has one definition.
-//
-// The cached HTML is deliberately an INCOMPLETE template. It carries a
-// runtimeVarsMarker (see templates.go). injectRuntimeVars fills that marker
-// per request, with the values that must always show "now". Those values are
-// APP_VERSION, the theme, and the internal-editor flag. The cache thus needs
-// no rewrite when one of them changes, and the on-disk file correctly still
-// holds the raw marker. Do not "repair" that with the values baked in at
-// compile time. That would defeat the cache.
+// The cached HTML is an INCOMPLETE page on purpose. It holds
+// runtimeVarsMarker, and injectRuntimeVars fills the marker for each request
+// with the values of now, for example APP_VERSION and the theme. A change of
+// these values thus needs no new cache. Do not put the values into the cache
+// when it compiles.
 
-// pageHTMLPath is the single formula for the compiled-HTML path of a markdown
-// page. resolvePageName returns exactly this for a page, and the two must
-// agree. TestPageHTMLPath guards that. renderAndCache and precompileAllPages
-// use pageHTMLPath directly, thus the path is defined in one place.
+// pageHTMLPath is the one formula for the compiled HTML path of a page.
+// resolvePageName answers the same path for a page, and TestPageHTMLPath
+// compares the two.
 func (a *App) pageHTMLPath(name string) string {
 	return filepath.Join(a.StorageDir, "html", filepath.FromSlash(containedName(name)+".html"))
 }
 
-// renderAndCache compiles a markdown page and writes it to its on-disk HTML
-// cache. That is the ONLY sanctioned way to produce html/<name>.html. See the
-// cache contract above. name is the base name of the page, with no extension,
-// and content is its markdown source. It creates each parent directory as
-// necessary. It returns the compiled bytes, which help a caller that also
-// serves them, and it returns any error. A caller that needs only the side
-// effect can ignore the bytes.
+// renderAndCache compiles a page and writes html/<name>.html. It is the ONLY
+// writer of that file. name has no extension, and content is the markdown
+// source. The function makes each parent directory. It answers the compiled
+// bytes for a caller that also sends them.
 func (a *App) renderAndCache(name string, content []byte) ([]byte, error) {
 	compiled := a.compilePage(name, content)
 	htmlPath := a.pageHTMLPath(name)
@@ -53,11 +44,9 @@ func (a *App) renderAndCache(name string, content []byte) ([]byte, error) {
 	if err := os.WriteFile(htmlPath, compiled, 0644); err != nil {
 		return compiled, fmt.Errorf("cache %q: write: %w", name, err)
 	}
-	// Every in-process note change goes through here. Those are the save, the
-	// quick note, the bookmark, the new page, the sync and the precompile.
-	// This is thus the one place that can tell the search index "something
-	// moved", with no hook in each handler. It only skips the wait for the
-	// next stat walk. The walk is still what decides what changed.
+	// Each change of a note inside the process comes here, thus this is the
+	// one place that tells the search index about it. It only skips the wait
+	// for the next stat walk.
 	a.markSearchIndexDirty()
 	return compiled, nil
 }

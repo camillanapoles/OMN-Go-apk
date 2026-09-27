@@ -15,17 +15,14 @@ import (
 	"github.com/yuin/goldmark/renderer/html"
 )
 
-// hrefRe pulls out the raw href attribute value so we can decide, per link,
-// how (or whether) to rewrite it.
+// hrefRe finds the raw value of an href attribute, thus the code can decide
+// for each link.
 var hrefRe = regexp.MustCompile(`href="([^"]*)"`)
 
 // uriSchemeRe matches a URI scheme at the start of a link, as RFC 3986
-// defines one: ALPHA *( ALPHA / DIGIT / "+" / "-" / "." ) ":". A link that
-// has one is not a page reference and must reach the browser exactly as the
-// note author wrote it - see rewriteInternalLink.
-//
-// This is the same expression the click interceptor uses in
-// omn-go-core.js (setupPreviewLinkInterceptor). Keep the two identical.
+// defines it. A link with a scheme is not a page, and it must reach the
+// browser as the author wrote it. setupPreviewLinkInterceptor in
+// omn-go-core.js uses the same expression. Keep the two equal.
 var uriSchemeRe = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9+.-]*:`)
 
 var mdParser = goldmark.New(
@@ -39,39 +36,25 @@ var mdParser = goldmark.New(
 	),
 )
 
-// Regexes used by renderMarkdownToHTML to shield content from the markdown /
-// math passes. Compiled once.
+// These are the regular expressions that protect text from the markdown and
+// math passes.
 var (
-	// Raw/verbatim regions whose contents must never be treated as markdown or
-	// KaTeX math: their text routinely contains '$', '*', '_', backticks and JS
-	// `${...}` template literals.
+	// reRaw finds the raw regions that are never markdown or math: <script>,
+	// <style>, <pre>, a fenced block and a code span. Their text often holds
+	// '$', '*', '_' and backticks.
 	//
-	// This is ONE combined, leftmost-first alternation, and not five
-	// sequential passes. That matters for correctness. A documentation page
-	// such as Database.md legitimately mentions "<script>" inside inline
-	// code, and inside a ``` fenced block.
+	// It is ONE alternation, and the leftmost match wins. Database.md
+	// mentions "<script>" inside inline code and inside a fence. Separate
+	// passes would pair that text with a real "</script>" much later, and the
+	// placeholders would nest. TestRenderMarkdownRawNoPlaceholderLeak holds
+	// the rule.
 	//
-	// Run as separate passes, the <script>...</script> regular expression
-	// matched the FIRST literal "<script>", inside a code span. It paired
-	// that with a real "</script>" far away in a later fenced example. It
-	// swallowed everything between, and it produced placeholders whose
-	// stored text held OTHER placeholders.
-	//
-	// A restore of those nested placeholders in one map-iteration pass then
-	// left some of them unrestored. Go randomizes map order, thus
-	// "OMN_RAW_n_END" tokens leaked into the page on some runs only.
-	//
-	// One combined scan consumes each raw region whole. A "<script>"
-	// mentioned inside a code span or a fence is thus part of the match of
-	// that span or fence. It can never start its own. There is no nesting,
-	// and the restore order is irrelevant.
-	//
-	// Alternation order is significant: the fenced ``` alternative must
-	// precede the inline ` one, or a triple-backtick fence would first match
-	// as an empty `` inline span.
+	// The fence must come before the inline code span, or "```" matches as an
+	// empty `` span.
 	reRaw = regexp.MustCompile("(?is)<script\\b[^>]*>.*?</script>|<style\\b[^>]*>.*?</style>|<pre\\b[^>]*>.*?</pre>|```.*?```|`[^`]*`")
 
-	// KaTeX math delimiters, protected from goldmark's emphasis handling.
+	// These are the KaTeX delimiters. The code protects them from the
+	// emphasis rules of goldmark.
 	reMathBlock  = regexp.MustCompile(`(?s)\$\$.*?\$\$`)
 	reMathInline = regexp.MustCompile(`\$[^\$]+\$`)
 )
@@ -82,14 +65,9 @@ func (a *App) renderMarkdownToHTML(mdContent []byte) string {
 	rawBlocks := make(map[string]string)
 	mathBlocks := make(map[string]string)
 	counter := 0
-	// A placeholder is alphanumeric and ends with "_END". goldmark thus
-	// passes it through verbatim, and no placeholder is ever a substring of
-	// another. OMN_MATH_10_END does not contain OMN_MATH_1_END.
-	//
-	// The previous scheme was OMN_MATH_INLINE_%d, and it collided on
-	// restore. "_1" matched inside "_10". A Go map iterates in random order,
-	// thus fragments of unrelated math and code were spliced into each
-	// other.
+	// A placeholder has only letters, digits and '_', and it ends with
+	// "_END". goldmark thus keeps it as it is, and no placeholder is part of
+	// another: OMN_MATH_10_END does not hold OMN_MATH_1_END.
 	stash := func(store map[string]string, tag, m string) string {
 		placeholder := fmt.Sprintf("OMN_%s_%d_END", tag, counter)
 		store[placeholder] = m
@@ -97,19 +75,15 @@ func (a *App) renderMarkdownToHTML(mdContent []byte) string {
 		return placeholder
 	}
 
-	// 1. Shield each raw and verbatim region BEFORE the math pass. Without
-	//    this, the inline-math regular expression below pairs up the '$'
-	//    signs in a JS `${...}` template literal, and any '$' inside code.
-	//    That tears apart a <script> note such as the SVG editor. The
-	//    regions are restored right before goldmark, thus <script>, <style>
-	//    and <pre> pass through by html.WithUnsafe(), and code renders as
-	//    before. One combined scan, reRaw, consumes each region whole, thus
-	//    raw regions never nest inside the placeholders of one another.
+	// 1. Protect each raw region BEFORE the math pass. Without this, the
+	// inline math pattern pairs the '$' signs of a JS template literal, and
+	// it breaks the script of a note. reRaw takes each region whole, thus the
+	// regions never nest.
 	contentStr = reRaw.ReplaceAllStringFunc(contentStr, func(m string) string {
 		return stash(rawBlocks, "RAW", m)
 	})
 
-	// 2. Protect genuine KaTeX math (now only in prose) from emphasis corruption.
+	// 2. Protect the KaTeX math, now only in prose, from the emphasis rules.
 	contentStr = reMathBlock.ReplaceAllStringFunc(contentStr, func(m string) string {
 		return stash(mathBlocks, "MATH", m)
 	})
@@ -117,12 +91,9 @@ func (a *App) renderMarkdownToHTML(mdContent []byte) string {
 		return stash(mathBlocks, "MATH", m)
 	})
 
-	// 3. Restore the raw regions before the render, thus goldmark parses
-	//    them as it always has. The combined scan above guarantees that the
-	//    stored text of a placeholder contains no other placeholder, thus
-	//    order is irrelevant. The fixed-point helper is cheap insurance
-	//    against a future change that brings nesting back, which would
-	//    otherwise be a silent, order-dependent leak.
+	// 3. Restore the raw regions before goldmark, thus goldmark reads them as
+	// before. No stored text holds a placeholder, thus the order does not
+	// matter. restorePlaceholders still repeats until nothing changes.
 	contentStr = restorePlaceholders(contentStr, rawBlocks)
 
 	var buf bytes.Buffer
@@ -131,10 +102,10 @@ func (a *App) renderMarkdownToHTML(mdContent []byte) string {
 	}
 	htmlStr := buf.String()
 
-	// Restore math blocks natively for the offline KaTeX frontend.
+	// Restore the math for KaTeX in the page.
 	htmlStr = restorePlaceholders(htmlStr, mathBlocks)
 
-	// Remap static browsing links natively
+	// Rewrite each internal link. See rewriteInternalLink.
 	htmlStr = hrefRe.ReplaceAllStringFunc(htmlStr, func(m string) string {
 		match := hrefRe.FindStringSubmatch(m)
 		if len(match) < 2 {
@@ -145,16 +116,9 @@ func (a *App) renderMarkdownToHTML(mdContent []byte) string {
 	return htmlStr
 }
 
-// restorePlaceholders substitutes every placeholder of store back into s. It
-// repeats until the string stops changing. A placeholder whose stored text
-// itself holds another placeholder is thus fully restored, whatever the
-// randomized map-iteration order of Go is.
-//
-// With the current single-pass stashing there is no nesting, thus this
-// converges in one pass. The loop is bounded by the number of placeholders,
-// because a restore forms a DAG and can never cycle. It makes a stray,
-// order-dependent leak structurally impossible, and the historical
-// "OMN_RAW_n_END" leak was one of those.
+// restorePlaceholders puts each stored text of store back into s. It repeats
+// until s stops changing, thus a nested placeholder also comes back, in any
+// map order. A restore cannot loop, thus len(store) passes are sufficient.
 func restorePlaceholders(s string, store map[string]string) string {
 	for i := 0; i <= len(store); i++ {
 		before := s
@@ -168,71 +132,44 @@ func restorePlaceholders(s string, store map[string]string) string {
 	return s
 }
 
-// rewriteInternalLink normalizes a raw markdown-authored href the way a
-// browser would resolve it, so that:
-//   - "./page", "../page", and bare "page" stay relative to the current page
-//   - "/page" stays an absolute path for the site root
-//   - "#anchor" and "?query" suffixes (and page#anchor / page?query
-//     combinations) are left untouched rather than having ".html" appended
-//     after them
+// rewriteInternalLink changes one thing in an href: the extension of a link
+// to a page. ".md" becomes ".html", and a page name with no extension gets
+// ".html". "./page", "../page", "page" and "/page" keep their meaning. A
+// "#anchor" or "?query" suffix stays after the new extension.
 //
-// This function changes one thing only. It normalizes the extension of an
-// internal page reference. ".md" becomes ".html", and a bare page name with
-// no extension gets ".html" appended.
+// Three kinds of link stay as they are. They are a link with a file
+// extension, a link with a URI scheme, and an anchor or query alone.
 //
-// Three kinds of link pass through unchanged. The first already has a
-// concrete extension, such as .html, .js, .css or .png. The second carries a
-// URI scheme. The third is purely an anchor or a query string.
-//
-// A LINK WITH A SCHEME IS NOT A PAGE. This test was an allowlist of http,
-// https, mailto, tel, javascript, data and intent. Every scheme absent from
-// it was read as a bare page name and given ".html":
+// A LINK WITH A SCHEME IS NOT A PAGE. A list of known schemes is always short
+// of one, and ".html" then breaks it:
 //
 //	sms:+15551234               ->  sms:+15551234.html
-//	sms:+1555?body=Hi           ->  sms:+1555.html?body=Hi
 //	whatsapp://send?phone=1555  ->  whatsapp://send.html?phone=1555
-//	geo:59,30                   ->  geo:59,30.html
 //
-// Each of those reaches Android as a URI that names nothing. The Messaging
-// or Maps app that it was written for never opens. A list can only ever be
-// short of some scheme. "geo:59.9,30.3" even survived by accident, because
-// its last "." looked like a file extension.
+// The test is thus the scheme itself, uriSchemeRe, the same as the click
+// interceptor of omn-go-core.js. This function decides what the page SAYS,
+// and the interceptor decides what a tap DOES.
+// MainActivity.shouldOverrideUrlLoading gives each unknown scheme to the OS.
+// TestRenderMarkdownToHTMLSchemeLinksUntouched holds the rule.
 //
-// The test is now the scheme itself, uriSchemeRe, which is what the click
-// interceptor in omn-go-core.js already used. The two have to agree. This
-// function decides what the page SAYS, and the interceptor decides what a
-// tap DOES. A link works only when both leave it alone.
-//
-// MainActivity.shouldOverrideUrlLoading hands every scheme that it does not
-// serve itself to the OS. The app that owns it then opens, which is
-// Messaging, Dialer, Maps or Termux. What arrives has to be what the note
-// author wrote.
-//
-// The cost is a page name that holds a ":" before any "/". "Notes:Draft" is
-// not distinguishable from a scheme and is now left alone instead of becoming
-// "Notes:Draft.html". The interceptor reads such a name the same way, so it
-// does not work on the client side either.
-//
-// The raw-HTML button form (onclick="window.location='sms:...'") is untouched
-// regardless, since the href-rewrite regex only rewrites href="..." values.
+// This rule has a cost. A page name with ":" before each "/", for example
+// "Notes:Draft", looks like a scheme and gets no ".html".
 func (a *App) rewriteInternalLink(href string) string {
 	if href == "" {
 		return href
 	}
 
 	switch {
-	// "//host/path" is protocol-relative: no scheme of its own, external all
-	// the same. "#anchor" is this page.
+	// "//host/path" has no scheme, but it is external. "#anchor" is this
+	// page.
 	case strings.HasPrefix(href, "//"),
 		strings.HasPrefix(href, "#"),
 		uriSchemeRe.MatchString(href):
 		return href
 	}
 
-	// Split off the query/fragment suffix so it is never touched by the
-	// extension rewrite below (e.g. "Page?x=1" must not become
-	// "Page?x=1.html", and "Page#section" must not become
-	// "Page#section.html").
+	// Split off the query or the fragment, thus the new extension goes before
+	// it: "Page?x=1" becomes "Page.html?x=1".
 	path := href
 	suffix := ""
 	if idx := strings.IndexAny(href, "?#"); idx >= 0 {
@@ -240,15 +177,13 @@ func (a *App) rewriteInternalLink(href string) string {
 		suffix = href[idx:]
 	}
 
-	// A bare "?query" or the (already-handled) "#anchor" case with nothing
-	// before it — nothing to rewrite, it is relative to the current page.
+	// A "?query" alone refers to the current page. Change nothing.
 	if path == "" {
 		return href
 	}
 
-	// Only touch the final path segment. Preserve a "./", a "../", a nested
-	// directory and a leading "/" exactly as written, thus the relative and
-	// absolute semantics are unaffected.
+	// Change only the last path segment. Keep "./", "../", the directories
+	// and a leading "/" as written.
 	dir := ""
 	base := path
 	if slash := strings.LastIndex(path, "/"); slash >= 0 {
@@ -256,21 +191,20 @@ func (a *App) rewriteInternalLink(href string) string {
 		base = path[slash+1:]
 	}
 
-	// Directory-only reference (".", "..", "", trailing slash) - leave as-is.
+	// This is a reference to a directory. Change nothing.
 	if base == "" || base == "." || base == ".." {
 		return href
 	}
 
-	// hasKnownAssetExtension (serving.go) is the one authority for the
-	// question below. It reads the LAST extension. A link to a note named
-	// "Report.2026" thus becomes "Report.2026.html", and a link to the file
-	// "draft.txt" stays as it is.
+	// hasKnownAssetExtension in serving.go is the one authority here. It
+	// reads the LAST extension, thus "Report.2026" becomes "Report.2026.html"
+	// and "draft.txt" stays.
 	switch {
 	case strings.HasSuffix(base, ".md"):
 		base = strings.TrimSuffix(base, ".md") + ".html"
 	case a.hasKnownAssetExtension(base):
-		// A file that this install serves, for example .html, .js, .css or
-		// .png. Leave it alone.
+		// This is a file that this install serves, for example .js, .css or
+		// .png.
 	default:
 		base += ".html"
 	}
@@ -278,8 +212,7 @@ func (a *App) rewriteInternalLink(href string) string {
 	return dir + base + suffix
 }
 
-// htmlEscape is kept as a method for its existing call sites; the single
-// escaping implementation lives in templates.go (escapeHTML).
+// htmlEscape calls escapeHTML in templates.go, the one escape function.
 func (a *App) htmlEscape(s string) string {
 	return escapeHTML(s)
 }
@@ -288,21 +221,12 @@ func (a *App) compilePage(name string, mdContent []byte) []byte {
 	return a.compilePageWithBody(name, mdContent, "")
 }
 
-// compilePageWithBody renders the full page shell (indexPageTmpl) for a
-// single note/page/asset-edit view.
-//
-// customBody, when non-empty, is used as the main content, and it is already
-// HTML. mdContent is then not rendered as markdown. That is how the Config
-// dashboard and the "editing externally" wait page reuse the same page
-// shell, although neither is markdown itself.
-//
-// This function produces read and view shells only. ?edit=true goes to the
-// dedicated editor page (renderEditorPage).
+// compilePageWithBody renders the page shell (indexPageTmpl) for one view.
+// When customBody is not empty, it is the HTML of the page, and mdContent is
+// not rendered. The Config page and the wait page of the external editor use
+// that. ?edit=true goes to renderEditorPage, and not here.
 func (a *App) compilePageWithBody(name string, mdContent []byte, customBody string) []byte {
-	// One header-block split for the whole backend (see header_block.go).
-	// parseHeaderBlock uses the same first-line rule as
-	// ensureHeaderModified and handleNewPage. A "# Head: x" Markdown
-	// heading is thus body, and not a header line.
+	// parseHeaderBlock is the one header split. See header_block.go.
 	hb := parseHeaderBlock(string(mdContent))
 	var headers []string
 	if hb.HasHeader {
@@ -314,9 +238,8 @@ func (a *App) compilePageWithBody(name string, mdContent []byte, customBody stri
 		renderedBody = a.renderMarkdownToHTML([]byte(hb.Body))
 	}
 
-	// Title and Tags come from the shared extractTitleTags (also used by the
-	// Tags-page generator, so the two parse notes identically). The loop below
-	// only builds metaTags now.
+	// extractTitleTags reads the title and the tags, the same as the Tags
+	// page. The loop below only makes metaTags.
 	title := "OMN-Go - " + name
 	rawTitle, tags := extractTitleTags(string(mdContent))
 	if rawTitle != "" {
@@ -330,43 +253,31 @@ func (a *App) compilePageWithBody(name string, mdContent []byte, customBody stri
 		}
 		k := strings.ToLower(strings.TrimSpace(parts[0]))
 		v := strings.TrimSpace(parts[1])
-		// No escaping here - renderIndexPage escapes every meta name/value
-		// for the HTML-attribute context itself.
+		// renderIndexPage escapes each meta name and value for the attribute.
 		metaTags = append(metaTags, metaTagView{Name: k, Value: v})
 	}
 	metaTags = append(metaTags, metaTagView{Name: "generator", Value: "OMN-Go " + APP_VERSION})
 
-	// The file extension, which the view page gives to its edit link.
-	//
-	// An empty customBody means a note. renderAndCache is the only caller
-	// that reaches this function that way, and it only ever compiles a
-	// note. The asset prefix below reads customBody for the same reason.
-	//
-	// A NAME ALONE CANNOT ANSWER THIS. A note named "Draft.txt" and the
-	// file html/Draft.txt carry the same name here. A note named
-	// "Report.2026" must still get IsMarkdown true, or the page loses each
-	// control that belongs to a note.
+	// Find the file extension for the edit link of the view page. An empty
+	// customBody means a note, because renderAndCache is the only caller that
+	// passes none. A NAME ALONE CANNOT ANSWER THIS. The note "Draft.txt" and
+	// the file html/Draft.txt have the same name here. The note "Report.2026"
+	// must still get IsMarkdown.
 	pageExt := ""
 	if strings.HasSuffix(name, ".md") {
 		pageExt = ".md"
 	} else if customBody != "" && a.hasKnownAssetExtension(name) {
-		// A server-built view of a file, for example the wait page of the
-		// external editor. Keep the extension of that file.
+		// This is a view that the server makes for a file, for example the
+		// wait page of the external editor. Keep the extension of the file.
 		pageExt = filepath.Ext(name)
 	}
 	isMarkdown := pageExt == ".md" || pageExt == ""
 
-	// The path prefix of a chrome asset, which is CSS, JS or Home. A normal
-	// markdown note has customBody == "". It is cached to html/<name>.html,
-	// and it may be opened directly from disk through file://. An absolute
-	// "/js/..." path does not resolve there. Use a prefix relative to the own
-	// directory depth of the page, see relPrefix, which resolves correctly
-	// both offline and online.
-	//
-	// A custom-body page is Config, DB backups or the external-edit wait
-	// page. Each is dynamic and is served at a URL whose depth does not
-	// track the page name. None is ever opened from disk, thus they keep
-	// absolute "/" paths.
+	// Find the path prefix of the page assets: CSS, JS and Home. A note goes
+	// to the cache html/<name>.html, and a person can open it from disk
+	// through file://. There, "/js/..." does not resolve. relPrefix gives a
+	// relative prefix that works online and offline. A page with customBody
+	// is always dynamic, thus it keeps "/".
 	assetPrefix := "/"
 	if customBody == "" {
 		assetPrefix = relPrefix(name)
@@ -388,14 +299,9 @@ func (a *App) compilePageWithBody(name string, mdContent []byte, customBody stri
 	return []byte(renderIndexPage(view))
 }
 
-// relPrefix answers the prefix of one "../" for each directory level. That
-// prefix makes the chrome-asset URLs of a cached page resolve to the storage
-// root. Those URLs are CSS, JS and Home. It works when the page is served
-// over HTTP, and when the compiled .html is opened directly from disk
-// through file://.
-//
-// A root-level page yields "". A page one directory deep yields "../", two
-// deep yields "../../", and so on.
+// relPrefix answers one "../" for each directory level of name. With it, the
+// asset URLs of a cached page reach the storage root over HTTP and through
+// file://. A page at the root gets "".
 func relPrefix(name string) string {
 	return strings.Repeat("../", strings.Count(name, "/"))
 }
@@ -404,7 +310,7 @@ func (a *App) ensureHeaderModified(content string, defaultTitle string) string {
 	content = strings.ReplaceAll(content, "\r\n", "\n")
 	now := time.Now().Format("2006-01-02 15:04:05")
 
-	// Same header decision as everywhere else (see header_block.go).
+	// Use the one header split. See header_block.go.
 	hb := parseHeaderBlock(content)
 
 	if hb.HasHeader {
@@ -421,8 +327,9 @@ func (a *App) ensureHeaderModified(content string, defaultTitle string) string {
 		} else {
 			headerLines = append(headerLines, fmt.Sprintf("Modified: %s", now))
 		}
-		// Body is "" for a header-only note; the trailing "\n\n" preserves
-		// the previous behavior (a header always ends with a blank line).
+		// This rebuild uses a fixed "\n\n". A header that ended at a body
+		// line thus gets an empty line after it. header_block.go explains why
+		// setHeaderKey does not do this.
 		return strings.Join(headerLines, "\n") + "\n\n" + hb.Body
 	}
 

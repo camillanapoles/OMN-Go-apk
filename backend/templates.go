@@ -12,34 +12,24 @@ import (
 // Why this file does NOT use html/template
 // ----------------------------------------------------------------------
 //
-// html/template, through text/template, calls reflect.Value.MethodByName.
-// That call forces the Go linker to DISABLE dead-code elimination for
-// methods across the entire program. go-git has by far the largest method
-// surface in this binary, and the linker would then keep all of it. See
+// html/template calls reflect.Value.MethodByName. That call stops the
+// dead-code elimination of the linker for methods in the whole program, and
+// the method set of go-git is large. See
 // doc/decisions/0008-render-the-pages-without-html-template.md.
 //
-// What html/template gave us was context-correct escaping of a few known
-// fields into a few known positions. This file keeps exactly that
-// guarantee, and it does so explicitly. Each render function escapes each
-// value with the escape function that matches the context it is spliced
-// into. Those contexts are HTML text, an HTML attribute, and a JS string
-// literal. It uses a plain string Replacer, and no reflection anywhere.
+// This file keeps the one guarantee of html/template: the correct escape for
+// each context. Each render function escapes each value for the place where
+// the value goes:
 //
-// The rules, applied below and worth keeping in mind when editing:
-//   - escapeHTML(v)         for values inside HTML text or a quoted
-//                           HTML attribute
-//   - escapeJS(v)           for values inside a '...' or "..." JS string
-//                           literal in an inline <script>
-//   - escapeHTML(escapeJS(v)) for a JS string literal that itself lives
-//                           inside an HTML attribute (e.g. onclick="...")
-//   - pre-rendered trusted HTML (the markdown preview body, or fragments
-//                           built by the render functions here) is spliced
-//                           in as-is, never escaped twice
-// ----------------------------------------------------------------------
+//	escapeHTML(v)            HTML text, or a quoted HTML attribute.
+//	escapeJS(v)              A '...' or "..." JS string in an inline <script>.
+//	escapeHTML(escapeJS(v))  A JS string inside an HTML attribute, for
+//	                         example onclick="...".
+//	trusted HTML             The markdown body, or a fragment from a render
+//	                         function here. It goes in as it is, and never
+//	                         gets a second escape.
 
-// escapeHTML escapes a value for HTML text content or a double-quoted
-// HTML attribute. It is a free function, thus this file has no receiver
-// dependencies.
+// escapeHTML escapes a value for HTML text or a double-quoted HTML attribute.
 func escapeHTML(s string) string {
 	s = strings.ReplaceAll(s, "&", "&amp;")
 	s = strings.ReplaceAll(s, "<", "&lt;")
@@ -49,10 +39,9 @@ func escapeHTML(s string) string {
 	return s
 }
 
-// escapeJS escapes a value for use inside a single- or double-quoted
-// JavaScript string literal in an inline <script> block. "<" and ">" are
-// hex-escaped so no value can ever form a closing "</script>" and break
-// out of the block.
+// escapeJS escapes a value for a quoted JavaScript string in an inline
+// <script>. It writes '<' and '>' as hex escapes, thus no value can close the
+// </script> block.
 func escapeJS(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))
@@ -85,12 +74,10 @@ func escapeJS(s string) string {
 	return b.String()
 }
 
-// loadTemplate reads one page-fragment file out of templatesFS, which
-// server.go declares. That embed is deliberately separate from staticFS.
-// The frontend/html tree of staticFS is lazily extracted to disk as
-// user-editable content, and these files must never be. A missing file is
-// a packaging error. It is caught at the first render, and it does not
-// crash the startup.
+// loadTemplate reads one page fragment from templatesFS, which server.go
+// declares. That embed stays separate from staticFS, because the app extracts
+// staticFS to disk as files that a person can edit. A missing file is a
+// packaging fault. The first render shows it, and the start does not fail.
 func loadTemplate(filename string) string {
 	data, err := templatesFS.ReadFile("frontend/templates/" + filename)
 	if err != nil {
@@ -100,28 +87,21 @@ func loadTemplate(filename string) string {
 	return string(data)
 }
 
-// incomingIndexTmpl is the incoming index as first written. It holds a
-// header block, the receive box that the desktop application imports
-// through, and the marker that says where a new line goes. See
-// incomingIndexStarter in note_exchange.go for why it lives here, and not
-// in frontend/md/.
+// incomingIndexTmpl is the incoming index as the app first writes it: a
+// header block, the receive box and the list marker. See incomingIndexStarter
+// in note_exchange.go.
 var incomingIndexTmpl = loadTemplate("incoming_index.md")
 
 var (
 	// index.html loads css/omn-go-custom.css as the last stylesheet and
-	// js/omn-go-custom.js as the last script. The position is the feature.
-	// A user rule beats an application rule of the same specificity, and
-	// the user script sees everything that the application scripts define.
+	// js/omn-go-custom.js as the last script. A user rule thus wins against
+	// an app rule of the same specificity. The user script sees each name of
+	// the app scripts. Both files belong to the user, thus no upgrade
+	// replaces them. editor.html loads neither, thus a bad custom file can
+	// never lock the user out of the editor.
 	//
-	// Both files are user-owned. They are NOT in versionDependentAssets,
-	// thus materializeAsset creates each one from the embedded copy on the
-	// first request, and no upgrade replaces it.
-	//
-	// editor.html loads neither. A bad rule or a script error can then
-	// never keep the user out of the editor that repairs it.
-	//
-	// Do not put these notes in the template itself. The template ships to
-	// the browser with every page.
+	// Do not put these notes in the template. The template goes to the
+	// browser with each page.
 	indexPageTmpl     = loadTemplate("index.html")
 	configPageTmpl    = loadTemplate("config_page.html")
 	gitServerCardTmpl = loadTemplate("git_server_card.html")
@@ -133,20 +113,16 @@ var (
 	logsPageTmpl      = loadTemplate("logs_page.html")
 	searchPageTmpl    = loadTemplate("search_page.html")
 	filesPageTmpl     = loadTemplate("files_page.html")
-	// modalsHTML is the block of server-only modals. Those are login,
-	// quick note, bookmark, commit and conflict. It is kept OUT of the
-	// cached and exported page, and index.html carries only the
-	// modalsMarker slot. injectRuntimeVars splices it in at serve time.
-	// An offline or exported page thus stays small. Such a page has no
-	// backend, and no use for these server features.
+	// modalsHTML holds the modals that need the server: login, quick note,
+	// bookmark, commit and conflict. The cached page holds only modalsMarker,
+	// and injectRuntimeVars puts the modals in when the server sends the
+	// page. An exported page has no server, thus it stays small.
 	modalsHTML = loadTemplate("modals.html")
 )
 
-// fill replaces %%NAME%% placeholders in tmpl. Every value passed in MUST
-// already be escaped for the context that its placeholder sits in. See the
-// rules at the top of this file. fill itself is escaping-agnostic on
-// purpose, thus a trusted pre-rendered HTML fragment can pass through it
-// as well.
+// fill replaces the %%NAME%% placeholders in tmpl. Each value MUST already
+// have the escape for its place. See the banner of this file. fill itself
+// escapes nothing, thus trusted HTML can also pass through it.
 func fill(tmpl string, pairs map[string]string) string {
 	oldnew := make([]string, 0, len(pairs)*2)
 	for k, v := range pairs {
@@ -155,19 +131,17 @@ func fill(tmpl string, pairs map[string]string) string {
 	return strings.NewReplacer(oldnew...).Replace(tmpl)
 }
 
-// --- Main page shell (index.html) ---
+// --- The page shell (index.html) ---
 
-// metaTagView is one <meta name="..." content="..."> pulled from a page's
-// markdown header block (plus the always-appended "generator" tag).
+// metaTagView is one <meta name="..." content="..."> from the header block of
+// a page, or the "generator" tag.
 type metaTagView struct {
 	Name  string
 	Value string
 }
 
-// indexPageView holds everything that renderIndexPage needs. PreviewHTML
-// is trusted pre-rendered HTML, either markdown output or a fragment built
-// by the other render functions in this file. Every other field is a raw
-// value that renderIndexPage escapes itself.
+// indexPageView holds each value of renderIndexPage. PreviewHTML is trusted
+// HTML. renderIndexPage escapes each other field.
 type indexPageView struct {
 	Title       string
 	PackageName string
@@ -198,17 +172,11 @@ func renderIndexPage(v indexPageView) string {
 
 	var tags strings.Builder
 	for _, t := range v.Tags {
-		// All pills point at the one generated Tags page, OMNGoTags. They
-		// reach it relatively through AssetPrefix, which is "", "../" and
-		// so on. The link thus resolves from any directory depth, online
-		// and offline through file://.
-		//
-		// The fragment is tagSlug(t). The generated page uses that same
-		// slug for its section ids, see tags.go. One Go function computes
-		// both, thus they cannot drift.
-		//
-		// AssetPrefix carries only "./" characters, thus it needs no
-		// escaping. That mirrors its ASSET_PREFIX use below.
+		// Each pill links to the Tags page, OMNGoTags, through AssetPrefix
+		// ("", "../" and so on). The link thus works at each directory depth,
+		// online and through file://. The fragment is tagSlug(t), the same
+		// function that makes the section ids of tags.go. AssetPrefix holds
+		// only '.' and '/', thus it needs no escape.
 		fmt.Fprintf(&tags, `<a href="%sOMNGoTags.html#%s" class="taglink"><span class="tagmark">%s</span></a>`,
 			v.AssetPrefix, escapeHTML(tagSlug(t)), escapeHTML(t))
 	}
@@ -219,8 +187,8 @@ func renderIndexPage(v indexPageView) string {
 		"PACKAGE_JS":   escapeJS(v.PackageName),
 		"PAGE_NAME_JS": escapeJS(v.PageName),
 		"PAGE_EXT_JS":  escapeJS(v.PageExt),
-		// Server-computed path prefix ("", "../", "/"), spliced into href/src
-		// attributes; contains only "./" characters, no escaping needed.
+		// The path prefix ("", "../" or "/") holds only '.' and '/', thus it
+		// needs no escape.
 		"ASSET_PREFIX": v.AssetPrefix,
 		"META_TAGS":    metaTags.String(),
 		"COND_SCRIPTS": condScripts,
@@ -229,13 +197,12 @@ func renderIndexPage(v indexPageView) string {
 	})
 }
 
-// --- Standalone note editor page (editor.html) ---
+// --- The editor page (editor.html) ---
 
-// editorPageView holds everything that renderEditorPage needs. All fields
-// are raw values, escaped here for the context that each one is spliced
-// into. The text of the note is intentionally absent. The editor fetches
-// it from /api/note at the start of the edit, thus a rendered page never
-// carries a second copy of itself.
+// editorPageView holds each value of renderEditorPage, and the function
+// escapes each one for its place. The text of the note is absent on purpose.
+// The editor fetches it from /api/note, thus the page never holds a second
+// copy.
 type editorPageView struct {
 	Title   string // display name (page/asset)
 	Name    string // value for /api/note and /api/save
@@ -248,21 +215,20 @@ func renderEditorPage(v editorPageView) string {
 		"TITLE_HTML":  escapeHTML(v.Title),
 		"NAME_JS":     escapeJS(v.Name),
 		"PAGE_EXT_JS": escapeJS(v.PageExt),
-		// Only consumed by JS (OMN_EDIT_VIEW) now that the redundant back
-		// link is gone; the × button navigates here via omn-go-editor.js.
+		// Only the JavaScript reads this, as OMN_EDIT_VIEW. The × button of
+		// omn-go-editor.js goes to it.
 		"VIEW_URL_JS": escapeJS(v.ViewURL),
 	})
 }
 
-// --- Configuration Dashboard ---
+// --- The Config page ---
 
-// gitServerView is one git-server slot as the Config page shows it.
-//
-// It carries NO SSH key and NO key password, and configPageView carries no
-// admin password and no guest password. A secret in a view reaches the HTML
-// of the page, and /Config.html needs no login. The boxes are thus empty, and the reader presses "Show
-// passwords" to read the values from GET /api/config. See omn-go-config.js
-// and doc/decisions/0005-keep-each-secret-out-of-the-config-page.md.
+// gitServerView is one git server slot on the Config page. It holds NO SSH
+// key and NO key password, and configPageView holds no admin password and no
+// guest password. /Config.html needs no login, and a value in a view reaches
+// the HTML. The page thus shows empty boxes, and "Show passwords" reads GET
+// /api/config. See
+// doc/decisions/0005-keep-each-secret-out-of-the-config-page.md.
 type gitServerView struct {
 	Index  int
 	Slot   int
@@ -295,11 +261,10 @@ type configPageView struct {
 	GitServers         []gitServerView
 }
 
-// logTagLabels gives each tag the words the Config page shows beside its
-// checkbox. A tag with no entry here falls back to its own text. A new tag
-// thus reaches the page with no template edit and no missing box. The map is
-// a label table and never the tag set: allLogTags in log_levels.go is the
-// authority for that.
+// logTagLabels gives the text beside the checkbox of each log tag. A tag with
+// no entry shows its own name, thus a new tag needs no template change.
+// allLogTags in log_levels.go is the authority for the tag set, and not this
+// map.
 var logTagLabels = map[logTag]string{
 	log404:         "Requests for a page that does not exist",
 	logAssets:      "Bundled asset refresh at startup",
@@ -325,9 +290,8 @@ var logTagLabels = map[logTag]string{
 	logUpload:      "File uploads",
 }
 
-// renderLogTagBoxes builds one checkbox for each tag in allLogTags. The list
-// is built here rather than written into config_page.html, so that a new tag
-// needs one line in log_levels.go and nothing else.
+// renderLogTagBoxes makes one checkbox for each tag in allLogTags. A new tag
+// thus needs one line in log_levels.go and nothing else.
 func renderLogTagBoxes(checked map[string]string) string {
 	var b strings.Builder
 	for _, tag := range allLogTags {
@@ -352,7 +316,7 @@ func renderConfigPage(v configPageView) string {
 		if gs.Active {
 			checked = "checked"
 		}
-		// No SSH_KEY and no PASSWORD. See the banner of gitServerView.
+		// Put no SSH_KEY and no PASSWORD here. See gitServerView.
 		cards.WriteString(fill(gitServerCardTmpl, map[string]string{
 			"INDEX":          fmt.Sprintf("%d", gs.Index),
 			"SLOT":           fmt.Sprintf("%d", gs.Slot),
@@ -386,7 +350,8 @@ func renderConfigPage(v configPageView) string {
 	if v.SearchBundled {
 		searchBundledChecked = "checked"
 	}
-	// One checkbox per kind, checked when the kind is in the normalized list.
+	// Make one checkbox for each kind. Check it when the normalized list
+	// holds the kind.
 	kindChecked := map[string]string{}
 	for _, k := range v.SearchKinds {
 		kindChecked[k] = "checked"
@@ -399,7 +364,8 @@ func renderConfigPage(v configPageView) string {
 	if v.LogInfo {
 		logInfoChecked = "checked"
 	}
-	// One checkbox per tag, checked when the tag is in the normalized list.
+	// Make one checkbox for each tag. Check it when the normalized list holds
+	// the tag.
 	logTagChecked := map[string]string{}
 	for _, t := range v.LogTags {
 		logTagChecked[t] = "checked"
@@ -410,9 +376,8 @@ func renderConfigPage(v configPageView) string {
 		searchScopeAllSel, searchScopePageSel = "", "checked"
 	}
 
-	// Exactly one option is marked selected. normalizeTheme guarantees
-	// that the value is one of the three, and it maps an unknown or empty
-	// value to auto.
+	// Mark exactly one option as selected. normalizeTheme answers one of the
+	// three values, and auto for an unknown one.
 	themeSel := map[string]string{
 		"THEME_AUTO_SEL":  "",
 		"THEME_LIGHT_SEL": "",
@@ -427,10 +392,9 @@ func renderConfigPage(v configPageView) string {
 		themeSel["THEME_AUTO_SEL"] = "selected"
 	}
 
-	// Exactly one option is marked selected. normalizeFullscreen
-	// guarantees that the value is one of the three, and it maps an
-	// unknown or empty value to FullscreenOn. See config.go for why that
-	// is the default, and not "off".
+	// Mark exactly one option as selected. normalizeFullscreen answers one of
+	// the three values, and FullscreenOn for an unknown one. config.go tells
+	// why on is the default.
 	fsSel := map[string]string{
 		"FS_OFF_SEL":       "",
 		"FS_ON_SEL":        "",
@@ -445,11 +409,10 @@ func renderConfigPage(v configPageView) string {
 		fsSel["FS_ON_SEL"] = "selected"
 	}
 
-	// No ADMIN_PWD and no GUEST_PWD. See the banner of gitServerView.
+	// Put no ADMIN_PWD and no GUEST_PWD here. See gitServerView.
 	return fill(configPageTmpl, map[string]string{
-		// The names of the checkboxes of this page, from the table in
-		// config_fields.go. See configCheckboxFields for why the page
-		// must declare them.
+		// Give the names of the checkboxes of this page, from the table in
+		// config_fields.go. See configCheckboxFields.
 		"CONFIG_FIELDS":          configCheckboxFields(),
 		"SERVER_PORT":            fmt.Sprintf("%d", v.ServerPort),
 		"AUTHOR":                 escapeHTML(v.Author),
@@ -484,17 +447,11 @@ func renderConfigPage(v configPageView) string {
 	})
 }
 
-// --- 404 page ---
+// --- The 404 page ---
 
-// notFoundView is everything that the detailed 404 page shows. Every field
-// is a RAW value, and renderNotFoundPage escapes it itself. URL and
-// Referer above all are attacker-controlled. Anyone can request any path,
-// and Referer is a plain request header. Neither must ever reach the
-// output unescaped.
-//
-// This file deliberately does not use html/template. See the note at the
-// top of this file for why. The escaping is thus the responsibility of
-// this function, and not of a template engine.
+// notFoundView holds each value of the detailed 404 page. Each field is RAW,
+// and renderNotFoundPage escapes it. An attacker controls the URL and the
+// Referer, thus neither may reach the output without an escape.
 type notFoundView struct {
 	URL       string // path + query, exactly as requested
 	Method    string
@@ -503,26 +460,25 @@ type notFoundView struct {
 	Suggested string // "" when there is no plausible alternative
 }
 
-// safeLocalPath reports whether s may be used as an href. It must be a
-// path on this server. A scheme-bearing value such as "javascript:..." is
-// rejected, and so is a protocol-relative one such as "//host/...". No
-// caller of renderNotFoundPage can thus turn a request header into an
-// active link out of the app. This is defense in depth behind
-// serveNotFound, which already filters the Referer that it passes in.
+// safeLocalPath reports whether s can be an href: a path on this server. It
+// refuses a scheme, for example "javascript:...", and a protocol-relative
+// "//host/...". A request header thus cannot become a live link out of the
+// app. serveNotFound already filters the Referer, thus this is a second
+// guard.
 func safeLocalPath(s string) bool {
 	return strings.HasPrefix(s, "/") && !strings.HasPrefix(s, "//")
 }
 
-// notEditableView holds what the "not a text file" page shows. Path and
-// Type are raw values that renderNotEditablePage escapes itself.
+// notEditableView holds the values of the "not a text file" page.
+// renderNotEditablePage escapes Path and Type.
 type notEditableView struct {
 	Path string // "/css/OMN-Go/fonts/x.woff2"
 	Type string // the resolved content type, "unknown" when there is none
 }
 
-// renderNotEditablePage builds the body of the page an editor route answers
-// with when the file is not text (see serveEditor). The view link is the
-// same path without the edit query, so the user reaches the file itself.
+// renderNotEditablePage makes the page that an editor route sends for a file
+// that is not text. See serveEditor. The view link is the same path without
+// the edit query.
 func renderNotEditablePage(v notEditableView) string {
 	typ := v.Type
 	if typ == "" {
@@ -536,10 +492,8 @@ func renderNotEditablePage(v notEditableView) string {
 }
 
 func renderNotFoundPage(v notFoundView) string {
-	// An optional block is built here as trusted pre-rendered HTML. That
-	// is the convention documented at the top of this file. Each value
-	// inside is escaped as it is spliced in, and the surrounding markup is
-	// ours.
+	// This block is trusted HTML that this function makes. Escape each value
+	// where it goes in.
 	refererRows := ""
 	if v.Referer != "" {
 		esc := escapeHTML(v.Referer)
@@ -548,9 +502,8 @@ func renderNotFoundPage(v notFoundView) string {
         <dd><a href="%s">%s</a> &middot; <a href="%s?edit=true">edit that page</a></dd>
 `, esc, esc, esc)
 		} else {
-			// Still worth reporting, and never as a link. escapeHTML makes
-			// it inert as text. A "javascript:" or "//evil.example" value
-			// in an href would stay live.
+			// Show the Referer, but never as a link. escapeHTML makes it
+			// plain text. In an href, a "javascript:" value would stay live.
 			refererRows = fmt.Sprintf(`        <dt>Linked from</dt>
         <dd>%s</dd>
 `, esc)
@@ -577,9 +530,9 @@ func renderNotFoundPage(v notFoundView) string {
 	})
 }
 
-// --- File index page (files_page.html, see files_index.go) ---
+// --- The file index page (files_page.html, see files_index.go) ---
 
-// filesCrumb is one step of the breadcrumb. Dir is what ?dir= should become.
+// filesCrumb is one step of the breadcrumb. Dir is the new value of ?dir=.
 type filesCrumb struct {
 	Label string
 	Dir   string
@@ -595,17 +548,17 @@ type filesTreeCard struct {
 	Class string
 }
 
-// filesLegendItem is one line of the key under the crumb.
+// filesLegendItem is one line of the legend under the crumb.
 type filesLegendItem struct {
 	Color string
 	Word  string
 	Text  string
 }
 
-// filesDirRow is a subdirectory of the directory being shown. Files and Bytes
-// are RECURSIVE totals for that subtree, and one name counts one time even
-// when it is on both sides. The four flags answer "is this whole subtree of
-// one kind": see (*filesDirRow).note in files_index.go.
+// filesDirRow is one directory below the directory in view. Files and Bytes
+// are RECURSIVE totals, and a name counts one time also when both sides hold
+// it. The four flags tell whether the whole subtree is of one kind. See
+// (*filesDirRow).note in files_index.go.
 type filesDirRow struct {
 	Name        string
 	Dir         string
@@ -618,14 +571,10 @@ type filesDirRow struct {
 	everyDevice bool
 }
 
-// filesFileRow is one NAME of the tree in view. Every field is a raw value,
-// and renderFilesPage escapes it itself. A name comes from an upload or a
-// note title, thus it is user-controlled, and this file assembles the HTML
-// by hand.
-//
-// State is the word on the first line and says what the file is. StateColor
-// and OwnerColor are the classes that say what happens to it. See the block
-// comment of files_index.go for the two channels.
+// filesFileRow is one NAME of the tree in view. Each field is raw, and
+// renderFilesPage escapes it. A name can come from an upload or a note title.
+// State is the word of the first line. StateColor and OwnerColor are the
+// color classes. See the banner of files_index.go.
 type filesFileRow struct {
 	Name       string
 	Path       string
@@ -658,15 +607,10 @@ type filesPageView struct {
 	Denied     bool
 }
 
-// filesDeniedNotice is what a non-admin sees.
-//
-// A page, and not the bare 401 that authMiddleware would produce. This
-// address is linkable. A refusal that names neither the reason nor the
-// remedy is a dead end.
-//
-// The markup is static, with no interpolation. Nothing here can carry a
-// value in from a request, and no filename appears anywhere in this
-// response.
+// filesDeniedNotice is the page that a user who is not admin sees. A person
+// can link to this address, thus it is a page, and not the bare 401 of
+// authMiddleware. The page names the reason and the remedy. The markup is
+// static, and no value from the request goes into it.
 const filesDeniedNotice = `<div class="files-notice">` +
 	`<h2>Administrator only</h2>` +
 	`<p>This page lists the files stored on the device, so it is shown only ` +
@@ -702,10 +646,9 @@ func renderFilesPage(v filesPageView) string {
 	})
 }
 
-// renderFilesCards is the first screen. It holds three buttons, in one
-// column at every width. A wide screen gets a narrower page, and not three
-// columns. There is one layout to build and one to test, and the three
-// targets stay the size of a thumb.
+// renderFilesCards makes the first screen: three buttons in one column at
+// each width. A wide screen gets a narrower page, not three columns. There is
+// thus one layout to build and to test.
 func renderFilesCards(v filesPageView) string {
 	var b strings.Builder
 	b.WriteString(`<div class="files-cards">`)
@@ -725,9 +668,8 @@ func renderFilesCards(v filesPageView) string {
 	return b.String()
 }
 
-// filesPageURL builds a link back into this page. Only three parameters
-// exist. All of them are produced here, and not anywhere in a template,
-// thus none can be spliced in from a request value.
+// filesPageURL makes a link back to this page. It has three parameters, and
+// only this function makes them. No request value can thus go into the link.
 func filesPageURL(tree, dir string, all bool) string {
 	out := "/OMNGoFiles.html"
 	sep := "?"
@@ -748,8 +690,8 @@ func filesPageURL(tree, dir string, all bool) string {
 func renderFilesListing(v filesPageView) string {
 	var b strings.Builder
 
-	// The crumb. Each label carries its own slash and nothing goes between
-	// two of them, so the trail reads as the path it is: html/js/ .
+	// Write the crumb. Each label holds its own slash, and nothing goes
+	// between two labels. The trail thus reads as the path: html/js/.
 	b.WriteString(`<div class="files-crumbs">`)
 	for i, c := range v.Crumbs {
 		if i == len(v.Crumbs)-1 {
@@ -763,10 +705,9 @@ func renderFilesListing(v filesPageView) string {
 
 	fmt.Fprintf(&b, `<p class="files-summary">%s</p>`, escapeHTML(v.Summary))
 
-	// Folded by default, and absent when this directory uses no word at
-	// all. <details> is the own control of the browser. It needs no script,
-	// it keeps its state while the page lives, and a reader who knows the
-	// words never opens it.
+	// Fold the legend, and leave it out when this directory uses no word.
+	// <details> needs no script, and it keeps its state while the page is
+	// open.
 	if len(v.Legend) > 0 {
 		b.WriteString(`<details class="files-legend">` +
 			`<summary>What the words mean</summary>`)
@@ -811,9 +752,9 @@ func renderFilesListing(v filesPageView) string {
 	return b.String()
 }
 
-// renderFilesRow writes one row: the name and the state on the first line, the
-// facts on the second. The name owns the first line, thus no name is ever
-// squeezed into a column of two characters.
+// renderFilesRow writes one row: the name and the state on the first line,
+// and the facts on the second. The name has the whole first line, thus it
+// never goes into a narrow column.
 func renderFilesRow(b *strings.Builder, f filesFileRow) {
 	b.WriteString(`<li class="files-row">`)
 	fmt.Fprintf(b, `<span class="files-name">`+
@@ -826,13 +767,13 @@ func renderFilesRow(b *strings.Builder, f filesFileRow) {
 	b.WriteString(`<span class="files-facts">`)
 	fmt.Fprintf(b, `<span class="files-size">%s</span>`, escapeHTML(f.Size))
 	if f.Mod != "" {
-		// The date only. The hour and the minute made the row too wide for a
-		// phone. The full time stays in the title.
+		// Show the date only, because the full time is too wide for a phone.
+		// The title keeps the full time.
 		fmt.Fprintf(b, `<span class="files-meta" title="%s">%s</span>`,
 			escapeHTML(f.ModFull), escapeHTML(f.Mod))
 	}
-	// The ownership word is on the second line of every row that has it, in
-	// each of the three trees. Color is a hint. This word is the fact.
+	// The ownership word is on the second line of each row that has it, in
+	// each tree. The color is a hint, and the word is the fact.
 	if f.AppOwned {
 		fmt.Fprintf(b, `<span class="files-meta %s" title="%s">app-owned</span>`,
 			escapeHTML(f.OwnerColor), escapeHTML(filesOwnerHint))
@@ -846,13 +787,10 @@ func renderFilesRow(b *strings.Builder, f filesFileRow) {
 	b.WriteString(`</span></li>`)
 }
 
-// filesDirNote gives the one word that a directory row can carry. It is
-// the same rule as the rows use. Speak only when the application is
-// involved.
-//
-// A directory speaks when OMN-Go delivered files into it, and the count
-// says how many. The opposite rule would mark nearly every directory, such
-// as the note tree, the compiled pages and the images.
+// filesDirNote gives the one word that a directory row can show. The rule is
+// the same as for a file row: speak only when the app is involved. A
+// directory speaks when OMN-Go put files into it, and the count tells how
+// many.
 func filesDirNote(tree string, d filesDirRow) (word, color string) {
 	if tree == filesTreeBundled || !d.anyShips {
 		return "", ""
@@ -863,13 +801,12 @@ func filesDirNote(tree string, d filesDirRow) (word, color string) {
 	return itoa(d.shipCount) + " " + filesFromTheApp, filesColorApp
 }
 
-// --- Search results page (search_page.html) ---
+// --- The search result page (search_page.html) ---
 
-// searchPageView is everything that renderSearchPage needs. Query is RAW.
-// It is whatever someone typed into a URL. It is thus escaped here for
-// both the attribute context and the text context that it lands in. Results
-// carry the same data that the API returns. renderSnippetHTML turns the
-// snippet text and its spans into <mark> markup, and it escapes as it goes.
+// searchPageView holds each value of renderSearchPage. Query is RAW, because
+// it comes from a URL. The function escapes it for the attribute and for the
+// text. The Results hold the same data as the API. renderSnippetHTML adds the
+// <mark> tags and escapes the text.
 type searchPageView struct {
 	Query        string
 	Results      []searchResult
@@ -880,7 +817,7 @@ type searchPageView struct {
 	Disabled     bool     // global search is switched off: explain, do not search
 }
 
-// searchKindLabel is the human name of a kind, used for the group headings.
+// searchKindLabel answers the name of a kind for the group heading.
 func searchKindLabel(kind string) string {
 	switch kind {
 	case SearchKindMD:
@@ -898,16 +835,10 @@ func searchKindLabel(kind string) string {
 	}
 }
 
-// renderSnippetHTML splices <mark> around each span of a snippet.
-//
-// Spans are RUNE offsets. The Go side works in runes, thus Cyrillic is
-// never cut in half. The text is therefore walked as []rune, and not sliced
-// by byte.
-//
-// Every segment is escaped as it is emitted. The only markup in the result
-// is the <mark> tags that this function writes itself. That is the escaping
-// contract at the top of this file, applied to text that comes from the own
-// notes of the user.
+// renderSnippetHTML puts <mark> around each span of a snippet. The spans are
+// RUNE offsets, thus the function walks the text as []rune, and it never cuts
+// a Cyrillic letter. It escapes each segment. The only markup in the result
+// is the <mark> tags that it writes.
 func renderSnippetHTML(text string, spans [][2]int) string {
 	runes := []rune(text)
 	var b strings.Builder
@@ -931,16 +862,10 @@ func renderSnippetHTML(text string, spans [][2]int) string {
 	return b.String()
 }
 
-// searchDisabledNotice is what the page says when global search is off.
-//
-// It is a page, and not a 404. The page is linkable, and people put a
-// "Search" link on their Welcome note. The address is thus permanent
-// navigation, and a 404 would be a dead end that names neither the cause
-// nor the cure.
-//
-// The markup is static, with no interpolation. Everything here is fixed
-// text and one internal link. There is nothing to escape, and nothing that
-// can carry a value in from a request.
+// searchDisabledNotice is the page text when global search is off. A person
+// can put a "Search" link on a note, thus this is a page and not a 404. It
+// names the cause and the remedy. The markup is static, and no value from the
+// request goes into it.
 const searchDisabledNotice = `<div class="search-page-notice">` +
 	`<h2>Global search is off</h2>` +
 	`<p>Searching every note at once needs an index, and the index is held in ` +
@@ -959,9 +884,8 @@ const searchDisabledNotice = `<div class="search-page-notice">` +
 
 func renderSearchPage(v searchPageView) string {
 	if v.Disabled {
-		// Every other slot stays empty. There is no form, because a submit
-		// would only land back here. There is no results section either,
-		// which would look blank underneath the explanation.
+		// Each other slot stays empty. There is no form, because a submit
+		// comes back here. There is no result section.
 		return fill(searchPageTmpl, map[string]string{
 			"DISABLED": " is-disabled",
 			"NOTICE":   searchDisabledNotice,
@@ -974,9 +898,8 @@ func renderSearchPage(v searchPageView) string {
 
 	var groups strings.Builder
 
-	// Grouped by kind, in a fixed order rather than by score, so the page has
-	// a stable shape a reader can scan. Within a group the server's ranking is
-	// preserved.
+	// Group by kind, in a fixed order, thus the page has a stable shape.
+	// Inside a group, the order of the server stays.
 	for _, kind := range searchKindsAll {
 		var inKind []searchResult
 		for _, r := range v.Results {
@@ -996,12 +919,9 @@ func renderSearchPage(v searchPageView) string {
 			if title == "" {
 				title = r.Name
 			}
-			// The link carries the query as ?hl=. The note thus highlights
-			// and scrolls to the match on arrival. Otherwise the reader
-			// lands at the top of a long page and has to find it again by
-			// eye. The client strips the parameters once it has applied
-			// them. The URL left in the address bar is thus the plain one,
-			// and that is the URL that gets copied or bookmarked.
+			// The link carries the query as ?hl=. The note then marks and
+			// scrolls to the match. The client removes the parameters after
+			// it uses them, thus a copied URL is plain.
 			fmt.Fprintf(&groups, "  <a class=\"search-result-title\" href=\"%s\">%s</a>\n",
 				escapeHTML(highlightURL(r.URL, v.Highlight)), escapeHTML(title))
 			fmt.Fprintf(&groups, "  <div class=\"search-result-path\">%s</div>\n", escapeHTML(r.Name))
@@ -1009,10 +929,8 @@ func renderSearchPage(v searchPageView) string {
 			if len(r.Tags) > 0 {
 				groups.WriteString("  <div class=\"search-result-tags\">")
 				for _, t := range r.Tags {
-					// The same pill markup and the same anchor contract as
-					// a page header, see renderIndexPage. A tag thus means
-					// the same thing and goes to the same place, wherever
-					// it is shown.
+					// Use the same pill markup and the same anchor as the
+					// page header. See renderIndexPage.
 					fmt.Fprintf(&groups, "<a href=\"/OMNGoTags.html#%s\" class=\"taglink\"><span class=\"tagmark\">%s</span></a>",
 						escapeHTML(tagSlug(t)), escapeHTML(t))
 				}
@@ -1021,19 +939,16 @@ func renderSearchPage(v searchPageView) string {
 
 			lastSection := ""
 			for _, m := range r.Matches {
-				// The section heading is printed one time for each run of
-				// hits that share it, and not one time for each hit.
-				// Several matches inside one bookmark, or inside one
-				// timestamped entry, are one place. A repeat of the label
-				// for each would say otherwise.
+				// Show the section heading one time for each run of hits in
+				// that section. Several matches in one bookmark are one
+				// place.
 				if m.Section != nil && m.Section.Label != "" && m.Section.Label != lastSection {
 					lastSection = m.Section.Label
 					groups.WriteString("  <div class=\"search-section\">")
 					if m.Section.ID != "" {
-						// r.URL already ends in the anchor of the BEST hit.
-						// This link wants the anchor of THIS section, thus
-						// the document URL is taken back apart, and not
-						// appended to.
+						// r.URL already ends with the anchor of the BEST hit.
+						// This link needs the anchor of THIS section, thus
+						// cut the anchor off first.
 						base := r.URL
 						if at := strings.IndexByte(base, '#'); at >= 0 {
 							base = base[:at]
@@ -1048,16 +963,11 @@ func renderSearchPage(v searchPageView) string {
 				} else if m.Section == nil {
 					lastSection = ""
 				}
-				// Each line is its own link, and each one opens the note AT
-				// that line. A snippet was plain text before, thus the only
-				// way into a note was the title above. That title lands on
-				// the first match, and a reader who chose the fifth line
-				// got the first.
-				//
-				// snippetURL puts the text of this line on the href as
-				// ?hlt=. The text passes through percent-encoding there and
-				// HTML-escaping here. The content of a note is
-				// attacker-controlled in the LAN-sharing case.
+				// Each snippet line is a link that opens the note AT that
+				// line. snippetURL puts the text of the line into the href as
+				// ?hlt=. The text gets percent-encoding there and an HTML
+				// escape here. With LAN sharing, an attacker can control the
+				// content of a note.
 				fmt.Fprintf(&groups, "  <a class=\"search-snippet\" href=\"%s\">",
 					escapeHTML(snippetURL(r.URL, v.Highlight, m)))
 				fmt.Fprintf(&groups, "<span class=\"search-snippet-line\">%d</span>", m.Line)
@@ -1086,8 +996,8 @@ func renderSearchPage(v searchPageView) string {
 	case v.Query == "":
 		summary = ""
 	case v.Total == 0:
-		// Naming what WAS searched matters: "no results" from a config the
-		// reader has forgotten about is a trap, not an answer.
+		// Name the kinds that the search covered. "No results" from a setting
+		// that the reader forgot is a trap.
 		var kinds []string
 		for _, k := range v.IndexedKinds {
 			kinds = append(kinds, searchKindLabel(k))
@@ -1122,7 +1032,7 @@ func renderSearchPage(v searchPageView) string {
 	})
 }
 
-// --- External Editor "waiting" page ---
+// --- The wait page of the external editor ---
 
 type externalEditView struct {
 	Cmd      string
@@ -1134,67 +1044,38 @@ func renderExternalEditPage(v externalEditView) string {
 	return fill(externalEditTmpl, map[string]string{
 		"CMD":       escapeHTML(v.Cmd),
 		"FILE_NAME": escapeHTML(v.FileName),
-		// ViewURL sits inside a JS string literal, and that literal sits
-		// inside an HTML onclick attribute. JS-escape first, and then
-		// HTML-escape the result. The inner context comes first, and the
-		// outer context second.
+		// ViewURL is in a JS string, inside an HTML onclick attribute. Escape
+		// for JS first, and then for HTML: the inner context first.
 		"VIEW_URL_ATTR_JS": escapeHTML(escapeJS(v.ViewURL)),
 	})
 }
 
-// --- Runtime variable injection into cached pages ---
+// --- The runtime values of a cached page ---
 
-// runtimeVarsMarker is a literal placeholder that index.html always emits
-// once, near the end of <head>. It survives into the compiled .html files
-// cached on disk.
+// runtimeVarsMarker is the placeholder that index.html writes one time, near
+// the end of <head>. It stays in the cached .html files on disk.
 const runtimeVarsMarker = `<meta id="omn-go-runtime-vars-marker">`
 
-// modalsMarker is the empty slot that index.html emits where the
-// server-only modals go. injectRuntimeVars replaces it with modalsHTML when
-// the backend serves the page. On an exported or offline page, which has no
-// backend, it stays an empty div, thus those modals do not exist there.
+// modalsMarker is the empty slot of the modals that need the server.
+// injectRuntimeVars puts modalsHTML there when the server sends the page. An
+// exported page keeps an empty div.
 const modalsMarker = `<div id="omn-go-modals-slot"></div>`
 
-// injectRuntimeVars splices globals into the runtimeVarsMarker of a
-// rendered page. Those globals must reflect the *currently running*
-// server, and not whatever was true when a page was last compiled to the
-// on-disk HTML cache.
+// injectRuntimeVars puts the values of NOW into the runtimeVarsMarker of a
+// page: APP_VERSION, USE_INTERNAL_ED, OMN_THEME, OMN_SEARCH_GLOBAL,
+// OMN_INCOMING_PAGE, OMN_LOG_DEBUG, OMN_LOG_INFO and OMN_LOG_TAGS. The page
+// cache on disk keeps the marker. A person can change each setting at any
+// time, and a new compile of each page would defeat the cache.
 //
-// Pages are cached to disk, thus markdown is not re-rendered for each
-// request. See precompileAllPages and the mtime check of serveHTMLPage.
-// APP_VERSION is bumped between releases. UseInternalEd and Theme are both
-// toggleable at any time from Config. All three must always reflect *now*.
-// A recompile of every page whenever one of them changes would defeat the
-// cache.
+// The script sets data-theme on <html>. The marker is in <head>, thus the
+// theme applies before the body shows, and the wrong theme never flashes. The
+// CSS does the rest: "light" or "dark" fixes the colors, and "auto" or no
+// attribute uses prefers-color-scheme. An exported page has no attribute.
 //
-// The theme is applied by a data-theme attribute on <html> right here, and
-// not by a class baked into the markup. The marker sits inside <head>, thus
-// this script runs before the body is painted, and no flash of the wrong
-// theme happens. It works the same way for a page compiled long before the
-// theme changed.
-//
-// The CSS handles the rest. An explicit "light" or "dark" value pins the
-// palette. "auto" falls through to the prefers-color-scheme media query,
-// and so does a missing attribute. An exported page opened through file://
-// has a missing attribute, because this marker is never replaced there.
-//
-// OMN_SEARCH_GLOBAL joins them for the same reason. Whether the search
-// dialog can offer the "All notes" scope depends on a setting that is
-// toggleable at any time. The header lives in every cached page. To
-// bake it in at compile time would leave a stale answer on every page
-// compiled before the toggle changed. That is exactly the problem this
-// function exists to solve.
-//
-// OMN_LOG_DEBUG, OMN_LOG_INFO and OMN_LOG_TAGS join them for the same
-// reason. omn-go-sse.js decides here what the browser console prints, the
-// three values come from the Config page, and every page carries the
-// EventSource that reads them. A page compiled before the switches changed
-// would otherwise keep the old answer forever.
-//
-// The server controls every value, and none of them is user input, thus
-// fmt can splice them safely. APP_VERSION is a build constant. UseInternalEd
-// and the search flag are booleans. normalizeTheme whitelists Theme, and
-// normalizeLogTags whitelists the log tags.
+// The server controls each value, and no value is user input. APP_VERSION and
+// OMN_INCOMING_PAGE are constants, four values are booleans, and
+// normalizeTheme and normalizeLogTags allow only known values. fmt can thus
+// put them in safely.
 func (a *App) injectRuntimeVars(page []byte) []byte {
 	cfg := a.GetConfig()
 	script := fmt.Sprintf(
@@ -1202,8 +1083,8 @@ func (a *App) injectRuntimeVars(page []byte) []byte {
 		APP_VERSION, cfg.UseInternalEd, normalizeTheme(cfg.Theme), a.globalSearchAvailable(), incomingIndexName,
 		cfg.LogDebug, cfg.LogInfo, strings.Join(normalizeLogTags(cfg.LogTags), ","))
 	page = bytes.Replace(page, []byte(runtimeVarsMarker), []byte(script), 1)
-	// Splice the server-only modals into the slot (a no-op on templates that
-	// do not carry it, e.g. the standalone editor page).
+	// Put the modals into the slot. The editor page has no slot, and nothing
+	// changes there.
 	page = bytes.Replace(page, []byte(modalsMarker), []byte(modalsHTML), 1)
 	return page
 }
