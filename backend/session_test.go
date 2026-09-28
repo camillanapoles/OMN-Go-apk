@@ -44,8 +44,8 @@ func TestSignedCookieIsAccepted(t *testing.T) {
 	}
 }
 
-// A guest cookie that this install signed before the guest role went away
-// gives no role. See doc/decisions/0018-keep-one-role.md.
+// A guest cookie that an older version of this install signed gives no
+// role. See doc/decisions/0018-keep-one-role.md.
 func TestOldGuestCookieGivesNoRole(t *testing.T) {
 	a := newTestApp(t)
 	r := sessionReq(t, sessionCookie(t, a, "guest"))

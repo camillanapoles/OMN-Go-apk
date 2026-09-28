@@ -91,8 +91,8 @@ A JSON endpoint answers an error in one of three shapes:
 
 1. `{"status": "error", "message": "..."}` with a 4xx or 5xx code.
    `writeJSONError` writes this shape. `/api/db/*`, `/api/sql`,
-   `/api/sync/trust-host-key` and the two note exchange endpoints use it. `/api/sql` can also send
-   `failed_statement`.
+   `/api/sync/trust-host-key` and the two note exchange endpoints use it.
+   `/api/sql` can also send `failed_statement`.
 2. The same shape with the code `200`. `/api/sync` uses it, because the
    status word carries the result. Section 4.11 lists each status word.
 3. The normal answer object with `status` and `error` set. `/api/search`
@@ -143,8 +143,8 @@ the admin role with no password. The signature closes that hole. A cookie
 in the old form is refused.
 
 There is no CSRF token, no bearer token, and no rate limiting. §2.4 tells
-how the server refuses a request that another site sends. Passwords are
-stored in `config.json` in cleartext. `handleLogin` compares the password with
+how the server refuses a request that another site sends. `config.json`
+holds the password in cleartext. `handleLogin` compares the password with
 `subtle.ConstantTimeCompare`, and an empty configured password matches
 nothing.
 
@@ -224,7 +224,7 @@ A write is each method except `GET`, `HEAD` and `OPTIONS`.
 
 A `Host` passes when it is an IP address, `localhost`, the system name of
 the device or the device label of the Config page. Each name can end in
-`.local`. A request with no `Host` passes. A LAN client that uses another
+`.local`. A request with no `Host` passes. A remote caller that uses another
 name, for example a name of a local DNS server, gets `403`.
 
 A write with no `Origin` passes. The Java layer of the Android application
@@ -276,7 +276,7 @@ the code `200`.
 | GET | `/OMNGoLogs.html` | admin | HTML (a page for a remote caller, not a 401) |
 | GET | `/Config.html` | admin | HTML (a page for a remote caller, not a 401) |
 | GET | `/OMNGoTags.html` | none | HTML |
-| GET | `/OMNGoSearch.html` | none | HTML (explains how to turn global search on when it is off) |
+| GET | `/OMNGoSearch.html` | none | HTML (names the setting that enables global search, when it is off) |
 | any | `/`, `/<name>.html`, `/<asset>` | none | HTML / asset |
 | any | `/js/…`, `/css/…`, `/json/…` | none | asset |
 | any | `/images/…`, `/user_json/…` | none | asset |
@@ -296,7 +296,7 @@ endpoint.
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
-| `password` | string | yes | Compared against `admin_password` from `config.json`. The comparison is constant-time. An empty configured password matches nothing. |
+| `password` | string | yes | The server compares it with `admin_password` from `config.json`, in constant time. An empty configured password matches nothing. |
 
 **Responses**
 
@@ -1303,7 +1303,7 @@ sync progress shows the real stages of the backend.
 No parameters. **Admin only since 26.09.59**, and the local bypass applies. It
 carried every line to any caller before that, while `/api/logs/history` beside
 it was already admin only. A remote caller held the stream open and read each
-line as it was written, thus the guard on the history ring protected
+line when the server wrote it, thus the guard on the history ring protected
 nothing. A remote caller now gets `401`.
 
 **The stream always carries every line.** The `log_debug`, `log_info` and
@@ -1721,8 +1721,8 @@ keeps that key as the one that waits. See
 | `409` | `{"status":"error","message":"..."}` | No key waits, or the host or the fingerprint names another key |
 | `500` | `{"status":"error","message":"..."}` | The server could not write `known_hosts` |
 
-The fingerprint must be the one that the person saw. A key that changed
-again after the answer is thus not stored.
+The fingerprint must be the one that the person saw. The server thus does
+not store a key that changed again after the answer.
 
 #### `GET /api/sync/preview`
 

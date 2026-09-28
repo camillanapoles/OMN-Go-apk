@@ -39,7 +39,7 @@ window.inlineTestItems = ['Buy milk', 'Write tests', 'Ship it'];
   db.exec('CREATE TABLE IF NOT EXISTS ticks (item TEXT PRIMARY KEY, done INTEGER NOT NULL DEFAULT 0)')
     .then(render)
     .catch((err) => {
-      list.innerHTML = '<p>Could not open the database. Admin-only; a remote caller with no admin login cannot use this page.</p>';
+      list.innerHTML = '<p>Could not open the database. Admin-only. A remote caller with no admin login cannot use this page.</p>';
       console.error(err);
     });
 }

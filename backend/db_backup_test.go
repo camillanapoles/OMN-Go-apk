@@ -368,7 +368,7 @@ func TestDBBackupEndpoints(t *testing.T) {
 		t.Fatalf("restore via endpoint did not bring data back: %d", n)
 	}
 
-	// Parameter validation.
+	// The endpoint refuses a bad parameter.
 	rec = httptest.NewRecorder()
 	a.handleDBBackupCreate(rec, httptest.NewRequest(http.MethodPost, "/api/db/backup?db=../evil", nil))
 	if rec.Code != http.StatusBadRequest {
@@ -497,8 +497,9 @@ func TestDBRestoreFailsWholeAtEachStep(t *testing.T) {
 	}
 }
 
-// The restore endpoint checks each name before it takes the lock. Each fault gives the JSON error shape that the Database
-// Backups page reads. A valid name of a missing backup gives 500.
+// The restore endpoint checks each name before it takes the lock. Each
+// fault gives the JSON error shape that the Database Backups page reads. A
+// valid name of a missing backup gives 500.
 func TestDBRestoreEndpointFaults(t *testing.T) {
 	a := dbbApp(t)
 	dbbExec(t, a, "t1", `CREATE TABLE x(id INTEGER PRIMARY KEY, a TEXT)`)

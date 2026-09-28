@@ -174,7 +174,7 @@ A local connection (`127.0.0.1` or `localhost`) skips the login. The WebView of 
 
 On another device, a page shows the login box until you log in with the admin password. The login box does not protect the notes. Without a password, a program on your network can read each note, the search, the images and the JSON files. Each write, each setting, each database, the sync and each system page need the admin password.
 
-**Change the default password before enabling LAN sharing.** A fresh install ships with `admin_secret_changeme`. Anyone on your network who read this manual knows this password.
+**Change the default password before you enable LAN sharing.** A new install has the password `admin_secret_changeme`. Anyone on your network who read this manual knows this password.
 
 ## The interface
 

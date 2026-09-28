@@ -116,8 +116,8 @@ if (window.location.protocol !== 'file:') {
     // Maps a backend "[sync] ..." log line to a human-readable stage. The
     // first match wins, thus a more specific prefix comes first. Anything
     // unmatched leaves the current stage alone and updates the detail line
-    // alone. A log message added to the sync code later thus degrades to
-    // "still working", and it does not blank the stage.
+    // alone. A new log message of the sync code thus shows as "still
+    // working", and it does not clear the stage.
     const SYNC_STAGES = [
         ['Opening repo',            'Opening repository…'],
         ['Repo not found',          'Initializing repository…'],
@@ -571,7 +571,8 @@ if (window.location.protocol !== 'file:') {
     // see every event.
     document.addEventListener('DOMContentLoaded', () => {
         // A caller on another machine with no admin cookie gets 401 from
-        // the stream. The EventSource does not retry after an HTTP status.
+        // the stream. The EventSource does not try again after an HTTP
+        // status.
         try {
             const logSource = new EventSource('/api/logs');
 	    // stream is released before the document is cached

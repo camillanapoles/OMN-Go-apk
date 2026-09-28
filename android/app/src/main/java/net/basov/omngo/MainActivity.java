@@ -743,9 +743,8 @@ public class MainActivity extends Activity {
     //      extension whitelist and max-size limit that saveUploadedFile
     //      enforces on the server for the own drag-and-drop upload of the
     //      editor. The limit comes from max_upload_size_mb in config.json.
-    //      See backend/upload_handlers.go. Keep the whitelist here in step with
-    //      imageUploadExtensions and jsonUploadExtensions there if either
-    //      one changes.
+    //      See backend/upload_handlers.go. If imageUploadExtensions or
+    //      jsonUploadExtensions changes there, change the whitelist here too.
     //   2. Build the same snippet format that those Go handlers return.
     //      An image gets an HTML <img class="omn-imported-image"> tag, and
     //      JSON gets [name](/user_json/name) markdown link syntax. POST it
@@ -762,9 +761,9 @@ public class MainActivity extends Activity {
 
     // JSON and image extensions this app accepts via share - kept in sync
     // with jsonUploadExtensions / imageUploadExtensions in
-    // backend/upload_handlers.go. These two sets are the single source within
-    // this file: both isSharedFileIntent and handleSharedFile use them, so the
-    // lists are never re-typed inline.
+    // backend/upload_handlers.go. These two sets are the one source in this
+    // file. isSharedFileIntent and handleSharedFile both use them, thus no
+    // other line types the lists again.
     private static final java.util.Set<String> SHARED_JSON_EXT =
         new java.util.HashSet<>(java.util.Arrays.asList(".json", ".jsonl"));
     private static final java.util.Set<String> SHARED_IMAGE_EXT =
@@ -1089,9 +1088,9 @@ public class MainActivity extends Activity {
                         return;
                     }
 
-                    // Same format that handleUpload and handleUploadJSON
-                    // in backend/upload_handlers.go produce. Keep these in
-                    // step by hand if either one changes.
+                    // This is the format that handleUpload and
+                    // handleUploadJSON in backend/upload_handlers.go make.
+                    // If either one changes, change this code by hand.
                     //
                     // Images went from markdown image syntax to an HTML
                     // <img> tag, with the .omn-imported-image class. See

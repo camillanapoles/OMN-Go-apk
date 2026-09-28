@@ -133,7 +133,7 @@ if (window.location.protocol !== 'file:') {
         const res = await fetch('/api/sync/trust-host-key', { method: 'POST', body: fd });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            alert('The new key was not stored: ' + (err.message || res.status));
+            alert('The server did not store the new key: ' + (err.message || res.status));
             return data;
         }
         return window.runSync(action, opts);

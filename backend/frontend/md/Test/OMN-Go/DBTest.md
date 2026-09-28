@@ -38,7 +38,7 @@ Tags: JavaScript, DB, Test, OMN-Go, OMN-Go user
     }
     localCounterStat(document.querySelector('#cnt_stat')).catch((err) => {
         document.querySelector('#cnt_stat').innerHTML =
-            '<p>Could not open the database. Admin-only; a remote caller with no admin login cannot use this page.</p>';
+            '<p>Could not open the database. Admin-only. A remote caller with no admin login cannot use this page.</p>';
         console.error(err);
     });
 }

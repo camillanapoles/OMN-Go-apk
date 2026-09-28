@@ -67,7 +67,7 @@ func postForm(t *testing.T, h http.HandlerFunc, path string, form url.Values) *h
 }
 
 // getPage issues a browser-shaped GET, with Accept: text/html, through the
-// real router. The test thus exercises the real dispatch chain, and it does
+// real router. The test thus uses the real dispatch chain, and it does
 // not call an inner handler directly.
 func getPage(t *testing.T, a *App, target string) *httptest.ResponseRecorder {
 	t.Helper()
@@ -337,8 +337,8 @@ func TestBaseline_RouteSet(t *testing.T) {
 		"/api/status",
 		"/api/sync",
 		"/api/sync/preview",
-		// The trust of a changed git server key. Admin only. See
-		// host_keys.go.
+		// This route stores a changed git server key. It is admin only.
+		// See host_keys.go.
 		"/api/sync/trust-host-key",
 		"/api/upload",
 		"/api/upload_json",
@@ -349,7 +349,7 @@ func TestBaseline_RouteSet(t *testing.T) {
 		"/json/",
 		"/login",
 		"/user_json/",
-		// The rows of the page-access table in pages.go. Each one is an
+		// These are the rows of the page-access table in pages.go. Each is an
 		// exact pattern, thus the catch-all "/" still answers each note.
 		"/Config.html",
 		"/OMNGoFiles.html",
@@ -357,8 +357,8 @@ func TestBaseline_RouteSet(t *testing.T) {
 		"/OMNGoSearch.html",
 		"/OMNGoStatus.html",
 		"/OMNGoTags.html",
-		// The method of each route. The bare path of each route above
-		// answers 405 for another method. See route in server.go.
+		// These patterns give the method of each route. Each bare path
+		// above answers 405 for another method. See route in server.go.
 		"GET /Config.html",
 		"GET /OMNGoFiles.html",
 		"GET /OMNGoLogs.html",

@@ -52,7 +52,7 @@ The server writes each refusal to the log with the tag `server`.
 
 ## Consequences
 
-* A LAN client must use an IP address, the system name or the device
+* A remote caller must use an IP address, the system name or the device
   label. A name of a local DNS server, for example `pc.lan`, gets `403`.
 * `GET /api/config` keeps the passwords for a local caller, because a
   rebound name cannot reach it.

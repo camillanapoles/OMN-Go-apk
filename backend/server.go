@@ -276,7 +276,7 @@ func (a *App) registerRoutes(mux routeTable) {
 	// This route is admin only, because the answer holds LAN addresses,
 	// absolute paths and a commit subject.
 	route(mux, "GET", "/api/status", a.authMiddleware(a.handleStatus))
-	// Each system page. See pages.go.
+	// The loop registers each system page. See pages.go.
 	for _, p := range a.systemPages() {
 		route(mux, "GET", p.path, a.pageHandler(p))
 	}

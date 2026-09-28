@@ -896,7 +896,8 @@ func TestFilesPage_Authorization(t *testing.T) {
 }
 
 // authMiddleware asks hasRole, the one definition of the rule. A local
-// connection and an admin cookie pass. An old guest cookie and no cookie get 401.
+// connection and an admin cookie pass. An old guest cookie and no cookie
+// get 401.
 func TestAuthMiddlewareStillRefusesAfterExtraction(t *testing.T) {
 	a := newTestApp(t)
 	h := a.authMiddleware(func(w http.ResponseWriter, r *http.Request) {
