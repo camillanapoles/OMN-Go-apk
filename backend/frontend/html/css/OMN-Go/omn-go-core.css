@@ -2115,6 +2115,12 @@ mark.omn-search-hit.omn-search-hit-current {
     font-family: monospace;
     min-height: 60px;
 }
+/* The fingerprint of the server key is one long word. The line must break
+   at each character, or the word runs past the right edge of a phone. */
+.git-server-hostkey {
+    overflow-wrap: anywhere;
+    word-break: break-all;
+}
 
 /* -- 404 page --
    Reuses .config-panel / .config-link-btn as a generic card and action row
