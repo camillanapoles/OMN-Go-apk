@@ -658,6 +658,10 @@ automatically, a dialog gives three choices:
   files, then upload them.
 - **Abort** — cancels the pull. Nothing has changed.
 
+**The key of the server.** The first sync with a server stores the key of that server on this device. The [Config](Config) page shows it below the slot as `Server key: SHA256:…`. Compare it with the key that the owner of the server gives you. GitHub, for example, gives its keys in its documentation.
+
+Each later sync checks that the server shows the same key. If the key changed, the sync stops and a dialog shows the known key and the new key. A changed key can mean that another machine answers for your server. Accept the new key only when the owner of the server confirms it. OK stores the new key and runs the sync again. Cancel stops the sync, and nothing changes.
+
 **A rejected push** opens a dialog with two choices:
 
 - **Force Push** — overwrites the history on the remote to match this

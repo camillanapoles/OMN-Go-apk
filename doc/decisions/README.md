@@ -90,3 +90,4 @@ the status of the old record to `replaced by NNNN`.
 | [0016](0016-give-each-route-one-method.md) | Give each route one method. | `server.go` |
 | [0017](0017-refuse-a-request-that-another-site-sends.md) | Refuse a request that another site sends. | `request_guard.go`, `middleware.go` |
 | [0018](0018-keep-one-role.md) | Keep one role. | `session.go`, `omn-go-sse.js` |
+| [0019](0019-trust-the-host-key-on-first-use.md) | Trust the host key on first use. | `host_keys.go`, `git_repo.go`, `omn-go-sync.js` |

@@ -77,7 +77,7 @@ func (a *App) syncPush(repo *git.Repository, wTree *git.Worktree, auth transport
 			a.logErrf(logSync, "push: rejected as non-fast-forward, leaving local state untouched")
 			return ErrPushConflict
 		}
-		return fmt.Errorf("push failed: %v", err)
+		return fmt.Errorf("push failed: %w", err)
 	}
 	return nil
 }

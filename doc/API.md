@@ -75,8 +75,9 @@ There is no single envelope. The server uses three shapes:
    return this shape.
 2. **JSON** — `/api/config` (GET), `/api/sql`, `/api/db/backup`,
    `/api/db/backups`, `/api/db/restore`, `/api/sync`, `/api/sync/preview`,
-   `/api/search`, `/api/status`, `/api/logs/history`, `/api/import/note`, and
-   an error of `/api/export/note`.
+   `/api/sync/trust-host-key`, `/api/search`, `/api/status`,
+   `/api/logs/history`, `/api/import/note`, and an error of
+   `/api/export/note`.
 3. **`text/event-stream`** — `/api/logs` only.
 
 One function writes each JSON answer: `writeJSON` in
@@ -89,8 +90,8 @@ file encodes an answer.
 A JSON endpoint answers an error in one of three shapes:
 
 1. `{"status": "error", "message": "..."}` with a 4xx or 5xx code.
-   `writeJSONError` writes this shape. `/api/db/*`, `/api/sql` and the two
-   note exchange endpoints use it. `/api/sql` can also send
+   `writeJSONError` writes this shape. `/api/db/*`, `/api/sql`,
+   `/api/sync/trust-host-key` and the two note exchange endpoints use it. `/api/sql` can also send
    `failed_statement`.
 2. The same shape with the code `200`. `/api/sync` uses it, because the
    status word carries the result. Section 4.11 lists each status word.
@@ -187,7 +188,7 @@ what its own page shows and gets no permission.
 | `GET /api/note` | **none — deliberately open** |
 | `GET /api/search` | **none — deliberately open** |
 | `GET /api/logs` | admin (local bypass applies) |
-| `/api/quick`, `/api/bookmark`, `/api/upload`, `/api/upload_json`, `/api/save`, `/api/newpage`, `/api/config`, `/api/restart`, `/api/sql`, `/api/db/backup`, `/api/db/backups`, `/api/db/restore`, `/api/sync`, `/api/sync/preview`, `/api/edit-external`, `/api/status`, `/api/export/note`, `/api/import/note` | admin (local bypass applies) |
+| `/api/quick`, `/api/bookmark`, `/api/upload`, `/api/upload_json`, `/api/save`, `/api/newpage`, `/api/config`, `/api/restart`, `/api/sql`, `/api/db/backup`, `/api/db/backups`, `/api/db/restore`, `/api/sync`, `/api/sync/preview`, `/api/sync/trust-host-key`, `/api/edit-external`, `/api/status`, `/api/export/note`, `/api/import/note` | admin (local bypass applies) |
 | `GET /Config.html`, `GET /OMNGoFiles.html`, `GET /OMNGoStatus.html`, `GET /OMNGoLogs.html`, `GET /db_backups` | admin (local bypass applies) — answers a **page**, not a 401 |
 | `GET /OMNGoTags.html`, `GET /OMNGoSearch.html` | none |
 | All page and static routes (`/`, `*.html`, `/js/`, `/css/`, `/json/`, `/images/`, `/user_json/`) | none |
@@ -200,6 +201,10 @@ page decides only what the page shows. A program that asks `/api/note` or
 (`backend/git_repo.go`) removes it and keeps the user name. The Status
 answer and each log line that names a remote use it. Only the Config page,
 which is admin-only, shows the full URL, because the admin edits it there.
+
+**Git server keys.** The sync over SSH trusts the key of a server at the
+first connection, and it stops when the key changes. See
+`POST /api/sync/trust-host-key` in §4.11.
 
 ### 2.4 Requests from another site
 
@@ -258,6 +263,7 @@ the code `200`.
 | POST | `/api/db/restore` | admin | JSON |
 | POST | `/api/sync` | admin | JSON |
 | GET | `/api/sync/preview` | admin | JSON |
+| POST | `/api/sync/trust-host-key` | admin | JSON |
 | GET | `/api/export/note` | admin | Markdown download |
 | POST | `/api/import/note` | admin | JSON |
 | GET | `/api/edit-external` | admin | HTML or 303 |
@@ -1656,6 +1662,7 @@ Run one git action against the active remote (`git_servers[active_git_index]`).
 | `conflict` | `Fast-forward not possible. Choose abort or 3-way merge.` | `files`: array of conflicting paths (always an array, never `null`) |
 | `push_conflict` | `Remote has new commits. Pull before pushing.` | |
 | `needs_commit_message` | `Please provide a commit message.` | |
+| `host_key_changed` | The error text, with both fingerprints | `host`: the server in the form of `known_hosts`. `known`: the stored fingerprint. `fingerprint`: the fingerprint that the server shows. See `POST /api/sync/trust-host-key` |
 | `error` | The raw error text (bad request, unknown action, SSH/auth failure, …) | |
 
 ```json
@@ -1694,6 +1701,28 @@ patterns do not. A file such as `md/UserManual.md`, or a compiled
 `*.html` page, can be in the index of an old repository. A removal of
 each of those at one time would delete many files on the other
 devices.
+
+#### `POST /api/sync/trust-host-key`
+
+Store the changed key of a git server. The first connection to a server
+stores its key in `<StorageDir>/known_hosts`. A later connection with
+another key fails with the status word `host_key_changed`, and the server
+keeps that key as the one that waits. See
+`doc/decisions/0019-trust-the-host-key-on-first-use.md`.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `host` | string | yes | The `host` of the `host_key_changed` answer |
+| `fingerprint` | string | yes | The `fingerprint` of the `host_key_changed` answer |
+
+| Status | Body | Meaning |
+| --- | --- | --- |
+| `200` | `{"status":"success","message":""}` | The server replaced the stored keys of the host with the key that waits |
+| `409` | `{"status":"error","message":"..."}` | No key waits, or the host or the fingerprint names another key |
+| `500` | `{"status":"error","message":"..."}` | The server could not write `known_hosts` |
+
+The fingerprint must be the one that the person saw. A key that changed
+again after the answer is thus not stored.
 
 #### `GET /api/sync/preview`
 

@@ -54,6 +54,9 @@ var gitignorePatterns = []string{
 	// session_secret is the HMAC key of the session cookie. A device with the
 	// key of another device can make a valid cookie for it.
 	"session_secret",
+	// known_hosts holds the git server keys that this device trusts. A pull
+	// must not change them. See host_keys.go.
+	"known_hosts",
 	"/asset_backups/",
 	"*.html",
 	"*.woff2",
@@ -483,7 +486,8 @@ func (a *App) getSSHAuth() (transport.AuthMethod, error) {
 
 	publicKeys := &gitssh.PublicKeys{User: sshUser, Signer: signer}
 	publicKeys.HostKeyCallbackHelper = gitssh.HostKeyCallbackHelper{
-		HostKeyCallback: cryptossh.InsecureIgnoreHostKey(),
+		HostKeyCallback:   a.hostKeyCallback(),
+		HostKeyAlgorithms: a.hostKeyAlgorithms(sshHostOf(gs.URL)),
 	}
 	a.logDebugf(logSync, "SSH auth method created using inline key data")
 	return publicKeys, nil

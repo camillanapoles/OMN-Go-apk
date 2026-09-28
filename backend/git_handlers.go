@@ -64,6 +64,13 @@ func (a *App) handleSync(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := a.SyncRepo(action, message); err != nil {
+		// A changed host key carries the two fingerprints, and the page
+		// asks the person to trust the new key.
+		if change, ok := hostKeyChangeOf(err); ok {
+			a.writeJSON(w, http.StatusOK, hostKeyAnswer{Status: "host_key_changed",
+				Message: err.Error(), hostKeyChange: change})
+			return
+		}
 		if status, msg, ok := syncErrorStatus(err); ok {
 			// A conflict carries the paths in conflict, and the dialog lists
 			// them. Each other status gets the plain body.

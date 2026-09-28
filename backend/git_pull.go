@@ -22,7 +22,7 @@ func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport
 	a.logInfof(logSync, "Pull: fetching %s", remoteName)
 	err := repo.Fetch(&git.FetchOptions{RemoteName: remoteName, Auth: auth, Progress: &syncProgressWriter{app: a}})
 	if err != nil && err != git.NoErrAlreadyUpToDate {
-		return fmt.Errorf("fetch failed: %v", err)
+		return fmt.Errorf("fetch failed: %w", err)
 	}
 
 	remoteRef, err := repo.Reference(plumbing.NewRemoteReferenceName(remoteName, "master"), true)
@@ -122,7 +122,7 @@ func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport
 func (a *App) syncPullMerge(repo *git.Repository, wTree *git.Worktree, auth transport.AuthMethod, remoteName string) error {
 	err := repo.Fetch(&git.FetchOptions{RemoteName: remoteName, Auth: auth, Progress: &syncProgressWriter{app: a}})
 	if err != nil && err != git.NoErrAlreadyUpToDate {
-		return fmt.Errorf("fetch failed: %v", err)
+		return fmt.Errorf("fetch failed: %w", err)
 	}
 
 	remoteRef, err := repo.Reference(plumbing.NewRemoteReferenceName(remoteName, "master"), true)
@@ -318,7 +318,7 @@ func (a *App) syncPullForce(repo *git.Repository, wTree *git.Worktree, auth tran
 
 	err := repo.Fetch(&git.FetchOptions{RemoteName: remoteName, Auth: auth, Progress: &syncProgressWriter{app: a}})
 	if err != nil && err != git.NoErrAlreadyUpToDate {
-		return fmt.Errorf("fetch failed: %v", err)
+		return fmt.Errorf("fetch failed: %w", err)
 	}
 
 	remoteRef, err := repo.Reference(plumbing.NewRemoteReferenceName(remoteName, "master"), true)

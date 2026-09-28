@@ -44,11 +44,12 @@ func (a *App) getConfigPageBody() string {
 	}
 	for i, gs := range cfg.GitServers {
 		view.GitServers = append(view.GitServers, gitServerView{
-			Index:  i,
-			Slot:   i + 1,
-			Active: cfg.ActiveGitIndex == i,
-			Name:   gs.Name,
-			URL:    gs.URL,
+			Index:   i,
+			Slot:    i + 1,
+			Active:  cfg.ActiveGitIndex == i,
+			Name:    gs.Name,
+			URL:     gs.URL,
+			HostKey: a.hostKeyText(gs.URL),
 		})
 	}
 

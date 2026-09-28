@@ -8,15 +8,15 @@ import (
 // --- The Config page ---
 
 // gitServerView is one git server slot on the Config page. It holds NO SSH
-// key and NO key password, and configPageView holds no user password, because
-// /Config.html needs no login. See
+// key and NO key password, and configPageView holds no user password. See
 // doc/decisions/0005-keep-each-secret-out-of-the-config-page.md.
 type gitServerView struct {
-	Index  int
-	Slot   int
-	Active bool
-	Name   string
-	URL    string
+	Index   int
+	Slot    int
+	Active  bool
+	Name    string
+	URL     string
+	HostKey string // the line of hostKeyText, or ""
 }
 
 type configPageView struct {
@@ -103,6 +103,7 @@ func renderConfigPage(v configPageView) string {
 			"ACTIVE_CHECKED": checked,
 			"NAME":           escapeHTML(gs.Name),
 			"URL":            escapeHTML(gs.URL),
+			"HOST_KEY":       escapeHTML(gs.HostKey),
 		}))
 	}
 

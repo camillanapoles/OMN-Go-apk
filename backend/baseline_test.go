@@ -337,6 +337,9 @@ func TestBaseline_RouteSet(t *testing.T) {
 		"/api/status",
 		"/api/sync",
 		"/api/sync/preview",
+		// The trust of a changed git server key. Admin only. See
+		// host_keys.go.
+		"/api/sync/trust-host-key",
 		"/api/upload",
 		"/api/upload_json",
 		"/css/",
@@ -384,6 +387,7 @@ func TestBaseline_RouteSet(t *testing.T) {
 		"POST /api/save",
 		"POST /api/sql",
 		"POST /api/sync",
+		"POST /api/sync/trust-host-key",
 		"POST /api/upload",
 		"POST /api/upload_json",
 		"POST /login",

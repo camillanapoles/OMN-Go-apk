@@ -111,6 +111,7 @@ func TestEnsureGitignoreFreshInstall(t *testing.T) {
 		"config.json\n" +
 		"assets_version\n" +
 		"session_secret\n" +
+		"known_hosts\n" +
 		"/asset_backups/\n" +
 		"*.html\n" +
 		"*.woff2\n" +

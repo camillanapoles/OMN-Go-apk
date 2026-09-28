@@ -22,6 +22,7 @@ type App struct {
 	// one here. Each request then panics. See TestNoBare64BitAtomics.
 	ActiveConns atomic.Int64
 	GitMutex    sync.Mutex // serializes all on-disk git repo operations
+	hostKeys    hostKeyState
 	Router      *http.ServeMux
 
 	sqlMu  sync.Mutex         // guards sqlDBs (see sqlite.go)
@@ -265,6 +266,7 @@ func (a *App) registerRoutes(mux routeTable) {
 	route(mux, "POST", "/api/db/restore", a.authMiddleware(a.handleDBRestore))
 	route(mux, "POST", "/api/sync", a.authMiddleware(a.handleSync))
 	route(mux, "GET", "/api/sync/preview", a.authMiddleware(a.handleSyncPreview))
+	route(mux, "POST", "/api/sync/trust-host-key", a.authMiddleware(a.handleTrustHostKey))
 	route(mux, "GET", "/api/edit-external", a.authMiddleware(a.handleEditExternal))
 	// Note exchange. Both routes are admin only: import writes files, and
 	// export is a way out of the note tree. The device itself is always

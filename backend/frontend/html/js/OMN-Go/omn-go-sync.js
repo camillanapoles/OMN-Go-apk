@@ -108,11 +108,36 @@ if (window.location.protocol !== 'file:') {
             case 'needs_commit_message':
                 alert('Please provide a commit message.');
                 return data;
+            case 'host_key_changed':
+                return trustHostKey(data, action, opts);
             default:
                 alert('Sync failed: ' + (data.message || 'unknown error'));
                 return data;
         }
     };
+
+    // trustHostKey shows the two fingerprints of a changed server key. OK
+    // stores the new key and runs the same action again. The server stores
+    // the key only when the fingerprint is the one that the person saw. See
+    // doc/decisions/0019-trust-the-host-key-on-first-use.md.
+    async function trustHostKey(data, action, opts) {
+        const ok = confirm('The key of the git server changed.\n\n' +
+            'Server: ' + data.host + '\n' +
+            'Known key: ' + data.known + '\n' +
+            'New key: ' + data.fingerprint + '\n\n' +
+            'A changed key can mean that another machine answers for the server. ' +
+            'Compare the new key with the key that the owner of the server gives you.\n\n' +
+            'OK trusts the new key and tries again. Cancel stops the sync.');
+        if (!ok) return data;
+        const fd = new URLSearchParams({ host: data.host, fingerprint: data.fingerprint });
+        const res = await fetch('/api/sync/trust-host-key', { method: 'POST', body: fd });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            alert('The new key was not stored: ' + (err.message || res.status));
+            return data;
+        }
+        return window.runSync(action, opts);
+    }
 
     // populateConflictFiles fills the file list of the conflict modal. The
     // files are the ones that the backend reported as in contention, which
