@@ -61,7 +61,7 @@ var builtinMIME = map[string]string{
 // then reads the content.
 func (a *App) resolveContentType(path string) string {
 	ext := strings.ToLower(filepath.Ext(path))
-	if ct, ok := a.GetConfig().MimeTypes[ext]; ok && ct != "" {
+	if ct, ok := a.config.get().MimeTypes[ext]; ok && ct != "" {
 		return ct
 	}
 	if ct, ok := builtinMIME[ext]; ok {
@@ -101,7 +101,7 @@ func (a *App) hasKnownAssetExtension(name string) bool {
 	if ext == "" {
 		return false
 	}
-	if ct, ok := a.GetConfig().MimeTypes[ext]; ok && ct != "" {
+	if ct, ok := a.config.get().MimeTypes[ext]; ok && ct != "" {
 		return true
 	}
 	_, ok := builtinMIME[ext]

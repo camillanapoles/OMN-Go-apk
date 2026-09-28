@@ -180,7 +180,7 @@ func TestCheckboxFieldsAreTheBoxRows(t *testing.T) {
 // it, and loadConfig runs this on each start.
 func TestNormalizeConfigIsIdempotent(t *testing.T) {
 	a := newTestApp(t)
-	first := a.GetConfig()
+	first := a.config.get()
 	second := first
 	normalizeConfig(&second)
 
@@ -279,7 +279,7 @@ func TestConfigWithFewGitServersIsPadded(t *testing.T) {
 		writeConfigJSON(t, a, tt.file)
 		a.loadConfig(a.StorageDir)
 
-		cfg := a.GetConfig()
+		cfg := a.config.get()
 		if len(cfg.GitServers) != maxGitServers {
 			t.Errorf("%s: %d slots, want %d", tt.what, len(cfg.GitServers), maxGitServers)
 			continue
@@ -305,7 +305,7 @@ func TestConfigWithFewGitServersIsPadded(t *testing.T) {
 func TestFreshInstallHasEveryGitSlot(t *testing.T) {
 	a := newUnconfiguredApp(t)
 	a.loadConfig(a.StorageDir)
-	if got := len(a.GetConfig().GitServers); got != maxGitServers {
+	if got := len(a.config.get().GitServers); got != maxGitServers {
 		t.Errorf("a fresh install has %d slots, want %d", got, maxGitServers)
 	}
 }

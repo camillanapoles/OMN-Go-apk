@@ -191,7 +191,7 @@ func (a *App) precompileAllPages() {
 	// Build the search index last, when the person turned global search on.
 	// It renders no markdown, thus it is cheap. The first search after the
 	// start then needs no build.
-	if a.GetConfig().SearchEnabled {
+	if a.config.get().SearchEnabled {
 		a.rebuildSearchIndex()
 	}
 }

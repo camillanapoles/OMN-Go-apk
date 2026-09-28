@@ -46,8 +46,8 @@ func TestFreshInstallUsesTheCallerSuppliedPort(t *testing.T) {
 	a.defaultPort = 8081
 	a.loadConfig(a.StorageDir)
 
-	if a.Config.ServerPort != 8081 {
-		t.Errorf("in-memory port %d, want 8081", a.Config.ServerPort)
+	if a.config.get().ServerPort != 8081 {
+		t.Errorf("in-memory port %d, want 8081", a.config.get().ServerPort)
 	}
 	// And it must be PERSISTED. The Config page shows the value written on
 	// first run, and every later start reads that same value. A write of 8080
@@ -62,8 +62,8 @@ func TestFreshInstallWithNoCallerDefaultStaysOn8080(t *testing.T) {
 	a := newUnconfiguredApp(t)
 	a.loadConfig(a.StorageDir)
 
-	if a.Config.ServerPort != 8080 {
-		t.Errorf("port %d, want 8080", a.Config.ServerPort)
+	if a.config.get().ServerPort != 8080 {
+		t.Errorf("port %d, want 8080", a.config.get().ServerPort)
 	}
 	if got := portOfConfigFile(t, a); got != 8080 {
 		t.Errorf("config.json carries %d, want 8080", got)
@@ -79,8 +79,8 @@ func TestConfiguredPortBeatsTheFlavorDefault(t *testing.T) {
 	a.defaultPort = 8081
 	a.loadConfig(a.StorageDir)
 
-	if a.Config.ServerPort != 9000 {
-		t.Errorf("port %d, want the configured 9000", a.Config.ServerPort)
+	if a.config.get().ServerPort != 9000 {
+		t.Errorf("port %d, want the configured 9000", a.config.get().ServerPort)
 	}
 }
 
@@ -93,8 +93,8 @@ func TestConfigWithoutAPortFallsBackToTheFlavorDefault(t *testing.T) {
 		a.defaultPort = 8081
 		a.loadConfig(a.StorageDir)
 
-		if a.Config.ServerPort != 8081 {
-			t.Errorf("%s gave port %d, want 8081", src, a.Config.ServerPort)
+		if a.config.get().ServerPort != 8081 {
+			t.Errorf("%s gave port %d, want 8081", src, a.config.get().ServerPort)
 		}
 	}
 }

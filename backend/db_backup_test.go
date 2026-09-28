@@ -184,7 +184,7 @@ func TestDBBackupPreservesSequenceAndBigIntsAndBlobs(t *testing.T) {
 
 func TestDBBackupPruneKeepsNewest(t *testing.T) {
 	a := dbbApp(t)
-	a.WithConfig(func(c *Config) { c.BackupPruneDepth = 2 })
+	a.config.update(func(c *Config) { c.BackupPruneDepth = 2 })
 	dbbExec(t, a, "t1", `CREATE TABLE x(a)`)
 
 	var files []string
@@ -566,7 +566,7 @@ func TestListBackupFilesNewestFirst(t *testing.T) {
 func TestDBBackupPruneKeepsTheLastBackup(t *testing.T) {
 	a := dbbApp(t)
 	dbbExec(t, a, "t1", `CREATE TABLE x(a)`)
-	a.WithConfig(func(c *Config) { c.BackupPruneDepth = 3 })
+	a.config.update(func(c *Config) { c.BackupPruneDepth = 3 })
 	var last string
 	for i := 0; i < 4; i++ {
 		last = dbbBackup(t, a, "t1")

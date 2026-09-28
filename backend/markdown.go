@@ -329,7 +329,7 @@ func (a *App) ensureHeaderModified(content string, defaultTitle string) string {
 	}
 
 	authorLine := ""
-	if author := a.GetConfig().Author; author != "" {
+	if author := a.config.get().Author; author != "" {
 		authorLine = fmt.Sprintf("\nAuthor: %s", author)
 	}
 	return fmt.Sprintf("Title: %s\nDate: %s\nModified: %s%s\n\n%s", defaultTitle, now, now, authorLine, content)

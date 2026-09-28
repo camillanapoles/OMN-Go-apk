@@ -198,11 +198,11 @@ func TestSyncAnswersAChangedHostKey(t *testing.T) {
 	}
 
 	second := hkKey(t)
-	a.WithConfig(func(c *Config) { c.GitServers[0].URL = "ssh://git@" + hkServer(t, second) + "/notes.git" })
+	a.config.update(func(c *Config) { c.GitServers[0].URL = "ssh://git@" + hkServer(t, second) + "/notes.git" })
 	// The new server listens on another port. The test gives it the host
 	// entry of the first server, thus the key looks changed.
 	a.hostKeys.mu.Lock()
-	newHost := sshHostOf(a.GetConfig().GitServers[0].URL)
+	newHost := sshHostOf(a.config.get().GitServers[0].URL)
 	if err := a.writeHostKey(newHost, first.PublicKey()); err != nil {
 		t.Fatal(err)
 	}

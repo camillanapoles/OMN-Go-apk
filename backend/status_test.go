@@ -89,7 +89,7 @@ func TestStatusHasNoBindAddress(t *testing.T) {
 // network, which is why the test asserts the shape and not the count.
 func TestStatusLANURLShape(t *testing.T) {
 	a := newTestApp(t)
-	a.Config.ShareLAN = true
+	a.config.update(func(c *Config) { c.ShareLAN = true })
 
 	res, _ := getStatus(t, a, "sections=server")
 	seen := map[string]bool{}
@@ -111,7 +111,7 @@ func TestStatusLANURLShape(t *testing.T) {
 
 	// Sharing off: the list stays empty, because no other device can
 	// reach this server.
-	a.Config.ShareLAN = false
+	a.config.update(func(c *Config) { c.ShareLAN = false })
 	res, _ = getStatus(t, a, "sections=server")
 	if len(res.Server.LANURLs) != 0 {
 		t.Errorf("lan_urls = %v with sharing off, want none", res.Server.LANURLs)
@@ -123,7 +123,7 @@ func TestStatusLANURLShape(t *testing.T) {
 // address that the probe already found.
 func TestStatusLANAddressesFromAndroid(t *testing.T) {
 	a := newTestApp(t)
-	a.Config.ShareLAN = true
+	a.config.update(func(c *Config) { c.ShareLAN = true })
 
 	SetLANAddresses(" 192.168.5.5 , 10.0.0.7 ,, 192.168.5.5 ")
 	t.Cleanup(func() { SetLANAddresses("") })
@@ -146,7 +146,7 @@ func TestStatusLANAddressesFromAndroid(t *testing.T) {
 	}
 
 	// Sharing off answers with no address, whatever Android sent.
-	a.Config.ShareLAN = false
+	a.config.update(func(c *Config) { c.ShareLAN = false })
 	res, _ = getStatus(t, a, "sections=server")
 	if len(res.Server.LANURLs) != 0 {
 		t.Errorf("lan_urls = %v with sharing off, want none", res.Server.LANURLs)
@@ -356,11 +356,13 @@ func TestRemoteRefCandidates(t *testing.T) {
 // The remote URL is reported without its password.
 func TestStatusRedactsGitPassword(t *testing.T) {
 	a := newTestApp(t)
-	a.Config.GitServers = []GitServerConfig{{
-		Name: "home",
-		URL:  "https://user:secret@example.com/notes.git",
-	}}
-	a.Config.ActiveGitIndex = 0
+	a.config.update(func(c *Config) {
+		c.GitServers = []GitServerConfig{{
+			Name: "home",
+			URL:  "https://user:secret@example.com/notes.git",
+		}}
+		c.ActiveGitIndex = 0
+	})
 
 	res, _ := getStatus(t, a, "sections=git")
 	if res.Git == nil || res.Git.Remote == nil {
@@ -378,11 +380,13 @@ func TestStatusRedactsGitPassword(t *testing.T) {
 // format.
 func TestStatusNeverCarriesSecrets(t *testing.T) {
 	a := newTestApp(t)
-	a.Config.AdminPassword = "admin_secret_value"
-	a.Config.GitServers = []GitServerConfig{{
-		Name: "home", URL: "https://u:pw_secret_value@example.com/n.git",
-		SSHKeyData: "PRIVATE_KEY_VALUE", Password: "slot_secret_value",
-	}}
+	a.config.update(func(c *Config) {
+		c.AdminPassword = "admin_secret_value"
+		c.GitServers = []GitServerConfig{{
+			Name: "home", URL: "https://u:pw_secret_value@example.com/n.git",
+			SSHKeyData: "PRIVATE_KEY_VALUE", Password: "slot_secret_value",
+		}}
+	})
 
 	for _, q := range []string{"sections=all", "sections=all&format=md"} {
 		rec := httptest.NewRecorder()
@@ -440,7 +444,7 @@ func TestStatusAndroidPackage(t *testing.T) {
 // The estimate counts what the index holds, and it grows with the index.
 func TestStatusSearchEstimate(t *testing.T) {
 	a := newTestApp(t)
-	a.Config.SearchEnabled = true
+	a.config.update(func(c *Config) { c.SearchEnabled = true })
 	a.search = &searchIndex{
 		docs: map[string]*indexedDoc{
 			"md/One.md": {
@@ -524,7 +528,7 @@ func TestStatusPageIsAReaderOfTheEndpoint(t *testing.T) {
 // writes. This is the rule the file index follows.
 func TestStatusPageAnswersARemoteCallerWithAPage(t *testing.T) {
 	a := newTestApp(t)
-	a.Config.ShareLAN = true
+	a.config.update(func(c *Config) { c.ShareLAN = true })
 
 	req := httptest.NewRequest(http.MethodGet, "/OMNGoStatus.html", nil)
 	req.RemoteAddr = "192.168.1.44:51000" // another machine on the network

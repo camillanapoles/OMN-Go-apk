@@ -424,7 +424,7 @@ func TestEnsureHeaderModifiedAddsMissingModified(t *testing.T) {
 
 func TestEnsureHeaderModifiedSynthesizesHeader(t *testing.T) {
 	a := &App{}
-	a.Config.Author = "Tester"
+	a.config.update(func(c *Config) { c.Author = "Tester" })
 	out := a.ensureHeaderModified("Just body text", "NewPage")
 
 	for _, want := range []string{"Title: NewPage", "Date: ", "Modified: ", "Author: Tester"} {

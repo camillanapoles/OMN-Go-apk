@@ -260,7 +260,7 @@ func TestCookieSurvivesARestart(t *testing.T) {
 // wrong one.
 func TestLoginWritesTheTwoCookies(t *testing.T) {
 	a := newTestApp(t)
-	a.WithConfig(func(c *Config) {
+	a.config.update(func(c *Config) {
 		c.AdminPassword = "the-admin-password"
 	})
 
@@ -317,7 +317,7 @@ func TestLoginWritesTheTwoCookies(t *testing.T) {
 // value as a match for an empty submission.
 func TestEmptyPasswordGrantsNothing(t *testing.T) {
 	a := newTestApp(t)
-	a.WithConfig(func(c *Config) {
+	a.config.update(func(c *Config) {
 		c.AdminPassword = ""
 	})
 	for _, password := range []string{"", "anything"} {

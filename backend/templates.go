@@ -323,7 +323,7 @@ const modalsMarker = `<div id="omn-go-modals-slot"></div>`
 // server controls each value, and normalizeTheme and normalizeLogTags allow
 // only known values, thus fmt can put them in.
 func (a *App) injectRuntimeVars(page []byte) []byte {
-	cfg := a.GetConfig()
+	cfg := a.config.get()
 	script := fmt.Sprintf(
 		`<script>var APP_VERSION = %q; var USE_INTERNAL_ED = %t; var OMN_THEME = %q; var OMN_SEARCH_GLOBAL = %t; var OMN_INCOMING_PAGE = %q; var OMN_LOG_DEBUG = %t; var OMN_LOG_INFO = %t; var OMN_LOG_TAGS = %q; document.documentElement.setAttribute('data-theme', OMN_THEME);</script>`,
 		APP_VERSION, cfg.UseInternalEd, normalizeTheme(cfg.Theme), a.globalSearchAvailable(), incomingIndexName,

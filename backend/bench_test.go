@@ -103,7 +103,7 @@ func benchSearchApp(tb testing.TB) *App {
 	a := benchApp(tb)
 	benchCorpus(tb, a)
 	a.search = &searchIndex{}
-	a.WithConfig(func(c *Config) {
+	a.config.update(func(c *Config) {
 		c.SearchEnabled = true
 		c.SearchKinds = []string{SearchKindMD, SearchKindBookmarks}
 	})

@@ -183,9 +183,10 @@ update these files.
     `loadTemplate` in `templates.go` runs at package init, and
     `search_sections.go` logs from a `sync.Once` and from a method on
     `searchDocument`. Both files write `[tag] (error) ` into the text by hand.
-* **Configuration.** Read the configuration with `a.GetConfig()`. It returns a copy
-  under `RLock`. Change the configuration with `a.WithConfig(func(c *Config){...})`.
-  It reads and writes under `Lock`. Never touch `App.Config` directly. The
+* **Configuration.** Read the configuration with `a.config.get()`. It returns a copy
+  under `RLock`. Change the configuration with `a.config.update(func(c *Config){...})`.
+  It reads and writes under `Lock`. Give a function that has no `*App` the
+  `*configStore`. `configStore` in `config_store.go` is the only holder of `Config`. The
   `normalizeXxx` functions repair an unknown enum value. The loader, the POST
   handler, and the renderer then always agree. A request that omits a field leaves
   that field alone. See `configFieldSent` in `config_handlers.go`.

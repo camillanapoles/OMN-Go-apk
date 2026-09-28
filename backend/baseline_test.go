@@ -148,8 +148,8 @@ func TestBaseline_ServeHTMLPageDispatch(t *testing.T) {
 			t.Error("a request for the search page created an md/ source")
 		}
 
-		a.WithConfig(func(c *Config) { c.SearchEnabled = true })
-		defer a.WithConfig(func(c *Config) { c.SearchEnabled = false })
+		a.config.update(func(c *Config) { c.SearchEnabled = true })
+		defer a.config.update(func(c *Config) { c.SearchEnabled = false })
 		if a.search == nil {
 			a.search = &searchIndex{}
 		}
@@ -216,8 +216,8 @@ func TestBaseline_ServeHTMLPageDispatch(t *testing.T) {
 		//
 		// loadConfig sets UseInternalEd to true on a fresh install, thus
 		// the subtest sets false itself and then sets the default again.
-		a.WithConfig(func(c *Config) { c.UseInternalEd = false })
-		defer a.WithConfig(func(c *Config) { c.UseInternalEd = true })
+		a.config.update(func(c *Config) { c.UseInternalEd = false })
+		defer a.config.update(func(c *Config) { c.UseInternalEd = true })
 
 		rec := getPage(t, a, "/Note.html?edit=true")
 		if rec.Code != http.StatusSeeOther {
@@ -232,8 +232,8 @@ func TestBaseline_ServeHTMLPageDispatch(t *testing.T) {
 		// The value that loadConfig writes on a fresh install. The set
 		// call stays, because a subtest must not depend on the order of
 		// the subtests above it.
-		a.WithConfig(func(c *Config) { c.UseInternalEd = true })
-		defer a.WithConfig(func(c *Config) { c.UseInternalEd = true })
+		a.config.update(func(c *Config) { c.UseInternalEd = true })
+		defer a.config.update(func(c *Config) { c.UseInternalEd = true })
 
 		rec := getPage(t, a, "/Note.html?edit=true")
 		if rec.Code != http.StatusOK {
@@ -712,7 +712,7 @@ func assertConfigOnDisk(t *testing.T, a *App, check func(Config)) {
 
 func TestBaseline_ConfigPostSemantics(t *testing.T) {
 	a := newTestApp(t)
-	a.WithConfig(func(c *Config) {
+	a.config.update(func(c *Config) {
 		c.Author = "Ann"
 		c.UseInternalEd = true
 		c.Theme = ThemeDark
@@ -726,7 +726,7 @@ func TestBaseline_ConfigPostSemantics(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d, body %s", rec.Code, rec.Body.String())
 	}
-	cfg := a.GetConfig()
+	cfg := a.config.get()
 	if cfg.Theme != ThemeLight {
 		t.Errorf("theme = %q, want light", cfg.Theme)
 	}
@@ -766,12 +766,12 @@ func TestBaseline_ConfigPostSemantics(t *testing.T) {
 		"server_port":        {"0"},
 		"max_upload_size_mb": {"not-a-number"},
 	})
-	cfg = a.GetConfig()
+	cfg = a.config.get()
 	if cfg.ServerPort != 9999 || cfg.MaxUploadSizeMB != 7 {
 		t.Errorf("invalid numerics overwrote good values: port=%d mb=%d", cfg.ServerPort, cfg.MaxUploadSizeMB)
 	}
 	// ... and that POST, carrying no theme, left the theme alone.
-	if got := a.GetConfig().Theme; got != ThemeLight {
+	if got := a.config.get().Theme; got != ThemeLight {
 		t.Errorf("theme after a POST that omitted it = %q, want light kept", got)
 	}
 
@@ -779,7 +779,7 @@ func TestBaseline_ConfigPostSemantics(t *testing.T) {
 	// page clears a text box when it sends that box empty. That must keep
 	// working now that absence means something else.
 	postForm(t, a.handleConfigPost, "/api/config", url.Values{"author": {""}})
-	if got := a.GetConfig().Author; got != "" {
+	if got := a.config.get().Author; got != "" {
 		t.Errorf("a sent-but-empty field did not clear: author = %q", got)
 	}
 
@@ -804,7 +804,7 @@ func TestBaseline_ConfigPostSemantics(t *testing.T) {
 // That default then renamed every database backup that the device wrote next.
 func TestConfigPost_PartialRequestKeepsTheRest(t *testing.T) {
 	a := newTestApp(t)
-	a.WithConfig(func(c *Config) {
+	a.config.update(func(c *Config) {
 		c.Author = "Ann"
 		c.AdminPassword = "adminpw"
 		c.DesktopExtCmd = "vim %s"
@@ -829,7 +829,7 @@ func TestConfigPost_PartialRequestKeepsTheRest(t *testing.T) {
 		"custom_theme_accent": {"#4488ff"},
 	})
 
-	cfg := a.GetConfig()
+	cfg := a.config.get()
 	for _, f := range []struct{ name, got, want string }{
 		{"author", cfg.Author, "Ann"},
 		{"admin_password", cfg.AdminPassword, "adminpw"},
@@ -875,7 +875,7 @@ func TestConfigPost_PartialRequestKeepsTheRest(t *testing.T) {
 // server cannot tell "unticked" from "not mine to touch".
 func TestConfigPost_DeclaredCheckboxesStillClear(t *testing.T) {
 	a := newTestApp(t)
-	a.WithConfig(func(c *Config) {
+	a.config.update(func(c *Config) {
 		c.UseInternalEd = true
 		c.ShareLAN = true
 		c.EnableIntentURI = true
@@ -891,7 +891,7 @@ func TestConfigPost_DeclaredCheckboxesStillClear(t *testing.T) {
 		"theme":         {"light"},
 	})
 
-	cfg := a.GetConfig()
+	cfg := a.config.get()
 	if cfg.UseInternalEd || cfg.ShareLAN || cfg.EnableIntentURI ||
 		cfg.EnableTermuxIntent || cfg.SearchEnabled || cfg.SearchBundled {
 		t.Errorf("a declared but unticked checkbox did not clear: %+v", cfg)
@@ -905,9 +905,9 @@ func TestConfigPost_DeclaredCheckboxesStillClear(t *testing.T) {
 
 	// A caller with no form behind it can do the same thing one field at a
 	// time, by value, without declaring anything.
-	a.WithConfig(func(c *Config) { c.SearchEnabled = true; c.ShareLAN = true })
+	a.config.update(func(c *Config) { c.SearchEnabled = true; c.ShareLAN = true })
 	postForm(t, a.handleConfigPost, "/api/config", url.Values{"search_enabled": {"false"}})
-	cfg = a.GetConfig()
+	cfg = a.config.get()
 	if cfg.SearchEnabled {
 		t.Error("search_enabled=false did not clear it")
 	}
@@ -975,12 +975,12 @@ func TestConfigPost_EveryCheckboxIsDeclared(t *testing.T) {
 // from the absent field of the test above.
 func TestConfigPost_HostnameClearedFallsBack(t *testing.T) {
 	a := newTestApp(t)
-	a.WithConfig(func(c *Config) {
+	a.config.update(func(c *Config) {
 		c.Hostname = "pixel7"
 		c.GitServers = make([]GitServerConfig, maxGitServers)
 	})
 	postForm(t, a.handleConfigPost, "/api/config", url.Values{"hostname": {""}})
-	if got := a.GetConfig().Hostname; got == "" || got == "pixel7" {
+	if got := a.config.get().Hostname; got == "" || got == "pixel7" {
 		t.Errorf("hostname = %q, want the OS-derived default", got)
 	}
 }

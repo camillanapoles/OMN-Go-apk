@@ -76,7 +76,7 @@ func (a *App) saveUploadedFile(r *http.Request, formField, destDir string, allow
 // maxUploadBytes converts MaxUploadSizeMB to bytes. loadConfig always sets a
 // positive value, thus the fallback below is a guard only.
 func (a *App) maxUploadBytes() int64 {
-	mb := a.GetConfig().MaxUploadSizeMB
+	mb := a.config.get().MaxUploadSizeMB
 	if mb <= 0 {
 		mb = defaultMaxUploadSizeMB
 	}

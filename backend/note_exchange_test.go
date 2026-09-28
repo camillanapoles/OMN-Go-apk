@@ -580,7 +580,7 @@ func TestHandleImportNoteRefusals(t *testing.T) {
 	}
 	// Larger than the upload limit: refused whole rather than imported
 	// truncated.
-	a.WithConfig(func(c *Config) { c.MaxUploadSizeMB = 1 })
+	a.config.update(func(c *Config) { c.MaxUploadSizeMB = 1 })
 	big := strings.Repeat("x", 2*1024*1024)
 	rec := exchangeReq(t, a.handleImportNote, http.MethodPost, "/api/import/note",
 		strings.NewReader(big), "text/markdown")

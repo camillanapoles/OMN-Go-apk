@@ -445,7 +445,7 @@ func TestRemoteLogLinesHideThePassword(t *testing.T) {
 		t.Fatal(err)
 	}
 	lgClearHistory(t)
-	cfg := a.GetConfig()
+	cfg := a.config.get()
 	cfg.GitServers = []GitServerConfig{{Name: "home", URL: "https://ann:FIRST-SECRET@example.com/n.git"}}
 	if _, err := a.ensureSlotRemotes(repo, cfg); err != nil {
 		t.Fatal(err)

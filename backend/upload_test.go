@@ -179,7 +179,7 @@ func TestUploadImageRejectsAnUnknownType(t *testing.T) {
 // not from a constant. A file over the limit gives 400 and writes nothing.
 func TestUploadImageUsesTheConfiguredSizeLimit(t *testing.T) {
 	a := uplApp(t)
-	a.WithConfig(func(c *Config) { c.MaxUploadSizeMB = 1 })
+	a.config.update(func(c *Config) { c.MaxUploadSizeMB = 1 })
 	before := uplFiles(t, a)
 
 	rec := uplPost(t, a, "/api/upload", "image", "big.png", make([]byte, 1<<20+1))

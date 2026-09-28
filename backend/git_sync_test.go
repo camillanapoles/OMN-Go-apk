@@ -88,7 +88,7 @@ func gsRemote(t *testing.T) string {
 func gsApp(t *testing.T, remote string) *App {
 	t.Helper()
 	a := newTestApp(t)
-	a.WithConfig(func(c *Config) {
+	a.config.update(func(c *Config) {
 		c.GitServers = make([]GitServerConfig, maxGitServers)
 		c.GitServers[0].Name = "harness"
 		c.GitServers[0].URL = remote
@@ -269,7 +269,7 @@ func TestSyncHarnessGivesAnAuthThatParses(t *testing.T) {
 	// The same call with no key must still fail. A test that forgets the
 	// key would otherwise pass for the wrong reason.
 	b := newTestApp(t)
-	b.WithConfig(func(c *Config) {
+	b.config.update(func(c *Config) {
 		c.GitServers = make([]GitServerConfig, maxGitServers)
 		c.GitServers[0].URL = "git@example.invalid:notes.git"
 		c.ActiveGitIndex = 0

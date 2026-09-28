@@ -14,9 +14,8 @@ import (
 
 // App encapsulates the global state for the backend
 type App struct {
-	Config      Config
-	ConfigMutex sync.RWMutex // guards all reads/writes of Config
-	StorageDir  string
+	config     configStore
+	StorageDir string
 	// ActiveConns is an atomic.Int64, and not an int64. A 64-bit atomic needs
 	// an 8-byte boundary, and a 32-bit build (armeabi-v7a, x86) does not give
 	// one here. Each request then panics. See TestNoBare64BitAtomics.
@@ -91,21 +90,6 @@ func (a *App) fallbackPort() int {
 	return 8080
 }
 
-// GetConfig returns a copy of the current config, safe for concurrent reads.
-func (a *App) GetConfig() Config {
-	a.ConfigMutex.RLock()
-	defer a.ConfigMutex.RUnlock()
-	return a.Config
-}
-
-// WithConfig runs fn under the config write lock, for a read, a change and a
-// write together.
-func (a *App) WithConfig(fn func(c *Config)) {
-	a.ConfigMutex.Lock()
-	defer a.ConfigMutex.Unlock()
-	fn(&a.Config)
-}
-
 // WaitUntilReady blocks until the HTTP server listens. It also returns
 // when the bind fails, thus a caller never waits for ever.
 func (a *App) WaitUntilReady() {
@@ -155,11 +139,13 @@ func StartServer(storageDir string, defaultPort int) *App {
 		a.initLogger()
 		a.registerRoutes(a.Router)
 
-		// This access needs no lock: no handler runs before net.Listen.
 		// loadConfig already set the port, thus this test is a guard only.
-		if a.Config.ServerPort <= 0 {
-			a.Config.ServerPort = a.fallbackPort()
-		}
+		a.config.update(func(c *Config) {
+			if c.ServerPort <= 0 {
+				c.ServerPort = a.fallbackPort()
+			}
+		})
+		cfg := a.config.get()
 
 		// The socket decides who can connect. With "Share on LAN" off, the
 		// listener binds the loopback address alone. See
@@ -167,10 +153,10 @@ func StartServer(storageDir string, defaultPort int) *App {
 		// The listener binds one time, thus a change applies at the next
 		// start.
 		bindHost := "127.0.0.1"
-		if a.Config.ShareLAN {
+		if cfg.ShareLAN {
 			bindHost = "0.0.0.0"
 		}
-		bindAddr := fmt.Sprintf("%s:%d", bindHost, a.Config.ServerPort)
+		bindAddr := fmt.Sprintf("%s:%d", bindHost, cfg.ServerPort)
 
 		// Bind first, thus WaitUntilReady means "reachable". The bind retries
 		// for about 3 seconds: after /api/restart, the new process can reach
@@ -207,7 +193,7 @@ func StartServer(storageDir string, defaultPort int) *App {
 
 // GetServerPort answers the configured port, for main_desktop.go.
 func (a *App) GetServerPort() int {
-	return a.GetConfig().ServerPort
+	return a.config.get().ServerPort
 }
 
 // registerRoutes writes each route of the application into mux. Section 3 of

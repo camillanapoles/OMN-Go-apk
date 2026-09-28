@@ -201,7 +201,7 @@ func (a *App) createDBBackup(name string) (created string, pruned []string, err 
 
 	// The header is line 1, and the code builds it last, because it holds the
 	// counts. The list endpoint then reads one line for the metadata.
-	cfg := a.GetConfig()
+	cfg := a.config.get()
 	host := sanitizeHostname(cfg.Hostname)
 	if host == "" {
 		host = defaultHostname()
@@ -288,7 +288,7 @@ func (a *App) listBackupFiles(name string) ([]string, error) {
 // newest. It answers the relative path of each removed file. git carries the
 // deletions of a tracked database. For a local-* database, they are final.
 func (a *App) pruneDBBackups(name string) ([]string, error) {
-	depth := a.GetConfig().BackupPruneDepth
+	depth := a.config.get().BackupPruneDepth
 	if depth <= 0 {
 		depth = 3
 	}

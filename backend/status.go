@@ -304,7 +304,7 @@ func parseStatusSections(raw string) (want map[string]bool, unknown []string) {
 }
 
 func (a *App) buildStatus(want map[string]bool) *statusResponse {
-	cfg := a.GetConfig()
+	cfg := a.config.get()
 	res := &statusResponse{Generated: statusTime(time.Now())}
 	fail := func(section string, err error) {
 		if res.Errors == nil {

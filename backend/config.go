@@ -185,16 +185,16 @@ var legacyMimeSeeds = []map[string]string{
 // and it reports whether it changed something. The caller then writes
 // config.json. A nil map is the state of a fresh install, thus the function
 // answers false.
-func (a *App) dropLegacyMimeSeed() bool {
-	if a.Config.MimeTypes == nil {
+func dropLegacyMimeSeed(log logger, c *Config) bool {
+	if c.MimeTypes == nil {
 		return false
 	}
 	for _, seed := range legacyMimeSeeds {
-		if !sameStringMap(a.Config.MimeTypes, seed) {
+		if !sameStringMap(c.MimeTypes, seed) {
 			continue
 		}
-		a.Config.MimeTypes = nil
-		a.log(logConfig).infof("removed the mime_types map that an older version wrote, " +
+		c.MimeTypes = nil
+		log.infof("removed the mime_types map that an older version wrote, " +
 			"thus the content types of this build answer again")
 		return true
 	}
@@ -296,12 +296,15 @@ type Config struct {
 }
 
 func (a *App) loadConfig(storageDir string) {
-	a.ConfigMutex.Lock()
-	defer a.ConfigMutex.Unlock()
+	a.config.update(func(c *Config) { a.loadConfigLocked(c) })
+}
+
+// loadConfigLocked fills c from config.json. The caller holds the write lock.
+func (a *App) loadConfigLocked(c *Config) {
 
 	configPath := a.layout().file(configFilename)
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		a.Config = Config{
+		*c = Config{
 			// Do not use a literal 8080. The fdroid flavor of Android passes
 			// 8081, because the two flavors can run side by side. The loader
 			// writes the port to config.json, thus each later reader sees it.
@@ -337,7 +340,7 @@ func (a *App) loadConfig(storageDir string) {
 			// Write NO MimeTypes MAP. A fresh install overrides nothing. See
 			// legacyMimeSeeds.
 		}
-		data, err := json.MarshalIndent(a.Config, "", "  ")
+		data, err := json.MarshalIndent(*c, "", "  ")
 		if err != nil {
 			a.log(logConfig).errf("loadConfig: failed to marshal default config: %v", err)
 		} else if err := os.WriteFile(configPath, data, 0644); err != nil {
@@ -346,12 +349,12 @@ func (a *App) loadConfig(storageDir string) {
 	} else {
 		data, readErr := os.ReadFile(configPath)
 		if readErr != nil {
-			// The loader cannot read an existing config.json. Leave a.Config
+			// The loader cannot read an existing config.json. Leave c
 			// at its zero value, and write an error line. Do not run with an
 			// empty config in silence.
 			a.log(logConfig).errf("loadConfig: failed to read %s: %v", configPath, readErr)
-		} else if err := json.Unmarshal(data, &a.Config); err != nil {
-			// A config.json that does not parse leaves a.Config partly zero.
+		} else if err := json.Unmarshal(data, c); err != nil {
+			// A config.json that does not parse leaves c partly zero.
 			// The error line explains why the passwords and settings seem to
 			// reset.
 			a.log(logConfig).errf("loadConfig: failed to parse %s (using defaults for any unparsed fields): %v", configPath, err)
@@ -359,24 +362,24 @@ func (a *App) loadConfig(storageDir string) {
 	}
 	// A config.json with no server_port, or a value below 1, gets the
 	// fallback port.
-	if a.Config.ServerPort <= 0 {
-		a.Config.ServerPort = a.fallbackPort()
+	if c.ServerPort <= 0 {
+		c.ServerPort = a.fallbackPort()
 	}
 	// normalizeConfig applies each other repair from the table in
 	// config_fields.go. An old config.json can have an empty theme and no
 	// log_tags key. The next save of config.json writes the repair.
-	normalizeConfig(&a.Config)
+	normalizeConfig(c)
 	// The slot array always holds maxGitServers rows. A config.json with
 	// fewer rows, or with "git_servers": null, gets the missing rows here.
 	// getConfigPageBody holds a second guard for its snapshot.
-	for len(a.Config.GitServers) < maxGitServers {
-		a.Config.GitServers = append(a.Config.GitServers, GitServerConfig{Name: fmt.Sprintf("Server %d", len(a.Config.GitServers)+1)})
+	for len(c.GitServers) < maxGitServers {
+		c.GitServers = append(c.GitServers, GitServerConfig{Name: fmt.Sprintf("Server %d", len(c.GitServers)+1)})
 	}
 
 	// Remove a map that an older version wrote, thus the table of the build
 	// answers again. See dropLegacyMimeSeed.
-	if a.dropLegacyMimeSeed() {
-		data, err := json.MarshalIndent(a.Config, "", "  ")
+	if dropLegacyMimeSeed(a.log(logConfig), c) {
+		data, err := json.MarshalIndent(*c, "", "  ")
 		if err != nil {
 			a.log(logConfig).errf("loadConfig: failed to marshal config after the mime-type repair: %v", err)
 		} else if err := os.WriteFile(configPath, data, 0644); err != nil {
@@ -386,5 +389,5 @@ func (a *App) loadConfig(storageDir string) {
 
 	// Call this last. Each line above is a fault, and a fault always prints.
 	// See applyLogFilter.
-	a.applyLogFilter(a.Config)
+	a.applyLogFilter(*c)
 }

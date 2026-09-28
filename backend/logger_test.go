@@ -592,7 +592,7 @@ func TestLogsPageIsAReaderOfTheTwoAddresses(t *testing.T) {
 // The route carries no authMiddleware for that reason. See pages.go.
 func TestLogsPageAnswersARemoteCallerWithAPage(t *testing.T) {
 	a := newTestApp(t)
-	a.Config.ShareLAN = true
+	a.config.update(func(c *Config) { c.ShareLAN = true })
 
 	req := httptest.NewRequest(http.MethodGet, "/OMNGoLogs.html", nil)
 	req.RemoteAddr = "192.168.1.44:51000" // another machine on the network

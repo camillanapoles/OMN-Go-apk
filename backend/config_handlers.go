@@ -12,7 +12,7 @@ import (
 )
 
 func (a *App) getConfigPageBody() string {
-	cfg := a.GetConfig() // snapshot under RLock; render against the copy
+	cfg := a.config.get() // snapshot under RLock; render against the copy
 
 	for len(cfg.GitServers) < maxGitServers {
 		cfg.GitServers = append(cfg.GitServers, GitServerConfig{Name: fmt.Sprintf("Server %d", len(cfg.GitServers)+1)})
@@ -92,17 +92,17 @@ func configFieldSent(r *http.Request) func(field string) bool {
 // handleConfigGet answers GET /api/config with the whole Config and each
 // password, for "Show passwords". It is admin only.
 func (a *App) handleConfigGet(w http.ResponseWriter, r *http.Request) {
-	a.writeJSON(w, http.StatusOK, a.GetConfig())
+	a.writeJSON(w, http.StatusOK, a.config.get())
 }
 
 // handleConfigPost answers POST /api/config. It saves the fields of the form.
 func (a *App) handleConfigPost(w http.ResponseWriter, r *http.Request) {
-	prev := a.GetConfig()
+	prev := a.config.get()
 
 	sent := configFieldSent(r)
 
 	var next Config
-	a.WithConfig(func(c *Config) {
+	a.config.update(func(c *Config) {
 		applyConfigForm(c, r, sent)
 		applyGitServerForm(c, r, sent)
 		next = *c

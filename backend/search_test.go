@@ -142,7 +142,7 @@ func TestPageSearch_NeedsNothing(t *testing.T) {
 	writeSearchNote(t, a, "Note.md", "Title: A Note\n\nthe quick brown fox\n")
 
 	// A zero App: no config loaded, no search settings, nothing warmed.
-	if cfg := a.GetConfig(); cfg.ServerPort != 0 {
+	if cfg := a.config.get(); cfg.ServerPort != 0 {
 		t.Fatalf("test precondition: expected an unconfigured App, got %+v", cfg)
 	}
 

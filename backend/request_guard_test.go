@@ -76,7 +76,7 @@ func TestAReboundNameCannotReadTheConfig(t *testing.T) {
 
 func TestIsKnownHost(t *testing.T) {
 	a := newTestApp(t)
-	a.Config.Hostname = "Pixel7"
+	a.config.update(func(c *Config) { c.Hostname = "Pixel7" })
 	for host, want := range map[string]bool{
 		"":                      true,
 		"localhost":             true,

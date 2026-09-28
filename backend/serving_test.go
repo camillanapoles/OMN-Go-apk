@@ -44,7 +44,7 @@ func TestResolveContentType(t *testing.T) {
 // the config does not list still fall through to builtin.
 func TestResolveContentTypeConfigOverride(t *testing.T) {
 	a := newTestApp(t)
-	a.Config.MimeTypes = map[string]string{".js": "application/javascript"}
+	a.config.update(func(c *Config) { c.MimeTypes = map[string]string{".js": "application/javascript"} })
 
 	if got := a.resolveContentType("/app.js"); got != "application/javascript" {
 		t.Errorf("Config override not honored: got %q, want application/javascript", got)

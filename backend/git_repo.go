@@ -343,7 +343,7 @@ func (a *App) ensureSlotRemotes(repo *git.Repository, cfg Config) (activeRemoteN
 // ensureRemotesAndGetActive makes each remote match the config. It answers
 // the remote for this sync.
 func (a *App) ensureRemotesAndGetActive(repo *git.Repository) (string, error) {
-	cfg := a.GetConfig()
+	cfg := a.config.get()
 
 	bootstrapURL := ""
 	if cfg.ActiveGitIndex >= 0 && cfg.ActiveGitIndex < len(cfg.GitServers) {
@@ -457,7 +457,7 @@ func (a *App) manualStageFile(repo *git.Repository, wt *git.Worktree, name strin
 func (a *App) getSSHAuth() (transport.AuthMethod, error) {
 	// Read one copy of the config. Two separate reads could mix the fields of
 	// two servers.
-	cfg := a.GetConfig()
+	cfg := a.config.get()
 	gs := cfg.GitServers[cfg.ActiveGitIndex]
 
 	sshUser := "git"
@@ -494,7 +494,7 @@ func (a *App) getSSHAuth() (transport.AuthMethod, error) {
 }
 
 func (a *App) GetConfigAuthor() string {
-	if author := a.GetConfig().Author; author != "" {
+	if author := a.config.get().Author; author != "" {
 		return author
 	}
 	return "OMN-Go User"

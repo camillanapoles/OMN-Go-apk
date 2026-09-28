@@ -73,7 +73,7 @@ func TestLoadConfig_PreSearchConfigFile(t *testing.T) {
 	}
 
 	a.loadConfig(a.StorageDir)
-	cfg := a.GetConfig()
+	cfg := a.config.get()
 
 	if cfg.SearchEnabled {
 		t.Error("global search enabled itself on an upgrade; it must be opt-in")
@@ -93,7 +93,7 @@ func TestLoadConfig_FreshInstallDefaults(t *testing.T) {
 	a := &App{StorageDir: t.TempDir()}
 	a.loadConfig(a.StorageDir)
 
-	cfg := a.GetConfig()
+	cfg := a.config.get()
 	if cfg.SearchEnabled {
 		t.Error("a fresh install must not enable the index")
 	}
@@ -121,7 +121,7 @@ func TestLoadConfig_FreshInstallDefaults(t *testing.T) {
 // that the user removed.
 func TestConfigPost_SearchKinds(t *testing.T) {
 	a := newTestApp(t)
-	a.WithConfig(func(c *Config) {
+	a.config.update(func(c *Config) {
 		c.GitServers = make([]GitServerConfig, maxGitServers)
 		c.SearchKinds = []string{SearchKindMD, SearchKindBookmarks}
 	})
@@ -131,7 +131,7 @@ func TestConfigPost_SearchKinds(t *testing.T) {
 		"search_kinds":   {"md", "js"},
 		"search_scope":   {"page"},
 	})
-	cfg := a.GetConfig()
+	cfg := a.config.get()
 	if !cfg.SearchEnabled {
 		t.Error("search_enabled did not stick")
 	}
@@ -149,10 +149,10 @@ func TestConfigPost_SearchKinds(t *testing.T) {
 		"config_fields":  {configFormFields},
 		"search_enabled": {"true"},
 	})
-	if got := a.GetConfig().SearchKinds; len(got) != 0 {
+	if got := a.config.get().SearchKinds; len(got) != 0 {
 		t.Errorf("SearchKinds = %v, want empty after unticking every box", got)
 	}
-	if a.GetConfig().SearchEnabled != true {
+	if a.config.get().SearchEnabled != true {
 		t.Error("search_enabled was cleared by a form that set it")
 	}
 
@@ -175,7 +175,7 @@ func TestConfigPost_SearchKinds(t *testing.T) {
 	// what unticking it on the Config page does. An undeclared one is left
 	// alone - see TestBaseline_ConfigPostSemantics.
 	postForm(t, a.handleConfigPost, "/api/config", url.Values{"config_fields": {configFormFields}})
-	if a.GetConfig().SearchEnabled {
+	if a.config.get().SearchEnabled {
 		t.Error("a declared, unticked search_enabled did not clear")
 	}
 }
@@ -198,7 +198,7 @@ func TestSearchGating_GlobalScope(t *testing.T) {
 
 	// Turned on, but there is still no index: a different answer, because
 	// there is nothing for the user to do about this one.
-	a.WithConfig(func(c *Config) { c.SearchEnabled = true })
+	a.config.update(func(c *Config) { c.SearchEnabled = true })
 	rec, resp = searchReq(t, a, url.Values{"q": {"x"}, "scope": {"all"}})
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status %d, want 503", rec.Code)
@@ -226,7 +226,7 @@ func TestSearchGating_PageScopeIgnoresConfig(t *testing.T) {
 		{"scope defaults to all", func(c *Config) { c.SearchScope = SearchScopeAll }},
 	}
 	for _, st := range states {
-		a.WithConfig(st.set)
+		a.config.update(st.set)
 		_, resp := searchReq(t, a, url.Values{
 			"q": {"needle"}, "scope": {"page"}, "on": {"Note"},
 		})
@@ -245,7 +245,7 @@ func TestDefaultSearchScope(t *testing.T) {
 	// Config says "all", but global search cannot answer. An unscoped query
 	// thus falls back to the page. It does not answer 503 to a caller who
 	// expressed no preference.
-	a.WithConfig(func(c *Config) { c.SearchScope = SearchScopeAll; c.SearchEnabled = true })
+	a.config.update(func(c *Config) { c.SearchScope = SearchScopeAll; c.SearchEnabled = true })
 	rec, resp := searchReq(t, a, url.Values{"q": {"needle"}, "on": {"Note"}})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d, want 200", rec.Code)
@@ -274,7 +274,7 @@ func TestGlobalSearchAvailableRuntimeVar(t *testing.T) {
 	if a.globalSearchAvailable() {
 		t.Error("available with search off")
 	}
-	a.WithConfig(func(c *Config) { c.SearchEnabled = true })
+	a.config.update(func(c *Config) { c.SearchEnabled = true })
 	if a.globalSearchAvailable() {
 		t.Error("available with the setting on but no index built")
 	}
@@ -287,7 +287,7 @@ func TestGlobalSearchAvailableRuntimeVar(t *testing.T) {
 
 func TestConfigPageSearchScreen(t *testing.T) {
 	a := newTestApp(t)
-	a.WithConfig(func(c *Config) {
+	a.config.update(func(c *Config) {
 		c.SearchEnabled = true
 		c.SearchKinds = []string{SearchKindMD, SearchKindJS}
 		c.SearchScope = SearchScopePage

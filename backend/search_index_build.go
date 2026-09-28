@@ -55,7 +55,7 @@ func (a *App) searchRoots(kinds []string) []searchRoot {
 // the new map first, and swaps it in under the write lock. A query thus sees
 // the whole old index or the whole new one.
 func (a *App) rebuildSearchIndex() {
-	cfg := a.GetConfig()
+	cfg := a.config.get()
 	if !cfg.SearchEnabled {
 		a.dropSearchIndex()
 		return
@@ -307,7 +307,7 @@ func (a *App) searchStamp(kinds []string) indexStamp {
 // indexStaleCheckEvery, unless a write inside the process marked the index
 // dirty.
 func (a *App) ensureSearchIndex() bool {
-	cfg := a.GetConfig()
+	cfg := a.config.get()
 	if !cfg.SearchEnabled || a.search == nil {
 		return false
 	}

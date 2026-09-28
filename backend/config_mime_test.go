@@ -98,7 +98,7 @@ func TestLegacyMimeSeedIsDropped(t *testing.T) {
 		a := &App{StorageDir: dir}
 		a.loadConfig(dir)
 
-		if got := a.GetConfig().MimeTypes; got != nil {
+		if got := a.config.get().MimeTypes; got != nil {
 			t.Errorf("seed %d survived the load as %v", i, got)
 		}
 		if got := a.resolveContentType("x.css"); got != "text/css; charset=utf-8" {
@@ -135,7 +135,7 @@ func TestHandWrittenMimeMapSurvives(t *testing.T) {
 	a := &App{StorageDir: dir}
 	a.loadConfig(dir)
 
-	got := a.GetConfig().MimeTypes
+	got := a.config.get().MimeTypes
 	if len(got) != len(mine) {
 		t.Fatalf("the map holds %d rows after the load, want %d", len(got), len(mine))
 	}
@@ -185,7 +185,7 @@ func TestDroppingTheSeedChangesNoNoteName(t *testing.T) {
 	}
 
 	withSeed := &App{}
-	withSeed.WithConfig(func(c *Config) { c.MimeTypes = legacyMimeSeeds[0] })
+	withSeed.config.update(func(c *Config) { c.MimeTypes = legacyMimeSeeds[0] })
 	clean := &App{}
 
 	for _, name := range []string{

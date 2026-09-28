@@ -295,7 +295,7 @@ func TestRenderExternalEditPage(t *testing.T) {
 
 func TestInjectRuntimeVars(t *testing.T) {
 	a := &App{}
-	a.Config.UseInternalEd = true
+	a.config.update(func(c *Config) { c.UseInternalEd = true })
 
 	page := []byte("<head>" + runtimeVarsMarker + "</head>")
 	out := string(a.injectRuntimeVars(page))
@@ -427,7 +427,7 @@ func TestInjectRuntimeVarsTheme(t *testing.T) {
 	// Explicit theme delivered verbatim, and applied to <html> from the
 	// injected head script (before first paint).
 	a := &App{}
-	a.Config.Theme = ThemeDark
+	a.config.update(func(c *Config) { c.Theme = ThemeDark })
 	out := string(a.injectRuntimeVars(page))
 	if !strings.Contains(out, `var OMN_THEME = "dark";`) {
 		t.Error("dark theme not injected")
@@ -440,7 +440,7 @@ func TestInjectRuntimeVarsTheme(t *testing.T) {
 	// (belt and braces on top of loadConfig's normalization).
 	for _, raw := range []string{"", "purple"} {
 		b := &App{}
-		b.Config.Theme = raw
+		b.config.update(func(c *Config) { c.Theme = raw })
 		got := string(b.injectRuntimeVars(page))
 		if !strings.Contains(got, `var OMN_THEME = "auto";`) {
 			t.Errorf("theme=%q: expected auto in injection, got:\n%s", raw, got)

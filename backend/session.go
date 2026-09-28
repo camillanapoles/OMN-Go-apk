@@ -175,7 +175,7 @@ func (a *App) readSessionRole(r *http.Request) string {
 // on the network needs it. The comparison is constant-time, and an EMPTY
 // configured password matches nothing.
 func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
-	cfg := a.GetConfig()
+	cfg := a.config.get()
 	pwd := r.FormValue("password")
 
 	if !passwordMatches(pwd, cfg.AdminPassword) {

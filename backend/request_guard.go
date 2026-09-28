@@ -52,7 +52,7 @@ func (a *App) isKnownHost(hostport string) bool {
 	if net.ParseIP(host) != nil || host == "localhost" {
 		return true
 	}
-	names := []string{a.GetConfig().Hostname}
+	names := []string{a.config.get().Hostname}
 	if h, err := os.Hostname(); err == nil {
 		names = append(names, h)
 	}
