@@ -3,6 +3,8 @@ package backend
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -34,6 +36,28 @@ func TestEachSystemPageFollowsItsRow(t *testing.T) {
 		local := routeReq(a, http.MethodGet, p.path)
 		if strings.Contains(local.Body.String(), refusal) {
 			t.Errorf("%s: the device itself got the refusal page", p.path)
+		}
+	}
+}
+
+// renderPage is the one shell of a page that the server makes. A second
+// call of compilePageWithBody outside pages.go and markdown.go fails this
+// test.
+func TestOnlyRenderPageCompilesAServerPage(t *testing.T) {
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range files {
+		if strings.HasSuffix(f, "_test.go") || f == "pages.go" || f == "markdown.go" {
+			continue
+		}
+		src, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(src), "compilePageWithBody(") {
+			t.Errorf("%s compiles a page itself. Call a.renderPage.", f)
 		}
 	}
 }

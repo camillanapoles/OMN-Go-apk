@@ -304,11 +304,7 @@ func (a *App) serveNotFound(w http.ResponseWriter, r *http.Request) {
 	}
 
 	body := renderNotFoundPage(view)
-	compiled := a.compilePageWithBody("Not found",
-		[]byte("Title: Not found\nCategory: Error\n\n"), body)
-	writeHTMLHeader(w)
-	w.WriteHeader(http.StatusNotFound)
-	w.Write(a.injectRuntimeVars(compiled))
+	a.renderPage(w, http.StatusNotFound, "Not found", pageHeader("Not found", "Error"), body)
 }
 
 // serveNotEditable answers an editor request for a file that is not text:
@@ -334,11 +330,8 @@ func (a *App) serveNotEditable(w http.ResponseWriter, r *http.Request, relPath s
 	}
 
 	body := renderNotEditablePage(notEditableView{Path: urlPath, Type: ct})
-	compiled := a.compilePageWithBody("Not a text file",
-		[]byte("Title: Not a text file\nCategory: Error\n\n"), body)
-	writeHTMLHeader(w)
-	w.WriteHeader(http.StatusUnsupportedMediaType)
-	w.Write(a.injectRuntimeVars(compiled))
+	a.renderPage(w, http.StatusUnsupportedMediaType, "Not a text file",
+		pageHeader("Not a text file", "Error"), body)
 }
 
 // notFoundInterceptor keeps the path handling and the range handling of

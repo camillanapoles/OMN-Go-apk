@@ -216,8 +216,5 @@ func (a *App) restartProcess() {
 
 // serveConfigPage answers /Config.html. The page has no .md and no cache.
 func (a *App) serveConfigPage(w http.ResponseWriter, r *http.Request) {
-	writeHTMLHeader(w)
-	body := a.getConfigPageBody()
-	compiled := a.compilePageWithBody("Config", []byte("Title: Config\nCategory: Settings\n\n"), body)
-	w.Write(a.injectRuntimeVars(compiled))
+	a.renderPage(w, http.StatusOK, "Config", pageHeader("Config", "Settings"), a.getConfigPageBody())
 }

@@ -436,10 +436,7 @@ func (a *App) writeFilesPage(w http.ResponseWriter, view filesPageView) {
 		title += ": " + strings.TrimSuffix(view.Dir, "/")
 	}
 	body := renderFilesPage(view)
-	compiled := a.compilePageWithBody(title,
-		[]byte("Title: "+title+"\nCategory: System\n\n"), body)
-	writeHTMLHeader(w)
-	w.Write(a.injectRuntimeVars(compiled))
+	a.renderPage(w, http.StatusOK, title, pageHeader(title, "System"), body)
 }
 
 // filesCrumbs makes the breadcrumb, from the root of the tree to the current

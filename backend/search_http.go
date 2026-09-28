@@ -350,10 +350,7 @@ func (a *App) serveSearchPage(w http.ResponseWriter, r *http.Request) {
 	// change that.
 	if !cfg.SearchEnabled {
 		body := renderSearchPage(searchPageView{Disabled: true})
-		compiled := a.compilePageWithBody("Search",
-			[]byte("Title: Search\nCategory: System\n\n"), body)
-		writeHTMLHeader(w)
-		w.Write(a.injectRuntimeVars(compiled))
+		a.renderPage(w, http.StatusOK, "Search", pageHeader("Search", "System"), body)
 		return
 	}
 
@@ -379,8 +376,5 @@ func (a *App) serveSearchPage(w http.ResponseWriter, r *http.Request) {
 		title = "Search: " + query
 	}
 	body := renderSearchPage(view)
-	compiled := a.compilePageWithBody(title,
-		[]byte("Title: "+title+"\nCategory: System\n\n"), body)
-	writeHTMLHeader(w)
-	w.Write(a.injectRuntimeVars(compiled))
+	a.renderPage(w, http.StatusOK, title, pageHeader(title, "System"), body)
 }

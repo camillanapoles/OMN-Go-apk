@@ -264,10 +264,7 @@ func (a *App) handleStatus(w http.ResponseWriter, r *http.Request) {
 // serveStatusPage answers /OMNGoStatus.html. The page reads /api/status and
 // shows the answer. It holds no facts of its own.
 func (a *App) serveStatusPage(w http.ResponseWriter, r *http.Request) {
-	compiled := a.compilePageWithBody("Status",
-		[]byte("Title: Status\nCategory: System\n\n"), statusPageTmpl)
-	writeHTMLHeader(w)
-	w.Write(a.injectRuntimeVars(compiled))
+	a.renderPage(w, http.StatusOK, "Status", pageHeader("Status", "System"), statusPageTmpl)
 }
 
 // parseStatusSections changes the "sections" parameter into a set. Empty

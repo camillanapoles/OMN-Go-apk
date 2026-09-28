@@ -20,9 +20,7 @@ var dbBackupsPageTmpl = loadTemplate("db_backups.html")
 // of the Config page opens it. The page gets its data from GET
 // /api/db/backups, thus the template needs no fill().
 func (a *App) serveDBBackupsPage(w http.ResponseWriter, r *http.Request) {
-	writeHTMLHeader(w)
-	compiled := a.compilePageWithBody("DB_Backups", []byte("Title: Database Backups\nCategory: Settings\n\n"), dbBackupsPageTmpl)
-	w.Write(a.injectRuntimeVars(compiled))
+	a.renderPage(w, http.StatusOK, "DB_Backups", pageHeader("Database Backups", "Settings"), dbBackupsPageTmpl)
 }
 
 // handleDBBackupCreate answers POST /api/db/backup?db=NAME.

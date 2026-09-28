@@ -232,10 +232,7 @@ func (a *App) HandleLogsSSE(w http.ResponseWriter, r *http.Request) {
 // Android has no terminal. Without this page, a person on a phone needs adb
 // logcat, or a second browser at the history endpoint.
 func (a *App) serveLogsPage(w http.ResponseWriter, r *http.Request) {
-	compiled := a.compilePageWithBody("Log",
-		[]byte("Title: Log\nCategory: System\n\n"), logsPageTmpl)
-	writeHTMLHeader(w)
-	w.Write(a.injectRuntimeVars(compiled))
+	a.renderPage(w, http.StatusOK, "Log", pageHeader("Log", "System"), logsPageTmpl)
 }
 
 // handleLogHistory answers the ring of the last logHistoryCap lines, oldest

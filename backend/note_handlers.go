@@ -93,14 +93,13 @@ func (a *App) handleEditExternal(w http.ResponseWriter, r *http.Request) {
 		a.log(logEdit).errf("Failed to run external editor: no command configured")
 	}
 
-	writeHTMLHeader(w)
 	viewURL := name
 	if isPage {
 		viewURL = baseName + ".html"
 	}
-	waitBody := a.getExternalEditPageBody(name, viewURL)
-	compiledWait := a.compilePageWithBody(name, fmt.Appendf(nil, "Title: Refresh %s\nDate: %s\nCategory: Action\n\n", name, time.Now().Format("2006-01-02 15:04:05")), waitBody)
-	w.Write(a.injectRuntimeVars(compiledWait))
+	header := fmt.Appendf(nil, "Title: Refresh %s\nDate: %s\nCategory: Action\n\n",
+		name, time.Now().Format("2006-01-02 15:04:05"))
+	a.renderPage(w, http.StatusOK, name, header, a.getExternalEditPageBody(name, viewURL))
 }
 
 // resolveNewPageTarget resolves a new page name the same way as a link on the

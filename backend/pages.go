@@ -45,8 +45,20 @@ func (a *App) serveRefusalPage(w http.ResponseWriter, title string) {
 		`<p class="config-hint">This page is for the admin of this device. ` +
 		`Log in as admin on a note page, then open the page again.</p>` +
 		`</div>`
-	compiled := a.compilePageWithBody(title,
-		[]byte("Title: "+title+"\nCategory: System\n\n"), body)
+	a.renderPage(w, http.StatusOK, title, pageHeader(title, "System"), body)
+}
+
+// pageHeader is the header block of a page that the server makes.
+func pageHeader(title, category string) []byte {
+	return []byte("Title: " + title + "\nCategory: " + category + "\n\n")
+}
+
+// renderPage writes one page in the shell of a note page: the content type,
+// the status code, the compiled page and the runtime values. name is the page
+// name of compilePageWithBody.
+func (a *App) renderPage(w http.ResponseWriter, code int, name string, header []byte, body string) {
+	compiled := a.compilePageWithBody(name, header, body)
 	writeHTMLHeader(w)
+	w.WriteHeader(code)
 	w.Write(a.injectRuntimeVars(compiled))
 }
