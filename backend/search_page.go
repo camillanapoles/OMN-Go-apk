@@ -7,6 +7,8 @@ import (
 
 // --- The search result page (search_page.html) ---
 
+var searchPageTmpl = loadTemplate("search_page.html")
+
 // searchPageView holds each value of renderSearchPage. Query comes from a
 // URL, and the function escapes it. renderSnippetHTML escapes the snippets.
 type searchPageView struct {

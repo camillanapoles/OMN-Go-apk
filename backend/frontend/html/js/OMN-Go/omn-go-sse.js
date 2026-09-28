@@ -69,7 +69,7 @@ if (window.location.protocol !== 'file:') {
     //
     // So the filter lives here. OMN_LOG_DEBUG, OMN_LOG_INFO and
     // OMN_LOG_TAGS arrive with the runtime variables the server injects
-    // into every page (see injectRuntimeVars in templates.go).
+    // into every page (see injectRuntimeVars in pages.go).
     //
     // A line reads "<stamp> [tag] (level) message". A line with no level -
     // the three log.Printf call sites that cannot reach an application -

@@ -76,7 +76,7 @@ the status of the old record to `replaced by NNNN`.
 | [0002](0002-bind-the-loopback-address-when-lan-sharing-is-off.md) | Bind the loopback address when LAN sharing is off. | `server.go`, `config.go` |
 | [0003](0003-use-one-table-for-each-content-type.md) | Use one table for each content type. | `serving.go`, `config.go` |
 | [0004](0004-tell-the-browser-to-ask-before-it-uses-a-copy.md) | Tell the browser to ask before it uses a copy. | `middleware.go` |
-| [0005](0005-keep-each-secret-out-of-the-config-page.md) | Keep each secret out of the Config page. | `config_fields.go`, `templates_config.go`, `omn-go-config.js` |
+| [0005](0005-keep-each-secret-out-of-the-config-page.md) | Keep each secret out of the Config page. | `config_fields.go`, `config_page.go`, `omn-go-config.js` |
 | [0006](0006-replace-the-application-files-at-each-new-version.md) | Replace the application files at each new version. | `assets.go`, `MainActivity.java` |
 | [0007](0007-keep-the-application-files-in-omn-go-directories.md) | Keep the application files in OMN-Go directories. | `assets.go`, `serving.go`, `git_repo.go` |
 | [0008](0008-render-the-pages-without-html-template.md) | Render the pages without html/template. | `templates.go` |

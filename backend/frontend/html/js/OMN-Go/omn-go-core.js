@@ -901,7 +901,7 @@ if (typeof currentNote === 'undefined') {
 
         // Reveals .android-only controls (hidden by default in CSS - see
         // omn-go-core.css) when the page was served with IS_ANDROID set
-        // (COND_SCRIPTS in templates.go, mirroring the IS_MARKDOWN
+        // (COND_SCRIPTS in pages.go, mirroring the IS_MARKDOWN
         // precedent). It runs on load, and it is not gated on login or
         // session state.
         //

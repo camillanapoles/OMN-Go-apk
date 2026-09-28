@@ -225,6 +225,8 @@ func (a *App) HandleLogsSSE(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+var logsPageTmpl = loadTemplate("logs_page.html")
+
 // serveLogsPage answers /OMNGoLogs.html. The page reads /api/logs/history one
 // time, and then it adds each new line of /api/logs. omn-go-logs.js does that
 // work.

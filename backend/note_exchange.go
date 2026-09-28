@@ -470,6 +470,10 @@ func (a *App) addIncomingIndexLine(res importResult, now time.Time) error {
 	return os.WriteFile(indexPath, []byte(header+"\n\n"+line+"\n"+body), 0644)
 }
 
+// incomingIndexTmpl is the incoming index as the app first writes it: a
+// header block, the receive box and the list marker.
+var incomingIndexTmpl = loadTemplate("incoming_index.md")
+
 // incomingIndexStarter answers the incoming index as the app first writes it.
 // It is a template, because initStorage extracts frontend/md FLAT into md/.
 // The app writes it one time, and then it belongs to the user.

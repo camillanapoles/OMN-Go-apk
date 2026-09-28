@@ -2,8 +2,8 @@
 
 * Status: accepted
 * Version: 1.7.4
-* Code: `fill`, `escapeHTML`, `escapeJS` and each `render...` function in
-  `backend/templates.go`
+* Code: `fill`, `escapeHTML` and `escapeJS` in `backend/templates.go`, and
+  each `render...` function in the file of its page
 
 ## Context
 

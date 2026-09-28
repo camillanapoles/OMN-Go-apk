@@ -261,6 +261,8 @@ func (a *App) handleStatus(w http.ResponseWriter, r *http.Request) {
 	a.writeJSON(w, http.StatusOK, res)
 }
 
+var statusPageTmpl = loadTemplate("status_page.html")
+
 // serveStatusPage answers /OMNGoStatus.html. The page reads /api/status and
 // shows the answer. It holds no facts of its own.
 func (a *App) serveStatusPage(w http.ResponseWriter, r *http.Request) {

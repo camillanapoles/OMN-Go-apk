@@ -7,6 +7,11 @@ import (
 
 // --- The Config page ---
 
+var (
+	configPageTmpl    = loadTemplate("config_page.html")
+	gitServerCardTmpl = loadTemplate("git_server_card.html")
+)
+
 // gitServerView is one git server slot on the Config page. It holds NO SSH
 // key and NO key password, and configPageView holds no user password. See
 // doc/decisions/0005-keep-each-secret-out-of-the-config-page.md.

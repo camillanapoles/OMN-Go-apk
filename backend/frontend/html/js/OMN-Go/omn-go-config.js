@@ -122,7 +122,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // The Config page renders each password box and each SSH key box
 // EMPTY. The compiled HTML thus holds no secret, and a reader of the
 // storage directory finds none there. See the banner of gitServerView
-// in backend/templates_config.go.
+// in backend/config_page.go.
 //
 // An empty box must therefore mean "keep the stored value", and not
 // "clear the stored value". The two rules below give that meaning:

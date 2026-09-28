@@ -21,7 +21,8 @@ Do not remove a constraint without an instruction from the maintainer.
 2. **Do not use `html/template`.** It calls `reflect.Value.MethodByName`. That call
    stops linker dead-code elimination for the whole program. The go-git method
    surface then makes the binary large. Use `fill()` with `%%PLACEHOLDER%%` tokens.
-   Use the `escapeHTML` and `escapeJS` pair in `backend/templates.go`.
+   Use the `escapeHTML` and `escapeJS` pair in `backend/templates.go`. Put the
+   view and the render function of a page in the file of that page.
 3. **Keep Android storage isolated.** Files stay in
    `/storage/emulated/0/Android/media/<applicationId>/`. This directory needs no
    runtime permission. The Go package cannot read the flavor applicationId.

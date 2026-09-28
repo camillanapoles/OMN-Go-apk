@@ -8,6 +8,8 @@ import (
 
 // --- The file index page (files_page.html, see files_index.go) ---
 
+var filesPageTmpl = loadTemplate("files_page.html")
+
 // filesCrumb is one step of the breadcrumb. Dir is the new value of ?dir=.
 type filesCrumb struct {
 	Label string

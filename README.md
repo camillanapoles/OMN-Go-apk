@@ -61,7 +61,7 @@ platform wraps this binary in a different way:
    application. An `http.ServeMux` (`server.go`) connects request
    authentication (`middleware.go`), the note and API handlers
    (`handlers.go` and the `*_handlers.go` files), and Markdown compilation
-   with goldmark (`markdown.go`, `templates.go`). The backend writes the HTML
+   with goldmark (`markdown.go`, `pages.go`, `templates.go`). The backend writes the HTML
    cache to disk (`render_cache.go`). It also holds an embedded SQLite
    database (pure-Go `modernc.org/sqlite`, `sqlite.go` and the
    `db_backup*.go` files) and runs git synchronization over SSH

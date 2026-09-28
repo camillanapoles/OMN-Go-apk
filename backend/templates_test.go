@@ -1,8 +1,12 @@
 package backend
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io/fs"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -728,5 +732,38 @@ func TestAnOverlayHiddenByClassCanBeShownAgain(t *testing.T) {
 	if checked < 2 {
 		t.Fatalf("the scan found %d overlay that hides by class, and the file "+
 			"holds two. The pattern no longer matches the markup.", checked)
+	}
+}
+
+// templates.go holds only the helpers of each page. The view and the render
+// function of a page go in the file of that page.
+func TestTemplatesGoHoldsOnlyTheHelpers(t *testing.T) {
+	f, err := parser.ParseFile(token.NewFileSet(), "templates.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, d := range f.Decls {
+		switch d := d.(type) {
+		case *ast.FuncDecl:
+			got = append(got, d.Name.Name)
+		case *ast.GenDecl:
+			for _, s := range d.Specs {
+				switch s := s.(type) {
+				case *ast.TypeSpec:
+					got = append(got, s.Name.Name)
+				case *ast.ValueSpec:
+					for _, n := range s.Names {
+						got = append(got, n.Name)
+					}
+				}
+			}
+		}
+	}
+	slices.Sort(got)
+	want := []string{"escapeHTML", "escapeJS", "fill", "loadTemplate"}
+	if !slices.Equal(got, want) {
+		t.Errorf("templates.go declares %v, want %v. Put the view and the "+
+			"render function of a page in the file of that page.", got, want)
 	}
 }

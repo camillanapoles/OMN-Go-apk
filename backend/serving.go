@@ -361,3 +361,89 @@ func (w *notFoundInterceptor) Write(b []byte) (int, error) {
 	}
 	return w.ResponseWriter.Write(b)
 }
+
+// --- The 404 page ---
+
+var (
+	notFoundTmpl    = loadTemplate("not_found.html")
+	notEditableTmpl = loadTemplate("not_editable.html")
+)
+
+// notFoundView holds each value of the detailed 404 page. Each field is RAW,
+// and renderNotFoundPage escapes it. An attacker controls the URL and the
+// Referer, thus neither may reach the output without an escape.
+type notFoundView struct {
+	URL       string // path + query, exactly as requested
+	Method    string
+	Time      string
+	Referer   string // "" when absent or not from this server
+	Suggested string // "" when there is no plausible alternative
+}
+
+// safeLocalPath reports whether s can be an href: a path on this server, with
+// no scheme and no "//host". A request header thus cannot become a live link
+// out of the app.
+func safeLocalPath(s string) bool {
+	return strings.HasPrefix(s, "/") && !strings.HasPrefix(s, "//")
+}
+
+// notEditableView holds the values of the "not a text file" page.
+// renderNotEditablePage escapes Path and Type.
+type notEditableView struct {
+	Path string // "/css/OMN-Go/fonts/x.woff2"
+	Type string // the resolved content type, "unknown" when there is none
+}
+
+// renderNotEditablePage makes the page that an editor route sends for a file
+// that is not text. See serveEditor. The view link is the same path without
+// the edit query.
+func renderNotEditablePage(v notEditableView) string {
+	typ := v.Type
+	if typ == "" {
+		typ = "unknown"
+	}
+	return fill(notEditableTmpl, map[string]string{
+		"PATH":     escapeHTML(v.Path),
+		"TYPE":     escapeHTML(typ),
+		"VIEW_URL": escapeHTML(v.Path),
+	})
+}
+
+func renderNotFoundPage(v notFoundView) string {
+	// This block is trusted HTML that this function makes. Escape each value
+	// where it goes in.
+	refererRows := ""
+	if v.Referer != "" {
+		esc := escapeHTML(v.Referer)
+		if safeLocalPath(v.Referer) {
+			refererRows = fmt.Sprintf(`        <dt>Linked from</dt>
+        <dd><a href="%s">%s</a> &middot; <a href="%s?edit=true">edit that page</a></dd>
+`, esc, esc, esc)
+		} else {
+			// Show the Referer, but never as a link. escapeHTML makes it
+			// plain text. In an href, a "javascript:" value would stay live.
+			refererRows = fmt.Sprintf(`        <dt>Linked from</dt>
+        <dd>%s</dd>
+`, esc)
+		}
+	}
+
+	suggestion := ""
+	if v.Suggested != "" && safeLocalPath(v.Suggested) {
+		esc := escapeHTML(v.Suggested)
+		suggestion = fmt.Sprintf(`    <div class="config-field notfound-suggest">
+        <span class="notfound-suggest-label">Did you mean</span>
+        <a href="%s" class="notfound-suggest-link">%s</a>
+        <span class="config-hint">A note of that name exists. A link written as [text](name) asks the server for a file called "name"; note links need the .html suffix - [text](name.html).</span>
+    </div>
+`, esc, esc)
+	}
+
+	return fill(notFoundTmpl, map[string]string{
+		"URL":          escapeHTML(v.URL),
+		"METHOD":       escapeHTML(v.Method),
+		"TIME":         escapeHTML(v.Time),
+		"REFERER_ROWS": refererRows,
+		"SUGGESTION":   suggestion,
+	})
+}
