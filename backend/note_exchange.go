@@ -325,10 +325,7 @@ func sanitizeImportSegment(seg string) string {
 func (a *App) incomingPath(rel string) (string, bool) {
 	root := a.layout().md(incomingDirName)
 	full := filepath.Join(root, filepath.FromSlash(rel))
-	inside, err := filepath.Rel(root, full)
-	if err != nil || inside == ".." ||
-		strings.HasPrefix(inside, ".."+string(filepath.Separator)) ||
-		filepath.IsAbs(inside) {
+	if _, ok := relInside(root, full); !ok {
 		return "", false
 	}
 	return full, true

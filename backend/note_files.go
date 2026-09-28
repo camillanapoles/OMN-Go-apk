@@ -102,14 +102,11 @@ func (a *App) syncNoteFileToMD(htmlPath string) {
 	if !isSyncedNoteFile(htmlPath) {
 		return
 	}
-	htmlRoot := a.layout().html()
-	rel, err := filepath.Rel(htmlRoot, htmlPath)
 	// Stop for a path outside html/. filepath.Join RESOLVES a "../" in a
 	// name, and it does not refuse it. This function must not carry such a
 	// name into md/.
-	if err != nil || rel == "." || rel == ".." ||
-		strings.HasPrefix(rel, ".."+string(filepath.Separator)) ||
-		filepath.IsAbs(rel) {
+	rel, ok := relInside(a.layout().html(), htmlPath)
+	if !ok || rel == "." {
 		return
 	}
 	dst := a.layout().md(rel)

@@ -1,6 +1,9 @@
 package backend
 
-import "path/filepath"
+import (
+	"path/filepath"
+	"strings"
+)
 
 // storageLayout is the storage directory. Its methods name each place in
 // it, thus no other code joins a directory name to StorageDir.
@@ -35,3 +38,29 @@ func (l storageLayout) assetBackups(elem ...string) string { return l.under("ass
 
 // file answers a path below the top of the storage directory.
 func (l storageLayout) file(elem ...string) string { return l.under("", elem) }
+
+// contains tells if p is in the storage directory.
+func (l storageLayout) contains(p string) bool {
+	_, ok := relInside(string(l), p)
+	return ok
+}
+
+// relInside answers the path of p below root. It answers false for a path
+// outside root, for example after a "../" in a name. It is the one
+// containment test of the backend.
+func relInside(root, p string) (string, bool) {
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return "", false
+	}
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		return "", false
+	}
+	rel, err := filepath.Rel(absRoot, abs)
+	if err != nil || rel == ".." || filepath.IsAbs(rel) ||
+		strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return rel, true
+}

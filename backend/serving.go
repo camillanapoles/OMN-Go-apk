@@ -248,20 +248,8 @@ func (a *App) notFoundSuggestion(urlPath string) string {
 	if !isPage || baseName == "" {
 		return ""
 	}
-	root, err := filepath.Abs(a.StorageDir)
-	if err != nil {
-		return ""
-	}
-	within := func(p string) bool {
-		abs, err := filepath.Abs(p)
-		if err != nil {
-			return false
-		}
-		rel, err := filepath.Rel(root, abs)
-		return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
-	}
 	for _, candidate := range []string{htmlPath, mdPath} {
-		if candidate == "" || !within(candidate) {
+		if candidate == "" || !a.layout().contains(candidate) {
 			continue
 		}
 		if stat, err := os.Stat(candidate); err == nil && !stat.IsDir() {

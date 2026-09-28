@@ -14,7 +14,6 @@ import (
 	"io"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -198,22 +197,6 @@ func normalizeQueryField(k string) string {
 	default:
 		return k
 	}
-}
-
-// withinStorage reports whether p stays inside StorageDir. resolvePageName
-// already cleans its input, thus this is a second guard. notFoundSuggestion
-// holds a copy of the same test.
-func (a *App) withinStorage(p string) bool {
-	root, err := filepath.Abs(a.StorageDir)
-	if err != nil {
-		return false
-	}
-	abs, err := filepath.Abs(p)
-	if err != nil {
-		return false
-	}
-	rel, err := filepath.Rel(root, abs)
-	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 // readCapped reads at most max bytes, cut at the last complete line, thus no
