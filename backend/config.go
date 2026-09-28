@@ -295,14 +295,13 @@ type Config struct {
 	LogTags []string `json:"log_tags"`
 }
 
-func (a *App) loadConfig(storageDir string) {
-	a.config.update(func(c *Config) { a.loadConfigLocked(c) })
+// loadConfig reads configPath, the config.json of storageLayout.config.
+func (a *App) loadConfig(configPath string) {
+	a.config.update(func(c *Config) { a.loadConfigLocked(c, configPath) })
 }
 
 // loadConfigLocked fills c from config.json. The caller holds the write lock.
-func (a *App) loadConfigLocked(c *Config) {
-
-	configPath := a.layout().file(configFilename)
+func (a *App) loadConfigLocked(c *Config, configPath string) {
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		*c = Config{
 			// Do not use a literal 8080. The fdroid flavor of Android passes
@@ -419,4 +418,14 @@ func (a *App) applyLogFilter(c Config) {
 		f.tags[logTag(t)] = true
 	}
 	a.logFilter.Store(f)
+}
+
+// maxUploadBytes converts MaxUploadSizeMB to bytes. loadConfig always sets a
+// positive value, thus the fallback below is a guard only.
+func (a *App) maxUploadBytes() int64 {
+	mb := a.config.get().MaxUploadSizeMB
+	if mb <= 0 {
+		mb = defaultMaxUploadSizeMB
+	}
+	return int64(mb) * 1024 * 1024
 }

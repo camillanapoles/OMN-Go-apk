@@ -72,7 +72,7 @@ func TestLoadConfig_PreSearchConfigFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	a.loadConfig(a.StorageDir)
+	a.loadConfig(a.layout().config())
 	cfg := a.config.get()
 
 	if cfg.SearchEnabled {
@@ -91,7 +91,7 @@ func TestLoadConfig_PreSearchConfigFile(t *testing.T) {
 
 func TestLoadConfig_FreshInstallDefaults(t *testing.T) {
 	a := &App{StorageDir: t.TempDir()}
-	a.loadConfig(a.StorageDir)
+	a.loadConfig(a.layout().config())
 
 	cfg := a.config.get()
 	if cfg.SearchEnabled {

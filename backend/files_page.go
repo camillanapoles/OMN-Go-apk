@@ -3,6 +3,7 @@ package backend
 import (
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -190,9 +191,9 @@ func renderFilesListing(v filesPageView) string {
 	if v.Hidden > 0 {
 		fmt.Fprintf(&b, `<p class="files-more">%s not shown `+
 			`<a href="%s">show all %s &rarr;</a></p>`,
-			escapeHTML(itoa(v.Hidden)),
+			escapeHTML(strconv.Itoa(v.Hidden)),
 			escapeHTML(filesPageURL(v.Tree, v.Dir, true)),
-			escapeHTML(itoa(v.Total)))
+			escapeHTML(strconv.Itoa(v.Total)))
 	}
 	return b.String()
 }
@@ -239,7 +240,7 @@ func filesDirNote(tree string, d filesDirRow) (word, color string) {
 		return "", ""
 	}
 	if d.everyShips && !d.anyDevice {
-		return itoa(d.Files) + " " + filesFromTheApp + ", none extracted", filesColorPlain
+		return strconv.Itoa(d.Files) + " " + filesFromTheApp + ", none extracted", filesColorPlain
 	}
-	return itoa(d.shipCount) + " " + filesFromTheApp, filesColorApp
+	return strconv.Itoa(d.shipCount) + " " + filesFromTheApp, filesColorApp
 }

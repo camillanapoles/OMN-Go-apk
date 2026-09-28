@@ -8,7 +8,6 @@ import (
 	"go/types"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 )
@@ -75,19 +74,6 @@ var groupLayers = map[string]int{
 	"files":   4, "exchange": 4, "search": 4, "gitsync": 4, "db": 4,
 	"status": 5,
 	"app":    6,
-}
-
-// knownGroupLinks lists each link that breaks the layer table today. An
-// entry is "file uses name". The list must shrink to empty. Do not add an
-// entry. Remove the link, or connect the two groups with a hook.
-var knownGroupLinks = []string{
-	"config.go uses configFilename",
-	"config.go uses file",
-	"config.go uses layout",
-	"files_index.go uses itoa",
-	"files_page.go uses itoa",
-	"files_state.go uses isLocalOnlyPath",
-	"note_exchange_http.go uses maxUploadBytes",
 }
 
 // groupLinkUses answers each use of a package-level name in another file, as
@@ -187,30 +173,20 @@ func TestEachFileHasAGroup(t *testing.T) {
 	}
 }
 
-// A group uses only groups of a lower layer. The test fails on a new link,
-// and it fails when a known link is gone and its entry stays.
+// A group uses only groups of a lower layer. The test allows no exception.
 func TestGroupsUseOnlyLowerLayers(t *testing.T) {
 	uses := groupLinkUses(t)
 	if uses["config_handlers.go uses renderPage"] != "pages.go" {
 		t.Fatal("the scan did not find a use of renderPage. The scan is broken.")
 	}
-	var found []string
 	for use, to := range uses {
 		from, name, _ := strings.Cut(use, " uses ")
 		gFrom, gTo := fileGroups[from], groupOf(to, name)
 		if gFrom == gTo || groupLayers[gTo] < groupLayers[gFrom] {
 			continue
 		}
-		found = append(found, use)
-		if !slices.Contains(knownGroupLinks, use) {
-			t.Errorf("%s of %s. The group %s (layer %d) cannot use the group %s (layer %d). "+
-				"Remove the link, or connect the two groups with a hook.",
-				use, to, gFrom, groupLayers[gFrom], gTo, groupLayers[gTo])
-		}
-	}
-	for _, k := range knownGroupLinks {
-		if !slices.Contains(found, k) {
-			t.Errorf("the link %q is gone. Remove it from knownGroupLinks.", k)
-		}
+		t.Errorf("%s of %s. The group %s (layer %d) cannot use the group %s (layer %d). "+
+			"Move the name to a lower group, or connect the two groups with a hook "+
+			"in connectGroups.", use, to, gFrom, groupLayers[gFrom], gTo, groupLayers[gTo])
 	}
 }

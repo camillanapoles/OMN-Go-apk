@@ -56,7 +56,7 @@ func (a *App) initStorage(overrideDir string) {
 	a.refreshEmbeddedAssets()
 
 	// 2. Read the configuration.
-	a.loadConfig(a.StorageDir)
+	a.loadConfig(a.layout().config())
 
 	// The index struct exists from the start. It stays empty until a person
 	// turns global search on.

@@ -44,7 +44,7 @@ func portOfConfigFile(t *testing.T, a *App) int {
 func TestFreshInstallUsesTheCallerSuppliedPort(t *testing.T) {
 	a := newUnconfiguredApp(t)
 	a.defaultPort = 8081
-	a.loadConfig(a.StorageDir)
+	a.loadConfig(a.layout().config())
 
 	if a.config.get().ServerPort != 8081 {
 		t.Errorf("in-memory port %d, want 8081", a.config.get().ServerPort)
@@ -60,7 +60,7 @@ func TestFreshInstallUsesTheCallerSuppliedPort(t *testing.T) {
 // Desktop passes 0 and must keep the historical default.
 func TestFreshInstallWithNoCallerDefaultStaysOn8080(t *testing.T) {
 	a := newUnconfiguredApp(t)
-	a.loadConfig(a.StorageDir)
+	a.loadConfig(a.layout().config())
 
 	if a.config.get().ServerPort != 8080 {
 		t.Errorf("port %d, want 8080", a.config.get().ServerPort)
@@ -77,7 +77,7 @@ func TestConfiguredPortBeatsTheFlavorDefault(t *testing.T) {
 	a := newUnconfiguredApp(t)
 	writeConfigJSON(t, a, `{"server_port":9000}`)
 	a.defaultPort = 8081
-	a.loadConfig(a.StorageDir)
+	a.loadConfig(a.layout().config())
 
 	if a.config.get().ServerPort != 9000 {
 		t.Errorf("port %d, want the configured 9000", a.config.get().ServerPort)
@@ -91,7 +91,7 @@ func TestConfigWithoutAPortFallsBackToTheFlavorDefault(t *testing.T) {
 		a := newUnconfiguredApp(t)
 		writeConfigJSON(t, a, src)
 		a.defaultPort = 8081
-		a.loadConfig(a.StorageDir)
+		a.loadConfig(a.layout().config())
 
 		if a.config.get().ServerPort != 8081 {
 			t.Errorf("%s gave port %d, want 8081", src, a.config.get().ServerPort)

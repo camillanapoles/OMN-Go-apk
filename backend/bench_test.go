@@ -49,7 +49,7 @@ func benchApp(tb testing.TB) *App {
 			tb.Fatal(err)
 		}
 	}
-	a.loadConfig(a.StorageDir)
+	a.loadConfig(a.layout().config())
 	a.Router = http.NewServeMux()
 	a.registerRoutes(a.Router)
 	return a

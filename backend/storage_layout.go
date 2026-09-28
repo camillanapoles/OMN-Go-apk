@@ -26,7 +26,17 @@ const (
 
 func (a *App) layout() storageLayout { return storageLayout(a.StorageDir) }
 
+// under joins the parts. Up to two elements need no new slice, and a note
+// path has one. BenchmarkSearchPage counts the allocations.
 func (l storageLayout) under(dir string, elem []string) string {
+	switch len(elem) {
+	case 0:
+		return filepath.Join(string(l), dir)
+	case 1:
+		return filepath.Join(string(l), dir, elem[0])
+	case 2:
+		return filepath.Join(string(l), dir, elem[0], elem[1])
+	}
 	return filepath.Join(append([]string{string(l), dir}, elem...)...)
 }
 
@@ -38,6 +48,8 @@ func (l storageLayout) assetBackups(elem ...string) string { return l.under("ass
 
 // file answers a path below the top of the storage directory.
 func (l storageLayout) file(elem ...string) string { return l.under("", elem) }
+
+func (l storageLayout) config() string { return l.file(configFilename) }
 
 // contains tells if p is in the storage directory.
 func (l storageLayout) contains(p string) bool {

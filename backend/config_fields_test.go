@@ -277,7 +277,7 @@ func TestConfigWithFewGitServersIsPadded(t *testing.T) {
 	} {
 		a := newUnconfiguredApp(t)
 		writeConfigJSON(t, a, tt.file)
-		a.loadConfig(a.StorageDir)
+		a.loadConfig(a.layout().config())
 
 		cfg := a.config.get()
 		if len(cfg.GitServers) != maxGitServers {
@@ -304,7 +304,7 @@ func TestConfigWithFewGitServersIsPadded(t *testing.T) {
 // what covers it.
 func TestFreshInstallHasEveryGitSlot(t *testing.T) {
 	a := newUnconfiguredApp(t)
-	a.loadConfig(a.StorageDir)
+	a.loadConfig(a.layout().config())
 	if got := len(a.config.get().GitServers); got != maxGitServers {
 		t.Errorf("a fresh install has %d slots, want %d", got, maxGitServers)
 	}

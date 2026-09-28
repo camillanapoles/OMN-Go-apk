@@ -101,36 +101,10 @@ var gitignorePatterns = []string{
 	gitignoreLocalOnlyPattern,
 }
 
-// The local-only name rule: a file or a directory with a name that starts
-// with "local-" stays on this device.
-//
-//	html/user_json/local-data.json     a file name
-//	md/local-drafts/Monday.md          a directory name
-//	html/db_backup/local-counters/...  a database backup
-//
-// The match is on a whole path segment, and it is case-sensitive, thus
-// "mylocal-data.json" is a normal file. A commit does not take a local-only
-// file. A force pull keeps it, because cleanUntrackedFiles keeps an ignored
-// file.
-const localOnlyPrefix = "local-"
-
-// gitignoreLocalOnlyPattern is the .gitignore form of the same rule. The
-// pattern has no "/", thus go-git compares it with each segment of a
+// gitignoreLocalOnlyPattern is the .gitignore form of the local-only rule of
+// paths.go. The pattern has no "/", thus go-git compares it with each segment of a
 // path, at each depth.
 const gitignoreLocalOnlyPattern = localOnlyPrefix + "*"
-
-// isLocalOnlyPath tells if the name of the file, or of a directory above it,
-// starts with "local-". It is the rule for the index.
-// gitignoreLocalOnlyPattern is the rule for a new file.
-// TestGitignoreMatchesEachLocalOnlyPath compares the two.
-func isLocalOnlyPath(name string) bool {
-	for _, segment := range strings.Split(filepath.ToSlash(name), "/") {
-		if strings.HasPrefix(segment, localOnlyPrefix) {
-			return true
-		}
-	}
-	return false
-}
 
 // obsoleteGitignoreLines are the lines that ensureGitignore deletes from an
 // existing file.

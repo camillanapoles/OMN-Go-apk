@@ -30,7 +30,7 @@ import (
 // <StorageDir>/html/db_backup/<db>/<UTCtimestamp>_<hostname>.jsonl. Under
 // html/, the server sends it, thus a download link works, and git tracks it.
 // A database named local-* stays out of git through the local-only name rule.
-// See localOnlyPrefix in git_repo.go.
+// See localOnlyPrefix in paths.go.
 //
 // The file format, version 2, has one JSON object on each line:
 //

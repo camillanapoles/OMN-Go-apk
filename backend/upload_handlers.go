@@ -73,16 +73,6 @@ func (a *App) saveUploadedFile(r *http.Request, formField, destDir string, allow
 	return header.Filename, nil
 }
 
-// maxUploadBytes converts MaxUploadSizeMB to bytes. loadConfig always sets a
-// positive value, thus the fallback below is a guard only.
-func (a *App) maxUploadBytes() int64 {
-	mb := a.config.get().MaxUploadSizeMB
-	if mb <= 0 {
-		mb = defaultMaxUploadSizeMB
-	}
-	return int64(mb) * 1024 * 1024
-}
-
 // writeUploadError answers an uploadRejected with 400 and its reason. Each
 // other failure gets 500 with a general text. The answer never holds the
 // detail of a server fault.

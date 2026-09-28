@@ -27,6 +27,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -480,5 +481,5 @@ func filesCountLabel(n int) string {
 	if n == 1 {
 		return "1 file"
 	}
-	return itoa(n) + " files"
+	return strconv.Itoa(n) + " files"
 }
