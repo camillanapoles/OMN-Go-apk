@@ -28,7 +28,7 @@ import (
 // resolvePageName answers the same path for a page, and TestPageHTMLPath
 // compares the two.
 func (a *App) pageHTMLPath(name string) string {
-	return filepath.Join(a.StorageDir, "html", filepath.FromSlash(containedName(name)+".html"))
+	return a.layout().html(filepath.FromSlash(containedName(name) + ".html"))
 }
 
 // renderAndCache compiles a page and writes html/<name>.html. It is the ONLY

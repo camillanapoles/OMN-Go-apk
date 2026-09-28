@@ -251,7 +251,7 @@ func (a *App) statusRuntimeSection() *statusRuntime {
 	runtime.ReadMemStats(&mem)
 
 	stamp := ""
-	if raw, err := os.ReadFile(filepath.Join(a.StorageDir, assetsVersionFilename)); err == nil {
+	if raw, err := os.ReadFile(a.layout().file(assetsVersionFilename)); err == nil {
 		stamp = strings.TrimSpace(string(raw))
 	}
 	return &statusRuntime{

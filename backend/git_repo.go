@@ -158,7 +158,7 @@ var obsoleteGitignoreLines = map[string]bool{
 }
 
 func (a *App) ensureGitignore() {
-	gitignorePath := filepath.Join(a.StorageDir, ".gitignore")
+	gitignorePath := a.layout().file(gitignoreFilename)
 	gitignoreBase := "# OMN-Go sync ignore\n" + strings.Join(gitignorePatterns, "\n") + "\n"
 	content, err := os.ReadFile(gitignorePath)
 	if os.IsNotExist(err) {
@@ -398,7 +398,7 @@ func (a *App) loadGitignoreMatcher(wt *git.Worktree) (gitignore.Matcher, error) 
 // manualStageFile writes the file into a new blob and sets its index entry.
 // It does not use Add of go-git.
 func (a *App) manualStageFile(repo *git.Repository, wt *git.Worktree, name string) error {
-	fullPath := filepath.Join(a.StorageDir, name)
+	fullPath := a.layout().file(name)
 	stat, err := os.Lstat(fullPath)
 	if err != nil {
 		return err
@@ -507,7 +507,7 @@ func (a *App) protectGitDirs() {
 		return
 	}
 	for _, dir := range []string{"objects"} {
-		p := filepath.Join(a.StorageDir, ".git", dir)
+		p := a.layout().git(dir)
 		if err := os.MkdirAll(p, 0755); err != nil {
 			a.logErrf(logSync, "MkdirAll %s failed: %v", p, err)
 			continue

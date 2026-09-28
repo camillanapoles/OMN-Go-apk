@@ -100,13 +100,13 @@ func backupOrder(name string) (stamp string, counter int) {
 }
 
 func dbBackupRoot(a *App) string {
-	return filepath.Join(a.StorageDir, "html", "db_backup")
+	return a.layout().html("db_backup")
 }
 func (a *App) dbBackupDir(name string) string {
 	return filepath.Join(dbBackupRoot(a), name)
 }
 func (a *App) userDBPath(name string) string {
-	return filepath.Join(a.StorageDir, "db", name+".sqlite")
+	return a.layout().db(name + ".sqlite")
 }
 
 // relStoragePath changes an absolute path under StorageDir into the relative

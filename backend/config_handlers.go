@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -133,7 +132,7 @@ func (a *App) persistConfig(cfg Config) error {
 		a.logErrf(logConfig, "persistConfig: failed to marshal the configuration: %v", err)
 		return err
 	}
-	configPath := filepath.Join(a.StorageDir, "config.json")
+	configPath := a.layout().file(configFilename)
 	if err := os.WriteFile(configPath, data, 0644); err != nil {
 		a.logErrf(logConfig, "persistConfig: failed to write %s: %v", configPath, err)
 		return err

@@ -23,28 +23,28 @@ func (a *App) searchRoots(kinds []string) []searchRoot {
 	if want[SearchKindMD] || want[SearchKindBookmarks] {
 		roots = append(roots, searchRoot{
 			kind: SearchKindMD,
-			dir:  filepath.Join(a.StorageDir, "md"),
+			dir:  a.layout().md(),
 			exts: []string{".md"},
 		})
 	}
 	if want[SearchKindJS] {
 		roots = append(roots, searchRoot{
 			kind: SearchKindJS,
-			dir:  filepath.Join(a.StorageDir, "html", "js"),
+			dir:  a.layout().html("js"),
 			exts: []string{".js"},
 		})
 	}
 	if want[SearchKindJSON] {
 		roots = append(roots, searchRoot{
 			kind: SearchKindJSON,
-			dir:  filepath.Join(a.StorageDir, "html", "json"),
+			dir:  a.layout().html("json"),
 			exts: []string{".json"},
 		})
 	}
 	if want[SearchKindUserJSON] {
 		roots = append(roots, searchRoot{
 			kind: SearchKindUserJSON,
-			dir:  filepath.Join(a.StorageDir, "html", "user_json"),
+			dir:  a.layout().html("user_json"),
 			exts: []string{".json", ".jsonl"},
 		})
 	}

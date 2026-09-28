@@ -51,6 +51,7 @@ Do not remove a constraint without an instruction from the maintainer.
    `parseHeaderBlock` is the only header-block parser. `renderAndCache` is the only
    writer of `html/<name>.html`. `resolvePageName` is the only name resolver.
    `hasRole` is the only role check. `systemPages` is the only page-access table.
+   `storageLayout` is the only code that joins a name to `StorageDir`.
    `resolveContentType` is the only MIME resolver.
    `hasKnownAssetExtension` is the only note-or-file test.
    Do not add a second implementation. Extend the first one.

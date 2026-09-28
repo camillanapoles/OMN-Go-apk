@@ -149,7 +149,7 @@ var retiredAssetDirs = []string{
 func (a *App) removeRetiredAssets(backupDir string) int {
 	removed := 0
 	for _, rel := range append(append([]string(nil), retiredAssets...), retiredFonts...) {
-		diskPath := filepath.Join(a.StorageDir, filepath.FromSlash(rel))
+		diskPath := a.layout().file(filepath.FromSlash(rel))
 		diskData, rerr := os.ReadFile(diskPath)
 		if rerr != nil {
 			continue // absent, which is the normal state after the first run
@@ -181,7 +181,7 @@ func (a *App) removeRetiredAssets(backupDir string) int {
 	}
 
 	for _, rel := range retiredAssetDirs {
-		dirPath := filepath.Join(a.StorageDir, filepath.FromSlash(rel))
+		dirPath := a.layout().file(filepath.FromSlash(rel))
 		if err := os.Remove(dirPath); err == nil {
 			a.logInfof(logAssets, "removed the empty directory %s", rel)
 		}
@@ -205,7 +205,7 @@ func (a *App) refreshEmbeddedAssets() {
 	// The flag reports the work of this start only.
 	assetsRefreshed.Store(false)
 
-	verFile := filepath.Join(a.StorageDir, assetsVersionFilename)
+	verFile := a.layout().file(assetsVersionFilename)
 	prevRaw, _ := os.ReadFile(verFile) // missing file => "" => first run
 	prev := strings.TrimSpace(string(prevRaw))
 	if prev == APP_VERSION {
@@ -219,7 +219,7 @@ func (a *App) refreshEmbeddedAssets() {
 	}
 	prevLabel = backupLabelSanitizer.ReplaceAllString(prevLabel, "_")
 
-	backupDir := filepath.Join(a.StorageDir, "asset_backups", prevLabel)
+	backupDir := a.layout().assetBackups(prevLabel)
 
 	// Delete the old copies BEFORE the install loop. A reader of the storage
 	// directory must never see two copies of one script. See retiredAssets.
@@ -232,7 +232,7 @@ func (a *App) refreshEmbeddedAssets() {
 			a.logErrf(logAssets, "%s not embedded in this build: %v", rel, eerr)
 			continue
 		}
-		diskPath := filepath.Join(a.StorageDir, filepath.FromSlash(rel))
+		diskPath := a.layout().file(filepath.FromSlash(rel))
 
 		diskData, rerr := os.ReadFile(diskPath)
 		if rerr == nil && bytes.Equal(diskData, embedData) {

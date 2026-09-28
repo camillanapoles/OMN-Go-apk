@@ -32,7 +32,6 @@ import (
 	"encoding/hex"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -67,7 +66,7 @@ const (
 // the key stays in memory until the process stops.
 func (a *App) sessionSecret() []byte {
 	a.sessionOnce.Do(func() {
-		path := filepath.Join(a.StorageDir, sessionSecretFilename)
+		path := a.layout().file(sessionSecretFilename)
 
 		if data, err := os.ReadFile(path); err == nil {
 			key, decErr := hex.DecodeString(strings.TrimSpace(string(data)))

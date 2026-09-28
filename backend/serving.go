@@ -154,7 +154,7 @@ func (a *App) materializeAsset(urlPath string) (physPath string, ok bool) {
 	if moved, isLegacy := legacyAssetURL(filepath.ToSlash(clean)); isLegacy {
 		clean = filepath.FromSlash(moved)
 	}
-	physPath = filepath.Join(a.StorageDir, "html", clean)
+	physPath = a.layout().html(clean)
 
 	if stat, err := os.Stat(physPath); err == nil {
 		if stat.IsDir() {
@@ -196,7 +196,7 @@ func (a *App) serveEmbeddableAsset(w http.ResponseWriter, r *http.Request, urlPa
 // resolveContentType decides for each file. The binary embeds none of these
 // files, thus there is no extraction.
 func (a *App) serveStorageSubdir(subDir, forcedType string) http.Handler {
-	dirPath := filepath.Join(a.StorageDir, "html", subDir)
+	dirPath := a.layout().html(subDir)
 	os.MkdirAll(dirPath, 0755)
 	fsHandler := http.StripPrefix("/"+subDir+"/", http.FileServer(http.Dir(dirPath)))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

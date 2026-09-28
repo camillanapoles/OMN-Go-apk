@@ -307,12 +307,12 @@ func (a *App) filesDiskPath(tree, logical string) string {
 	if tree == filesTreeSource {
 		sub = "md"
 	}
-	return filepath.Join(a.StorageDir, sub, filepath.FromSlash(logical))
+	return a.layout().file(sub, filepath.FromSlash(logical))
 }
 
 // filesStat reads one file of the storage tree for the .txt comparison.
 func (a *App) filesStat(sub, logical string) *indexedFile {
-	st, err := os.Stat(filepath.Join(a.StorageDir, sub, filepath.FromSlash(logical)))
+	st, err := os.Stat(a.layout().file(sub, filepath.FromSlash(logical)))
 	if err != nil || st.IsDir() {
 		return nil
 	}

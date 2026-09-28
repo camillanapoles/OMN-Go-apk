@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -300,7 +299,7 @@ func (a *App) loadConfig(storageDir string) {
 	a.ConfigMutex.Lock()
 	defer a.ConfigMutex.Unlock()
 
-	configPath := filepath.Join(a.StorageDir, "config.json")
+	configPath := a.layout().file(configFilename)
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		a.Config = Config{
 			// Do not use a literal 8080. The fdroid flavor of Android passes

@@ -98,7 +98,7 @@ func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport
 		if newPaths[p] {
 			continue
 		}
-		full := filepath.Join(a.StorageDir, p)
+		full := a.layout().file(p)
 		if err := os.Remove(full); err != nil && !os.IsNotExist(err) {
 			a.logErrf(logSync, "pull: failed to remove file no longer tracked upstream (%s): %v", p, err)
 		} else {
@@ -310,7 +310,7 @@ func (a *App) syncPullForce(repo *git.Repository, wTree *git.Worktree, auth tran
 	a.logInfof(logSync, "Force pull: fetching %s", remoteName)
 
 	if runtime.GOOS == "android" {
-		tmpDir := filepath.Join(a.StorageDir, ".git", "tmp")
+		tmpDir := a.layout().git("tmp")
 		os.MkdirAll(tmpDir, 0755)
 		os.Setenv("TMPDIR", tmpDir)
 		a.ensureGitignore()
@@ -351,7 +351,7 @@ func (a *App) syncPullForce(repo *git.Repository, wTree *git.Worktree, auth tran
 		if newPaths[p] {
 			continue
 		}
-		full := filepath.Join(a.StorageDir, p)
+		full := a.layout().file(p)
 		if err := os.Remove(full); err != nil && !os.IsNotExist(err) {
 			a.logErrf(logSync, "force pull: failed to remove file no longer tracked upstream (%s): %v", p, err)
 		} else {

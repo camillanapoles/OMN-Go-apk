@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 
@@ -55,7 +54,7 @@ func (e *errHostKeyChanged) Error() string {
 }
 
 func (a *App) knownHostsPath() string {
-	return filepath.Join(a.StorageDir, knownHostsFilename)
+	return a.layout().file(knownHostsFilename)
 }
 
 // knownHostKeys answers the stored keys of host. The caller holds mu.

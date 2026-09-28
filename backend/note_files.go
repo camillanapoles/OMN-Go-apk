@@ -56,8 +56,8 @@ func isSyncedNoteFile(name string) bool {
 // one to copy. It runs at once, because a link tap in the first second must
 // find the copy.
 func (a *App) syncNoteFilesToHTML() {
-	mdRoot := filepath.Join(a.StorageDir, "md")
-	htmlRoot := filepath.Join(a.StorageDir, "html")
+	mdRoot := a.layout().md()
+	htmlRoot := a.layout().html()
 	copied := 0
 
 	filepath.WalkDir(mdRoot, func(p string, d fs.DirEntry, err error) error {
@@ -102,7 +102,7 @@ func (a *App) syncNoteFileToMD(htmlPath string) {
 	if !isSyncedNoteFile(htmlPath) {
 		return
 	}
-	htmlRoot := filepath.Join(a.StorageDir, "html")
+	htmlRoot := a.layout().html()
 	rel, err := filepath.Rel(htmlRoot, htmlPath)
 	// Stop for a path outside html/. filepath.Join RESOLVES a "../" in a
 	// name, and it does not refuse it. This function must not carry such a
@@ -112,7 +112,7 @@ func (a *App) syncNoteFileToMD(htmlPath string) {
 		filepath.IsAbs(rel) {
 		return
 	}
-	dst := filepath.Join(a.StorageDir, "md", rel)
+	dst := a.layout().md(rel)
 	if copyErr := copyFileWithTime(htmlPath, dst); copyErr != nil {
 		a.logErrf(logNoteFiles, "html/%s to md/: %v", filepath.ToSlash(rel), copyErr)
 	}

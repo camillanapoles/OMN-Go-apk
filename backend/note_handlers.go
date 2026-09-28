@@ -138,7 +138,7 @@ func (a *App) handleQuickNote(w http.ResponseWriter, r *http.Request) {
 	if note == "" {
 		return
 	}
-	path := filepath.Join(a.StorageDir, "md", "QuickNotes.md")
+	path := a.layout().md("QuickNotes.md")
 	data, _ := os.ReadFile(path)
 	lines := strings.Split(string(data), "\n")
 
@@ -172,7 +172,7 @@ func (a *App) handleBookmark(w http.ResponseWriter, r *http.Request) {
 	tags := r.FormValue("tags")
 	notes := r.FormValue("notes")
 
-	path := filepath.Join(a.StorageDir, "md", "Bookmarks.md")
+	path := a.layout().md("Bookmarks.md")
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
 
 	tagsList := []string{}
@@ -303,7 +303,7 @@ func (a *App) handleNewPage(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now().Format("2006-01-02 15:04:05")
 
-	targetMdPath := filepath.Join(a.StorageDir, "md", target+".md")
+	targetMdPath := a.layout().md(target + ".md")
 	if _, err := os.Stat(targetMdPath); os.IsNotExist(err) {
 		authorLine := ""
 		if a.GetConfig().Author != "" {
@@ -315,7 +315,7 @@ func (a *App) handleNewPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if source != "" {
-		sourceMdPath := filepath.Join(a.StorageDir, "md", source+".md")
+		sourceMdPath := a.layout().md(source + ".md")
 		sourceData, err := os.ReadFile(sourceMdPath)
 		if err == nil {
 			content := string(sourceData)

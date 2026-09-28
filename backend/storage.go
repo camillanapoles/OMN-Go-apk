@@ -28,14 +28,14 @@ func (a *App) initStorage(overrideDir string) {
 		a.logErrf(logStorage, "Failed to create storage: %v", err)
 	}
 
-	mdDir := filepath.Join(a.StorageDir, "md")
+	mdDir := a.layout().md()
 	os.MkdirAll(mdDir, 0755)
 
-	htmlDir := filepath.Join(a.StorageDir, "html")
+	htmlDir := a.layout().html()
 	os.MkdirAll(htmlDir, 0755)
 
 	// Move the .md files at the root of an old storage layout into md/.
-	files, _ := filepath.Glob(filepath.Join(a.StorageDir, "*.md"))
+	files, _ := filepath.Glob(a.layout().file("*.md"))
 	for _, f := range files {
 		os.Rename(f, filepath.Join(mdDir, filepath.Base(f)))
 	}
@@ -43,7 +43,7 @@ func (a *App) initStorage(overrideDir string) {
 	// Move the static directories of an old layout into html/.
 	dirsToMove := []string{"images", "user_json", "css", "js", "json", "fonts"}
 	for _, d := range dirsToMove {
-		oldPath := filepath.Join(a.StorageDir, d)
+		oldPath := a.layout().file(d)
 		newPath := filepath.Join(htmlDir, d)
 		if stat, err := os.Stat(oldPath); err == nil && stat.IsDir() {
 			os.Rename(oldPath, newPath)
@@ -149,8 +149,8 @@ Tags: Bookmarks
 }
 
 func (a *App) precompileAllPages() {
-	mdDir := filepath.Join(a.StorageDir, "md")
-	htmlDir := filepath.Join(a.StorageDir, "html")
+	mdDir := a.layout().md()
+	htmlDir := a.layout().html()
 	os.MkdirAll(htmlDir, 0755)
 
 	// This runs in the background at the start. serveHTMLPage compiles a note

@@ -97,7 +97,7 @@ func (a *App) writeUploadError(w http.ResponseWriter, logPrefix string, err erro
 }
 
 func (a *App) handleUpload(w http.ResponseWriter, r *http.Request) {
-	imgDir := filepath.Join(a.StorageDir, "html", "images")
+	imgDir := a.layout().html("images")
 	filename, err := a.saveUploadedFile(r, "image", imgDir, imageUploadExtensions, a.maxUploadBytes())
 	if err != nil {
 		a.writeUploadError(w, "handleUpload", err)
@@ -111,7 +111,7 @@ func (a *App) handleUpload(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleUploadJSON(w http.ResponseWriter, r *http.Request) {
-	jsonDir := filepath.Join(a.StorageDir, "html", "user_json")
+	jsonDir := a.layout().html("user_json")
 	filename, err := a.saveUploadedFile(r, "file", jsonDir, jsonUploadExtensions, a.maxUploadBytes())
 	if err != nil {
 		a.writeUploadError(w, "handleUploadJSON", err)

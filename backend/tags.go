@@ -88,7 +88,7 @@ type tagPageRef struct {
 // OMNGoTags itself, the md/local scratch tree, a note with no tag and a file
 // that it cannot read. A tag that a note names twice counts one time.
 func (a *App) buildTagIndex() map[string][]tagPageRef {
-	mdRoot := filepath.Join(a.StorageDir, "md")
+	mdRoot := a.layout().md()
 	index := map[string][]tagPageRef{}
 
 	_ = filepath.WalkDir(mdRoot, func(p string, d fs.DirEntry, walkErr error) error {
@@ -208,7 +208,7 @@ func (a *App) generateTagsPage() error {
 			len(index), time.Since(started).Round(time.Millisecond))
 	}()
 
-	mdRoot := filepath.Join(a.StorageDir, "md")
+	mdRoot := a.layout().md()
 	if err := os.MkdirAll(mdRoot, 0755); err != nil {
 		return fmt.Errorf("tags: mkdir md: %w", err)
 	}
@@ -226,7 +226,7 @@ func (a *App) generateTagsPage() error {
 // directory, and maybe of no file. It skips OMNGoTags.md and md/local. It
 // uses stat only, and it answers the zero time when it cannot walk md/.
 func (a *App) newestNoteMtime() time.Time {
-	mdRoot := filepath.Join(a.StorageDir, "md")
+	mdRoot := a.layout().md()
 	var newest time.Time
 	consider := func(d fs.DirEntry) {
 		if info, err := d.Info(); err == nil && info.ModTime().After(newest) {

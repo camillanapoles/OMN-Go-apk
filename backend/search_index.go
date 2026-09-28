@@ -307,7 +307,7 @@ func (a *App) snapshotDocs() []*indexedDoc {
 
 // storagePath maps a storage-relative path of a document to disk.
 func (a *App) storagePath(rel string) string {
-	return filepath.Join(a.StorageDir, filepath.FromSlash(rel))
+	return a.layout().file(filepath.FromSlash(rel))
 }
 
 // reloadDocument reads an indexed document again, and answers its full search

@@ -95,7 +95,7 @@ func (a *App) handleDBBackupList(w http.ResponseWriter, r *http.Request) {
 	// Take each database that has a .sqlite file or only backups, as on a
 	// fresh device before the first open.
 	names := map[string]bool{}
-	if entries, err := os.ReadDir(filepath.Join(a.StorageDir, "db")); err == nil {
+	if entries, err := os.ReadDir(a.layout().db()); err == nil {
 		for _, e := range entries {
 			if !e.IsDir() && strings.HasSuffix(e.Name(), ".sqlite") {
 				n := strings.TrimSuffix(e.Name(), ".sqlite")

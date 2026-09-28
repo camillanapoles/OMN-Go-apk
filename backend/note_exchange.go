@@ -323,7 +323,7 @@ func sanitizeImportSegment(seg string) string {
 // result stays inside. filepath.Join resolves a "..", and it does not refuse
 // it.
 func (a *App) incomingPath(rel string) (string, bool) {
-	root := filepath.Join(a.StorageDir, "md", incomingDirName)
+	root := a.layout().md(incomingDirName)
 	full := filepath.Join(root, filepath.FromSlash(rel))
 	inside, err := filepath.Rel(root, full)
 	if err != nil || inside == ".." ||
@@ -424,7 +424,7 @@ func incomingLabel(title, base, index string) string {
 // md/incoming/incoming.md: below the marker, or first in the body. The link
 // target is relative to the index directory.
 func (a *App) addIncomingIndexLine(res importResult, now time.Time) error {
-	dir := filepath.Join(a.StorageDir, "md", incomingDirName)
+	dir := a.layout().md(incomingDirName)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
@@ -486,7 +486,7 @@ func incomingIndexStarter(now time.Time) string {
 // and each import call it. On the desktop, the receive box is how the first
 // note arrives, thus the page must exist before the first import.
 func (a *App) ensureIncomingIndex(now time.Time) error {
-	dir := filepath.Join(a.StorageDir, "md", incomingDirName)
+	dir := a.layout().md(incomingDirName)
 	indexPath := filepath.Join(dir, incomingIndexBase+".md")
 	if fileExists(indexPath) {
 		return nil

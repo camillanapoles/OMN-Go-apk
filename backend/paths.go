@@ -52,13 +52,13 @@ func (a *App) resolvePageName(name string) (mdPath, htmlPath, baseName string, i
 		// The name ends in an extension that this install serves as a file.
 		// See hasKnownAssetExtension.
 		name = containedName(name)
-		return "", filepath.Join(a.StorageDir, "html", filepath.FromSlash(name)), name, false
+		return "", a.layout().html(filepath.FromSlash(name)), name, false
 	}
 
 	// pageHTMLPath in render_cache.go is the one formula for the path of a
 	// compiled page.
 	baseName = containedName(baseName)
-	mdPath = filepath.Join(a.StorageDir, "md", filepath.FromSlash(baseName+".md"))
+	mdPath = a.layout().md(filepath.FromSlash(baseName + ".md"))
 	htmlPath = a.pageHTMLPath(baseName)
 	return mdPath, htmlPath, baseName, true
 }
