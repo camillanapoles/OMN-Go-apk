@@ -122,6 +122,10 @@ update these files.
 * The driver is `modernc.org/sqlite`, because it is pure Go and works with
   `CGO_ENABLED=0`.
 * **Use one package.** Split the code by file and by concern, not by package.
+  Each production file belongs to one group of `fileGroups` in
+  `backend/group_links_test.go`. A group uses only the groups of a lower layer.
+  `TestGroupsUseOnlyLowerLayers` holds the rule. Do not add an entry to
+  `knownGroupLinks`.
 * **Keep the exported surface small.** Export only what the Android layer or the desktop
   entry point calls. The Android layer calls `StartServer`, `AssetsRefreshed`,
   `SetAndroidPackage` and `SetLANAddresses`. `main_desktop.go` calls `StartServer`,

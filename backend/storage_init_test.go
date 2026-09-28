@@ -381,13 +381,19 @@ func TestInitStorageSurvivesADirectoryItCannotMake(t *testing.T) {
 // renderAndCache does not call the search index. initStorage connects the two
 // through onPageWritten, and a page write then marks the index dirty.
 func TestAPageWriteMarksTheIndexDirty(t *testing.T) {
-	a := &App{}
-	a.initStorage(t.TempDir())
+	a, dir := siApp(t)
+	a.initStorage(dir)
+	// precompileAllPages runs in the background, thus the lock guards dirty.
+	a.search.mu.Lock()
 	a.search.dirty = false
+	a.search.mu.Unlock()
 	if _, err := a.renderAndCache("Note", []byte("Title: Note\n\nbody\n")); err != nil {
 		t.Fatal(err)
 	}
-	if !a.search.dirty {
+	a.search.mu.RLock()
+	dirty := a.search.dirty
+	a.search.mu.RUnlock()
+	if !dirty {
 		t.Error("a page write did not mark the search index dirty")
 	}
 }
