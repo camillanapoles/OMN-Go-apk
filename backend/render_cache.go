@@ -44,9 +44,10 @@ func (a *App) renderAndCache(name string, content []byte) ([]byte, error) {
 	if err := os.WriteFile(htmlPath, compiled, 0644); err != nil {
 		return compiled, fmt.Errorf("cache %q: write: %w", name, err)
 	}
-	// Each change of a note inside the process comes here, thus this is the
-	// one place that tells the search index about it. It only skips the wait
-	// for the next stat walk.
-	a.markSearchIndexDirty()
+	// Each change of a note inside the process comes here. The hook tells
+	// the other parts of the app, for example the search index.
+	if a.onPageWritten != nil {
+		a.onPageWritten(name)
+	}
 	return compiled, nil
 }

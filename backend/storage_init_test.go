@@ -377,3 +377,17 @@ func TestInitStorageSurvivesADirectoryItCannotMake(t *testing.T) {
 		t.Error("the storage directory is empty after the fault")
 	}
 }
+
+// renderAndCache does not call the search index. initStorage connects the two
+// through onPageWritten, and a page write then marks the index dirty.
+func TestAPageWriteMarksTheIndexDirty(t *testing.T) {
+	a := &App{}
+	a.initStorage(t.TempDir())
+	a.search.dirty = false
+	if _, err := a.renderAndCache("Note", []byte("Title: Note\n\nbody\n")); err != nil {
+		t.Fatal(err)
+	}
+	if !a.search.dirty {
+		t.Error("a page write did not mark the search index dirty")
+	}
+}

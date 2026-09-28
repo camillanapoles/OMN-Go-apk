@@ -35,6 +35,11 @@ type App struct {
 	// search is on.
 	search *searchIndex
 
+	// onPageWritten is the hook of renderAndCache. The page cache thus does
+	// not call the search index. initStorage sets the hook, and a nil hook
+	// does nothing.
+	onPageWritten func(name string)
+
 	// defaultPort is the port of the flavor, for a config.json with no port.
 	// 0 means 8080. Only loadConfig can apply it: see fallbackPort.
 	defaultPort int

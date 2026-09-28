@@ -207,9 +207,9 @@ func (a *App) commonWords() map[string]bool {
 	return a.search.common
 }
 
-// renderAndCache calls markSearchIndexDirty. Each change of a note inside the
-// process goes through that one writer. Examples are a save, a quick note, a
-// bookmark, a sync and a precompile.
+// initStorage sets markSearchIndexDirty as the hook onPageWritten. Each change
+// of a note inside the process goes through renderAndCache, which calls the
+// hook. Examples are a save, a quick note, a bookmark, a sync and a precompile.
 func (a *App) markSearchIndexDirty() {
 	if a.search == nil {
 		return
