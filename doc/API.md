@@ -1354,7 +1354,7 @@ es.onmessage = e => console.log(e.data);
 The last 500 log lines, oldest first. **Admin only.**
 
 The stream above is a live sample. A page that opens after an event never
-sees the lines of it. This endpoint answers a ring that `broadcastLogLine`
+sees the lines of it. This endpoint answers a ring that `logHub.broadcast`
 fills, so a person can read what happened before the page was open.
 
 **It carries every line**, the same as the stream. The `log_debug`,

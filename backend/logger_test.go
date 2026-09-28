@@ -86,20 +86,8 @@ func TestNoDirectLogPrintf(t *testing.T) {
 func TestEmitLogLineShape(t *testing.T) {
 	a := newTestApp(t)
 
-	ch := make(chan string, 4)
-	logMutex.Lock()
-	logClients = append(logClients, ch)
-	logMutex.Unlock()
-	defer func() {
-		logMutex.Lock()
-		for i, c := range logClients {
-			if c == ch {
-				logClients = append(logClients[:i], logClients[i+1:]...)
-				break
-			}
-		}
-		logMutex.Unlock()
-	}()
+	ch := a.logs.subscribe()
+	defer a.logs.unsubscribe(ch)
 
 	a.log(logSync).debugf("Staging file: %s", "Note.md")
 	a.log(logAssets).infof("%d asset(s) refreshed", 3)
@@ -213,29 +201,17 @@ func TestLogLineEnabled(t *testing.T) {
 // The history ring
 // ----------------------------------------------------------------------
 //
-// The ring is package state, the same as logClients. Each test of this
-// package writes lines into it, thus a test of the ring clears it first.
-// lgClearHistory does that under the same lock that a writer takes.
-
-// lgClearHistory empties the ring. It is a test helper, and no line of
-// the application clears the ring.
-func lgClearHistory(t *testing.T) {
-	t.Helper()
-	logMutex.Lock()
-	defer logMutex.Unlock()
-	logHistory = [logHistoryCap]string{}
-	logHistoryNext = 0
-	logHistoryCount = 0
-}
+// Each App holds its own ring in its logHub. A test of the ring thus starts
+// with an empty ring, and no other test writes into it.
 
 // The ring keeps the lines in the order that they arrived.
 func TestLogHistoryKeepsTheOrder(t *testing.T) {
-	lgClearHistory(t)
+	h := &logHub{}
 	for _, line := range []string{"first\n", "second\n", "third\n"} {
-		broadcastLogLine(line, false)
+		h.broadcast(line, false)
 	}
 
-	got := logHistorySnapshot()
+	got := h.snapshot()
 	want := []string{"first\n", "second\n", "third\n"}
 	if len(got) != len(want) {
 		t.Fatalf("the ring holds %d lines, want %d: %q", len(got), len(want), got)
@@ -252,12 +228,12 @@ func TestLogHistoryKeepsTheOrder(t *testing.T) {
 // A log that stops at its cap keeps the start of the session and loses
 // the fault. The fault is the half that a person needs.
 func TestLogHistoryKeepsTheNewestLines(t *testing.T) {
-	lgClearHistory(t)
+	h := &logHub{}
 	for i := 0; i < logHistoryCap+25; i++ {
-		broadcastLogLine(fmt.Sprintf("line %d\n", i), false)
+		h.broadcast(fmt.Sprintf("line %d\n", i), false)
 	}
 
-	got := logHistorySnapshot()
+	got := h.snapshot()
 	if len(got) != logHistoryCap {
 		t.Fatalf("the ring holds %d lines, want the cap of %d", len(got), logHistoryCap)
 	}
@@ -275,7 +251,6 @@ func TestLogHistoryKeepsTheNewestLines(t *testing.T) {
 // lines of that moment more than anybody. The switches say what a reader
 // wants to SEE, and never what the application keeps.
 func TestLogHistoryHoldsASuppressedLine(t *testing.T) {
-	lgClearHistory(t)
 	a := newTestApp(t)
 	a.applyLogFilter(Config{LogDebug: false, LogInfo: false, LogTags: []string{}})
 
@@ -284,7 +259,7 @@ func TestLogHistoryHoldsASuppressedLine(t *testing.T) {
 	}
 	a.log(logSync).debugf("a step that stdout never shows")
 
-	for _, line := range logHistorySnapshot() {
+	for _, line := range a.logs.snapshot() {
 		if strings.Contains(line, "a step that stdout never shows") {
 			return
 		}
@@ -295,16 +270,16 @@ func TestLogHistoryHoldsASuppressedLine(t *testing.T) {
 // The snapshot is a copy. A caller that changes it changes no line of
 // the ring.
 func TestLogHistorySnapshotIsACopy(t *testing.T) {
-	lgClearHistory(t)
-	broadcastLogLine("the real line\n", false)
+	h := &logHub{}
+	h.broadcast("the real line\n", false)
 
-	first := logHistorySnapshot()
+	first := h.snapshot()
 	if len(first) != 1 {
 		t.Fatalf("the ring holds %d lines, want 1", len(first))
 	}
 	first[0] = "a line that a caller wrote"
 
-	second := logHistorySnapshot()
+	second := h.snapshot()
 	if second[0] != "the real line\n" {
 		t.Errorf("the ring now holds %q, thus the snapshot shares its memory", second[0])
 	}
@@ -312,11 +287,11 @@ func TestLogHistorySnapshotIsACopy(t *testing.T) {
 
 // Two goroutines writing at once must not race, and no line may be lost.
 //
-// Run this one with -race. broadcastLogLine takes logMutex, and
-// recordLogLine runs under it. A ring outside that lock is a data race
+// Run this one with -race. broadcast takes mu, and record runs under
+// it. A ring outside that lock is a data race
 // that a test without -race never reports.
 func TestLogHistoryUnderConcurrentWriters(t *testing.T) {
-	lgClearHistory(t)
+	h := &logHub{}
 	const writers, each = 8, 20
 
 	var wg sync.WaitGroup
@@ -325,7 +300,7 @@ func TestLogHistoryUnderConcurrentWriters(t *testing.T) {
 		go func(w int) {
 			defer wg.Done()
 			for i := 0; i < each; i++ {
-				broadcastLogLine(fmt.Sprintf("writer %d line %d\n", w, i), false)
+				h.broadcast(fmt.Sprintf("writer %d line %d\n", w, i), false)
 			}
 		}(w)
 	}
@@ -335,12 +310,12 @@ func TestLogHistoryUnderConcurrentWriters(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for i := 0; i < 50; i++ {
-			_ = logHistorySnapshot()
+			_ = h.snapshot()
 		}
 	}()
 	wg.Wait()
 
-	got := logHistorySnapshot()
+	got := h.snapshot()
 	if len(got) != writers*each {
 		t.Fatalf("the ring holds %d lines, want %d. A line was lost.",
 			len(got), writers*each)
@@ -360,10 +335,9 @@ func TestLogHistoryUnderConcurrentWriters(t *testing.T) {
 
 // The endpoint answers the ring, oldest line first, as JSON.
 func TestLogHistoryEndpointAnswersTheRing(t *testing.T) {
-	lgClearHistory(t)
 	a := newTestApp(t)
 	for _, line := range []string{"first\n", "second\n", "third\n"} {
-		broadcastLogLine(line, false)
+		a.logs.broadcast(line, false)
 	}
 
 	rec := httptest.NewRecorder()
@@ -405,7 +379,6 @@ func TestLogHistoryEndpointAnswersTheRing(t *testing.T) {
 // A reader of the answer maps over lines without a guard, the same as
 // the sync answers do. See newSyncConflict.
 func TestLogHistoryEndpointAnswersAnArrayWhenEmpty(t *testing.T) {
-	lgClearHistory(t)
 	a := newTestApp(t)
 
 	rec := httptest.NewRecorder()
@@ -476,7 +449,7 @@ func TestLogStreamIsAdminOnly(t *testing.T) {
 		{"192.168.1.9:1", "guest", http.StatusUnauthorized},
 		{"192.168.1.9:1", "", http.StatusUnauthorized},
 	}
-	before := countLogClients()
+	before := countLogClients(a)
 	for _, c := range cases {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
@@ -495,7 +468,7 @@ func TestLogStreamIsAdminOnly(t *testing.T) {
 
 	// A refused request must never reach the handler, thus it must
 	// register no client of the stream.
-	if got := countLogClients(); got != before {
+	if got := countLogClients(a); got != before {
 		t.Errorf("the stream holds %d clients and it held %d before", got, before)
 	}
 }
@@ -610,5 +583,25 @@ func TestLogsPageAnswersARemoteCallerWithAPage(t *testing.T) {
 	}
 	if strings.Contains(body, "lgReload") {
 		t.Error("a remote caller got the reader script")
+	}
+}
+
+// Each App writes into its own hub. A line of one App never reaches the
+// ring or the stream of another App.
+func TestEachAppHasItsOwnLog(t *testing.T) {
+	a, b := newTestApp(t), newTestApp(t)
+	ch := b.logs.subscribe()
+	defer b.logs.unsubscribe(ch)
+
+	a.log(logSync).errf("a line of the first App")
+	for _, line := range b.logs.snapshot() {
+		if strings.Contains(line, "a line of the first App") {
+			t.Fatal("the ring of the second App holds a line of the first App")
+		}
+	}
+	select {
+	case line := <-ch:
+		t.Errorf("the stream of the second App got %q", line)
+	default:
 	}
 }

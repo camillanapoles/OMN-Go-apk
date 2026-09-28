@@ -1191,10 +1191,8 @@ func TestBaseline_CompiledHTMLShapeAcrossWritePaths(t *testing.T) {
 // that client when the request context ends.
 // ---------------------------------------------------------------------
 
-func countLogClients() int {
-	logMutex.Lock()
-	defer logMutex.Unlock()
-	return len(logClients)
+func countLogClients(a *App) int {
+	return a.logs.clientCount()
 }
 
 func waitFor(cond func() bool, timeout time.Duration) bool {
@@ -1213,7 +1211,7 @@ func TestBaseline_LogsSSERegistersAndReleasesClient(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(a.HandleLogsSSE))
 	defer srv.Close()
 
-	base := countLogClients()
+	base := countLogClients(a)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL, nil)
@@ -1234,16 +1232,16 @@ func TestBaseline_LogsSSERegistersAndReleasesClient(t *testing.T) {
 		close(done)
 	}()
 
-	if !waitFor(func() bool { return countLogClients() == base+1 }, 2*time.Second) {
+	if !waitFor(func() bool { return countLogClients(a) == base+1 }, 2*time.Second) {
 		cancel()
 		<-done
-		t.Fatalf("SSE client was never registered (clients=%d, want %d)", countLogClients(), base+1)
+		t.Fatalf("SSE client was never registered (clients=%d, want %d)", countLogClients(a), base+1)
 	}
 
 	cancel()
-	if !waitFor(func() bool { return countLogClients() == base }, 2*time.Second) {
+	if !waitFor(func() bool { return countLogClients(a) == base }, 2*time.Second) {
 		<-done
-		t.Fatalf("SSE client not released on disconnect (clients=%d, want %d)", countLogClients(), base)
+		t.Fatalf("SSE client not released on disconnect (clients=%d, want %d)", countLogClients(a), base)
 	}
 	<-done
 }

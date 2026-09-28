@@ -59,6 +59,9 @@ type App struct {
 	// applyLogFilter.
 	logFilter atomic.Value
 
+	// logs holds the stream clients and the history ring. See logHub.
+	logs logHub
+
 	// sessionKey is the HMAC key of the session cookie. It is not a field of
 	// Config, because GET /api/config sends the whole Config. See session.go.
 	sessionOnce sync.Once

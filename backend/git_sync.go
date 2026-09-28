@@ -137,8 +137,8 @@ func trackedWorktreeIsDirty(wTree *git.Worktree) (bool, error) {
 // syncProgressWriter sends the sideband progress of git, for example
 // "Counting objects: 45%", to the log and thus to the sync overlay. A
 // progress line ends with '\r', because the remote writes it again in place.
-// The writer sends one line for each interval, because JSLogger drops a line
-// when a client channel is full. go-git calls Write from one goroutine.
+// The writer sends one line for each interval, because the log hub drops a
+// line when a client channel is full. go-git calls Write from one goroutine.
 type syncProgressWriter struct {
 	// go-git makes the call, thus the writer carries the App that logs.
 	app  *App

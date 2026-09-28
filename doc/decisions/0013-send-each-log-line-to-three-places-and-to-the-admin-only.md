@@ -2,9 +2,8 @@
 
 * Status: accepted
 * Version: 26.08.70, 26.09.38, 26.09.59
-* Code: `backend/log_levels.go`, `broadcastLogLine`, `recordLogLine` and
-  `handleLogHistory` in `backend/logger.go`, `registerRoutes` in
-  `backend/server.go`
+* Code: `backend/log_levels.go`, `logHub` and `handleLogHistory` in
+  `backend/logger.go`, `registerRoutes` in `backend/server.go`
 
 ## Context
 
@@ -26,7 +25,7 @@ server wrote it. The guard on the history protected nothing.
 * Each line has a tag (the subsystem) and a level (`debug`, `info` or
   `error`). The `debugf`, `infof` and `errf` methods of a `logger` write
   the text `[tag] (level) message`.
-* `broadcastLogLine` sends each line to three places: stdout, the SSE
+* `logHub.broadcast` sends each line to three places: stdout, the SSE
   stream and a ring of the last 500 lines.
 * The configuration filters stdout and the browser console only. The
   stream and the ring always get each line. The sync progress overlay

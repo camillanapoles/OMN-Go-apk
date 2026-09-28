@@ -228,12 +228,10 @@ func TestFrontendTestsAreNotShipped(t *testing.T) {
 // jsSyncLines runs a whole life of a sync and answers each [sync] line
 // that it wrote.
 //
-// The ring is package state, thus the test clears it first. Another test
-// of this package can write a line during the run, and the filter for
-// "[sync]" keeps the answer clean.
+// The App of the test holds its own ring. The filter for "[sync]" keeps the
+// sync lines only.
 func jsSyncLines(t *testing.T) []string {
 	t.Helper()
-	lgClearHistory(t)
 
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})
@@ -257,7 +255,7 @@ func jsSyncLines(t *testing.T) []string {
 	_ = a.SyncRepo("push_force", "take mine")
 
 	var out []string
-	for _, line := range logHistorySnapshot() {
+	for _, line := range a.logs.snapshot() {
 		if strings.Contains(line, "[sync]") {
 			out = append(out, strings.TrimRight(line, "\n"))
 		}

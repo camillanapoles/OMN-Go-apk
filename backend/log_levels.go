@@ -95,16 +95,18 @@ const (
 	levelError logLevel = "error"
 )
 
-// logger writes the lines of one tag. It holds the tag and the filter of the
-// configuration, thus a function that gets a logger needs no *App.
+// logger writes the lines of one tag. It holds the tag, the filter of the
+// configuration and the hub, thus a function that gets a logger needs no
+// *App.
 type logger struct {
 	tag    logTag
 	filter *atomic.Value // the logFilter cache of the App
+	hub    *logHub       // the logs of the App
 }
 
 // log gives the logger of one tag.
 func (a *App) log(tag logTag) logger {
-	return logger{tag: tag, filter: &a.logFilter}
+	return logger{tag: tag, filter: &a.logFilter, hub: &a.logs}
 }
 
 // debugf writes one step of an operation. It is off on a fresh install.

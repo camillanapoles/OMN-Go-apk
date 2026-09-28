@@ -444,7 +444,6 @@ func TestRemoteLogLinesHideThePassword(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lgClearHistory(t)
 	cfg := a.config.get()
 	cfg.GitServers = []GitServerConfig{{Name: "home", URL: "https://ann:FIRST-SECRET@example.com/n.git"}}
 	if _, err := a.ensureSlotRemotes(repo, cfg); err != nil {
@@ -457,7 +456,7 @@ func TestRemoteLogLinesHideThePassword(t *testing.T) {
 	if err := a.ensureOriginRemote(repo, "https://ann:THIRD-SECRET@example.com/n.git"); err != nil {
 		t.Fatal(err)
 	}
-	lines := strings.Join(logHistorySnapshot(), "\n")
+	lines := strings.Join(a.logs.snapshot(), "\n")
 	if !strings.Contains(lines, "ann@example.com") {
 		t.Fatalf("the log names no remote:\n%s", lines)
 	}

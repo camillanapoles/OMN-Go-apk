@@ -4,12 +4,12 @@ package backend
 // The log transport
 // ----------------------------------------------------------------------
 //
-// broadcastLogLine is the only fan-out. It sends each line to THREE places:
+// logHub.broadcast is the only fan-out. It sends each line to THREE places:
 // stdout, the /api/logs stream and the history ring. stdout is for a desktop
 // user and for adb logcat. Each open page reads the stream, copies it into
 // the browser console, and the sync overlay reads its stage text there. See
 // doc/decisions/0013-send-each-log-line-to-three-places-and-to-the-admin-only.md.
-// Two callers reach broadcastLogLine:
+// Each App holds one logHub. Two callers reach its broadcast:
 //
 //	JSLogger.Write  The standard log package, for the two call sites that
 //	                cannot reach an *App. See TestNoDirectLogPrintf.
@@ -29,11 +29,6 @@ import (
 	"net/http"
 	"sync"
 	"time"
-)
-
-var (
-	logMutex   sync.Mutex
-	logClients []chan string
 )
 
 // ----------------------------------------------------------------------
@@ -57,33 +52,37 @@ var (
 // logHistoryCap is the number of lines that the ring holds.
 const logHistoryCap = 500
 
-var (
-	logHistory      [logHistoryCap]string
-	logHistoryNext  int
-	logHistoryCount int
-)
+// logHub holds the stream clients and the history ring of one App. mu keeps
+// two lines apart, and it guards each field.
+type logHub struct {
+	mu      sync.Mutex
+	clients []chan string
+	history [logHistoryCap]string
+	next    int
+	count   int
+}
 
-// recordLogLine writes one line into the ring. The caller holds logMutex.
-// When the ring is full, the new line replaces the oldest one. A log that
-// stops at a limit keeps the start and loses the fault.
-func recordLogLine(msg string) {
-	logHistory[logHistoryNext] = msg
-	logHistoryNext = (logHistoryNext + 1) % logHistoryCap
-	if logHistoryCount < logHistoryCap {
-		logHistoryCount++
+// record writes one line into the ring. The caller holds mu. When the ring
+// is full, the new line replaces the oldest one. A log that stops at a limit
+// keeps the start and loses the fault.
+func (h *logHub) record(msg string) {
+	h.history[h.next] = msg
+	h.next = (h.next + 1) % logHistoryCap
+	if h.count < logHistoryCap {
+		h.count++
 	}
 }
 
-// logHistorySnapshot answers a COPY of the ring, oldest line first. The
-// caller reads it without the lock while a writer adds lines.
-func logHistorySnapshot() []string {
-	logMutex.Lock()
-	defer logMutex.Unlock()
+// snapshot answers a COPY of the ring, oldest line first. The caller reads
+// it without the lock while a writer adds lines.
+func (h *logHub) snapshot() []string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
-	out := make([]string, 0, logHistoryCount)
-	start := (logHistoryNext - logHistoryCount + logHistoryCap) % logHistoryCap
-	for i := 0; i < logHistoryCount; i++ {
-		out = append(out, logHistory[(start+i)%logHistoryCap])
+	out := make([]string, 0, h.count)
+	start := (h.next - h.count + logHistoryCap) % logHistoryCap
+	for i := 0; i < h.count; i++ {
+		out = append(out, h.history[(start+i)%logHistoryCap])
 	}
 	return out
 }
@@ -93,13 +92,12 @@ func logHistorySnapshot() []string {
 // same, or the page must parse two shapes.
 const logTimeLayout = "2006/01/02 15:04:05 "
 
-// broadcastLogLine sends one line to each stream subscriber and to the ring,
-// and to stdout when toStdout is true. It holds logMutex, thus two lines
-// cannot mix.
-func broadcastLogLine(msg string, toStdout bool) {
-	logMutex.Lock()
-	recordLogLine(msg)
-	for _, c := range logClients {
+// broadcast sends one line to each stream client and to the ring, and to
+// stdout when toStdout is true. It holds mu, thus two lines cannot mix.
+func (h *logHub) broadcast(msg string, toStdout bool) {
+	h.mu.Lock()
+	h.record(msg)
+	for _, c := range h.clients {
 		select {
 		case c <- msg:
 		default:
@@ -108,25 +106,54 @@ func broadcastLogLine(msg string, toStdout bool) {
 	if toStdout {
 		fmt.Print(msg)
 	}
-	logMutex.Unlock()
+	h.mu.Unlock()
 }
 
-type JSLogger struct{}
+// subscribe adds one stream client. The channel holds 10 lines.
+func (h *logHub) subscribe() chan string {
+	ch := make(chan string, 10)
+	h.mu.Lock()
+	h.clients = append(h.clients, ch)
+	h.mu.Unlock()
+	return ch
+}
+
+// unsubscribe removes one stream client.
+func (h *logHub) unsubscribe(ch chan string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for i, c := range h.clients {
+		if c == ch {
+			h.clients = append(h.clients[:i], h.clients[i+1:]...)
+			return
+		}
+	}
+}
+
+// clientCount answers the number of stream clients.
+func (h *logHub) clientCount() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return len(h.clients)
+}
+
+// JSLogger sends the lines of the standard log package to the hub of one App.
+type JSLogger struct{ hub *logHub }
 
 func (l *JSLogger) Write(p []byte) (n int, err error) {
 	// A line from the standard log package has no level. It always goes to
 	// stdout, because no filter applies to it.
-	broadcastLogLine(string(p), true)
+	l.hub.broadcast(string(p), true)
 	return len(p), nil
 }
 
 // emit makes one line "[tag] (level) message", stamps it, and gives it to
-// broadcastLogLine. It is the only writer of a line with a level.
+// the hub. It is the only writer of a line with a level.
 func (l logger) emit(lvl logLevel, format string, args ...any) {
 	line := time.Now().Format(logTimeLayout) +
 		"[" + string(l.tag) + "] (" + string(lvl) + ") " +
 		fmt.Sprintf(format, args...) + "\n"
-	broadcastLogLine(line, l.enabled(lvl))
+	l.hub.broadcast(line, l.enabled(lvl))
 }
 
 // logFilter is the cached form of Config.LogDebug, Config.LogInfo and
@@ -185,7 +212,7 @@ func (l logger) enabled(lvl logLevel) bool {
 // registerRoutes in server.go registers the route. The function is not
 // exported. See section 3 of CLAUDE.md for the exported names.
 func (a *App) initLogger() {
-	log.SetOutput(&JSLogger{})
+	log.SetOutput(&JSLogger{hub: &a.logs})
 }
 
 func (a *App) HandleLogsSSE(w http.ResponseWriter, r *http.Request) {
@@ -193,21 +220,8 @@ func (a *App) HandleLogsSSE(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	ch := make(chan string, 10)
-	logMutex.Lock()
-	logClients = append(logClients, ch)
-	logMutex.Unlock()
-
-	defer func() {
-		logMutex.Lock()
-		for i, c := range logClients {
-			if c == ch {
-				logClients = append(logClients[:i], logClients[i+1:]...)
-				break
-			}
-		}
-		logMutex.Unlock()
-	}()
+	ch := a.logs.subscribe()
+	defer a.logs.unsubscribe(ch)
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -245,7 +259,7 @@ func (a *App) serveLogsPage(w http.ResponseWriter, r *http.Request) {
 // doc/decisions/0013-send-each-log-line-to-three-places-and-to-the-admin-only.md.
 // The answer follows section 1.4 of doc/API.md: JSON with a status word.
 func (a *App) handleLogHistory(w http.ResponseWriter, r *http.Request) {
-	lines := logHistorySnapshot()
+	lines := a.logs.snapshot()
 	a.writeJSON(w, http.StatusOK, map[string]any{
 		"status": "success",
 		"cap":    logHistoryCap,
