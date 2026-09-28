@@ -85,10 +85,6 @@ func (w *pageCacheWriter) Flush() {
 	}
 }
 
-func (a *App) ActiveConnCount() int64 {
-	return a.ActiveConns.Load()
-}
-
 // hasRole answers "may this request do a protected thing". It is the ONE
 // answer. A connection from the device itself is always the owner. Another
 // machine needs a signed admin cookie. The page-access table calls it

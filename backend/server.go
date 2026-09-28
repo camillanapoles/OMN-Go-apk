@@ -71,39 +71,6 @@ type App struct {
 	sessionKey  []byte
 }
 
-// boundAddress reports the address of the listener as host, port and the
-// joined form. Each value is empty before the bind.
-func (a *App) boundAddress() (host, port, addr string) {
-	a.metaMu.RLock()
-	addr = a.boundAddr
-	a.metaMu.RUnlock()
-	if addr == "" {
-		return "", "", ""
-	}
-	host, port, err := net.SplitHostPort(addr)
-	if err != nil {
-		return "", "", addr
-	}
-	return host, port, addr
-}
-
-func (a *App) setBoundAddress(addr string) {
-	a.metaMu.Lock()
-	a.boundAddr = addr
-	a.metaMu.Unlock()
-}
-
-// fallbackPort is the port for a config.json with none. Only the config
-// loader can apply it. loadConfig writes the port into config.json on a fresh
-// install, and a later default would never reach the file. See
-// DEFAULT_SERVER_PORT in android/app/build.gradle.
-func (a *App) fallbackPort() int {
-	if a.defaultPort > 0 {
-		return a.defaultPort
-	}
-	return 8080
-}
-
 // WaitUntilReady blocks until the HTTP server listens. It also returns
 // when the bind fails, thus a caller never waits for ever.
 func (a *App) WaitUntilReady() {

@@ -62,13 +62,18 @@ var declGroups = map[string]string{
 // groupLayers gives the layer of each group. A group can use a group of a
 // lower layer only. Two groups of the same layer cannot use each other. Thus
 // the groups have no cycle.
+//
+// The render cache writes html/ through the storage layout, thus render is
+// above storage. The Status page reports on each feature, thus status is
+// above the features.
 var groupLayers = map[string]int{
 	"logx": 0, "textmatch": 0, "noteheader": 0, "frontend": 0,
 	"config":  1,
 	"storage": 2,
 	"render":  3,
-	"files":   4, "exchange": 4, "status": 4, "search": 4, "gitsync": 4, "db": 4,
-	"app": 5,
+	"files":   4, "exchange": 4, "search": 4, "gitsync": 4, "db": 4,
+	"status": 5,
+	"app":    6,
 }
 
 // knownGroupLinks lists each link that breaks the layer table today. An
@@ -76,7 +81,6 @@ var groupLayers = map[string]int{
 // entry. Remove the link, or connect the two groups with a hook.
 var knownGroupLinks = []string{
 	"config.go uses configFilename",
-	"config.go uses fallbackPort",
 	"config.go uses file",
 	"config.go uses layout",
 	"files_index.go uses itoa",
@@ -89,14 +93,6 @@ var knownGroupLinks = []string{
 	"logger.go uses renderPage",
 	"logger.go uses writeJSON",
 	"note_exchange_http.go uses maxUploadBytes",
-	"status.go uses fallbackPort",
-	"status_collect.go uses ActiveConnCount",
-	"status_collect.go uses Chroot",
-	"status_collect.go uses NoLockFS",
-	"status_collect.go uses boundAddress",
-	"status_collect.go uses redactGitURL",
-	"status_collect.go uses slotRemoteName",
-	"status_collect.go uses stableMtimeFS",
 }
 
 // groupLinkUses answers each use of a package-level name in another file, as

@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"net"
 	"net/http"
 	"path/filepath"
 	"runtime"
@@ -345,4 +346,31 @@ func (a *App) buildStatus(want map[string]bool) *statusResponse {
 		}
 	}
 	return res
+}
+
+// boundAddress reports the address of the listener as host, port and the
+// joined form. Each value is empty before the bind. StartServer writes the
+// address with setBoundAddress.
+func (a *App) boundAddress() (host, port, addr string) {
+	a.metaMu.RLock()
+	addr = a.boundAddr
+	a.metaMu.RUnlock()
+	if addr == "" {
+		return "", "", ""
+	}
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", "", addr
+	}
+	return host, port, addr
+}
+
+func (a *App) setBoundAddress(addr string) {
+	a.metaMu.Lock()
+	a.boundAddr = addr
+	a.metaMu.Unlock()
+}
+
+func (a *App) ActiveConnCount() int64 {
+	return a.ActiveConns.Load()
 }

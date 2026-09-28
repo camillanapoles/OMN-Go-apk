@@ -391,3 +391,14 @@ func (a *App) loadConfigLocked(c *Config) {
 	// See applyLogFilter.
 	a.applyLogFilter(*c)
 }
+
+// fallbackPort is the port for a config.json with none. Only the config
+// loader can apply it. loadConfig writes the port into config.json on a fresh
+// install, and a later default would never reach the file. See
+// DEFAULT_SERVER_PORT in android/app/build.gradle.
+func (a *App) fallbackPort() int {
+	if a.defaultPort > 0 {
+		return a.defaultPort
+	}
+	return 8080
+}
