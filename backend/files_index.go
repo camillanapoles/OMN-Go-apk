@@ -267,7 +267,7 @@ func (e filesEntry) bytes() int64 {
 }
 
 // serveFilesPage answers GET /OMNGoFiles.html. The page-access table in
-// pages.go refuses a caller without the admin role.
+// page_access.go refuses a caller without the admin role.
 func (a *App) serveFilesPage(w http.ResponseWriter, r *http.Request) {
 	dir := normalizeFilesDir(r.URL.Query().Get("dir"))
 	view := filesPageView{

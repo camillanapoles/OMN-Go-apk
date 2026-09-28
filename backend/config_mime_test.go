@@ -236,8 +236,8 @@ func TestNoBareHTMLContentType(t *testing.T) {
 		if e.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
 			continue
 		}
-		// serving.go declares the value, thus it holds the text once.
-		if name == "serving.go" {
+		// pages.go declares the value, thus it holds the text once.
+		if name == "pages.go" {
 			continue
 		}
 		src, err := os.ReadFile(name)

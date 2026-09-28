@@ -36,9 +36,12 @@ type App struct {
 	search *searchIndex
 
 	// onPageWritten is the hook of renderAndCache. The page cache thus does
-	// not call the search index. initStorage sets the hook, and a nil hook
+	// not call the search index. connectGroups sets the hook, and a nil hook
 	// does nothing.
 	onPageWritten func(name string)
+
+	// pages holds the values of other groups that each page shows.
+	pages pageFacts
 
 	// android holds the facts that the Android layer sets. See androidEnv.
 	android androidEnv
@@ -117,6 +120,13 @@ var staticFS embed.FS
 //
 //go:embed frontend/templates
 var templatesFS embed.FS
+
+// connectGroups sets the hooks between the groups. A group thus calls
+// another group through the App, and not by name. See group_links_test.go.
+func (a *App) connectGroups() {
+	a.onPageWritten = func(string) { a.markSearchIndexDirty() }
+	a.pages = pageFacts{searchGlobal: a.globalSearchAvailable, incomingPage: incomingIndexName}
+}
 
 // runningApp is the App of StartServer. gomobile exports functions only, thus
 // an exported setter finds the App here. earlyEnv holds a fact that arrives
@@ -327,7 +337,7 @@ func (a *App) registerRoutes(mux routeTable) {
 	// This route is admin only, because the answer holds LAN addresses,
 	// absolute paths and a commit subject.
 	route(mux, "GET", "/api/status", a.authMiddleware(a.handleStatus))
-	// The loop registers each system page. See pages.go.
+	// The loop registers each system page. See page_access.go.
 	for _, p := range a.systemPages() {
 		route(mux, "GET", p.path, a.pageHandler(p))
 	}

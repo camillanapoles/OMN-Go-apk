@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -58,6 +59,24 @@ func TestOnlyRenderPageCompilesAServerPage(t *testing.T) {
 		}
 		if strings.Contains(string(src), "compilePageWithBody(") {
 			t.Errorf("%s compiles a page itself. Call a.renderPage.", f)
+		}
+	}
+}
+
+// connectGroups gives the page shell two values of other groups. Each page
+// must show them, although pages.go names no search or exchange code.
+func TestEachPageShowsTheValuesOfOtherGroups(t *testing.T) {
+	a := enabledSearchApp(t)
+	writeSearchNote(t, a, "Note.md", "Title: A Note\n\nneedle\n")
+	a.rebuildSearchIndex()
+
+	page := string(a.injectRuntimeVars([]byte(runtimeVarsMarker)))
+	for _, want := range []string{
+		"var OMN_SEARCH_GLOBAL = true;",
+		fmt.Sprintf("var OMN_INCOMING_PAGE = %q;", incomingIndexName),
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the page misses %s: %s", want, page)
 		}
 	}
 }

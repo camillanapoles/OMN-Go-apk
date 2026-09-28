@@ -44,7 +44,7 @@ var fileGroups = map[string]string{
 	"db_backup_http.go": "db", "db_backup_restore.go": "db",
 
 	"server.go": "app", "middleware.go": "app", "session.go": "app",
-	"request_guard.go": "app", "handlers.go": "app",
+	"request_guard.go": "app", "handlers.go": "app", "page_access.go": "app",
 	"note_handlers.go": "app", "config_handlers.go": "app",
 	"config_page.go": "app", "upload_handlers.go": "app",
 	"serving.go": "app", "storage.go": "app",
@@ -89,15 +89,6 @@ var knownGroupLinks = []string{
 	"logger.go uses writeJSON",
 	"markdown.go uses hasKnownAssetExtension",
 	"note_exchange_http.go uses maxUploadBytes",
-	"pages.go uses globalSearchAvailable",
-	"pages.go uses hasRole",
-	"pages.go uses incomingIndexName",
-	"pages.go uses serveConfigPage",
-	"pages.go uses serveDBBackupsPage",
-	"pages.go uses serveFilesPage",
-	"pages.go uses serveSearchPage",
-	"pages.go uses serveStatusPage",
-	"pages.go uses writeHTMLHeader",
 	"paths.go uses hasKnownAssetExtension",
 	"paths.go uses pageHTMLPath",
 	"render_cache.go uses containedName",
@@ -113,7 +104,6 @@ var knownGroupLinks = []string{
 	"status_collect.go uses stableMtimeFS",
 	"tags.go uses layout",
 	"tags.go uses md",
-	"tags.go uses writeHTMLHeader",
 }
 
 // groupLinkUses answers each use of a package-level name in another file, as

@@ -349,7 +349,7 @@ func TestBaseline_RouteSet(t *testing.T) {
 		"/json/",
 		"/login",
 		"/user_json/",
-		// These are the rows of the page-access table in pages.go. Each is an
+		// These are the rows of the page-access table in page_access.go. Each is an
 		// exact pattern, thus the catch-all "/" still answers each note.
 		"/Config.html",
 		"/OMNGoFiles.html",

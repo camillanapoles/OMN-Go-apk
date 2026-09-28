@@ -24,6 +24,7 @@ import (
 func newUnconfiguredApp(t *testing.T) *App {
 	t.Helper()
 	a := &App{StorageDir: t.TempDir()}
+	a.connectGroups()
 	for _, d := range []string{"md", "html"} {
 		if err := os.MkdirAll(filepath.Join(a.StorageDir, d), 0755); err != nil {
 			t.Fatal(err)

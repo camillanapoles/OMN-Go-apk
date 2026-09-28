@@ -239,8 +239,8 @@ The router refuses each method that the first column does not list, with
 `405`. A `GET` route also takes `HEAD`. The last three rows go through the
 catch-all and the asset trees, and these take each method. See §1.2.
 
-The page-access table, `systemPages` in `backend/pages.go`, registers the
-seven pages above the last three rows. Each row gives the address, the
+The page-access table, `systemPages` in `backend/page_access.go`, registers
+the seven pages above the last three rows. Each row gives the address, the
 handler and the role. A caller without the role gets a refusal page with
 the code `200`.
 
@@ -1983,8 +1983,8 @@ server.
 | `/OMNGoStatus.html` | `serveStatusPage` | The Status page. **Admin-only**. See §5.4 |
 | `/OMNGoLogs.html` | `serveLogsPage` | The Log page. **Admin-only** |
 
-Each special page is a row of the page-access table in `backend/pages.go`.
-The router sends it to its handler, thus `?edit` and the catch-all do not
+Each special page is a row of the page-access table in
+`backend/page_access.go`. The router sends it to its handler, thus `?edit` and the catch-all do not
 apply to it. A remote caller gets the refusal page for an admin-only row.
 
 `injectRuntimeVars` adds this block to every served page:
@@ -2106,8 +2106,8 @@ reads `same size`. Reading an embedded file is not writing, so this does not
 break the rule below.
 
 **Authorization.** The page is admin-only, with the usual local connection
-bypass. It is a row of the page-access table in `backend/pages.go`, thus it
-has its own exact route. The catch-all that serves each other page needs no
+bypass. It is a row of the page-access table in `backend/page_access.go`,
+thus it has its own exact route. The catch-all that serves each other page needs no
 authentication.
 
 The page does **not** wrap `authMiddleware`. A remote caller gets a **200** and

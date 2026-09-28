@@ -562,7 +562,7 @@ func TestLogsPageIsAReaderOfTheTwoAddresses(t *testing.T) {
 
 // A remote caller gets a page and not a line of plain text.
 //
-// The route carries no authMiddleware for that reason. See pages.go.
+// The route carries no authMiddleware for that reason. See page_access.go.
 func TestLogsPageAnswersARemoteCallerWithAPage(t *testing.T) {
 	a := newTestApp(t)
 	a.config.update(func(c *Config) { c.ShareLAN = true })

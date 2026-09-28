@@ -2,9 +2,9 @@
 
 * Status: accepted
 * Version: 1.10.14, 26.08.76, 26.09.16, 26.09.17
-* Code: `builtinMIME`, `resolveContentType`, `hasKnownAssetExtension` and
-  `writeHTMLHeader` in `backend/serving.go`, `legacyMimeSeeds` in
-  `backend/config.go`
+* Code: `builtinMIME`, `resolveContentType` and `hasKnownAssetExtension` in
+  `backend/serving.go`, `writeHTMLHeader` in `backend/pages.go`,
+  `legacyMimeSeeds` in `backend/config.go`
 
 ## Context
 

@@ -7,52 +7,6 @@ import (
 	"strings"
 )
 
-// systemPage is one row of the page-access table: the address, the handler
-// and the role that a caller on another machine needs. A refused caller gets
-// a page, because a person can open the address from a link.
-type systemPage struct {
-	path  string
-	title string // the title of the refusal page
-	admin bool   // a caller on another machine needs the admin role
-	serve http.HandlerFunc
-}
-
-func (a *App) systemPages() []systemPage {
-	return []systemPage{
-		{"/Config.html", "Config", true, a.serveConfigPage},
-		{"/OMNGoTags.html", "Tags", false, a.serveTagsPage},
-		{"/OMNGoSearch.html", "Search", false, a.serveSearchPage},
-		{"/OMNGoFiles.html", "Files", true, a.serveFilesPage},
-		{"/OMNGoStatus.html", "Status", true, a.serveStatusPage},
-		{"/OMNGoLogs.html", "Log", true, a.serveLogsPage},
-		{"/db_backups", "Database Backups", true, a.serveDBBackupsPage},
-	}
-}
-
-// pageHandler adds the role check of one row to its handler.
-func (a *App) pageHandler(p systemPage) http.HandlerFunc {
-	if !p.admin {
-		return p.serve
-	}
-	return func(w http.ResponseWriter, r *http.Request) {
-		if !a.hasRole(r) {
-			a.serveRefusalPage(w, p.title)
-			return
-		}
-		p.serve(w, r)
-	}
-}
-
-// serveRefusalPage tells a caller without the role how to get it.
-func (a *App) serveRefusalPage(w http.ResponseWriter, title string) {
-	body := `<div class="config-panel">` +
-		`<h2 class="config-title">` + title + `</h2>` +
-		`<p class="config-hint">This page is for the admin of this device. ` +
-		`Log in as admin on a note page, then open the page again.</p>` +
-		`</div>`
-	a.renderPage(w, http.StatusOK, title, pageHeader(title, "System"), body)
-}
-
 // pageHeader is the header block of a page that the server makes.
 func pageHeader(title, category string) []byte {
 	return []byte("Title: " + title + "\nCategory: " + category + "\n\n")
@@ -154,6 +108,14 @@ const runtimeVarsMarker = `<meta id="omn-go-runtime-vars-marker">`
 // exported page keeps an empty div.
 const modalsMarker = `<div id="omn-go-modals-slot"></div>`
 
+// pageFacts gives injectRuntimeVars two values of other groups. connectGroups
+// sets them, thus the page shell names no search or exchange code. A nil
+// searchGlobal gives false.
+type pageFacts struct {
+	searchGlobal func() bool // OMN_SEARCH_GLOBAL
+	incomingPage string      // OMN_INCOMING_PAGE
+}
+
 // injectRuntimeVars puts the values of NOW into the runtimeVarsMarker of a
 // page: APP_VERSION, USE_INTERNAL_ED, OMN_THEME, OMN_SEARCH_GLOBAL,
 // OMN_INCOMING_PAGE, OMN_LOG_DEBUG, OMN_LOG_INFO and OMN_LOG_TAGS. The cache
@@ -164,9 +126,10 @@ const modalsMarker = `<div id="omn-go-modals-slot"></div>`
 // only known values, thus fmt can put them in.
 func (a *App) injectRuntimeVars(page []byte) []byte {
 	cfg := a.config.get()
+	searchGlobal := a.pages.searchGlobal != nil && a.pages.searchGlobal()
 	script := fmt.Sprintf(
 		`<script>var APP_VERSION = %q; var USE_INTERNAL_ED = %t; var OMN_THEME = %q; var OMN_SEARCH_GLOBAL = %t; var OMN_INCOMING_PAGE = %q; var OMN_LOG_DEBUG = %t; var OMN_LOG_INFO = %t; var OMN_LOG_TAGS = %q; document.documentElement.setAttribute('data-theme', OMN_THEME);</script>`,
-		APP_VERSION, cfg.UseInternalEd, normalizeTheme(cfg.Theme), a.globalSearchAvailable(), incomingIndexName,
+		APP_VERSION, cfg.UseInternalEd, normalizeTheme(cfg.Theme), searchGlobal, a.pages.incomingPage,
 		cfg.LogDebug, cfg.LogInfo, strings.Join(normalizeLogTags(cfg.LogTags), ","))
 	page = bytes.Replace(page, []byte(runtimeVarsMarker), []byte(script), 1)
 	// Put the modals into the slot. The editor page has no slot, and nothing
@@ -174,3 +137,13 @@ func (a *App) injectRuntimeVars(page []byte) []byte {
 	page = bytes.Replace(page, []byte(modalsMarker), []byte(modalsHTML), 1)
 	return page
 }
+
+// writeHTMLHeader is the ONE place that sets the type of a page, with the
+// charset: a page that the server renders has no <meta charset>.
+// pageCacheWriter in middleware.go reads the prefix "text/html". See
+// TestConnectionMiddlewareUsesNoStoreForAPage.
+func writeHTMLHeader(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", htmlContentType)
+}
+
+const htmlContentType = "text/html; charset=utf-8"

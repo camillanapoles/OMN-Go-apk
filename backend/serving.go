@@ -70,16 +70,6 @@ func (a *App) resolveContentType(path string) string {
 	return mime.TypeByExtension(ext)
 }
 
-// writeHTMLHeader is the ONE place that sets the type of a page, with the
-// charset: a page that the server renders has no <meta charset>.
-// pageCacheWriter in middleware.go reads the prefix "text/html". See
-// TestConnectionMiddlewareUsesNoStoreForAPage.
-func writeHTMLHeader(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", htmlContentType)
-}
-
-const htmlContentType = "text/html; charset=utf-8"
-
 // hasKnownAssetExtension reports whether the last extension of name is one
 // that this install serves as a file. It is the one answer to "is this name a
 // note, or a file under html/".

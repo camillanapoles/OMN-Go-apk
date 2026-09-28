@@ -205,8 +205,8 @@ update these files.
   `route` also registers the bare path, and that path answers 405 for another
   method. Do not check `r.Method` in a handler. A protected route needs the
   admin role. Add a comment to any registration that differs from this form.
-  Add a system page as a row of `systemPages` in `backend/pages.go`. Do not
-  check the role in a page handler.
+  Add a system page as a row of `systemPages` in `backend/page_access.go`. Do
+  not check the role in a page handler.
 * **Comments say what the code does now, and why, one time.** Many files start
   with a `// ---` banner. The banner gives the design decision and the rejected
   alternative. Write the same kind of justification for new code that is not
