@@ -312,8 +312,8 @@ update these files.
 * Call the metadata a **header block**. Do not call it front matter. See
   `doc/TERMINOLOGY.md`.
 * **A name is a note or a file, and the LAST extension decides.**
-  `hasKnownAssetExtension` in `backend/serving.go` is the only authority for
-  that question. It reads `Config.MimeTypes` and then `builtinMIME`. It must
+  `hasKnownAssetExtension` in `backend/content_types.go` is the only authority
+  for that question. It reads `Config.MimeTypes` and then `builtinMIME`. It must
   never call `mime.TypeByExtension`. The stdlib reads `/etc/mime.types`, thus
   the same name would mean one thing on a desktop and another on Android.
   * `.md` is the source of a note. `.html` is a compiled note, and an

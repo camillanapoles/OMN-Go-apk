@@ -74,7 +74,7 @@ the status of the old record to `replaced by NNNN`.
 | --- | --- | --- |
 | [0001](0001-sign-the-session-cookie.md) | Sign the session cookie. | `session.go`, `middleware.go` |
 | [0002](0002-bind-the-loopback-address-when-lan-sharing-is-off.md) | Bind the loopback address when LAN sharing is off. | `server.go`, `config.go` |
-| [0003](0003-use-one-table-for-each-content-type.md) | Use one table for each content type. | `serving.go`, `pages.go`, `config.go` |
+| [0003](0003-use-one-table-for-each-content-type.md) | Use one table for each content type. | `content_types.go`, `pages.go`, `config.go` |
 | [0004](0004-tell-the-browser-to-ask-before-it-uses-a-copy.md) | Tell the browser to ask before it uses a copy. | `middleware.go` |
 | [0005](0005-keep-each-secret-out-of-the-config-page.md) | Keep each secret out of the Config page. | `config_fields.go`, `config_page.go`, `omn-go-config.js` |
 | [0006](0006-replace-the-application-files-at-each-new-version.md) | Replace the application files at each new version. | `assets.go`, `MainActivity.java` |

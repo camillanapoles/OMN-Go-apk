@@ -22,6 +22,7 @@ var fileGroups = map[string]string{
 
 	"config.go": "config", "config_fields.go": "config",
 	"config_store.go": "config", "hostname.go": "config", "version.go": "config",
+	"content_types.go": "config",
 
 	"markdown.go": "render", "templates.go": "render", "pages.go": "render",
 	"render_cache.go": "render", "tags.go": "render",
@@ -63,10 +64,11 @@ var declGroups = map[string]string{
 // the groups have no cycle.
 var groupLayers = map[string]int{
 	"logx": 0, "textmatch": 0, "noteheader": 0, "frontend": 0,
-	"config": 1,
-	"render": 2, "storage": 2,
-	"files": 3, "exchange": 3, "status": 3, "search": 3, "gitsync": 3, "db": 3,
-	"app": 4,
+	"config":  1,
+	"storage": 2,
+	"render":  3,
+	"files":   4, "exchange": 4, "status": 4, "search": 4, "gitsync": 4, "db": 4,
+	"app": 5,
 }
 
 // knownGroupLinks lists each link that breaks the layer table today. An
@@ -80,20 +82,13 @@ var knownGroupLinks = []string{
 	"files_index.go uses itoa",
 	"files_page.go uses itoa",
 	"files_state.go uses isLocalOnlyPath",
-	"files_state.go uses resolveContentType",
 	"logger.go uses Config",
 	"logger.go uses loadTemplate",
 	"logger.go uses normalizeLogTags",
 	"logger.go uses pageHeader",
 	"logger.go uses renderPage",
 	"logger.go uses writeJSON",
-	"markdown.go uses hasKnownAssetExtension",
 	"note_exchange_http.go uses maxUploadBytes",
-	"paths.go uses hasKnownAssetExtension",
-	"paths.go uses pageHTMLPath",
-	"render_cache.go uses containedName",
-	"render_cache.go uses html",
-	"render_cache.go uses layout",
 	"status.go uses fallbackPort",
 	"status_collect.go uses ActiveConnCount",
 	"status_collect.go uses Chroot",
@@ -102,8 +97,6 @@ var knownGroupLinks = []string{
 	"status_collect.go uses redactGitURL",
 	"status_collect.go uses slotRemoteName",
 	"status_collect.go uses stableMtimeFS",
-	"tags.go uses layout",
-	"tags.go uses md",
 }
 
 // groupLinkUses answers each use of a package-level name in another file, as

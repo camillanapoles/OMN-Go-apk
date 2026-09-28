@@ -196,7 +196,7 @@ func (a *App) rewriteInternalLink(href string) string {
 		return href
 	}
 
-	// hasKnownAssetExtension in serving.go is the one authority here. It
+	// hasKnownAssetExtension in content_types.go is the one authority here. It
 	// reads the LAST extension, thus "Report.2026" becomes "Report.2026.html"
 	// and "draft.txt" stays.
 	switch {

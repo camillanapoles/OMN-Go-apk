@@ -548,8 +548,8 @@ func TestStatusPageAnswersARemoteCallerWithAPage(t *testing.T) {
 	}
 }
 
-// stRunning makes a the running App for one test. The cleanup clears the
-// running App and earlyEnv, thus the next test starts with neither.
+// stRunning makes a the runningApp of one test. The cleanup clears
+// runningApp and earlyEnv, thus the next test starts with neither.
 func stRunning(t *testing.T, a *App) {
 	t.Helper()
 	stClearRunning()

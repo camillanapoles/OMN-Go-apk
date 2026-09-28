@@ -12,7 +12,7 @@ import (
 // The content type of an install
 // ----------------------------------------------------------------------
 //
-// builtinMIME in serving.go is the one authority for a content type, and
+// builtinMIME in content_types.go is the one authority for a content type, and
 // Config.MimeTypes is an override that resolveContentType reads first.
 //
 // A fresh install must write no override. Each row of an override hides

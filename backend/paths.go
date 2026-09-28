@@ -34,8 +34,8 @@ func containedName(name string) string {
 // or ".txt", is a file under html/. isPage is then false, and mdPath is
 // empty.
 //
-// hasKnownAssetExtension in serving.go is the one authority for that test:
-// the LAST extension decides, and an unknown extension is a page. Keep the
+// hasKnownAssetExtension in content_types.go is the one authority for that
+// test: the LAST extension decides, and an unknown extension is a page. Keep the
 // decision here, and do not copy it.
 func (a *App) resolvePageName(name string) (mdPath, htmlPath, baseName string, isPage bool) {
 	switch {
@@ -55,8 +55,7 @@ func (a *App) resolvePageName(name string) (mdPath, htmlPath, baseName string, i
 		return "", a.layout().html(filepath.FromSlash(name)), name, false
 	}
 
-	// pageHTMLPath in render_cache.go is the one formula for the path of a
-	// compiled page.
+	// pageHTMLPath is the one formula for the path of a compiled page.
 	baseName = containedName(baseName)
 	mdPath = a.layout().md(filepath.FromSlash(baseName + ".md"))
 	htmlPath = a.pageHTMLPath(baseName)
@@ -68,4 +67,11 @@ func (a *App) resolvePageName(name string) (mdPath, htmlPath, baseName string, i
 func fileExists(p string) bool {
 	st, err := os.Stat(p)
 	return err == nil && !st.IsDir()
+}
+
+// pageHTMLPath is the one formula for the compiled HTML path of a page.
+// resolvePageName answers the same path for a page, and TestPageHTMLPath
+// compares the two.
+func (a *App) pageHTMLPath(name string) string {
+	return a.layout().html(filepath.FromSlash(containedName(name) + ".html"))
 }

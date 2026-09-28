@@ -899,18 +899,16 @@ if (typeof currentNote === 'undefined') {
 
         let currentMode = 'view';
 
-        // Reveals .android-only controls (hidden by default in CSS - see
-        // omn-go-core.css) when the page was served with IS_ANDROID set
-        // (COND_SCRIPTS in pages.go, mirroring the IS_MARKDOWN
-        // precedent). It runs on load, and it is not gated on login or
-        // session state.
+        // applyPlatformUI shows the .android-only controls. omn-go-core.css
+        // hides them. The server sets IS_ANDROID through COND_SCRIPTS in
+        // pages.go, the same way as IS_MARKDOWN. The function runs at load,
+        // and it needs no login and no session.
         //
-        // An explicit "flex", and not "". An empty value drops the inline
-        // style and hands the decision back to the cascade. The CSS now
-        // hides these controls with a selector that wins inside
-        // .header-actions, thus "" would leave the button hidden on Android
-        // as well. "flex" is what ".header-actions a, .header-actions
-        // button" gives every other control in that bar, thus the revealed
+        // Set "flex", and not "". An empty value removes the inline style,
+        // and the cascade decides again. The CSS hides these controls with a
+        // selector that wins inside .header-actions, thus "" keeps the
+        // button hidden on Android too. ".header-actions a, .header-actions
+        // button" gives "flex" to each other control of that bar, thus the
         // button matches its neighbors.
         function applyPlatformUI() {
             if (typeof IS_ANDROID !== 'undefined' && IS_ANDROID) {
@@ -1245,7 +1243,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // that the server resolves with no guess.
 //
 // The server reads the LAST extension of a name (hasKnownAssetExtension in
-// serving.go). A bare base name is thus ambiguous when it ends in a real
+// content_types.go). A bare base name is thus ambiguous when it ends in a real
 // file extension. A note named "Draft.txt" sent as "Draft.txt" reads as the
 // file html/Draft.txt, and a save then writes to the wrong tree. The same
 // name sent as "Draft.txt.md" reads as the note, always.

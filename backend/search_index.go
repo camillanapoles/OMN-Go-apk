@@ -207,8 +207,8 @@ func (a *App) commonWords() map[string]bool {
 	return a.search.common
 }
 
-// connectGroups sets markSearchIndexDirty as the hook onPageWritten. Each
-// change of a note inside the process goes through renderAndCache, which
+// connectGroups sets markSearchIndexDirty as the hook onPageWritten.
+// renderAndCache writes each change of a note inside the process, and it
 // calls the hook. Examples are a save, a quick note, a bookmark, a sync and a
 // precompile.
 func (a *App) markSearchIndexDirty() {

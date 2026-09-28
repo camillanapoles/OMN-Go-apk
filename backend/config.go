@@ -151,7 +151,7 @@ func normalizeSearchScope(s string) string {
 // The mime_types map of config.json
 // ----------------------------------------------------------------------
 //
-// Config.MimeTypes OVERRIDES builtinMIME in serving.go, and
+// Config.MimeTypes OVERRIDES builtinMIME in content_types.go, and
 // resolveContentType reads it first. builtinMIME is the one authority for a
 // content type. A FRESH INSTALL WRITES NO MAP, because each row of a map
 // hides the table and has no charset. See

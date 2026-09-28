@@ -147,8 +147,8 @@ func setRunningApp(a *App) {
 	runningApp = a
 }
 
-// withAndroidEnv runs fn on the facts of the running App, or on earlyEnv
-// before StartServer.
+// withAndroidEnv runs fn on the facts of runningApp, or on earlyEnv before
+// StartServer.
 func withAndroidEnv(fn func(*androidEnv)) {
 	runningMu.Lock()
 	defer runningMu.Unlock()

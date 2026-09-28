@@ -61,7 +61,7 @@ func (a *App) initStorage(overrideDir string) {
 	// The index struct exists from the start. It stays empty until a person
 	// turns global search on.
 	a.search = &searchIndex{}
-	// The hooks of connectGroups need the index, thus they come after it.
+	// The hooks of connectGroups need the index, thus they follow it.
 	a.connectGroups()
 
 	// 3. Extract each embedded starter note at the top of frontend/md that is

@@ -24,13 +24,6 @@ import (
 // these values thus needs no new cache. Do not put the values into the cache
 // when it compiles.
 
-// pageHTMLPath is the one formula for the compiled HTML path of a page.
-// resolvePageName answers the same path for a page, and TestPageHTMLPath
-// compares the two.
-func (a *App) pageHTMLPath(name string) string {
-	return a.layout().html(filepath.FromSlash(containedName(name) + ".html"))
-}
-
 // renderAndCache compiles a page and writes html/<name>.html. It is the ONLY
 // writer of that file. name has no extension, and content is the markdown
 // source. The function makes each parent directory. It answers the compiled
