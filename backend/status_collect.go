@@ -49,7 +49,7 @@ func (a *App) statusServerSection(cfg Config) *statusServer {
 		GOARCH:      runtime.GOARCH,
 	}
 	if cfg.ShareLAN {
-		s.LANURLs = lanURLs(port)
+		s.LANURLs = lanURLs(port, a.android.lanAddresses())
 	}
 	return s
 }
@@ -339,7 +339,7 @@ func statusTime(t time.Time) string {
 // and the second needs a zone index. The address of the default route comes
 // first. A desktop can have more addresses, for example of a docker bridge,
 // and they follow in sorted order.
-func lanURLs(port int) []string {
+func lanURLs(port int, android []string) []string {
 	usable := func(ip net.IP) bool {
 		return ip != nil && !ip.IsLoopback() && !ip.IsLinkLocalUnicast() &&
 			!ip.IsLinkLocalMulticast() && ip.IsGlobalUnicast()
@@ -372,7 +372,7 @@ func lanURLs(port int) []string {
 
 	// 2. Add the addresses that the Android layer found. See SetLANAddresses.
 	// They can be older than the answer above.
-	for _, text := range androidLANAddresses() {
+	for _, text := range android {
 		add(net.ParseIP(text))
 	}
 

@@ -40,6 +40,9 @@ type App struct {
 	// does nothing.
 	onPageWritten func(name string)
 
+	// android holds the facts that the Android layer sets. See androidEnv.
+	android androidEnv
+
 	// defaultPort is the port of the flavor, for a config.json with no port.
 	// 0 means 8080. Only loadConfig can apply it: see fallbackPort.
 	defaultPort int
@@ -112,6 +115,59 @@ var staticFS embed.FS
 //go:embed frontend/templates
 var templatesFS embed.FS
 
+// runningApp is the App of StartServer. gomobile exports functions only, thus
+// an exported setter finds the App here. earlyEnv holds a fact that arrives
+// before StartServer: ServerService.java calls SetAndroidPackage first.
+var (
+	runningMu  sync.Mutex
+	runningApp *App
+	earlyEnv   androidEnv
+)
+
+// setRunningApp gives a the facts of earlyEnv, and each later setter writes
+// to a.
+func setRunningApp(a *App) {
+	runningMu.Lock()
+	defer runningMu.Unlock()
+	a.android.setPackage(earlyEnv.packageName())
+	a.android.setAddresses(earlyEnv.lanAddresses())
+	runningApp = a
+}
+
+// withAndroidEnv runs fn on the facts of the running App, or on earlyEnv
+// before StartServer.
+func withAndroidEnv(fn func(*androidEnv)) {
+	runningMu.Lock()
+	defer runningMu.Unlock()
+	if runningApp != nil {
+		fn(&runningApp.android)
+		return
+	}
+	fn(&earlyEnv)
+}
+
+// SetAndroidPackage records the applicationId of the Android app.
+// ServerService.java calls it before Backend.startServer. gomobile exports
+// it.
+func SetAndroidPackage(name string) {
+	withAndroidEnv(func(e *androidEnv) { e.setPackage(name) })
+}
+
+// SetLANAddresses records the addresses of this device as one list with
+// commas. ServerService.java calls it with each site-local IPv4 address that
+// is not loopback, each time it builds the notification. The notification and
+// the Status page thus show the same addresses. The gomobile binding carries
+// no slice of strings, thus the value is one string. An empty list clears it.
+func SetLANAddresses(list string) {
+	out := []string{}
+	for _, part := range strings.Split(list, ",") {
+		if text := strings.TrimSpace(part); text != "" {
+			out = append(out, text)
+		}
+	}
+	withAndroidEnv(func(e *androidEnv) { e.setAddresses(out) })
+}
+
 // StartServer starts the Go backend.
 //
 // A storageDir that is not empty replaces the default of initStorage. Android
@@ -131,6 +187,7 @@ func StartServer(storageDir string, defaultPort int) *App {
 
 	// Set it before initStorage, which writes config.json on a fresh install.
 	a.defaultPort = defaultPort
+	setRunningApp(a)
 
 	a.initStorage(storageDir) // Execute synchronously to ensure config is loaded instantly
 

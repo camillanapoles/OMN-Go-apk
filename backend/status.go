@@ -37,61 +37,52 @@ var (
 	statusSlowSections  = []string{"storage", "git_dirty"}
 )
 
-// androidPackage holds the applicationId, net.basov.omngo or
-// net.basov.omngo.fdroid. The Go runtime cannot ask Android for it, thus the
-// Android layer sets it through SetAndroidPackage.
-var (
-	androidPackageMu sync.RWMutex
-	androidPackage   string
-)
-
-// SetAndroidPackage records the applicationId of the Android app.
-// ServerService.java calls it before Backend.startServer. gomobile exports
-// it. Without the call, statusAndroidPackage takes the last element of the
-// storage directory, which IS the package name on Android.
-func SetAndroidPackage(name string) {
-	androidPackageMu.Lock()
-	androidPackage = strings.TrimSpace(name)
-	androidPackageMu.Unlock()
+// androidEnv holds the facts that only the Android layer knows. The Go
+// runtime cannot ask Android for them.
+//
+//   - pkg is the applicationId, net.basov.omngo or net.basov.omngo.fdroid.
+//   - addresses are the LAN addresses of the device.
+//     java.net.NetworkInterface uses getifaddrs(), which an app can call. Go
+//     asks the kernel over a NETLINK_ROUTE socket, and Android 11 and later
+//     deny that to an app.
+//
+// SetAndroidPackage and SetLANAddresses in server.go write these facts.
+type androidEnv struct {
+	mu        sync.RWMutex
+	pkg       string
+	addresses []string
 }
 
-// lanAddressList holds the addresses that the Android layer found.
-// java.net.NetworkInterface uses getifaddrs(), which an app can call. Go asks
-// the kernel over a NETLINK_ROUTE socket, and Android 11 and later deny that
-// to an app.
-var (
-	lanAddressesMu sync.RWMutex
-	lanAddressList []string
-)
-
-// SetLANAddresses records the addresses of this device as one list with
-// commas. ServerService.java calls it with each site-local IPv4 address that
-// is not loopback, each time it builds the notification. The notification and
-// the Status page thus show the same addresses. The gomobile binding carries
-// no slice of strings, thus the value is one string. An empty list clears it.
-func SetLANAddresses(list string) {
-	out := []string{}
-	for _, part := range strings.Split(list, ",") {
-		if text := strings.TrimSpace(part); text != "" {
-			out = append(out, text)
-		}
-	}
-	lanAddressesMu.Lock()
-	lanAddressList = out
-	lanAddressesMu.Unlock()
+func (e *androidEnv) setPackage(name string) {
+	e.mu.Lock()
+	e.pkg = strings.TrimSpace(name)
+	e.mu.Unlock()
 }
 
-func androidLANAddresses() []string {
-	lanAddressesMu.RLock()
-	defer lanAddressesMu.RUnlock()
-	return append([]string(nil), lanAddressList...)
+func (e *androidEnv) setAddresses(list []string) {
+	e.mu.Lock()
+	e.addresses = append([]string(nil), list...)
+	e.mu.Unlock()
 }
 
+func (e *androidEnv) packageName() string {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.pkg
+}
+
+// lanAddresses answers a copy, thus a caller can keep it.
+func (e *androidEnv) lanAddresses() []string {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return append([]string(nil), e.addresses...)
+}
+
+// statusAndroidPackage answers the applicationId. Without SetAndroidPackage,
+// it takes the last element of the storage directory, which IS the package
+// name on Android.
 func (a *App) statusAndroidPackage() string {
-	androidPackageMu.RLock()
-	name := androidPackage
-	androidPackageMu.RUnlock()
-	if name != "" {
+	if name := a.android.packageName(); name != "" {
 		return name
 	}
 	base := filepath.Base(filepath.Clean(a.StorageDir))

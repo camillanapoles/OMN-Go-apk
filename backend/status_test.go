@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -125,8 +126,8 @@ func TestStatusLANAddressesFromAndroid(t *testing.T) {
 	a := newTestApp(t)
 	a.config.update(func(c *Config) { c.ShareLAN = true })
 
+	stRunning(t, a)
 	SetLANAddresses(" 192.168.5.5 , 10.0.0.7 ,, 192.168.5.5 ")
-	t.Cleanup(func() { SetLANAddresses("") })
 
 	res, _ := getStatus(t, a, "sections=server")
 	got := strings.Join(res.Server.LANURLs, " ")
@@ -428,14 +429,12 @@ func TestStatusMarkdownFormat(t *testing.T) {
 // when the setter never ran.
 func TestStatusAndroidPackage(t *testing.T) {
 	a := &App{StorageDir: "/storage/emulated/0/Android/media/net.basov.omngo.fdroid"}
-
-	SetAndroidPackage("")
+	stRunning(t, a)
 	if got := a.statusAndroidPackage(); got != "net.basov.omngo.fdroid" {
 		t.Errorf("derived package = %q, want net.basov.omngo.fdroid", got)
 	}
 
 	SetAndroidPackage("net.basov.omngo")
-	defer SetAndroidPackage("")
 	if got := a.statusAndroidPackage(); got != "net.basov.omngo" {
 		t.Errorf("set package = %q, want net.basov.omngo", got)
 	}
@@ -546,5 +545,45 @@ func TestStatusPageAnswersARemoteCallerWithAPage(t *testing.T) {
 	}
 	if strings.Contains(body, "stStorage") {
 		t.Error("a remote caller got the reader script")
+	}
+}
+
+// stRunning makes a the running App for one test. The cleanup clears the
+// running App and earlyEnv, thus the next test starts with neither.
+func stRunning(t *testing.T, a *App) {
+	t.Helper()
+	stClearRunning()
+	setRunningApp(a)
+	t.Cleanup(stClearRunning)
+}
+
+func stClearRunning() {
+	runningMu.Lock()
+	defer runningMu.Unlock()
+	runningApp = nil
+	earlyEnv.setPackage("")
+	earlyEnv.setAddresses(nil)
+}
+
+// ServerService.java calls SetAndroidPackage before StartServer. The App of
+// StartServer must still get the value.
+func TestAnEarlyAndroidFactReachesTheApp(t *testing.T) {
+	stClearRunning()
+	t.Cleanup(stClearRunning)
+	SetAndroidPackage("net.basov.omngo.fdroid")
+	SetLANAddresses("10.0.0.9")
+
+	a := &App{}
+	setRunningApp(a)
+	if got := a.statusAndroidPackage(); got != "net.basov.omngo.fdroid" {
+		t.Errorf("the package is %q, want net.basov.omngo.fdroid", got)
+	}
+	if got := a.android.lanAddresses(); !slices.Equal(got, []string{"10.0.0.9"}) {
+		t.Errorf("the addresses are %v, want [10.0.0.9]", got)
+	}
+
+	SetLANAddresses("10.0.0.8")
+	if got := a.android.lanAddresses(); !slices.Equal(got, []string{"10.0.0.8"}) {
+		t.Errorf("a setter after the start gave %v, want [10.0.0.8]", got)
 	}
 }
