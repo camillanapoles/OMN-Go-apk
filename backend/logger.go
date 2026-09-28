@@ -26,7 +26,6 @@ package backend
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"sync"
 	"time"
 )
@@ -164,24 +163,6 @@ type logFilter struct {
 	tags  map[logTag]bool
 }
 
-// applyLogFilter caches the log switches of one configuration.
-//
-// A LOG LINE MUST NEVER TAKE THE CONFIG LOCK. loadConfig holds the write lock
-// and can write a log line, and a Go RWMutex is not reentrant. A read of the
-// config from emit would thus deadlock the start. An atomic value costs
-// one load for each line. loadConfig and handleConfigPost refresh the cache.
-func (a *App) applyLogFilter(c Config) {
-	f := logFilter{
-		debug: c.LogDebug,
-		info:  c.LogInfo,
-		tags:  make(map[logTag]bool, len(allLogTags)),
-	}
-	for _, t := range normalizeLogTags(c.LogTags) {
-		f.tags[logTag(t)] = true
-	}
-	a.logFilter.Store(f)
-}
-
 // logLineEnabled tells whether one line reaches stdout and the browser
 // console. An error always does. A debug or info line needs its level on and
 // its tag checked. Before loadConfig runs, the cache is empty and allows
@@ -213,56 +194,4 @@ func (l logger) enabled(lvl logLevel) bool {
 // exported. See section 3 of CLAUDE.md for the exported names.
 func (a *App) initLogger() {
 	log.SetOutput(&JSLogger{hub: &a.logs})
-}
-
-func (a *App) HandleLogsSSE(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-
-	ch := a.logs.subscribe()
-	defer a.logs.unsubscribe(ch)
-
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		return
-	}
-
-	for {
-		select {
-		case msg := <-ch:
-			fmt.Fprintf(w, "data: %s\n\n", msg)
-			flusher.Flush()
-		case <-r.Context().Done():
-			return
-		}
-	}
-}
-
-var logsPageTmpl = loadTemplate("logs_page.html")
-
-// serveLogsPage answers /OMNGoLogs.html. The page reads /api/logs/history one
-// time, and then it adds each new line of /api/logs. omn-go-logs.js does that
-// work.
-//
-// Android has no terminal. Without this page, a person on a phone needs adb
-// logcat, or a second browser at the history endpoint.
-func (a *App) serveLogsPage(w http.ResponseWriter, r *http.Request) {
-	a.renderPage(w, http.StatusOK, "Log", pageHeader("Log", "System"), logsPageTmpl)
-}
-
-// handleLogHistory answers the ring of the last logHistoryCap lines, oldest
-// first. It is a separate endpoint, because a replay on /api/logs breaks the
-// sync overlay. See the banner of the ring.
-//
-// IT IS ADMIN ONLY, and so is /api/logs. A remote caller reads no log line. See
-// doc/decisions/0013-send-each-log-line-to-three-places-and-to-the-admin-only.md.
-// The answer follows section 1.4 of doc/API.md: JSON with a status word.
-func (a *App) handleLogHistory(w http.ResponseWriter, r *http.Request) {
-	lines := a.logs.snapshot()
-	a.writeJSON(w, http.StatusOK, map[string]any{
-		"status": "success",
-		"cap":    logHistoryCap,
-		"lines":  lines,
-	})
 }

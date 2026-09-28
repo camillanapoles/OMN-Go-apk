@@ -2,8 +2,9 @@
 
 * Status: accepted
 * Version: 26.08.70, 26.09.38, 26.09.59
-* Code: `backend/log_levels.go`, `logHub` and `handleLogHistory` in
-  `backend/logger.go`, `registerRoutes` in `backend/server.go`
+* Code: `backend/log_levels.go`, `logHub` in `backend/logger.go`,
+  `handleLogHistory` in `backend/log_handlers.go`, `registerRoutes` in
+  `backend/server.go`
 
 ## Context
 

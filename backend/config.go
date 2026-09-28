@@ -402,3 +402,21 @@ func (a *App) fallbackPort() int {
 	}
 	return 8080
 }
+
+// applyLogFilter caches the log switches of one configuration.
+//
+// A LOG LINE MUST NEVER TAKE THE CONFIG LOCK. loadConfig holds the write lock
+// and can write a log line, and a Go RWMutex is not reentrant. A read of the
+// config from emit would thus deadlock the start. An atomic value costs
+// one load for each line. loadConfig and handleConfigPost refresh the cache.
+func (a *App) applyLogFilter(c Config) {
+	f := logFilter{
+		debug: c.LogDebug,
+		info:  c.LogInfo,
+		tags:  make(map[logTag]bool, len(allLogTags)),
+	}
+	for _, t := range normalizeLogTags(c.LogTags) {
+		f.tags[logTag(t)] = true
+	}
+	a.logFilter.Store(f)
+}

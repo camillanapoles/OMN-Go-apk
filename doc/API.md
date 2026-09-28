@@ -1,7 +1,7 @@
 # OMN-Go Server API
 
 Reference for every HTTP endpoint that the backend exposes
-(`backend/server.go`, `backend/logger.go`).
+(`backend/server.go`, `backend/log_handlers.go`).
 
 Applies to OMN-Go **26.08.2** (`backend/version.go`, `APP_VERSION`).
 
@@ -1365,7 +1365,7 @@ needs the debug lines of that moment.
 **Why it is admin only and `/api/logs` is not.** The stream carries what
 happens while a person watches. The ring carries what happened before that
 person arrived, which is the shape a reader on the LAN would want. See
-`handleLogHistory` in `backend/logger.go`.
+`handleLogHistory` in `backend/log_handlers.go`.
 
 **The ring never replays on the stream.** `applySyncLogLine` in
 `omn-go-sse.js` reads `[sync] (debug)` lines off the raw stream to drive

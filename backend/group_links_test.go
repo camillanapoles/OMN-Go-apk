@@ -46,6 +46,7 @@ var fileGroups = map[string]string{
 
 	"server.go": "app", "middleware.go": "app", "session.go": "app",
 	"request_guard.go": "app", "handlers.go": "app", "page_access.go": "app",
+	"log_handlers.go":  "app",
 	"note_handlers.go": "app", "config_handlers.go": "app",
 	"config_page.go": "app", "upload_handlers.go": "app",
 	"serving.go": "app", "storage.go": "app",
@@ -86,12 +87,6 @@ var knownGroupLinks = []string{
 	"files_index.go uses itoa",
 	"files_page.go uses itoa",
 	"files_state.go uses isLocalOnlyPath",
-	"logger.go uses Config",
-	"logger.go uses loadTemplate",
-	"logger.go uses normalizeLogTags",
-	"logger.go uses pageHeader",
-	"logger.go uses renderPage",
-	"logger.go uses writeJSON",
 	"note_exchange_http.go uses maxUploadBytes",
 }
 

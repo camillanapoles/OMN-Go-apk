@@ -84,7 +84,7 @@ the status of the old record to `replaced by NNNN`.
 | [0010](0010-write-a-pull-without-the-checkout-of-go-git.md) | Write a pull without the checkout of go-git. | `git_pull.go` |
 | [0011](0011-push-each-time-and-let-the-remote-answer.md) | Push each time, and let the remote answer. | `git_push.go` |
 | [0012](0012-keep-one-remote-for-each-git-server-slot.md) | Keep one remote for each git server slot. | `git_repo.go` |
-| [0013](0013-send-each-log-line-to-three-places-and-to-the-admin-only.md) | Send each log line to three places, and to the admin only. | `log_levels.go`, `logger.go` |
+| [0013](0013-send-each-log-line-to-three-places-and-to-the-admin-only.md) | Send each log line to three places, and to the admin only. | `log_levels.go`, `logger.go`, `log_handlers.go` |
 | [0014](0014-change-only-the-settings-that-a-request-names.md) | Change only the settings that a request names. | `config_handlers.go`, `config_fields.go` |
 | [0015](0015-load-the-click-driven-scripts-on-demand.md) | Load the click-driven scripts on demand. | `omn-go-sse.js`, `omn-go-sync.js`, `omn-go-bookmark.js`, `omn-go-search.js` |
 | [0016](0016-give-each-route-one-method.md) | Give each route one method. | `server.go` |
