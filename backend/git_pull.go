@@ -19,7 +19,7 @@ import (
 // conflict for a diverged history or for a tracked change that is not
 // committed. The page then offers pull_abort and pull_mark.
 func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport.AuthMethod, remoteName string) error {
-	a.logInfof(logSync, "Pull: fetching %s", remoteName)
+	a.log(logSync).infof("Pull: fetching %s", remoteName)
 	err := repo.Fetch(&git.FetchOptions{RemoteName: remoteName, Auth: auth, Progress: &syncProgressWriter{app: a}})
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		return fmt.Errorf("fetch failed: %w", err)
@@ -32,7 +32,7 @@ func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport
 
 	localHead, headErr := repo.Head()
 	if headErr == nil && localHead.Hash() == remoteRef.Hash() {
-		a.logInfof(logSync, "Pull: already up to date")
+		a.log(logSync).infof("Pull: already up to date")
 		return nil
 	}
 
@@ -42,7 +42,7 @@ func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport
 		return fmt.Errorf("status check failed: %v", dErr)
 	}
 	if dirty {
-		a.logInfof(logSync, "Pull: local tracked changes present, cannot fast-forward")
+		a.log(logSync).infof("Pull: local tracked changes present, cannot fast-forward")
 		return a.newSyncConflict(repo, wTree, remoteRef)
 	}
 
@@ -63,7 +63,7 @@ func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport
 			return fmt.Errorf("ancestry check failed: %v", aErr)
 		}
 		if !isAncestor {
-			a.logInfof(logSync, "Pull: fast-forward not possible (local has unpushed commits)")
+			a.log(logSync).infof("Pull: fast-forward not possible (local has unpushed commits)")
 			return a.newSyncConflict(repo, wTree, remoteRef)
 		}
 	}
@@ -100,9 +100,9 @@ func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport
 		}
 		full := a.layout().file(p)
 		if err := os.Remove(full); err != nil && !os.IsNotExist(err) {
-			a.logErrf(logSync, "pull: failed to remove file no longer tracked upstream (%s): %v", p, err)
+			a.log(logSync).errf("pull: failed to remove file no longer tracked upstream (%s): %v", p, err)
 		} else {
-			a.logDebugf(logSync, "pull: removed file no longer tracked upstream: %s", p)
+			a.log(logSync).debugf("pull: removed file no longer tracked upstream: %s", p)
 		}
 	}
 
@@ -111,7 +111,7 @@ func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport
 		return fmt.Errorf("failed to move local branch: %v", err)
 	}
 
-	a.logInfof(logSync, "Pull: fast-forward complete")
+	a.log(logSync).infof("Pull: fast-forward complete")
 	return nil
 }
 
@@ -194,7 +194,7 @@ func (a *App) syncPullMerge(repo *git.Repository, wTree *git.Worktree, auth tran
 	// move HEAD onto it. That makes no merge commit, and the local commit
 	// becomes unreachable.
 	a.saveMergeParent(remoteRef.Hash())
-	a.logInfof(logSync, "Pull: 3-way conflict markers written, awaiting manual resolution")
+	a.log(logSync).infof("Pull: 3-way conflict markers written, awaiting manual resolution")
 	return nil
 }
 
@@ -203,7 +203,7 @@ func (a *App) syncPullMerge(repo *git.Repository, wTree *git.Worktree, auth tran
 func (a *App) syncPullAbort(wTree *git.Worktree) error {
 	hash, ok := a.loadPremergeHead()
 	if !ok {
-		a.logInfof(logSync, "pull_abort: nothing to abort")
+		a.log(logSync).infof("pull_abort: nothing to abort")
 		return nil
 	}
 	if err := wTree.Reset(&git.ResetOptions{Commit: hash, Mode: git.HardReset}); err != nil {
@@ -211,7 +211,7 @@ func (a *App) syncPullAbort(wTree *git.Worktree) error {
 	}
 	a.clearPremergeHead()
 	a.clearMergeParent()
-	a.logInfof(logSync, "pull_abort: restored local state to %s", hash.String())
+	a.log(logSync).infof("pull_abort: restored local state to %s", hash.String())
 	return nil
 }
 
@@ -307,7 +307,7 @@ func oldTrackedPaths(repo *git.Repository) (map[string]bool, error) {
 // each file that git does not track and that .gitignore does not cover. Only
 // a force pull may delete such a file.
 func (a *App) syncPullForce(repo *git.Repository, wTree *git.Worktree, auth transport.AuthMethod, remoteName string) error {
-	a.logInfof(logSync, "Force pull: fetching %s", remoteName)
+	a.log(logSync).infof("Force pull: fetching %s", remoteName)
 
 	if runtime.GOOS == "android" {
 		tmpDir := a.layout().git("tmp")
@@ -353,9 +353,9 @@ func (a *App) syncPullForce(repo *git.Repository, wTree *git.Worktree, auth tran
 		}
 		full := a.layout().file(p)
 		if err := os.Remove(full); err != nil && !os.IsNotExist(err) {
-			a.logErrf(logSync, "force pull: failed to remove file no longer tracked upstream (%s): %v", p, err)
+			a.log(logSync).errf("force pull: failed to remove file no longer tracked upstream (%s): %v", p, err)
 		} else {
-			a.logDebugf(logSync, "force pull: removed file no longer tracked upstream: %s", p)
+			a.log(logSync).debugf("force pull: removed file no longer tracked upstream: %s", p)
 		}
 	}
 
@@ -366,13 +366,13 @@ func (a *App) syncPullForce(repo *git.Repository, wTree *git.Worktree, auth tran
 
 	matcher, mErr := a.loadGitignoreMatcher(wTree)
 	if mErr != nil {
-		a.logErrf(logSync, "force pull: could not load .gitignore, skipping untracked cleanup: %v", mErr)
+		a.log(logSync).errf("force pull: could not load .gitignore, skipping untracked cleanup: %v", mErr)
 	} else {
 		a.cleanUntrackedFiles(wTree, matcher)
 	}
 
 	a.clearPremergeHead() // any pending 3-way merge is now moot
 	a.clearMergeParent()
-	a.logInfof(logSync, "Force pull complete")
+	a.log(logSync).infof("Force pull complete")
 	return nil
 }

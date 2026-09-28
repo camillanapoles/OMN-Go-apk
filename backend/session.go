@@ -74,18 +74,18 @@ func (a *App) sessionSecret() []byte {
 				a.sessionKey = key
 				return
 			}
-			a.logErrf(logSession, "%s does not hold a valid key, a new key replaces it", path)
+			a.log(logSession).errf("%s does not hold a valid key, a new key replaces it", path)
 		}
 
 		key := make([]byte, sessionKeyBytes)
 		if _, err := rand.Read(key); err != nil {
 			// With no random source, write no key. Each remote request then
 			// gets 401. A guessable key would be worse.
-			a.logErrf(logSession, "no random source for the session key: %v", err)
+			a.log(logSession).errf("no random source for the session key: %v", err)
 			return
 		}
 		if err := os.WriteFile(path, []byte(hex.EncodeToString(key)+"\n"), 0600); err != nil {
-			a.logErrf(logSession, "failed to write %s, each session ends at the next start: %v", path, err)
+			a.log(logSession).errf("failed to write %s, each session ends at the next start: %v", path, err)
 		}
 		a.sessionKey = key
 	})
@@ -180,7 +180,7 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	if !passwordMatches(pwd, cfg.AdminPassword) {
 		if cfg.AdminPassword == "" {
-			a.logErrf(logSession, "login refused: config.json holds no admin password, thus no caller on the network can log in")
+			a.log(logSession).errf("login refused: config.json holds no admin password, thus no caller on the network can log in")
 		}
 		http.Error(w, "Invalid", http.StatusUnauthorized)
 		return
@@ -190,7 +190,7 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if signed == nil {
 		// The install has no key. See sessionSecret. An unsigned cookie is
 		// not an option.
-		a.logErrf(logSession, "login refused: this install has no session key")
+		a.log(logSession).errf("login refused: this install has no session key")
 		http.Error(w, "Login unavailable", http.StatusInternalServerError)
 		return
 	}

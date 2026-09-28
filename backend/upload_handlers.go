@@ -92,7 +92,7 @@ func (a *App) writeUploadError(w http.ResponseWriter, logPrefix string, err erro
 		http.Error(w, rejected.msg, http.StatusBadRequest)
 		return
 	}
-	a.logErrf(logUpload, "%s: %v", logPrefix, err)
+	a.log(logUpload).errf("%s: %v", logPrefix, err)
 	http.Error(w, "Upload failed", http.StatusInternalServerError)
 }
 

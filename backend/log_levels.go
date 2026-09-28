@@ -1,5 +1,7 @@
 package backend
 
+import "sync/atomic"
+
 // ----------------------------------------------------------------------
 // Log tags and log levels
 // ----------------------------------------------------------------------
@@ -13,9 +15,9 @@ package backend
 //	tag    The subsystem that wrote the line: one of the constants below.
 //	level  How much the reader wants it: debug, info or error.
 //
-// The text is "[tag] (level) message". a.logDebugf, a.logInfof and a.logErrf
-// write the brackets and the parentheses, thus a format string never holds
-// them.
+// The text is "[tag] (level) message". The debugf, infof and errf methods of
+// a logger write the brackets and the parentheses, thus a format string never
+// holds them.
 //
 // THIS FILE IS THE ONLY AUTHORITY FOR THE TAG SET. Add a new tag to the
 // constant block and to allLogTags together. The Config page makes its
@@ -93,19 +95,25 @@ const (
 	levelError logLevel = "error"
 )
 
-// logDebugf writes one step of an operation. It is off on a fresh install.
-func (a *App) logDebugf(tag logTag, format string, args ...any) {
-	a.emitLog(levelDebug, tag, format, args...)
+// logger writes the lines of one tag. It holds the tag and the filter of the
+// configuration, thus a function that gets a logger needs no *App.
+type logger struct {
+	tag    logTag
+	filter *atomic.Value // the logFilter cache of the App
 }
 
-// logInfof writes the result of an operation. It is off on a fresh install.
-func (a *App) logInfof(tag logTag, format string, args ...any) {
-	a.emitLog(levelInfo, tag, format, args...)
+// log gives the logger of one tag.
+func (a *App) log(tag logTag) logger {
+	return logger{tag: tag, filter: &a.logFilter}
 }
 
-// logErrf writes a fault. This level has no switch: a person who asks for
-// less noise never asks for fewer faults. The parentheses already hold
-// "error", thus do not write "Error:" or "Warning:" in the message.
-func (a *App) logErrf(tag logTag, format string, args ...any) {
-	a.emitLog(levelError, tag, format, args...)
-}
+// debugf writes one step of an operation. It is off on a fresh install.
+func (l logger) debugf(format string, args ...any) { l.emit(levelDebug, format, args...) }
+
+// infof writes the result of an operation. It is off on a fresh install.
+func (l logger) infof(format string, args ...any) { l.emit(levelInfo, format, args...) }
+
+// errf writes a fault. This level has no switch: a person who asks for less
+// noise never asks for fewer faults. The parentheses already hold "error",
+// thus do not write "Error:" or "Warning:" in the message.
+func (l logger) errf(format string, args ...any) { l.emit(levelError, format, args...) }

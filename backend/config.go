@@ -194,7 +194,7 @@ func (a *App) dropLegacyMimeSeed() bool {
 			continue
 		}
 		a.Config.MimeTypes = nil
-		a.logInfof(logConfig, "removed the mime_types map that an older version wrote, "+
+		a.log(logConfig).infof("removed the mime_types map that an older version wrote, " +
 			"thus the content types of this build answer again")
 		return true
 	}
@@ -339,9 +339,9 @@ func (a *App) loadConfig(storageDir string) {
 		}
 		data, err := json.MarshalIndent(a.Config, "", "  ")
 		if err != nil {
-			a.logErrf(logConfig, "loadConfig: failed to marshal default config: %v", err)
+			a.log(logConfig).errf("loadConfig: failed to marshal default config: %v", err)
 		} else if err := os.WriteFile(configPath, data, 0644); err != nil {
-			a.logErrf(logConfig, "loadConfig: failed to write default config.json: %v", err)
+			a.log(logConfig).errf("loadConfig: failed to write default config.json: %v", err)
 		}
 	} else {
 		data, readErr := os.ReadFile(configPath)
@@ -349,12 +349,12 @@ func (a *App) loadConfig(storageDir string) {
 			// The loader cannot read an existing config.json. Leave a.Config
 			// at its zero value, and write an error line. Do not run with an
 			// empty config in silence.
-			a.logErrf(logConfig, "loadConfig: failed to read %s: %v", configPath, readErr)
+			a.log(logConfig).errf("loadConfig: failed to read %s: %v", configPath, readErr)
 		} else if err := json.Unmarshal(data, &a.Config); err != nil {
 			// A config.json that does not parse leaves a.Config partly zero.
 			// The error line explains why the passwords and settings seem to
 			// reset.
-			a.logErrf(logConfig, "loadConfig: failed to parse %s (using defaults for any unparsed fields): %v", configPath, err)
+			a.log(logConfig).errf("loadConfig: failed to parse %s (using defaults for any unparsed fields): %v", configPath, err)
 		}
 	}
 	// A config.json with no server_port, or a value below 1, gets the
@@ -378,9 +378,9 @@ func (a *App) loadConfig(storageDir string) {
 	if a.dropLegacyMimeSeed() {
 		data, err := json.MarshalIndent(a.Config, "", "  ")
 		if err != nil {
-			a.logErrf(logConfig, "loadConfig: failed to marshal config after the mime-type repair: %v", err)
+			a.log(logConfig).errf("loadConfig: failed to marshal config after the mime-type repair: %v", err)
 		} else if err := os.WriteFile(configPath, data, 0644); err != nil {
-			a.logErrf(logConfig, "loadConfig: failed to write config.json after the mime-type repair: %v", err)
+			a.log(logConfig).errf("loadConfig: failed to write config.json after the mime-type repair: %v", err)
 		}
 	}
 

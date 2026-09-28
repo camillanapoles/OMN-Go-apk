@@ -142,8 +142,9 @@ update these files.
   the response shapes. A response is plain-text status words, or JSON with
   `"status":"success"` or `"status":"error"`, or `text/event-stream` for `/api/logs`.
 * **Logging.** Do not call `log.Printf`. Write a step with
-  `a.logDebugf(tag, format, ...)`, an outcome with `a.logInfof(tag, format, ...)`
-  and a fault with `a.logErrf(tag, format, ...)`. `TestNoDirectLogPrintf` enforces
+  `a.log(tag).debugf(format, ...)`, an outcome with `a.log(tag).infof(format, ...)`
+  and a fault with `a.log(tag).errf(format, ...)`. Give a function that has no
+  `*App` a `logger` value. `TestNoDirectLogPrintf` enforces
   this.
   * `tag` is a typed constant from `backend/log_levels.go`, for example `logSync`
     or `logAssets`. That file is the only authority for the tag set. Add a new tag

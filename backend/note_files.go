@@ -78,7 +78,7 @@ func (a *App) syncNoteFilesToHTML() {
 			return nil
 		}
 		if copyErr := copyFileWithTime(p, dst); copyErr != nil {
-			a.logErrf(logNoteFiles, "md/%s to html/: %v", filepath.ToSlash(rel), copyErr)
+			a.log(logNoteFiles).errf("md/%s to html/: %v", filepath.ToSlash(rel), copyErr)
 			return nil
 		}
 		copied++
@@ -86,7 +86,7 @@ func (a *App) syncNoteFilesToHTML() {
 	})
 
 	if copied > 0 {
-		a.logInfof(logNoteFiles, "copied %d file(s) from md/ to html/", copied)
+		a.log(logNoteFiles).infof("copied %d file(s) from md/ to html/", copied)
 	}
 }
 
@@ -111,7 +111,7 @@ func (a *App) syncNoteFileToMD(htmlPath string) {
 	}
 	dst := a.layout().md(rel)
 	if copyErr := copyFileWithTime(htmlPath, dst); copyErr != nil {
-		a.logErrf(logNoteFiles, "html/%s to md/: %v", filepath.ToSlash(rel), copyErr)
+		a.log(logNoteFiles).errf("html/%s to md/: %v", filepath.ToSlash(rel), copyErr)
 	}
 }
 

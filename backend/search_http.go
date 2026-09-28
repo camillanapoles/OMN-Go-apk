@@ -140,7 +140,7 @@ func (a *App) searchPage(resp *searchResponse, qs map[string][]string) {
 
 	doc, err := a.loadPageDocument(get("on"))
 	if err != nil {
-		a.logErrf(logSearch, "%s: %v", get("on"), err)
+		a.log(logSearch).errf("%s: %v", get("on"), err)
 		return
 	}
 	if doc == nil {
@@ -312,7 +312,7 @@ func (a *App) searchGlobal(resp *searchResponse, qs map[string][]string) {
 		resp.Results = append(resp.Results, res)
 	}
 	if read > 0 {
-		a.logInfof(logSearch, "%q: %d candidates read, %d matched", resp.Query, read, resp.Total)
+		a.log(logSearch).infof("%q: %d candidates read, %d matched", resp.Query, read, resp.Total)
 	}
 }
 

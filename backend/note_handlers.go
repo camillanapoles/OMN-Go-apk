@@ -87,10 +87,10 @@ func (a *App) handleEditExternal(w http.ResponseWriter, r *http.Request) {
 	if cmd != nil {
 		err := cmd.Start()
 		if err != nil {
-			a.logErrf(logEdit, "Failed to run external editor: %v", err)
+			a.log(logEdit).errf("Failed to run external editor: %v", err)
 		}
 	} else {
-		a.logErrf(logEdit, "Failed to run external editor: no command configured")
+		a.log(logEdit).errf("Failed to run external editor: no command configured")
 	}
 
 	writeHTMLHeader(w)
@@ -160,7 +160,7 @@ func (a *App) handleQuickNote(w http.ResponseWriter, r *http.Request) {
 
 	// renderAndCache is the only writer of html/*.html. See render_cache.go.
 	if _, err := a.renderAndCache("QuickNotes", []byte(fullMarkdown)); err != nil {
-		a.logErrf(logPage, "handleQuickNote: %v", err)
+		a.log(logPage).errf("handleQuickNote: %v", err)
 	}
 
 	w.Write([]byte("Saved"))
@@ -211,7 +211,7 @@ func (a *App) handleBookmark(w http.ResponseWriter, r *http.Request) {
 			newContent = a.ensureHeaderModified(newContent, "Incoming bookmarks")
 			os.WriteFile(path, []byte(newContent), 0644)
 			if _, err := a.renderAndCache("Bookmarks", []byte(newContent)); err != nil {
-				a.logErrf(logPage, "handleBookmark: %v", err)
+				a.log(logPage).errf("handleBookmark: %v", err)
 			}
 		}
 	}
@@ -275,9 +275,9 @@ func (a *App) handleGetNote(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if mkErr := os.MkdirAll(filepath.Dir(mdPath), 0755); mkErr != nil {
-		a.logErrf(logPage, "handleGetNote: failed to create directory for %q: %v", baseName, mkErr)
+		a.log(logPage).errf("handleGetNote: failed to create directory for %q: %v", baseName, mkErr)
 	} else if writeErr := os.WriteFile(mdPath, data, 0644); writeErr != nil {
-		a.logErrf(logPage, "handleGetNote: failed to persist new page %q: %v", baseName, writeErr)
+		a.log(logPage).errf("handleGetNote: failed to persist new page %q: %v", baseName, writeErr)
 	}
 
 	w.Write(data)
@@ -347,7 +347,7 @@ func (a *App) handleNewPage(w http.ResponseWriter, r *http.Request) {
 			os.WriteFile(sourceMdPath, []byte(content), 0644)
 
 			if _, err := a.renderAndCache(source, []byte(content)); err != nil {
-				a.logErrf(logPage, "handleNewPage: %v", err)
+				a.log(logPage).errf("handleNewPage: %v", err)
 			}
 		}
 	}
@@ -375,12 +375,12 @@ func (a *App) handleSaveNote(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err := os.MkdirAll(filepath.Dir(htmlPath), 0755); err != nil {
-			a.logErrf(logPage, "handleSaveNote: mkdir failed for %q: %v", name, err)
+			a.log(logPage).errf("handleSaveNote: mkdir failed for %q: %v", name, err)
 			http.Error(w, "Failed to save", http.StatusInternalServerError)
 			return
 		}
 		if err := os.WriteFile(htmlPath, []byte(content), 0644); err != nil {
-			a.logErrf(logPage, "handleSaveNote: write failed for %q: %v", name, err)
+			a.log(logPage).errf("handleSaveNote: write failed for %q: %v", name, err)
 			http.Error(w, "Failed to save", http.StatusInternalServerError)
 			return
 		}
@@ -396,12 +396,12 @@ func (a *App) handleSaveNote(w http.ResponseWriter, r *http.Request) {
 	// Write the markdown source first. When the write fails, answer with a
 	// failure. Do not compile content that did not reach the disk.
 	if err := os.MkdirAll(filepath.Dir(mdPath), 0755); err != nil {
-		a.logErrf(logPage, "handleSaveNote: mkdir failed for %q: %v", baseName, err)
+		a.log(logPage).errf("handleSaveNote: mkdir failed for %q: %v", baseName, err)
 		http.Error(w, "Failed to save", http.StatusInternalServerError)
 		return
 	}
 	if err := os.WriteFile(mdPath, []byte(content), 0644); err != nil {
-		a.logErrf(logPage, "handleSaveNote: write failed for %q: %v", baseName, err)
+		a.log(logPage).errf("handleSaveNote: write failed for %q: %v", baseName, err)
 		http.Error(w, "Failed to save", http.StatusInternalServerError)
 		return
 	}
@@ -410,7 +410,7 @@ func (a *App) handleSaveNote(w http.ResponseWriter, r *http.Request) {
 	// and serveHTMLPage compiles it again at the next view because the .md is
 	// newer. The save is not a failure.
 	if _, err := a.renderAndCache(baseName, []byte(content)); err != nil {
-		a.logErrf(logPage, "handleSaveNote: %v", err)
+		a.log(logPage).errf("handleSaveNote: %v", err)
 	}
 
 	w.Write([]byte("Saved"))

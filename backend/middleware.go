@@ -20,7 +20,7 @@ func (a *App) connectionMiddleware(next http.Handler) http.Handler {
 		defer a.ActiveConns.Add(-1)
 
 		if reason := a.foreignRequest(r); reason != "" {
-			a.logErrf(logServer, "refused %s %s from %s, Host %q: %s",
+			a.log(logServer).errf("refused %s %s from %s, Host %q: %s",
 				r.Method, r.URL.Path, r.RemoteAddr, r.Host, reason)
 			http.Error(w, "Forbidden: "+reason, http.StatusForbidden)
 			return

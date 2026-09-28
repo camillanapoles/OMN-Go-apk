@@ -235,7 +235,7 @@ func (a *App) dropSearchIndex() {
 	a.search.built = time.Time{}
 	a.search.mu.Unlock()
 	if had > 0 {
-		a.logInfof(logSearch, "index dropped (%d documents released)", had)
+		a.log(logSearch).infof("index dropped (%d documents released)", had)
 	}
 }
 
@@ -317,7 +317,7 @@ func (a *App) reloadDocument(d *indexedDoc) *searchDocument {
 	data, truncated, err := readCapped(a.storagePath(d.Path), maxIndexFileBytes)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			a.logErrf(logSearch, "%s: %v", d.Path, err)
+			a.log(logSearch).errf("%s: %v", d.Path, err)
 		}
 		return nil
 	}

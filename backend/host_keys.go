@@ -98,13 +98,13 @@ func (a *App) hostKeyCallback() cryptossh.HostKeyCallback {
 			if err := a.writeHostKey(host, key); err != nil {
 				return fmt.Errorf("store the host key of %s: %w", host, err)
 			}
-			a.logInfof(logSync, "trusted the host key of %s at the first connection: %s", host, fingerprint)
+			a.log(logSync).infof("trusted the host key of %s at the first connection: %s", host, fingerprint)
 			return nil
 		}
 		change := hostKeyChange{Host: host, Known: cryptossh.FingerprintSHA256(known[0]),
 			Fingerprint: fingerprint, key: key}
 		a.hostKeys.pending = &change
-		a.logErrf(logSync, "refused %s: the host key changed from %s to %s", host, change.Known, fingerprint)
+		a.log(logSync).errf("refused %s: the host key changed from %s to %s", host, change.Known, fingerprint)
 		return &errHostKeyChanged{change: change}
 	}
 }
@@ -205,7 +205,7 @@ func (a *App) handleTrustHostKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.hostKeys.pending = nil
-	a.logInfof(logSync, "trusted the new host key of %s: %s", host, fingerprint)
+	a.log(logSync).infof("trusted the new host key of %s: %s", host, fingerprint)
 	a.writeJSON(w, http.StatusOK, jsonStatus{Status: "success"})
 }
 

@@ -4,8 +4,8 @@ package backend
 // The log transport and the level rule
 //
 // Two things are pinned here. The shape of a line, because the browser
-// parses it. And the ban on log.Printf. A line that skips a.logDebugf,
-// a.logInfof or a.logErrf carries no level. It therefore escapes every
+// parses it. And the ban on log.Printf. A line that skips the debugf, infof
+// and errf methods of a logger carries no level. It therefore escapes every
 // filter a person sets on the Config page.
 // ---------------------------------------------------------------------
 
@@ -65,8 +65,8 @@ func TestNoDirectLogPrintf(t *testing.T) {
 				continue
 			}
 			if !logPrintfAllowed[name] {
-				t.Errorf("%s:%d calls log.Printf. Use a.logDebugf, a.logInfof "+
-					"or a.logErrf with a tag from log_levels.go. A line with no "+
+				t.Errorf("%s:%d calls log.Printf. Use a.log(tag).debugf, infof "+
+					"or errf with a tag from log_levels.go. A line with no "+
 					"level cannot be filtered, and the reader has no way to "+
 					"switch it off.", name, i+1)
 				continue
@@ -101,9 +101,9 @@ func TestEmitLogLineShape(t *testing.T) {
 		logMutex.Unlock()
 	}()
 
-	a.logDebugf(logSync, "Staging file: %s", "Note.md")
-	a.logInfof(logAssets, "%d asset(s) refreshed", 3)
-	a.logErrf(logEdit, "cannot run %q", "subl")
+	a.log(logSync).debugf("Staging file: %s", "Note.md")
+	a.log(logAssets).infof("%d asset(s) refreshed", 3)
+	a.log(logEdit).errf("cannot run %q", "subl")
 
 	want := []string{
 		"[sync] (debug) Staging file: Note.md\n",
@@ -282,7 +282,7 @@ func TestLogHistoryHoldsASuppressedLine(t *testing.T) {
 	if a.logLineEnabled(levelDebug, logSync) {
 		t.Fatal("the filter lets a debug line through, thus this test proves nothing")
 	}
-	a.logDebugf(logSync, "a step that stdout never shows")
+	a.log(logSync).debugf("a step that stdout never shows")
 
 	for _, line := range logHistorySnapshot() {
 		if strings.Contains(line, "a step that stdout never shows") {

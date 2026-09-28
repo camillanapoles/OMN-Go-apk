@@ -177,7 +177,7 @@ func (a *App) statusGitDirtySection() (*statusGitDirty, error) {
 		return nil, fmt.Errorf("open worktree: %v", err)
 	}
 
-	a.logDebugf(logStatus, "Reading the git worktree state")
+	a.log(logStatus).debugf("Reading the git worktree state")
 	started := time.Now()
 	st, err := wTree.Status()
 	if err != nil {
@@ -195,7 +195,7 @@ func (a *App) statusGitDirtySection() (*statusGitDirty, error) {
 		}
 	}
 	out.Dirty = out.Changed > 0
-	a.logInfof(logStatus, "Worktree read in %s: %d changed, %d untracked",
+	a.log(logStatus).infof("Worktree read in %s: %d changed, %d untracked",
 		time.Since(started).Round(time.Millisecond), out.Changed, out.Untracked)
 	return out, nil
 }

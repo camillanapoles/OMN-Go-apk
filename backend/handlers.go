@@ -81,7 +81,7 @@ func (a *App) recompileMarkdownPage(name, mdPath string, errMd error) {
 		// thus it must not rewrite the .md. ensureHeaderModified belongs to
 		// handleSaveNote alone.
 		if _, err := a.renderAndCache(name, mdContent); err != nil {
-			a.logErrf(logPrecompile, "recompileMarkdownPage: %v", err)
+			a.log(logPrecompile).errf("recompileMarkdownPage: %v", err)
 		}
 	}
 }

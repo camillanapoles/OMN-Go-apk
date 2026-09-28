@@ -163,7 +163,7 @@ func (a *App) ensureGitignore() {
 	content, err := os.ReadFile(gitignorePath)
 	if os.IsNotExist(err) {
 		os.WriteFile(gitignorePath, []byte(gitignoreBase), 0644)
-		a.logInfof(logSync, "Created .gitignore")
+		a.log(logSync).infof("Created .gitignore")
 		return
 	}
 	if err != nil {
@@ -212,15 +212,15 @@ func (a *App) ensureGitignore() {
 
 	if rewritten || appended {
 		if err := os.WriteFile(gitignorePath, content, 0644); err != nil {
-			a.logErrf(logSync, "cannot update .gitignore: %v", err)
+			a.log(logSync).errf("cannot update .gitignore: %v", err)
 			return
 		}
-		a.logInfof(logSync, "Updated .gitignore (rewritten=%v, appended=%v)", rewritten, appended)
+		a.log(logSync).infof("Updated .gitignore (rewritten=%v, appended=%v)", rewritten, appended)
 	}
 }
 
 func (a *App) getOrInitRepo() (*git.Repository, error) {
-	a.logDebugf(logSync, "Opening repo at %s", a.StorageDir)
+	a.log(logSync).debugf("Opening repo at %s", a.StorageDir)
 
 	baseFS := osfs.New(a.StorageDir)
 	stableFS := &stableMtimeFS{baseFS}
@@ -235,7 +235,7 @@ func (a *App) getOrInitRepo() (*git.Repository, error) {
 	repo, err := git.Open(storer, wtFS)
 
 	if err != nil {
-		a.logInfof(logSync, "Repo not found, initializing...")
+		a.log(logSync).infof("Repo not found, initializing...")
 		if initErr := a.manualGitInit(a.StorageDir); initErr != nil {
 			return nil, fmt.Errorf("manual init failed: %v", initErr)
 		}
@@ -244,9 +244,9 @@ func (a *App) getOrInitRepo() (*git.Repository, error) {
 			return nil, fmt.Errorf("failed to open manually created repo: %v", err)
 		}
 		a.ensureGitignore()
-		a.logInfof(logSync, "Repo initialized")
+		a.log(logSync).infof("Repo initialized")
 	} else {
-		a.logDebugf(logSync, "Repo opened successfully")
+		a.log(logSync).debugf("Repo opened successfully")
 		// Add each new pattern at each open. Without this, a commit can take
 		// a file that .gitignore must cover, for example a test image.
 		a.ensureGitignore()
@@ -280,7 +280,7 @@ func (a *App) ensureOriginRemote(repo *git.Repository, fallbackURL string) error
 	if fallbackURL == "" {
 		return nil // nothing to seed it with yet; try again on a later sync
 	}
-	a.logInfof(logSync, "Remote origin missing, seeding it once from %s", redactGitURL(fallbackURL))
+	a.log(logSync).infof("Remote origin missing, seeding it once from %s", redactGitURL(fallbackURL))
 	_, err := repo.CreateRemote(&gitconfig.RemoteConfig{
 		Name: "origin",
 		URLs: []string{fallbackURL},
@@ -298,16 +298,16 @@ func (a *App) ensureSlotRemotes(repo *git.Repository, cfg Config) (activeRemoteN
 		remote, rErr := repo.Remote(name)
 		if url == "" {
 			if rErr == nil {
-				a.logInfof(logSync, "Removing remote %s (slot %d cleared)", name, i)
+				a.log(logSync).infof("Removing remote %s (slot %d cleared)", name, i)
 				if dErr := repo.DeleteRemote(name); dErr != nil {
-					a.logErrf(logSync, "failed to remove remote %s: %v", name, dErr)
+					a.log(logSync).errf("failed to remove remote %s: %v", name, dErr)
 				}
 			}
 			continue
 		}
 
 		if rErr != nil {
-			a.logInfof(logSync, "Adding remote %s -> %s", name, redactGitURL(url))
+			a.log(logSync).infof("Adding remote %s -> %s", name, redactGitURL(url))
 			if _, cErr := repo.CreateRemote(&gitconfig.RemoteConfig{Name: name, URLs: []string{url}}); cErr != nil {
 				return "", fmt.Errorf("failed to add remote %s: %v", name, cErr)
 			}
@@ -322,7 +322,7 @@ func (a *App) ensureSlotRemotes(repo *git.Repository, cfg Config) (activeRemoteN
 		for j, u := range existing {
 			old[j] = redactGitURL(u)
 		}
-		a.logInfof(logSync, "Remote %s URL changed (%v -> %s), updating", name, old, redactGitURL(url))
+		a.log(logSync).infof("Remote %s URL changed (%v -> %s), updating", name, old, redactGitURL(url))
 		if dErr := repo.DeleteRemote(name); dErr != nil {
 			return "", fmt.Errorf("failed to update remote %s: %v", name, dErr)
 		}
@@ -336,7 +336,7 @@ func (a *App) ensureSlotRemotes(repo *git.Repository, cfg Config) (activeRemoteN
 			return slotRemoteName(cfg.ActiveGitIndex), nil
 		}
 	}
-	a.logInfof(logSync, "Active server slot has no URL configured, falling back to origin")
+	a.log(logSync).infof("Active server slot has no URL configured, falling back to origin")
 	return "origin", nil
 }
 
@@ -464,11 +464,11 @@ func (a *App) getSSHAuth() (transport.AuthMethod, error) {
 	if idx := strings.Index(gs.URL, "@"); idx != -1 {
 		sshUser = gs.URL[:idx]
 	}
-	a.logDebugf(logSync, "SSH user: %s", sshUser)
+	a.log(logSync).debugf("SSH user: %s", sshUser)
 
 	keyData := gs.SSHKeyData
 	if keyData == "" {
-		a.logErrf(logSync, "No SSH key configured")
+		a.log(logSync).errf("No SSH key configured")
 		return nil, fmt.Errorf("no SSH key configured")
 	}
 
@@ -489,7 +489,7 @@ func (a *App) getSSHAuth() (transport.AuthMethod, error) {
 		HostKeyCallback:   a.hostKeyCallback(),
 		HostKeyAlgorithms: a.hostKeyAlgorithms(sshHostOf(gs.URL)),
 	}
-	a.logDebugf(logSync, "SSH auth method created using inline key data")
+	a.log(logSync).debugf("SSH auth method created using inline key data")
 	return publicKeys, nil
 }
 
@@ -509,7 +509,7 @@ func (a *App) protectGitDirs() {
 	for _, dir := range []string{"objects"} {
 		p := a.layout().git(dir)
 		if err := os.MkdirAll(p, 0755); err != nil {
-			a.logErrf(logSync, "MkdirAll %s failed: %v", p, err)
+			a.log(logSync).errf("MkdirAll %s failed: %v", p, err)
 			continue
 		}
 		keepFile := filepath.Join(p, ".gitkeep")

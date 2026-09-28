@@ -31,7 +31,7 @@ func (a *App) premergeHeadPath() string {
 
 func (a *App) savePremergeHead(h plumbing.Hash) {
 	if err := os.WriteFile(a.premergeHeadPath(), []byte(h.String()), 0644); err != nil {
-		a.logErrf(logSync, "failed to save pre-merge HEAD: %v", err)
+		a.log(logSync).errf("failed to save pre-merge HEAD: %v", err)
 	}
 }
 
@@ -61,7 +61,7 @@ func (a *App) mergeParentPath() string {
 
 func (a *App) saveMergeParent(h plumbing.Hash) {
 	if err := os.WriteFile(a.mergeParentPath(), []byte(h.String()), 0644); err != nil {
-		a.logErrf(logSync, "failed to save pending merge parent: %v", err)
+		a.log(logSync).errf("failed to save pending merge parent: %v", err)
 	}
 }
 
@@ -87,7 +87,7 @@ func (a *App) clearMergeParent() {
 func (a *App) cleanUntrackedFiles(wTree *git.Worktree, matcher gitignore.Matcher) {
 	status, err := wTree.Status()
 	if err != nil {
-		a.logErrf(logSync, "force pull: could not compute status for cleanup: %v", err)
+		a.log(logSync).errf("force pull: could not compute status for cleanup: %v", err)
 		return
 	}
 	for name, fileStat := range status {
@@ -98,18 +98,18 @@ func (a *App) cleanUntrackedFiles(wTree *git.Worktree, matcher gitignore.Matcher
 		// config.json holds the passwords of this device, whatever the
 		// .gitignore of the remote says.
 		if name == "config.json" {
-			a.logDebugf(logSync, "force pull: keeping root config.json (preserve locally)")
+			a.log(logSync).debugf("force pull: keeping root config.json (preserve locally)")
 			continue
 		}
 		if matcher != nil && matcher.Match(strings.Split(name, string(filepath.Separator)), false) {
-			a.logDebugf(logSync, "force pull: keeping ignored file %s", name)
+			a.log(logSync).debugf("force pull: keeping ignored file %s", name)
 			continue
 		}
 		full := a.layout().file(name)
 		if err := os.Remove(full); err != nil {
-			a.logErrf(logSync, "force pull: failed to delete %s: %v", name, err)
+			a.log(logSync).errf("force pull: failed to delete %s: %v", name, err)
 		} else {
-			a.logDebugf(logSync, "force pull: deleted untracked file %s", name)
+			a.log(logSync).debugf("force pull: deleted untracked file %s", name)
 		}
 	}
 }
@@ -164,7 +164,7 @@ func (w *syncProgressWriter) Write(p []byte) (int, error) {
 		line = strings.TrimSpace(strings.TrimPrefix(line, "remote:"))
 		if line != "" && time.Since(w.last) >= syncProgressInterval {
 			w.last = time.Now()
-			w.app.logDebugf(logSync, "remote: %s", line)
+			w.app.log(logSync).debugf("remote: %s", line)
 		}
 	}
 	// Never return an error. A fault of the progress log must not stop a

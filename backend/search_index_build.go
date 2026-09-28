@@ -171,9 +171,9 @@ func (a *App) rebuildSearchIndex() {
 	a.search.mu.Unlock()
 
 	if capped {
-		a.logErrf(logSearch, "index capped at %d MB of text; some files were left out", maxIndexBytes>>20)
+		a.log(logSearch).errf("index capped at %d MB of text; some files were left out", maxIndexBytes>>20)
 	}
-	a.logInfof(logSearch, "Indexed %d files (%d lines, %.1f MB) in %s",
+	a.log(logSearch).infof("Indexed %d files (%d lines, %.1f MB) in %s",
 		len(docs), lines, float64(bytes)/(1<<20), time.Since(started).Round(time.Millisecond))
 }
 

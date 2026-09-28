@@ -13,7 +13,7 @@ package backend
 //
 //	JSLogger.Write  The standard log package, for the two call sites that
 //	                cannot reach an *App. See TestNoDirectLogPrintf.
-//	App.emitLog     Each other line, through logDebugf, logInfof or logErrf.
+//	logger.emit     Each other line, through debugf, infof or errf.
 //
 // THE STREAM ALWAYS CARRIES EACH LINE. The sync overlay needs the "[sync]"
 // debug lines also when a reader asks for less. The browser can also change
@@ -89,7 +89,7 @@ func logHistorySnapshot() []string {
 }
 
 // logTimeLayout is the time prefix of the standard log package with
-// log.LstdFlags. emitLog writes the stamp itself. Both sources must look the
+// log.LstdFlags. logger.emit writes the stamp itself. Both sources must look the
 // same, or the page must parse two shapes.
 const logTimeLayout = "2006/01/02 15:04:05 "
 
@@ -120,13 +120,13 @@ func (l *JSLogger) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// emitLog makes one line "[tag] (level) message", stamps it, and gives it to
+// emit makes one line "[tag] (level) message", stamps it, and gives it to
 // broadcastLogLine. It is the only writer of a line with a level.
-func (a *App) emitLog(lvl logLevel, tag logTag, format string, args ...any) {
+func (l logger) emit(lvl logLevel, format string, args ...any) {
 	line := time.Now().Format(logTimeLayout) +
-		"[" + string(tag) + "] (" + string(lvl) + ") " +
+		"[" + string(l.tag) + "] (" + string(lvl) + ") " +
 		fmt.Sprintf(format, args...) + "\n"
-	broadcastLogLine(line, a.logLineEnabled(lvl, tag))
+	broadcastLogLine(line, l.enabled(lvl))
 }
 
 // logFilter is the cached form of Config.LogDebug, Config.LogInfo and
@@ -141,7 +141,7 @@ type logFilter struct {
 //
 // A LOG LINE MUST NEVER TAKE THE CONFIG LOCK. loadConfig holds the write lock
 // and can write a log line, and a Go RWMutex is not reentrant. A read of the
-// config from emitLog would thus deadlock the start. An atomic value costs
+// config from emit would thus deadlock the start. An atomic value costs
 // one load for each line. loadConfig and handleConfigPost refresh the cache.
 func (a *App) applyLogFilter(c Config) {
 	f := logFilter{
@@ -160,10 +160,15 @@ func (a *App) applyLogFilter(c Config) {
 // its tag checked. Before loadConfig runs, the cache is empty and allows
 // faults only, the same as a fresh install.
 func (a *App) logLineEnabled(lvl logLevel, tag logTag) bool {
+	return a.log(tag).enabled(lvl)
+}
+
+// enabled is the test of logLineEnabled for the tag of l.
+func (l logger) enabled(lvl logLevel) bool {
 	if lvl == levelError {
 		return true
 	}
-	f, ok := a.logFilter.Load().(logFilter)
+	f, ok := l.filter.Load().(logFilter)
 	if !ok {
 		return false
 	}
@@ -173,7 +178,7 @@ func (a *App) logLineEnabled(lvl logLevel, tag logTag) bool {
 	if lvl == levelInfo && !f.info {
 		return false
 	}
-	return f.tags[tag]
+	return f.tags[l.tag]
 }
 
 // initLogger sends the standard logger into the /api/logs stream.

@@ -148,7 +148,7 @@ func StartServer(storageDir string, defaultPort int) *App {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				a.logErrf(logServer, "Recovered from panic in server: %v", r)
+				a.log(logServer).errf("Recovered from panic in server: %v", r)
 			}
 		}()
 
@@ -183,11 +183,11 @@ func StartServer(storageDir string, defaultPort int) *App {
 			if err == nil {
 				break
 			}
-			a.logDebugf(logServer, "bind %s failed (attempt %d/10), retrying: %v", bindAddr, attempt, err)
+			a.log(logServer).debugf("bind %s failed (attempt %d/10), retrying: %v", bindAddr, attempt, err)
 			time.Sleep(300 * time.Millisecond)
 		}
 		if err != nil {
-			a.logErrf(logServer, "Server failed to bind %s: %v", bindAddr, err)
+			a.log(logServer).errf("Server failed to bind %s: %v", bindAddr, err)
 			close(a.ready) // unblock any waiter rather than hang forever
 			return
 		}
@@ -195,11 +195,11 @@ func StartServer(storageDir string, defaultPort int) *App {
 		// The listener knows the real port, for example after a port of 0.
 		a.setBoundAddress(listener.Addr().String())
 
-		a.logInfof(logServer, "OMN-Go Backend running on %s", bindAddr)
+		a.log(logServer).infof("OMN-Go Backend running on %s", bindAddr)
 		close(a.ready)
 
 		if err := http.Serve(listener, a.connectionMiddleware(a.Router)); err != nil {
-			a.logErrf(logServer, "Server crashed: %v", err)
+			a.log(logServer).errf("Server crashed: %v", err)
 		}
 	}()
 	return a

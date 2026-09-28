@@ -354,8 +354,8 @@ process.stdout.write(JSON.stringify({ quiet: quiet, stages: stages }));
 //
 // THE TWO DO NOT TAKE THE SAME INPUT. The Go side takes a level and a
 // tag. The JavaScript side takes the whole line and reads both out of it
-// with LOG_LINE_RE. The line that it reads is the one that emitLog
-// writes, thus the test builds the line the same way emitLog does.
+// with LOG_LINE_RE. The line that it reads is the one that logger.emit
+// writes, thus the test builds the line the same way logger.emit does.
 //
 // A DIFFERENCE IS NOT COSMETIC. A person turns a level off, sees a quiet
 // stdout and a loud console, and cannot tell which one lies.
@@ -414,7 +414,7 @@ func TestLogFilterPortAgreesWithTheRealJavaScript(t *testing.T) {
 							// way compares the two sides against a state
 							// that no browser ever holds.
 							Tags: strings.Join(normalizeLogTags(cfg.LogTags), ","),
-							// The shape that emitLog writes. See logger.go.
+							// The shape that logger.emit writes. See logger.go.
 							Line: "2026/09/06 12:00:00 [" + string(tag) + "] (" +
 								string(lvl) + ") a message",
 						})

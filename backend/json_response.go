@@ -20,7 +20,7 @@ func (a *App) writeJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	if err := json.NewEncoder(w).Encode(v); err != nil {
-		a.logErrf(logServer, "encode the JSON answer: %v", err)
+		a.log(logServer).errf("encode the JSON answer: %v", err)
 	}
 }
 

@@ -251,14 +251,14 @@ func (a *App) createDBBackup(name string) (created string, pruned []string, err 
 	// the backup, thus the state dot of the page shows "in sync".
 	if info, err := os.Stat(target); err == nil {
 		if err := os.Chtimes(a.userDBPath(name), info.ModTime(), info.ModTime()); err != nil && !os.IsNotExist(err) {
-			a.logErrf(logDBBackup, "touch %s.sqlite: %v", name, err)
+			a.log(logDBBackup).errf("touch %s.sqlite: %v", name, err)
 		}
 	}
 
 	pruned, err = a.pruneDBBackups(name)
 	if err != nil {
 		// The backup worked. A prune fault does not fail the request.
-		a.logErrf(logDBBackup, "prune %s: %v", name, err)
+		a.log(logDBBackup).errf("prune %s: %v", name, err)
 		err = nil
 	}
 	return a.relStoragePath(target), pruned, nil
@@ -300,10 +300,10 @@ func (a *App) pruneDBBackups(name string) ([]string, error) {
 	for i := depth; i < len(files); i++ {
 		full := filepath.Join(a.dbBackupDir(name), files[i])
 		if err := os.Remove(full); err != nil && !os.IsNotExist(err) {
-			a.logErrf(logDBBackup, "prune %s: %v", files[i], err)
+			a.log(logDBBackup).errf("prune %s: %v", files[i], err)
 			continue
 		}
-		a.logInfof(logDBBackup, "%s: pruned %s", name, files[i])
+		a.log(logDBBackup).infof("%s: pruned %s", name, files[i])
 		removed = append(removed, a.relStoragePath(full))
 	}
 	return removed, nil

@@ -25,7 +25,7 @@ func (a *App) initStorage(overrideDir string) {
 
 	// 1. Make the storage directory.
 	if err := os.MkdirAll(a.StorageDir, 0755); err != nil {
-		a.logErrf(logStorage, "Failed to create storage: %v", err)
+		a.log(logStorage).errf("Failed to create storage: %v", err)
 	}
 
 	mdDir := a.layout().md()
@@ -141,7 +141,7 @@ Tags: Bookmarks
 	// Make the incoming index when it is absent. See note_exchange.go. On the
 	// desktop, the receive box on that page is how a note arrives.
 	if err := a.ensureIncomingIndex(time.Now()); err != nil {
-		a.logErrf(logStorage, "initStorage: incoming index: %v", err)
+		a.log(logStorage).errf("initStorage: incoming index: %v", err)
 	}
 
 	// Compile each note into html/ in the background.
@@ -156,7 +156,7 @@ func (a *App) precompileAllPages() {
 	// This runs in the background at the start. serveHTMLPage compiles a note
 	// that a person opens before this pass ends, and the person waits. The
 	// log lines show that wait on /api/logs.
-	a.logDebugf(logPrecompile, "Compiling notes in background")
+	a.log(logPrecompile).debugf("Compiling notes in background")
 	started := time.Now()
 	compiled := 0
 
@@ -169,7 +169,7 @@ func (a *App) precompileAllPages() {
 				// renderAndCache is the one cache writer. See
 				// render_cache.go.
 				if _, err := a.renderAndCache(name, content); err != nil {
-					a.logErrf(logPrecompile, "precompileAllPages: %v", err)
+					a.log(logPrecompile).errf("precompileAllPages: %v", err)
 				} else {
 					compiled++
 				}
@@ -178,14 +178,14 @@ func (a *App) precompileAllPages() {
 		return nil
 	})
 
-	a.logInfof(logPrecompile, "Compiled %d notes in %s", compiled,
+	a.log(logPrecompile).infof("Compiled %d notes in %s", compiled,
 		time.Since(started).Round(time.Millisecond))
 
 	// After each note, make the Tags page again. html/OMNGoTags.html then
 	// exists, and it is current in the offline copy, also when nobody opens
 	// it. This runs in the background, thus it never blocks the start.
 	if err := a.generateTagsPage(); err != nil {
-		a.logErrf(logTags, "precompileAllPages: tags: %v", err)
+		a.log(logTags).errf("precompileAllPages: tags: %v", err)
 	}
 
 	// Build the search index last, when the person turned global search on.

@@ -24,8 +24,8 @@ server wrote it. The guard on the history protected nothing.
 ## Decision
 
 * Each line has a tag (the subsystem) and a level (`debug`, `info` or
-  `error`). `a.logDebugf`, `a.logInfof` and `a.logErrf` write the text
-  `[tag] (level) message`.
+  `error`). The `debugf`, `infof` and `errf` methods of a `logger` write
+  the text `[tag] (level) message`.
 * `broadcastLogLine` sends each line to three places: stdout, the SSE
   stream and a ring of the last 500 lines.
 * The configuration filters stdout and the browser console only. The

@@ -220,7 +220,7 @@ func TestSyncLogShapeHasAFrontendCopy(t *testing.T) {
 	js := portsJS(t, "omn-go-sse.js")
 
 	if !strings.Contains(js, "'[sync]'") {
-		t.Errorf("omn-go-sse.js no longer looks for '[sync]'. emitLog writes "+
+		t.Errorf("omn-go-sse.js no longer looks for '[sync]'. logger.emit writes "+
 			"[%s], thus the progress overlay finds no line.", logSync)
 	}
 
@@ -242,7 +242,7 @@ func TestSyncLogShapeHasAFrontendCopy(t *testing.T) {
 		}
 	}
 
-	// The whole shape, end to end. A line that emitLog writes must reduce
+	// The whole shape, end to end. A line that logger.emit writes must reduce
 	// to its message after the two steps that applySyncLogLine takes.
 	for _, lvl := range []logLevel{levelDebug, levelInfo, levelError} {
 		line := "[" + string(logSync) + "] (" + string(lvl) + ") Opening repo at /x"

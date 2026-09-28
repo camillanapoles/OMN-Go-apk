@@ -67,7 +67,7 @@ func (a *App) openUserDB(name string) (*sql.DB, error) {
 	if reopened, err := a.bootstrapIfMissing(name); err != nil {
 		// A failed bootstrap must not stop the database. The note script then
 		// sees an empty database. The backup file stays for a manual restore.
-		a.logErrf(logDBBootstrap, "%s: %v", name, err)
+		a.log(logDBBootstrap).errf("%s: %v", name, err)
 	} else if reopened != nil {
 		// The bootstrap replaced the file and evicted the handle above. Give
 		// out the new handle.
@@ -171,7 +171,7 @@ func (a *App) evictUserDB(name string) {
 	a.sqlMu.Unlock()
 	if ok {
 		if err := db.Close(); err != nil {
-			a.logErrf(logDB, "close evicted handle for %q: %v", name, err)
+			a.log(logDB).errf("close evicted handle for %q: %v", name, err)
 		}
 	}
 }
@@ -206,7 +206,7 @@ func (a *App) runSQLBatchWithRetry(dbName string, statements []sqlStatement) ([]
 		tx, err := db.Begin()
 		if err != nil {
 			if attempt == 1 && isStaleDBHandleError(err) {
-				a.logInfof(logDB, "%s: stale handle on begin, reopening and retrying: %v", dbName, err)
+				a.log(logDB).infof("%s: stale handle on begin, reopening and retrying: %v", dbName, err)
 				a.evictUserDB(dbName)
 				lastErr = err
 				continue
@@ -231,7 +231,7 @@ func (a *App) runSQLBatchWithRetry(dbName string, statements []sqlStatement) ([]
 		if stmtErr != nil {
 			tx.Rollback()
 			if attempt == 1 && isStaleDBHandleError(stmtErr) {
-				a.logInfof(logDB, "%s: stale handle on statement #%d, reopening and retrying: %v", dbName, *failedIdx, stmtErr)
+				a.log(logDB).infof("%s: stale handle on statement #%d, reopening and retrying: %v", dbName, *failedIdx, stmtErr)
 				a.evictUserDB(dbName)
 				lastErr = stmtErr
 				continue
@@ -241,7 +241,7 @@ func (a *App) runSQLBatchWithRetry(dbName string, statements []sqlStatement) ([]
 
 		if err := tx.Commit(); err != nil {
 			if attempt == 1 && isStaleDBHandleError(err) {
-				a.logInfof(logDB, "%s: stale handle on commit, reopening and retrying: %v", dbName, err)
+				a.log(logDB).infof("%s: stale handle on commit, reopening and retrying: %v", dbName, err)
 				a.evictUserDB(dbName)
 				lastErr = err
 				continue

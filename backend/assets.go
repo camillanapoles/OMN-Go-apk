@@ -161,29 +161,29 @@ func (a *App) removeRetiredAssets(backupDir string) int {
 			backupPath := filepath.Join(backupDir, filepath.FromSlash(rel))
 			if err := os.MkdirAll(filepath.Dir(backupPath), 0755); err == nil {
 				if err := os.WriteFile(backupPath, diskData, 0644); err == nil {
-					a.logInfof(logAssets, "kept your copy of %s at %s", rel, backupPath)
+					a.log(logAssets).infof("kept your copy of %s at %s", rel, backupPath)
 				} else {
-					a.logErrf(logAssets, "cannot back up %s: %v", rel, err)
+					a.log(logAssets).errf("cannot back up %s: %v", rel, err)
 					continue // do not delete work that has no copy
 				}
 			} else {
-				a.logErrf(logAssets, "cannot make the backup directory for %s: %v", rel, err)
+				a.log(logAssets).errf("cannot make the backup directory for %s: %v", rel, err)
 				continue
 			}
 		}
 
 		if err := os.Remove(diskPath); err != nil {
-			a.logErrf(logAssets, "cannot remove the old %s: %v", rel, err)
+			a.log(logAssets).errf("cannot remove the old %s: %v", rel, err)
 			continue
 		}
-		a.logInfof(logAssets, "removed the old %s", rel)
+		a.log(logAssets).infof("removed the old %s", rel)
 		removed++
 	}
 
 	for _, rel := range retiredAssetDirs {
 		dirPath := a.layout().file(filepath.FromSlash(rel))
 		if err := os.Remove(dirPath); err == nil {
-			a.logInfof(logAssets, "removed the empty directory %s", rel)
+			a.log(logAssets).infof("removed the empty directory %s", rel)
 		}
 	}
 	return removed
@@ -229,7 +229,7 @@ func (a *App) refreshEmbeddedAssets() {
 		embedData, eerr := staticFS.ReadFile("frontend/" + rel)
 		if eerr != nil {
 			// The list names the file, but this build does not embed it.
-			a.logErrf(logAssets, "%s not embedded in this build: %v", rel, eerr)
+			a.log(logAssets).errf("%s not embedded in this build: %v", rel, eerr)
 			continue
 		}
 		diskPath := a.layout().file(filepath.FromSlash(rel))
@@ -239,12 +239,12 @@ func (a *App) refreshEmbeddedAssets() {
 			continue // already current - nothing to do
 		}
 		if rerr != nil && !os.IsNotExist(rerr) {
-			a.logErrf(logAssets, "cannot read %s: %v", diskPath, rerr)
+			a.log(logAssets).errf("cannot read %s: %v", diskPath, rerr)
 			continue
 		}
 
 		if err := os.MkdirAll(filepath.Dir(diskPath), 0755); err != nil {
-			a.logErrf(logAssets, "skip %s: cannot create dir: %v", rel, err)
+			a.log(logAssets).errf("skip %s: cannot create dir: %v", rel, err)
 			continue
 		}
 
@@ -255,24 +255,24 @@ func (a *App) refreshEmbeddedAssets() {
 		if existed {
 			bakPath := filepath.Join(backupDir, filepath.FromSlash(rel))
 			if err := os.MkdirAll(filepath.Dir(bakPath), 0755); err != nil {
-				a.logErrf(logAssets, "skip %s: cannot create backup dir: %v", rel, err)
+				a.log(logAssets).errf("skip %s: cannot create backup dir: %v", rel, err)
 				continue
 			}
 			if err := os.WriteFile(bakPath, diskData, 0644); err != nil {
-				a.logErrf(logAssets, "skip %s: backup failed: %v", rel, err)
+				a.log(logAssets).errf("skip %s: backup failed: %v", rel, err)
 				continue
 			}
 		}
 
 		if err := os.WriteFile(diskPath, embedData, 0644); err != nil {
-			a.logErrf(logAssets, "write of %s failed: %v", rel, err)
+			a.log(logAssets).errf("write of %s failed: %v", rel, err)
 			continue
 		}
 		refreshed++
 		if existed {
-			a.logInfof(logAssets, "refreshed %s (previous copy saved to asset_backups/%s/%s)", rel, prevLabel, rel)
+			a.log(logAssets).infof("refreshed %s (previous copy saved to asset_backups/%s/%s)", rel, prevLabel, rel)
 		} else {
-			a.logInfof(logAssets, "installed %s from this build", rel)
+			a.log(logAssets).infof("installed %s from this build", rel)
 		}
 	}
 
@@ -280,12 +280,12 @@ func (a *App) refreshEmbeddedAssets() {
 	// refresh, the next start runs it again, and the loop skips an equal
 	// file.
 	if err := os.WriteFile(verFile, []byte(APP_VERSION+"\n"), 0644); err != nil {
-		a.logErrf(logAssets, "cannot write version stamp %s: %v", verFile, err)
+		a.log(logAssets).errf("cannot write version stamp %s: %v", verFile, err)
 	}
 	if refreshed > 0 {
 		// AssetsRefreshed tells the Android layer to clear the WebView cache
 		// one time.
 		assetsRefreshed.Store(true)
-		a.logInfof(logAssets, "%d embedded asset(s) refreshed for v%s (previous: %s)", refreshed, APP_VERSION, prevLabel)
+		a.log(logAssets).infof("%d embedded asset(s) refreshed for v%s (previous: %s)", refreshed, APP_VERSION, prevLabel)
 	}
 }
