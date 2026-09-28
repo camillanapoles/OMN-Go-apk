@@ -150,3 +150,34 @@ func TestPipelinesAgreeOnTheNDK(t *testing.T) {
 		pipeSame(t, "the NDK", "the last F-Droid version", want, pipeAll(pipeNdkRecipeRe, b))
 	}
 }
+
+var (
+	pipeBindRe    = regexp.MustCompile(`(?m)^\s*gomobile bind [^\n]*`)
+	pipeLdflagsRe = regexp.MustCompile(`-ldflags="[^"]*"`)
+)
+
+// Two builds of one commit must give the same APK. gomobile writes the
+// generated Go code into a new temporary directory for each run. Only the
+// -trimpath flag of gomobile removes that path from libgojni.so. In
+// -ldflags, -trimpath stops the build. The Android Gradle plugin encrypts
+// its dependency list with a new random key for each build. Thus
+// build.gradle must remove the list from the APK.
+func TestAndroidBuildIsTheSameOnEachHost(t *testing.T) {
+	for _, file := range []string{"Dockerfile", "Dockerfile.ci"} {
+		lines := pipeBindRe.FindAllString(pipeRead(t, file), -1)
+		if len(lines) == 0 {
+			t.Errorf("%s has no gomobile bind line", file)
+		}
+		for _, line := range lines {
+			if !strings.Contains(pipeLdflagsRe.ReplaceAllString(line, ""), " -trimpath ") {
+				t.Errorf("%s: gomobile bind has no -trimpath flag of its own: %s", file, line)
+			}
+		}
+	}
+	gradle := pipeRead(t, "android/app/build.gradle")
+	for _, want := range []string{"includeInApk = false", "includeInBundle = false"} {
+		if !strings.Contains(gradle, want) {
+			t.Errorf("android/app/build.gradle has no %q in dependenciesInfo", want)
+		}
+	}
+}

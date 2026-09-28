@@ -168,10 +168,15 @@ RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
     CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o "bin/omn-go-v${VERSION}-desktop-windows-amd64.exe" main_desktop.go
 
 # Android APK - Webview Wrapper via Gradle & gomobile bind (strictly zero AndroidX/AppCompat)
+#
+# -trimpath is a flag of gomobile, and not of the linker. gomobile writes
+# the generated Go code into a new temporary directory for each run.
+# Without -trimpath, libgojni.so holds that path, thus two builds of one
+# commit differ.
 RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
     --mount=type=cache,target=/root/.cache/go-build,sharing=locked \
     mkdir -p android/app/libs && \
-    gomobile bind -target=android -androidapi 23 -javapkg net.basov.omngo -ldflags="-s -w" -o android/app/libs/omngo.aar ./backend
+    gomobile bind -trimpath -target=android -androidapi 23 -javapkg net.basov.omngo -ldflags="-s -w" -o android/app/libs/omngo.aar ./backend
 
 # Explicitly the "standard" flavor only - never "fdroid". The fdroid
 # variant is built exclusively by F-Droid's own build server, from its

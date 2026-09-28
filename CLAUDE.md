@@ -490,6 +490,9 @@ subject line, also when it has no list.
   `android/app/build.gradle`. It also reads the last version in
   `metadata/net.basov.omngo.fdroid.yml`. `-androidapi` must be the same as `minSdk`. When the recipe on the F-Droid server changes, copy it into
   `metadata/` first. The tests then show each difference.
+* **Two builds of one commit give the same APK.** `gomobile bind` has `-trimpath`, and
+  `build.gradle` removes the dependency list from the APK. `TestAndroidBuildIsTheSameOnEachHost`
+  holds both rules. The F-Droid recipe has no `-trimpath` yet.
 * **Two GitHub workflows.** `test.yml` builds the `test` stage alone on each push to
   `master` and on each pull request. It needs no secret. `android-gomobile-release.yml`
   builds the artifacts, and a tag push makes the release. Run the gate alone on a

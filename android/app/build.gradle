@@ -21,8 +21,8 @@ android {
         // and omn-go-compat in index.html says so on screen when it is not.
         minSdk 23
         targetSdk 34
-        versionCode 2609126
-        versionName "26.09.126"
+        versionCode 2609127
+        versionName "26.09.127"
     }
 
 
@@ -73,6 +73,15 @@ android {
     // per-flavor DEFAULT_SERVER_PORT constants above.
     buildFeatures {
         buildConfig true
+    }
+
+    // The Android Gradle plugin puts a dependency list into the APK Signing
+    // Block. It encrypts the list for Google Play with a new random key for
+    // each build, thus two builds of one commit differ. OMN-Go is not on
+    // Google Play, and Android does not read the list.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
     }
 
     signingConfigs {
