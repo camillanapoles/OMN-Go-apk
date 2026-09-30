@@ -39,4 +39,4 @@ directory could not tell which file belongs to whom.
 * `storage.RetiredAssets` only grows. An install can skip any number of
   versions.
 * `TestEveryAppAssetIsUnderOMNGo` in
-  `backend/internal/app/assets_layout_test.go` holds the rule for each new file.
+  `backend/internal/storage/assets_test.go` holds the rule for each new file.

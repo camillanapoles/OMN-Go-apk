@@ -12,11 +12,9 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"sync"
 	"testing"
 
 	"net.basov.omngo/backend/internal/config"
@@ -52,26 +50,6 @@ func TestEmitLogLineShape(t *testing.T) {
 			t.Errorf("log line %q does not carry a %d-character time stamp",
 				got, len(logx.TimeLayout))
 		}
-	}
-}
-
-// TestNormalizeLogTags pins the nil rule. An install that upgrades to this
-// version has no log_tags key in config.json, and it must get every tag. A
-// person who unticks every box gets an empty list, which is a different
-// thing and must survive a save.
-func TestNormalizeLogTags(t *testing.T) {
-	if got := config.NormalizeLogTags(nil); len(got) != len(logx.AllTags) {
-		t.Errorf("nil gave %d tags, want every one of the %d", len(got), len(logx.AllTags))
-	}
-	if got := config.NormalizeLogTags([]string{}); len(got) != 0 {
-		t.Errorf("an empty list gave %v, want an empty list - unticking every box "+
-			"is not the same as an upgrade with no key", got)
-	}
-	got := config.NormalizeLogTags([]string{"SYNC", " sync ", "not-a-tag", "assets"})
-	want := []string{"assets", "sync"}
-	if strings.Join(got, ",") != strings.Join(want, ",") {
-		t.Errorf("config.NormalizeLogTags gave %v, want %v - it lowercases, trims, "+
-			"drops an unknown tag, and keeps the order of logx.AllTags", got, want)
 	}
 }
 
@@ -111,54 +89,6 @@ func TestLogLineEnabled(t *testing.T) {
 	}
 }
 
-// ----------------------------------------------------------------------
-// The history ring
-// ----------------------------------------------------------------------
-//
-// Each App holds its own ring in its logx.Hub. A test of the ring thus starts
-// with an empty ring, and no other test writes into it.
-
-// The ring keeps the lines in the order that they arrived.
-func TestLogHistoryKeepsTheOrder(t *testing.T) {
-	h := &logx.Hub{}
-	for _, line := range []string{"first\n", "second\n", "third\n"} {
-		h.Broadcast(line, false)
-	}
-
-	got := h.Snapshot()
-	want := []string{"first\n", "second\n", "third\n"}
-	if len(got) != len(want) {
-		t.Fatalf("the ring holds %d lines, want %d: %q", len(got), len(want), got)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf("line %d is %q, want %q", i, got[i], want[i])
-		}
-	}
-}
-
-// The ring writes over the oldest line, and it keeps the newest.
-//
-// A log that stops at its cap keeps the start of the session and loses
-// the fault. The fault is the half that a person needs.
-func TestLogHistoryKeepsTheNewestLines(t *testing.T) {
-	h := &logx.Hub{}
-	for i := 0; i < logx.HistoryCap+25; i++ {
-		h.Broadcast(fmt.Sprintf("line %d\n", i), false)
-	}
-
-	got := h.Snapshot()
-	if len(got) != logx.HistoryCap {
-		t.Fatalf("the ring holds %d lines, want the cap of %d", len(got), logx.HistoryCap)
-	}
-	if want := fmt.Sprintf("line %d\n", 25); got[0] != want {
-		t.Errorf("the oldest line is %q, want %q", got[0], want)
-	}
-	if want := fmt.Sprintf("line %d\n", logx.HistoryCap+24); got[len(got)-1] != want {
-		t.Errorf("the newest line is %q, want %q", got[len(got)-1], want)
-	}
-}
-
 // The ring holds a line that the stdout switches suppressed.
 //
 // A person who turned debug off and then met a fault needs the debug
@@ -179,68 +109,6 @@ func TestLogHistoryHoldsASuppressedLine(t *testing.T) {
 		}
 	}
 	t.Error("the ring lost a line that the stdout filter suppressed")
-}
-
-// The snapshot is a copy. A caller that changes it changes no line of
-// the ring.
-func TestLogHistorySnapshotIsACopy(t *testing.T) {
-	h := &logx.Hub{}
-	h.Broadcast("the real line\n", false)
-
-	first := h.Snapshot()
-	if len(first) != 1 {
-		t.Fatalf("the ring holds %d lines, want 1", len(first))
-	}
-	first[0] = "a line that a caller wrote"
-
-	second := h.Snapshot()
-	if second[0] != "the real line\n" {
-		t.Errorf("the ring now holds %q, thus the snapshot shares its memory", second[0])
-	}
-}
-
-// Two goroutines writing at once must not race, and no line may be lost.
-//
-// Run this one with -race. broadcast takes mu, and record runs under
-// it. A ring outside that lock is a data race
-// that a test without -race never reports.
-func TestLogHistoryUnderConcurrentWriters(t *testing.T) {
-	h := &logx.Hub{}
-	const writers, each = 8, 20
-
-	var wg sync.WaitGroup
-	for w := 0; w < writers; w++ {
-		wg.Add(1)
-		go func(w int) {
-			defer wg.Done()
-			for i := 0; i < each; i++ {
-				h.Broadcast(fmt.Sprintf("writer %d line %d\n", w, i), false)
-			}
-		}(w)
-	}
-	// A reader at the same time, so the snapshot path is under the race
-	// detector as well.
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for i := 0; i < 50; i++ {
-			_ = h.Snapshot()
-		}
-	}()
-	wg.Wait()
-
-	got := h.Snapshot()
-	if len(got) != writers*each {
-		t.Fatalf("the ring holds %d lines, want %d. A line was lost.",
-			len(got), writers*each)
-	}
-	seen := map[string]bool{}
-	for _, line := range got {
-		if seen[line] {
-			t.Errorf("the line %q is in the ring two times", line)
-		}
-		seen[line] = true
-	}
 }
 
 // ----------------------------------------------------------------------

@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -14,59 +13,6 @@ import (
 	"net.basov.omngo/backend/internal/render"
 	"net.basov.omngo/backend/internal/storage"
 )
-
-// ----------------------------------------------------------------------
-// The OMN-Go asset directory
-// ----------------------------------------------------------------------
-//
-// Each app-owned asset is below html/js/OMN-Go/ or html/css/OMN-Go/. See
-// doc/decisions/0007-keep-the-application-files-in-omn-go-directories.md.
-// Three rules keep that layout safe, and each one has a test here:
-//
-//  1. Each app asset is under OMN-Go/, and each user file is not.
-//  2. A request for an old URL answers with the file of the new place.
-//  3. An upgrade deletes the old copy on disk. A copy that stays would
-//     become a tracked file at the next commit, because
-//     gitsync.GitignorePatterns does not name it.
-
-// The rule of the directory, written as a test. A new asset that lands
-// beside the user files breaks this and not something far away.
-func TestEveryAppAssetIsUnderOMNGo(t *testing.T) {
-	for _, rel := range storage.VersionDependentAssets {
-		if !strings.HasPrefix(rel, "html/") {
-			continue // an md/ note, which this rule does not cover
-		}
-		dir := path.Dir(rel)
-		if path.Base(dir) != "OMN-Go" {
-			t.Errorf("%s is app-owned and does not sit in an OMN-Go directory", rel)
-		}
-		if _, err := frontend.Static.ReadFile(rel); err != nil {
-			t.Errorf("%s is listed and not embedded: %v", rel, err)
-		}
-	}
-}
-
-// The two user files must NOT move. Fixed constraint 8 says that an
-// upgrade never writes over a user-owned asset, and the file index marks
-// each one user-owned. A move of either would also break each link that
-// the User Manual gives.
-func TestUserFilesStayOutOfOMNGo(t *testing.T) {
-	for _, rel := range []string{
-		"html/js/omn-go-custom.js",
-		"html/css/omn-go-custom.css",
-		"html/js/local_counter.js",
-		"html/json/bookmarker-tags.json",
-	} {
-		if _, err := frontend.Static.ReadFile(rel); err != nil {
-			t.Errorf("%s moved or went away: %v", rel, err)
-		}
-	}
-	for _, rel := range storage.VersionDependentAssets {
-		if strings.Contains(rel, "omn-go-custom") {
-			t.Errorf("%s is user-owned and must not be version-dependent", rel)
-		}
-	}
-}
 
 // A note that a person wrote before the move names the old URL. The
 // answer must be the file, and not a 404. md/Bookmarks.md is the case

@@ -1,6 +1,11 @@
 package config
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	"net.basov.omngo/backend/internal/logx"
+)
 
 func TestNormalizeFullscreen(t *testing.T) {
 	cases := map[string]string{
@@ -34,5 +39,25 @@ func TestNormalizeTheme(t *testing.T) {
 		if got := NormalizeTheme(in); got != want {
 			t.Errorf("NormalizeTheme(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// TestNormalizeLogTags pins the nil rule. An install that upgrades to this
+// version has no log_tags key in config.json, and it must get every tag. A
+// person who unticks every box gets an empty list, which is a different
+// thing and must survive a save.
+func TestNormalizeLogTags(t *testing.T) {
+	if got := NormalizeLogTags(nil); len(got) != len(logx.AllTags) {
+		t.Errorf("nil gave %d tags, want every one of the %d", len(got), len(logx.AllTags))
+	}
+	if got := NormalizeLogTags([]string{}); len(got) != 0 {
+		t.Errorf("an empty list gave %v, want an empty list - unticking every box "+
+			"is not the same as an upgrade with no key", got)
+	}
+	got := NormalizeLogTags([]string{"SYNC", " sync ", "not-a-tag", "assets"})
+	want := []string{"assets", "sync"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("NormalizeLogTags gave %v, want %v - it lowercases, trims, "+
+			"drops an unknown tag, and keeps the order of logx.AllTags", got, want)
 	}
 }
