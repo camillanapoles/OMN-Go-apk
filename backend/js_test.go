@@ -17,7 +17,7 @@ package backend
 // The tests under backend/frontend/test/ load the shipped script and call
 // the real function. TestJavaScriptUnitTests below runs them.
 //
-// THE TEST FILES REACH NO DEVICE. staticFS embeds frontend/html and
+// THE TEST FILES REACH NO DEVICE. frontend.Static embeds frontend/html and
 // frontend/md. frontend/test is neither, thus no byte of it is in the
 // binary and no sync carries it. TestFrontendTestsAreNotShipped holds
 // that.
@@ -34,6 +34,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"net.basov.omngo/backend/frontend"
 )
 
 // headerCaseFile is the table that BOTH languages read. See its own
@@ -163,7 +165,7 @@ func TestJavaScriptUnitTests(t *testing.T) {
 
 // No test file may reach a device.
 //
-// staticFS embeds frontend/html and frontend/md. A test file under either
+// frontend.Static embeds frontend/html and frontend/md. A test file under either
 // one would go into the binary, onto the storage of each device, and into
 // each git sync. frontend/test is outside both, and this test says so
 // rather than leaving it to a reader of assets.go.
@@ -179,16 +181,16 @@ func TestFrontendTestsAreNotShipped(t *testing.T) {
 		if e.IsDir() {
 			continue
 		}
-		for _, tree := range []string{"frontend/html/", "frontend/md/", "frontend/templates/"} {
-			if _, err := staticFS.ReadFile(tree + e.Name()); err == nil {
+		for _, tree := range []string{"html/", "md/", "templates/"} {
+			if _, err := frontend.Static.ReadFile(tree + e.Name()); err == nil {
 				t.Errorf("%s is embedded under %s. A test file must reach no device.",
 					e.Name(), tree)
 			}
 		}
 	}
 	// And the whole directory must be absent from the embedded tree.
-	if _, err := staticFS.ReadDir("frontend/test"); err == nil {
-		t.Error("staticFS embeds frontend/test. Each test file would then reach " +
+	if _, err := frontend.Static.ReadDir("test"); err == nil {
+		t.Error("frontend.Static embeds frontend/test. Each test file would then reach " +
 			"every device and every git sync.")
 	}
 }

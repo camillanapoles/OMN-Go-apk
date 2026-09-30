@@ -29,6 +29,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"net.basov.omngo/backend/frontend"
 )
 
 // testNow is fixed so that a test can state exactly what Imported: and the
@@ -710,7 +712,7 @@ func TestBundledNotesLinkToTheIncomingIndex(t *testing.T) {
 	want := "(" + incomingDirName + "/" + incomingIndexBase + ")"
 
 	for _, name := range []string{"UserManual.md", "Welcome.md"} {
-		data, err := staticFS.ReadFile("frontend/md/" + name)
+		data, err := frontend.Static.ReadFile("md/" + name)
 		if err != nil {
 			t.Fatalf("cannot read the embedded %s: %v", name, err)
 		}
@@ -719,7 +721,7 @@ func TestBundledNotesLinkToTheIncomingIndex(t *testing.T) {
 		}
 	}
 
-	manual, err := staticFS.ReadFile("frontend/md/UserManual.md")
+	manual, err := frontend.Static.ReadFile("md/UserManual.md")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"net.basov.omngo/backend/frontend"
 )
 
 func TestEscapeHTML(t *testing.T) {
@@ -522,7 +524,7 @@ func TestCompatScriptIsFirstAndES5(t *testing.T) {
 		t.Error("the compat script is after the stylesheet link, which delays it for no reason")
 	}
 
-	raw, err := staticFS.ReadFile("frontend/html/js/OMN-Go/omn-go-compat.js")
+	raw, err := frontend.Static.ReadFile("html/js/OMN-Go/omn-go-compat.js")
 	if err != nil {
 		t.Fatalf("omn-go-compat.js is not embedded: %v", err)
 	}
@@ -584,14 +586,14 @@ func TestCompiledPageShellStaysSmall(t *testing.T) {
 // in a textarea, and the focus must stay there for the typing that
 // follows.
 func TestClipboardHasOneAuthority(t *testing.T) {
-	const authority = "frontend/html/js/OMN-Go/omn-go-core.js"
+	const authority = "html/js/OMN-Go/omn-go-core.js"
 	for _, tree := range []struct {
 		name string
 		fs   fs.FS
 		root string
 	}{
-		{"staticFS", staticFS, "frontend/html"},
-		{"templatesFS", templatesFS, "frontend/templates"},
+		{"frontend.Static", frontend.Static, "html"},
+		{"frontend.Templates", frontend.Templates, "templates"},
 	} {
 		err := fs.WalkDir(tree.fs, tree.root, func(p string, d fs.DirEntry, err error) error {
 			if err != nil || d.IsDir() {
@@ -648,7 +650,7 @@ func TestDocumentedCoreAPIIsExported(t *testing.T) {
 	// split into several files, and a fixed list would have to grow with
 	// each such move. A name that no file exports is the fault
 	// this test looks for, and the file that holds it does not matter.
-	entries, err := staticFS.ReadDir("frontend/html/js/OMN-Go")
+	entries, err := frontend.Static.ReadDir("html/js/OMN-Go")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -658,7 +660,7 @@ func TestDocumentedCoreAPIIsExported(t *testing.T) {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".js") {
 			continue
 		}
-		src, rErr := staticFS.ReadFile("frontend/html/js/OMN-Go/" + e.Name())
+		src, rErr := frontend.Static.ReadFile("html/js/OMN-Go/" + e.Name())
 		if rErr != nil {
 			t.Fatalf("%s is not embedded: %v", e.Name(), rErr)
 		}
@@ -697,11 +699,11 @@ func TestDocumentedCoreAPIIsExported(t *testing.T) {
 // This test reads the two files. It is a source test, because a browser is
 // what applies a CSS rule, and the test suite holds no CSS engine.
 func TestAnOverlayHiddenByClassCanBeShownAgain(t *testing.T) {
-	markup, err := templatesFS.ReadFile("frontend/templates/modals.html")
+	markup, err := frontend.Templates.ReadFile("templates/modals.html")
 	if err != nil {
 		t.Fatalf("modals.html is not embedded: %v", err)
 	}
-	css, err := staticFS.ReadFile("frontend/html/css/OMN-Go/omn-go-core.css")
+	css, err := frontend.Static.ReadFile("html/css/OMN-Go/omn-go-core.css")
 	if err != nil {
 		t.Fatalf("omn-go-core.css is not embedded: %v", err)
 	}

@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"sync/atomic"
+
+	"net.basov.omngo/backend/frontend"
 )
 
 // ----------------------------------------------------------------------
@@ -123,7 +125,7 @@ var retiredAssets = []string{
 // it. The list comes from the embedded tree, thus a new font needs no change
 // here.
 var retiredFonts = func() []string {
-	entries, err := staticFS.ReadDir("frontend/html/css/OMN-Go/fonts")
+	entries, err := frontend.Static.ReadDir("html/css/OMN-Go/fonts")
 	if err != nil {
 		return nil
 	}
@@ -194,7 +196,7 @@ func (a *App) removeRetiredAssets(backupDir string) int {
 // thus each copy of such a file goes to the backup.
 func embeddedTwinOf(rel string) []byte {
 	dir, name := path.Split(rel)
-	data, err := staticFS.ReadFile("frontend/" + dir + "OMN-Go/" + name)
+	data, err := frontend.Static.ReadFile(dir + "OMN-Go/" + name)
 	if err != nil {
 		return nil
 	}
@@ -226,7 +228,7 @@ func (a *App) refreshEmbeddedAssets() {
 	refreshed := a.removeRetiredAssets(backupDir)
 
 	for _, rel := range versionDependentAssets {
-		embedData, eerr := staticFS.ReadFile("frontend/" + rel)
+		embedData, eerr := frontend.Static.ReadFile(rel)
 		if eerr != nil {
 			// The list names the file, but this build does not embed it.
 			a.log(logAssets).errf("%s not embedded in this build: %v", rel, eerr)

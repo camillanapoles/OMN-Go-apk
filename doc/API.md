@@ -2041,7 +2041,7 @@ each tree, and nothing else. Each tree answers one question:
 
 | Tree | `?tree=` | Root | The question |
 | --- | --- | --- | --- |
-| Bundled | `bundled` | `staticFS` (`frontend/html`, `frontend/md`) | What does this build carry? |
+| Bundled | `bundled` | `frontend.Static` (`frontend/html`, `frontend/md`) | What does this build carry? |
 | Served | `served` | `StorageDir/html` | What does a URL find, and where did it come from? |
 | Source | `source` | `StorageDir/md` | What did you write, and how large is it? |
 
@@ -2118,7 +2118,7 @@ filename appears anywhere in the refusal.
 
 **What is never listed**
 
-* `frontend/templates` — this directory lives in `templatesFS`, a separate
+* `frontend/templates` — this directory lives in `frontend.Templates`, a separate
   embed. It cannot appear for that reason, not because of an exclusion rule.
 * `db_backup/` — the page excludes the database backups by name. This is a
   listing decision and not an access control. Anyone who can reach the server

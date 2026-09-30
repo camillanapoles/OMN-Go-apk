@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"net.basov.omngo/backend/frontend"
 )
 
 // readRepoFile reads a file of the repository by a path from the root.
@@ -35,7 +37,7 @@ func readRepoFile(rel string) (string, error) {
 // bookmarkerJS reads the embedded script.
 func bookmarkerJS(t *testing.T) string {
 	t.Helper()
-	raw, err := staticFS.ReadFile("frontend/html/js/OMN-Go/Bookmarker.js")
+	raw, err := frontend.Static.ReadFile("html/js/OMN-Go/Bookmarker.js")
 	if err != nil {
 		t.Fatalf("Bookmarker.js is not embedded: %v", err)
 	}

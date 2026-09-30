@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"net.basov.omngo/backend/frontend"
 )
 
 // ----------------------------------------------------------------------
@@ -35,7 +37,7 @@ import (
 // portsJS reads one embedded script of the frontend.
 func portsJS(t *testing.T, name string) string {
 	t.Helper()
-	raw, err := staticFS.ReadFile("frontend/html/js/OMN-Go/" + name)
+	raw, err := frontend.Static.ReadFile("html/js/OMN-Go/" + name)
 	if err != nil {
 		t.Fatalf("%s is not embedded: %v", name, err)
 	}

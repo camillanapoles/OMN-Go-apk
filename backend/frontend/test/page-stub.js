@@ -19,7 +19,7 @@
 // TypeError because an element or a method of the stub is missing. That is
 // not a fault of the script. lazy.test.js reads the KIND of the error.
 //
-// This file is NOT under frontend/html, thus staticFS does not embed it
+// This file is NOT under frontend/html, thus frontend.Static does not embed it
 // and no byte of it reaches a device.
 
 'use strict';

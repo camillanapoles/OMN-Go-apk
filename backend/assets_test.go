@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"net.basov.omngo/backend/frontend"
 )
 
 // refreshEmbeddedAssets must do the following, one time for each APP_VERSION
@@ -31,9 +33,9 @@ func TestRefreshEmbeddedAssets(t *testing.T) {
 
 	// A version-dependent html/ asset, seeded with a stale copy on disk.
 	const rel = "html/js/OMN-Go/omn-go-core.js"
-	embedData, err := staticFS.ReadFile("frontend/" + rel)
+	embedData, err := frontend.Static.ReadFile(rel)
 	if err != nil {
-		t.Fatalf("embedded %s missing from staticFS: %v", rel, err)
+		t.Fatalf("frontend.Static has no %s: %v", rel, err)
 	}
 
 	target := filepath.Join(dir, filepath.FromSlash(rel))
@@ -57,7 +59,7 @@ func TestRefreshEmbeddedAssets(t *testing.T) {
 		t.Error("previous asset copy was not preserved in asset_backups")
 	}
 	// (c) a version-dependent file that was ABSENT is installed from embed
-	if instEmbed, embErr := staticFS.ReadFile("frontend/md/UserManual.md"); embErr == nil {
+	if instEmbed, embErr := frontend.Static.ReadFile("md/UserManual.md"); embErr == nil {
 		got, err := os.ReadFile(filepath.Join(dir, "md", "UserManual.md"))
 		if err != nil || !bytes.Equal(got, instEmbed) {
 			t.Error("absent version-dependent file was not installed from embed")
@@ -160,8 +162,8 @@ func TestAssetsRefreshedReportsOnlyAStartThatWroteAFile(t *testing.T) {
 // and not in the field.
 func TestVersionDependentAssetsAllEmbedded(t *testing.T) {
 	for _, rel := range versionDependentAssets {
-		if _, err := staticFS.ReadFile("frontend/" + rel); err != nil {
-			t.Errorf("version-dependent asset %q is not embedded in staticFS: %v", rel, err)
+		if _, err := frontend.Static.ReadFile(rel); err != nil {
+			t.Errorf("version-dependent asset %q is not embedded in frontend.Static: %v", rel, err)
 		}
 	}
 }

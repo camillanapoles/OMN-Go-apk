@@ -6,6 +6,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"net.basov.omngo/backend/frontend"
 )
 
 // note records the one fact that a directory row can show: the subtree is all
@@ -122,7 +124,7 @@ func filesSameBytes(embeddedLogical, diskPath string, size int64) (same bool, ch
 	if size > filesCompareMax {
 		return false, false
 	}
-	emb, err := staticFS.ReadFile(embeddedLogical)
+	emb, err := frontend.Static.ReadFile(embeddedLogical)
 	if err != nil {
 		return false, false
 	}
@@ -220,15 +222,15 @@ func filesStoragePath(tree, logical string) string {
 	return "html/" + logical
 }
 
-// filesEmbeddedPath maps a logical path to its path in staticFS.
+// filesEmbeddedPath maps a logical path to its path in frontend.Static.
 func filesEmbeddedPath(tree, logical string) string {
 	if tree == filesTreeSource {
-		return "frontend/md/" + logical
+		return "md/" + logical
 	}
 	if strings.HasPrefix(logical, "md/") {
-		return "frontend/" + logical
+		return logical
 	}
-	return "frontend/html/" + logical
+	return "html/" + logical
 }
 
 // filesState sets the word of the first line, its color and the other facts.

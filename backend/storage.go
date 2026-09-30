@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"net.basov.omngo/backend/frontend"
 )
 
 // initStorage sets a.StorageDir and makes its layout. A non-empty overrideDir
@@ -66,12 +68,12 @@ func (a *App) initStorage(overrideDir string) {
 
 	// 3. Extract each embedded starter note at the top of frontend/md that is
 	// absent.
-	if entries, err := staticFS.ReadDir("frontend/md"); err == nil {
+	if entries, err := frontend.Static.ReadDir("md"); err == nil {
 		for _, entry := range entries {
 			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".md") {
 				p := filepath.Join(mdDir, entry.Name())
 				if _, err := os.Stat(p); os.IsNotExist(err) {
-					if data, err := staticFS.ReadFile("frontend/md/" + entry.Name()); err == nil {
+					if data, err := frontend.Static.ReadFile("md/" + entry.Name()); err == nil {
 						os.WriteFile(p, data, 0644)
 					}
 				}

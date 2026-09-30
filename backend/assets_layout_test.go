@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"net.basov.omngo/backend/frontend"
 )
 
 // ----------------------------------------------------------------------
@@ -35,7 +37,7 @@ func TestEveryAppAssetIsUnderOMNGo(t *testing.T) {
 		if path.Base(dir) != "OMN-Go" {
 			t.Errorf("%s is app-owned and does not sit in an OMN-Go directory", rel)
 		}
-		if _, err := staticFS.ReadFile("frontend/" + rel); err != nil {
+		if _, err := frontend.Static.ReadFile(rel); err != nil {
 			t.Errorf("%s is listed and not embedded: %v", rel, err)
 		}
 	}
@@ -47,12 +49,12 @@ func TestEveryAppAssetIsUnderOMNGo(t *testing.T) {
 // the User Manual gives.
 func TestUserFilesStayOutOfOMNGo(t *testing.T) {
 	for _, rel := range []string{
-		"frontend/html/js/omn-go-custom.js",
-		"frontend/html/css/omn-go-custom.css",
-		"frontend/html/js/local_counter.js",
-		"frontend/html/json/bookmarker-tags.json",
+		"html/js/omn-go-custom.js",
+		"html/css/omn-go-custom.css",
+		"html/js/local_counter.js",
+		"html/json/bookmarker-tags.json",
 	} {
-		if _, err := staticFS.ReadFile(rel); err != nil {
+		if _, err := frontend.Static.ReadFile(rel); err != nil {
 			t.Errorf("%s moved or went away: %v", rel, err)
 		}
 	}
@@ -154,7 +156,7 @@ func TestMigrationRemovesTheOldCopy(t *testing.T) {
 
 	// The state of an install that ran an older version: the old paths
 	// hold the bytes that this build ships at the new place.
-	shipped, err := staticFS.ReadFile("frontend/html/js/OMN-Go/omn-go-core.js")
+	shipped, err := frontend.Static.ReadFile("html/js/OMN-Go/omn-go-core.js")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +172,7 @@ func TestMigrationRemovesTheOldCopy(t *testing.T) {
 	os.MkdirAll(filepath.Join(a.StorageDir, "html", "css", "fonts"), 0o755)
 	os.WriteFile(deadPath, []byte(".markdown-body{}"), 0o644)
 	fontPath := filepath.Join(a.StorageDir, "html", "css", "fonts", "KaTeX_Main-Regular.woff2")
-	fontBytes, _ := staticFS.ReadFile("frontend/html/css/OMN-Go/fonts/KaTeX_Main-Regular.woff2")
+	fontBytes, _ := frontend.Static.ReadFile("html/css/OMN-Go/fonts/KaTeX_Main-Regular.woff2")
 	os.WriteFile(fontPath, fontBytes, 0o644)
 
 	a.refreshEmbeddedAssets()
@@ -280,7 +282,7 @@ func TestNoPageLoadsMarkdownCSS(t *testing.T) {
 			t.Error("a template still loads markdown.css")
 		}
 	}
-	entries, err := staticFS.ReadDir("frontend/md")
+	entries, err := frontend.Static.ReadDir("md")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -288,7 +290,7 @@ func TestNoPageLoadsMarkdownCSS(t *testing.T) {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
 			continue
 		}
-		data, err := staticFS.ReadFile("frontend/md/" + e.Name())
+		data, err := frontend.Static.ReadFile("md/" + e.Name())
 		if err != nil {
 			continue
 		}

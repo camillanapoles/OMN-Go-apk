@@ -32,6 +32,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"net.basov.omngo/backend/frontend"
 )
 
 // benchCopies is the number of copies of the bundled notes in the search
@@ -59,15 +61,15 @@ func benchApp(tb testing.TB) *App {
 func benchNotes(tb testing.TB) map[string][]byte {
 	tb.Helper()
 	notes := map[string][]byte{}
-	err := fs.WalkDir(staticFS, "frontend/md", func(p string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(frontend.Static, "md", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".md") {
 			return err
 		}
-		data, err := staticFS.ReadFile(p)
+		data, err := frontend.Static.ReadFile(p)
 		if err != nil {
 			return err
 		}
-		notes[strings.TrimSuffix(strings.TrimPrefix(p, "frontend/md/"), ".md")] = data
+		notes[strings.TrimSuffix(strings.TrimPrefix(p, "md/"), ".md")] = data
 		return nil
 	})
 	if err != nil {

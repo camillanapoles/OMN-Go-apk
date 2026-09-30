@@ -51,14 +51,6 @@ var fileGroups = map[string]string{
 	"serving.go": "app", "storage.go": "app",
 }
 
-// declGroups names a declaration that sits in the file of another group.
-// The two embed variables belong to the frontend group. They stay in
-// server.go until the split.
-var declGroups = map[string]string{
-	"staticFS":    "frontend",
-	"templatesFS": "frontend",
-}
-
 // groupLayers gives the layer of each group. A group can use a group of a
 // lower layer only. Two groups of the same layer cannot use each other. Thus
 // the groups have no cycle.
@@ -67,7 +59,7 @@ var declGroups = map[string]string{
 // above storage. The Status page reports on each feature, thus status is
 // above the features.
 var groupLayers = map[string]int{
-	"logx": 0, "textmatch": 0, "noteheader": 0, "frontend": 0,
+	"logx": 0, "textmatch": 0, "noteheader": 0,
 	"config":  1,
 	"storage": 2,
 	"render":  3,
@@ -139,15 +131,6 @@ func (s stdlibOnly) Import(path string) (*types.Package, error) {
 	return p, nil
 }
 
-// groupOf answers the group of a use: the group of its declaration name, or
-// of its file.
-func groupOf(file, name string) string {
-	if g, ok := declGroups[name]; ok {
-		return g
-	}
-	return fileGroups[file]
-}
-
 func TestEachFileHasAGroup(t *testing.T) {
 	names, err := filepath.Glob("*.go")
 	if err != nil {
@@ -180,8 +163,8 @@ func TestGroupsUseOnlyLowerLayers(t *testing.T) {
 		t.Fatal("the scan did not find a use of renderPage. The scan is broken.")
 	}
 	for use, to := range uses {
-		from, name, _ := strings.Cut(use, " uses ")
-		gFrom, gTo := fileGroups[from], groupOf(to, name)
+		from, _, _ := strings.Cut(use, " uses ")
+		gFrom, gTo := fileGroups[from], fileGroups[to]
 		if gFrom == gTo || groupLayers[gTo] < groupLayers[gFrom] {
 			continue
 		}

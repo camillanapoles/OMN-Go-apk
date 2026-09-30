@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"net.basov.omngo/backend/frontend"
 )
 
 // ----------------------------------------------------------------------
@@ -79,8 +81,8 @@ func (a *App) materializeAsset(urlPath string) (physPath string, ok bool) {
 		return physPath, true
 	}
 
-	embedPath := "frontend/html" + filepath.ToSlash(clean)
-	if data, err := staticFS.ReadFile(embedPath); err == nil {
+	embedPath := "html" + filepath.ToSlash(clean)
+	if data, err := frontend.Static.ReadFile(embedPath); err == nil {
 		os.MkdirAll(filepath.Dir(physPath), 0755)
 		os.WriteFile(physPath, data, 0644)
 		return physPath, true

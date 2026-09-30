@@ -17,6 +17,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"net.basov.omngo/backend/frontend"
 )
 
 // The real line 15 of backend/frontend/md/Test/OMN-Go/Fetch.md, used as the
@@ -512,7 +514,7 @@ func writeSearchNote(t *testing.T, a *App, rel, content string) {
 func TestSearchInputDoesNotDisableTheIME(t *testing.T) {
 	// The overlay is a file of its own. It loads at the first press of the
 	// magnifier, and not with each note page.
-	src, err := staticFS.ReadFile("frontend/html/js/OMN-Go/omn-go-search.js")
+	src, err := frontend.Static.ReadFile("html/js/OMN-Go/omn-go-search.js")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -547,7 +549,7 @@ func TestSearchInputDoesNotDisableTheIME(t *testing.T) {
 // until I open and close another panel" report was. Pinned as a shape test for
 // the same reason as above - the failure needs a real soft keyboard to see.
 func TestSearchOverlayReattachesFocusAfterLayout(t *testing.T) {
-	src, err := staticFS.ReadFile("frontend/html/js/OMN-Go/omn-go-search.js")
+	src, err := frontend.Static.ReadFile("html/js/OMN-Go/omn-go-search.js")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -573,7 +575,7 @@ func TestSearchOverlayReattachesFocusAfterLayout(t *testing.T) {
 // the composing region that every non-Latin layout needs. A find field that
 // cannot accept Cyrillic is a find field that cannot search a Russian note.
 func TestEditorFindInputsDoNotDisableTheIME(t *testing.T) {
-	src, err := templatesFS.ReadFile("frontend/templates/editor.html")
+	src, err := frontend.Templates.ReadFile("templates/editor.html")
 	if err != nil {
 		t.Fatal(err)
 	}

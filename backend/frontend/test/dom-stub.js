@@ -12,7 +12,7 @@
 // never arrives, thus the module loads and defines its functions and
 // starts nothing.
 //
-// This file is NOT under frontend/html, thus staticFS does not embed it
+// This file is NOT under frontend/html, thus frontend.Static does not embed it
 // and no byte of it reaches a device.
 
 'use strict';

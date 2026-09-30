@@ -46,6 +46,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"net.basov.omngo/backend/frontend"
 )
 
 // siDir answers an empty directory that this file owns.
@@ -147,9 +149,9 @@ func TestInitStorageExtractsTheBundledNotes(t *testing.T) {
 	a, dir := siApp(t)
 	a.initStorage(dir)
 
-	entries, err := staticFS.ReadDir("frontend/md")
+	entries, err := frontend.Static.ReadDir("md")
 	if err != nil {
-		t.Fatalf("staticFS holds no frontend/md: %v", err)
+		t.Fatalf("frontend.Static holds no md: %v", err)
 	}
 	want := 0
 	for _, e := range entries {
@@ -157,7 +159,7 @@ func TestInitStorageExtractsTheBundledNotes(t *testing.T) {
 			continue
 		}
 		want++
-		embedded, eerr := staticFS.ReadFile("frontend/md/" + e.Name())
+		embedded, eerr := frontend.Static.ReadFile("md/" + e.Name())
 		if eerr != nil {
 			t.Errorf("cannot read the embedded %s: %v", e.Name(), eerr)
 			continue
@@ -174,7 +176,7 @@ func TestInitStorageExtractsTheBundledNotes(t *testing.T) {
 		}
 	}
 	if want < 5 {
-		t.Fatalf("frontend/md holds %d notes. This test proves little.", want)
+		t.Fatalf("md holds %d notes. This test proves little.", want)
 	}
 }
 

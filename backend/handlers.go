@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"net.basov.omngo/backend/frontend"
 )
 
 func (a *App) serveFrontend(w http.ResponseWriter, r *http.Request) {
@@ -59,7 +61,7 @@ func (a *App) serveHTMLPage(w http.ResponseWriter, r *http.Request, path string)
 
 func (a *App) recompileMarkdownPage(name, mdPath string, errMd error) {
 	if os.IsNotExist(errMd) {
-		embedData, err := staticFS.ReadFile("frontend/md/" + name + ".md")
+		embedData, err := frontend.Static.ReadFile("md/" + name + ".md")
 		if err == nil {
 			os.MkdirAll(filepath.Dir(mdPath), 0755)
 			os.WriteFile(mdPath, embedData, 0644)

@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"net.basov.omngo/backend/frontend"
 )
 
 // newUnconfiguredApp returns an App rooted in a fresh temp dir with the
@@ -182,7 +184,7 @@ func TestHandleGetNoteMissingSynthesizesAndPersists(t *testing.T) {
 func TestHandleGetNoteEmbeddedAssetFallsBackToEmbed(t *testing.T) {
 	const rel = "json/bookmarker-tags.json"
 
-	embedded, err := staticFS.ReadFile("frontend/html/" + rel)
+	embedded, err := frontend.Static.ReadFile("html/" + rel)
 	if err != nil {
 		t.Skipf("%s is not embedded in this build: %v", rel, err)
 	}
@@ -214,7 +216,7 @@ func TestHandleGetNoteEmbeddedAssetFallsBackToEmbed(t *testing.T) {
 func TestServeEditorMaterializesEmbeddedAsset(t *testing.T) {
 	const rel = "json/bookmarker-tags.json"
 
-	embedded, err := staticFS.ReadFile("frontend/html/" + rel)
+	embedded, err := frontend.Static.ReadFile("html/" + rel)
 	if err != nil {
 		t.Skipf("%s is not embedded in this build: %v", rel, err)
 	}

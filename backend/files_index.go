@@ -6,7 +6,7 @@ package backend
 //
 // Three trees, one directory at a time:
 //
-//	Bundled  What this build carries: staticFS. The templates are in a
+//	Bundled  What this build carries: frontend.Static. The templates are in a
 //	         separate embed. TestFilesPage_NeverListsTemplates holds that.
 //	Served   What a URL finds: StorageDir/html, without db_backup/.
 //	Source   What the person wrote: StorageDir/md.
@@ -30,6 +30,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"net.basov.omngo/backend/frontend"
 )
 
 // filesDirLimit limits the FILES that one directory shows. It never hides a
@@ -76,10 +78,10 @@ type filesEntry struct {
 func embeddedFiles() []indexedFile {
 	var out []indexedFile
 	for _, root := range []struct{ dir, prefix string }{
-		{"frontend/html", ""},
-		{"frontend/md", "md/"},
+		{"html", ""},
+		{"md", "md/"},
 	} {
-		fs.WalkDir(staticFS, root.dir, func(p string, d fs.DirEntry, err error) error {
+		fs.WalkDir(frontend.Static, root.dir, func(p string, d fs.DirEntry, err error) error {
 			if err != nil || d.IsDir() {
 				return nil
 			}

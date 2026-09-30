@@ -3,6 +3,8 @@ package backend
 import (
 	"log"
 	"strings"
+
+	"net.basov.omngo/backend/frontend"
 )
 
 // ----------------------------------------------------------------------
@@ -65,11 +67,11 @@ func escapeJS(s string) string {
 	return b.String()
 }
 
-// loadTemplate reads one page fragment from templatesFS. That embed stays
-// separate from staticFS, because the app extracts staticFS as files that a
+// loadTemplate reads one page fragment from frontend.Templates. That embed stays
+// separate from frontend.Static, because the app extracts frontend.Static as files that a
 // person can edit. A missing file shows at the first render.
 func loadTemplate(filename string) string {
-	data, err := templatesFS.ReadFile("frontend/templates/" + filename)
+	data, err := frontend.Templates.ReadFile("templates/" + filename)
 	if err != nil {
 		log.Printf("[templates] (error) failed to read embedded %s: %v", filename, err)
 		return "<p>Missing embedded template: " + escapeHTML(filename) + "</p>"

@@ -82,9 +82,10 @@ Do not remove a constraint without an instruction from the maintainer.
 | Path | Contents |
 | --- | --- |
 | `main_desktop.go` | The only file in `package main`. It holds the only build tag: `//go:build !android`. |
-| `backend/` | The full Go application. One flat `package backend`. |
-| `backend/frontend/templates/` | Server-side page fragments. Embedded as `templatesFS`. Never extracted to disk. |
-| `backend/frontend/html/` | `js/`, `css/`, `css/fonts/`, `json/`, `favicon.ico`. Embedded as `staticFS`. Extracted to the storage directory on demand. The user can edit these files with `?edit=true`. |
+| `backend/` | The Go application. `package backend` holds most of the code, and the split into packages is in progress. |
+| `backend/frontend/embed.go` | `package frontend`. It embeds `html/` and `md/` as `frontend.Static`, and `templates/` as `frontend.Templates`. |
+| `backend/frontend/templates/` | Server-side page fragments. Embedded as `frontend.Templates`. Never extracted to disk. |
+| `backend/frontend/html/` | `js/`, `css/`, `css/fonts/`, `json/`, `favicon.ico`. Embedded as `frontend.Static`. Extracted to the storage directory on demand. The user can edit these files with `?edit=true`. |
 | `backend/frontend/md/` | The bundled system notes. Examples: `Welcome.md`, `UserManual.md`, `Database.md`, `ScriptRules.md`. Also a `Test/OMN-Go/` demonstration tree. |
 | `android/` | Hand-written Gradle files and plain Java: `MainActivity.java`, `ServerService.java`, `ExportProvider.java`. The build generates `android/app/libs/omngo.aar` with `gomobile bind`. |
 | `local/` | Maintainer scripts. The Docker context excludes this directory. The build never ships it. |
@@ -121,11 +122,16 @@ update these files.
   toolchain. Remember this before you change `go.mod`.
 * The driver is `modernc.org/sqlite`, because it is pure Go and works with
   `CGO_ENABLED=0`.
-* **Use one package.** Split the code by file and by concern, not by package.
-  Each production file belongs to one group of `fileGroups` in
-  `backend/group_links_test.go`. A group uses only the groups of a lower layer.
-  `TestGroupsUseOnlyLowerLayers` holds the rule, with no exception. When a
-  group must call a higher group, set a hook in `connectGroups`.
+* **Use one package for each component under `backend/internal/`.** The split is in
+  progress. A package imports only packages of a lower layer. `importLayers` in
+  `backend/import_layers_test.go` is the table, and `TestImportLayers` holds it. Give
+  each new package a row. At the end of the split, `backend` is the gomobile and
+  desktop facade. It then holds no logic, and it exports only functions of simple types.
+* **Until the split ends, keep the groups of `package backend` apart.** Each production
+  file there belongs to one group of `fileGroups` in `backend/group_links_test.go`. A
+  group uses only the groups of a lower layer. `TestGroupsUseOnlyLowerLayers` holds the
+  rule, with no exception. When a group must call a higher group, set a hook in
+  `connectGroups`.
 * **Keep the exported surface small.** Export only what the Android layer or the desktop
   entry point calls. The Android layer calls `StartServer`, `AssetsRefreshed`,
   `SetAndroidPackage` and `SetLANAddresses`. `main_desktop.go` calls `StartServer`,
@@ -294,10 +300,10 @@ update these files.
   against an app rule at equal specificity. The editor page loads neither custom
   file. A broken custom file can never lock the user out of the editor that repairs
   it.
-* **The two embed trees are separate on purpose.** `staticFS` holds
+* **The two embed trees are separate on purpose.** `frontend.Static` holds
   `frontend/html` and `frontend/md`. The app extracts these files, and the user can
-  edit them. `templatesFS` holds `frontend/templates`. Templates are render logic.
-  Never make them extractable.
+  edit them. `frontend.Templates` holds `frontend/templates`. Templates are render
+  logic. Never make them extractable.
 * **Escape by hand and by context.** Use `escapeHTML(v)` for HTML text and for an
   attribute. Use `escapeJS(v)` for a JS string literal. Use `escapeHTML(escapeJS(v))`
   for a JS literal inside an HTML attribute. Splice trusted pre-rendered HTML raw.

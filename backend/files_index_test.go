@@ -27,6 +27,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"net.basov.omngo/backend/frontend"
 )
 
 func getFilesPage(t *testing.T, a *App, query string) *httptest.ResponseRecorder {
@@ -261,7 +263,7 @@ func TestFilesPage_StatesAndColours(t *testing.T) {
 	writeDiskFile(t, a, "js/OMN-Go/omn-go-core.js", "// a hand edit")
 	// Shipped, extracted, untouched: written from the embed itself. This row
 	// must say NOTHING.
-	sameBody, err := staticFS.ReadFile("frontend/html/js/local_counter.js")
+	sameBody, err := frontend.Static.ReadFile("html/js/local_counter.js")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -404,7 +406,7 @@ func rowOfName(t *testing.T, a *App, tree, dir, name string) filesFileRow {
 // length.
 func TestFilesPage_SameSizeEditIsFound(t *testing.T) {
 	a := newTestApp(t)
-	shipped, err := staticFS.ReadFile("frontend/md/Editor.md")
+	shipped, err := frontend.Static.ReadFile("md/Editor.md")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -441,7 +443,7 @@ func TestFilesPage_NeverListsTemplates(t *testing.T) {
 	for _, name := range []string{"index.html", "config_page.html", "search_page.html", "files_page.html"} {
 		for _, f := range embeddedFiles() {
 			if f.path == name {
-				t.Errorf("%q reached the listing; templatesFS must stay a separate embed", name)
+				t.Errorf("the list shows %q. frontend.Templates must stay a separate embed.", name)
 			}
 		}
 	}
@@ -694,10 +696,10 @@ func TestFilesStoragePathAndOwnership(t *testing.T) {
 
 func TestFilesEmbeddedPath(t *testing.T) {
 	cases := []struct{ tree, logical, want string }{
-		{filesTreeServed, "js/x.js", "frontend/html/js/x.js"},
-		{filesTreeSource, "Editor.md", "frontend/md/Editor.md"},
-		{filesTreeBundled, "md/Editor.md", "frontend/md/Editor.md"},
-		{filesTreeBundled, "css/x.css", "frontend/html/css/x.css"},
+		{filesTreeServed, "js/x.js", "html/js/x.js"},
+		{filesTreeSource, "Editor.md", "md/Editor.md"},
+		{filesTreeBundled, "md/Editor.md", "md/Editor.md"},
+		{filesTreeBundled, "css/x.css", "html/css/x.css"},
 	}
 	for _, c := range cases {
 		if got := filesEmbeddedPath(c.tree, c.logical); got != c.want {
@@ -706,7 +708,7 @@ func TestFilesEmbeddedPath(t *testing.T) {
 	}
 	// The path has to be readable, or every comparison silently falls back to
 	// "same size" and the page stops answering its main question.
-	if _, err := staticFS.ReadFile(filesEmbeddedPath(filesTreeServed, "js/OMN-Go/omn-go-core.js")); err != nil {
+	if _, err := frontend.Static.ReadFile(filesEmbeddedPath(filesTreeServed, "js/OMN-Go/omn-go-core.js")); err != nil {
 		t.Errorf("the embedded path does not resolve: %v", err)
 	}
 }

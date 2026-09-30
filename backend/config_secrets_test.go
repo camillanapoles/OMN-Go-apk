@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"net.basov.omngo/backend/frontend"
 )
 
 // ----------------------------------------------------------------------
@@ -182,8 +184,8 @@ func TestConfigPostPasswordFollowsTheSentRule(t *testing.T) {
 // The code is in omn-go-config.js, and not in omn-go-sse.js, which every
 // note loads. The Config page is the only reader of this code.
 func TestSecretAttributeHasAFrontendReader(t *testing.T) {
-	const scriptPath = "frontend/html/js/OMN-Go/omn-go-config.js"
-	raw, err := staticFS.ReadFile(scriptPath)
+	const scriptPath = "html/js/OMN-Go/omn-go-config.js"
+	raw, err := frontend.Static.ReadFile(scriptPath)
 	if err != nil {
 		t.Fatalf("%s is not embedded: %v", scriptPath, err)
 	}
@@ -211,7 +213,7 @@ func TestSecretAttributeHasAFrontendReader(t *testing.T) {
 
 	// And the code must be gone from the file that every note loads.
 	// Leaving a copy there is how two implementations of one rule start.
-	sse, err := staticFS.ReadFile("frontend/html/js/OMN-Go/omn-go-sse.js")
+	sse, err := frontend.Static.ReadFile("html/js/OMN-Go/omn-go-sse.js")
 	if err != nil {
 		t.Fatal(err)
 	}

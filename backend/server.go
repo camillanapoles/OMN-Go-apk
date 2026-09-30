@@ -2,7 +2,6 @@ package backend
 
 import (
 	"database/sql"
-	"embed"
 	"fmt"
 	"net"
 	"net/http"
@@ -76,17 +75,6 @@ type App struct {
 func (a *App) WaitUntilReady() {
 	<-a.ready
 }
-
-//go:embed frontend/html frontend/md
-var staticFS embed.FS
-
-// templatesFS holds the page fragments that the server renders. It is apart
-// from staticFS on purpose. The files of staticFS reach StorageDir/html, and
-// a person can edit them with ?edit=true. A template is render logic, and a
-// person must not damage it.
-//
-//go:embed frontend/templates
-var templatesFS embed.FS
 
 // connectGroups sets the hooks between the groups. A group thus calls
 // another group through the App, and not by name. See group_links_test.go.

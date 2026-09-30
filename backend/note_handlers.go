@@ -12,6 +12,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"net.basov.omngo/backend/frontend"
 )
 
 func (a *App) getExternalEditPageBody(fileName string, viewURL string) string {
@@ -261,8 +263,8 @@ func (a *App) handleGetNote(w http.ResponseWriter, r *http.Request) {
 	// Not on disk yet. Use the embedded default or an empty page, and write
 	// it, thus this runs one time for each page. Log a failed write. The data
 	// in memory is still correct.
-	embedPath := "frontend/md/" + baseName + ".md"
-	if embedData, embedErr := staticFS.ReadFile(embedPath); embedErr == nil {
+	embedPath := "md/" + baseName + ".md"
+	if embedData, embedErr := frontend.Static.ReadFile(embedPath); embedErr == nil {
 		data = embedData
 	} else {
 		timestamp := time.Now().Format("2006-01-02 15:04:05")
