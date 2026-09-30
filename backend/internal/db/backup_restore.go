@@ -1,4 +1,4 @@
-package backend
+package db
 
 import (
 	"bufio"
@@ -18,9 +18,9 @@ import (
 // Restore
 // ----------------------------------------------------------------------
 
-// readBackupHeader reads and checks only the first line of a backup file. It
+// ReadBackupHeader reads and checks only the first line of a backup file. It
 // is cheap enough for each file on each page load.
-func readBackupHeader(path string) (backupHeader, error) {
+func ReadBackupHeader(path string) (backupHeader, error) {
 	var h backupHeader
 	f, err := os.Open(path)
 	if err != nil {
@@ -35,7 +35,7 @@ func readBackupHeader(path string) (backupHeader, error) {
 	if err := json.Unmarshal(bytes.TrimSpace(line), &h); err != nil {
 		return h, fmt.Errorf("bad header: %w", err)
 	}
-	if h.Format != backupFormatName || h.Version != backupFormatVersion {
+	if h.Format != BackupFormatName || h.Version != BackupFormatVersion {
 		return h, fmt.Errorf("unsupported format %q version %d", h.Format, h.Version)
 	}
 	return h, nil
@@ -65,21 +65,21 @@ func decodeBackupValue(v interface{}) (interface{}, error) {
 	}
 }
 
-// restoreDBFromBackup replaces database name with the content of the backup
+// restoreFromBackup replaces database name with the content of the backup
 // file fileName in the backup directory of that database. It loads the backup
 // into a temporary .sqlite file first. It renames that file over the real one
 // only after each statement worked. A damaged file thus changes nothing.
 //
-// The caller must hold a.dbRestoreMu, as bootstrapIfMissing and
-// handleDBRestore do. This function must not take it.
-func (a *App) restoreDBFromBackup(name, fileName string) error {
+// The caller must hold Store.restoreMu, as bootstrapIfMissing and Restore
+// do. This function must not take it.
+func (svc Service) restoreFromBackup(name, fileName string) error {
 	if !dbNameRe.MatchString(name) {
 		return fmt.Errorf("invalid database name %q", name)
 	}
 	if !backupFileRe.MatchString(fileName) {
 		return fmt.Errorf("invalid backup filename %q", fileName)
 	}
-	backupPath := filepath.Join(a.dbBackupDir(name), fileName)
+	backupPath := filepath.Join(svc.BackupDir(name), fileName)
 
 	f, err := os.Open(backupPath)
 	if err != nil {
@@ -97,7 +97,7 @@ func (a *App) restoreDBFromBackup(name, fileName string) error {
 	if err := json.Unmarshal(bytes.TrimSpace(scanner.Bytes()), &header); err != nil {
 		return fmt.Errorf("bad header: %w", err)
 	}
-	if header.Format != backupFormatName || header.Version != backupFormatVersion {
+	if header.Format != BackupFormatName || header.Version != BackupFormatVersion {
 		return fmt.Errorf("unsupported format %q version %d", header.Format, header.Version)
 	}
 	if header.Database != name {
@@ -165,7 +165,7 @@ func (a *App) restoreDBFromBackup(name, fileName string) error {
 	}
 
 	// Build the new database in a temporary file beside the real one.
-	finalPath := a.userDBPath(name)
+	finalPath := svc.UserDBPath(name)
 	if err := os.MkdirAll(filepath.Dir(finalPath), 0755); err != nil {
 		return fmt.Errorf("create db directory: %w", err)
 	}
@@ -241,7 +241,7 @@ func (a *App) restoreDBFromBackup(name, fileName string) error {
 			if _, err := tx.Exec(`INSERT INTO sqlite_sequence(name, seq) VALUES (?, ?)`, s.Table, s.Value); err != nil {
 				// With no AUTOINCREMENT table, the saved counter has no row.
 				// Skip it, and do not fail.
-				a.log(logx.DBRestore).Errf("%s: sequence for %s not restorable: %v", name, s.Table, err)
+				svc.Log(logx.DBRestore).Errf("%s: sequence for %s not restorable: %v", name, s.Table, err)
 			}
 		}
 	}
@@ -261,7 +261,7 @@ func (a *App) restoreDBFromBackup(name, fileName string) error {
 	// Evict the cached handle first, thus no connection keeps the old file.
 	// Then rename. A /api/sql batch at the same time recovers through its
 	// stale-handle retry.
-	a.evictUserDB(name)
+	svc.Evict(name)
 	if err := os.Rename(tmpPath, finalPath); err != nil {
 		os.Remove(tmpPath)
 		return fmt.Errorf("swap database: %w", err)
@@ -274,7 +274,7 @@ func (a *App) restoreDBFromBackup(name, fileName string) error {
 		os.Chtimes(finalPath, info.ModTime(), info.ModTime())
 	}
 
-	a.log(logx.DBRestore).Infof("%s: restored from %s (%d objects, %d rows)",
+	svc.Log(logx.DBRestore).Infof("%s: restored from %s (%d objects, %d rows)",
 		name, fileName, header.Objects, header.Rows)
 	return nil
 }
@@ -284,20 +284,28 @@ func (a *App) restoreDBFromBackup(name, fileName string) error {
 // on a fresh device after a pull. Nothing local can be lost. It answers a new
 // handle after a restore, because the swap evicted the handle of the caller.
 // Else it answers nil.
-func (a *App) bootstrapIfMissing(name string) (*sql.DB, error) {
-	a.dbRestoreMu.Lock()
-	defer a.dbRestoreMu.Unlock()
+func (svc Service) bootstrapIfMissing(name string) (*sql.DB, error) {
+	svc.Store.restoreMu.Lock()
+	defer svc.Store.restoreMu.Unlock()
 
-	if info, err := os.Stat(a.userDBPath(name)); err == nil && info.Size() > 0 {
+	if info, err := os.Stat(svc.UserDBPath(name)); err == nil && info.Size() > 0 {
 		return nil, nil
 	}
-	files, err := a.listBackupFiles(name)
+	files, err := svc.ListBackupFiles(name)
 	if err != nil || len(files) == 0 {
 		return nil, err
 	}
-	a.log(logx.DBBootstrap).Infof("%s: no database file yet, restoring newest backup %s", name, files[0])
-	if err := a.restoreDBFromBackup(name, files[0]); err != nil {
+	svc.Log(logx.DBBootstrap).Infof("%s: no database file yet, restoring newest backup %s", name, files[0])
+	if err := svc.restoreFromBackup(name, files[0]); err != nil {
 		return nil, err
 	}
-	return a.openUserDBLocked(name)
+	return svc.openLocked(name)
+}
+
+// Restore replaces database name with the backup file fileName. It holds
+// Store.restoreMu for the whole restore. See restoreFromBackup.
+func (svc Service) Restore(name, fileName string) error {
+	svc.Store.restoreMu.Lock()
+	defer svc.Store.restoreMu.Unlock()
+	return svc.restoreFromBackup(name, fileName)
 }

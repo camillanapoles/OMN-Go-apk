@@ -33,8 +33,7 @@ var fileGroups = map[string]string{
 	"git_handlers.go": "gitsync", "git_pull.go": "gitsync",
 	"git_push.go": "gitsync", "git_repo.go": "gitsync",
 	"git_sync.go": "gitsync", "host_keys.go": "gitsync",
-	"sqlite.go": "db", "db_backup.go": "db", "db_backup_create.go": "db",
-	"db_backup_http.go": "db", "db_backup_restore.go": "db",
+	"db_app.go": "db",
 
 	"server.go": "app", "middleware.go": "app", "session.go": "app",
 	"request_guard.go": "app", "handlers.go": "app", "page_access.go": "app",

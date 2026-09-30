@@ -329,7 +329,7 @@ func Load(c *Config, configPath string, fallbackPort int, log logx.Logger) {
 			AndroidFullscreen: FullscreenOn,
 
 			// Hostname labels this device in the file names of database
-			// backups. See db_backup.go. BackupPruneDepth is the number of
+			// backups. See internal/db/backup.go. BackupPruneDepth is the number of
 			// backups that each database keeps.
 			Hostname:         DefaultHostname(),
 			BackupPruneDepth: 3,

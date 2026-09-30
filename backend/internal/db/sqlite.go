@@ -1,4 +1,4 @@
-package backend
+package db
 
 import (
 	"database/sql"
@@ -44,31 +44,31 @@ import (
 //	  name is a file name, thus this is the path-traversal guard.
 //	- At most 1 MB of body and 500 statements for each request.
 //
-// The db_backup*.go files hold the JSONL backup and restore of these
+// The backup*.go files hold the JSONL backup and restore of these
 // databases.
 
 // dbNameRe allows only safe database names, because a name is a file name.
 var dbNameRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 
 const (
-	sqlMaxBodyBytes  = 1 << 20 // 1 MB
-	sqlMaxStatements = 500
+	sqlMaxBodyBytes = 1 << 20 // 1 MB
+	MaxStatements   = 500
 )
 
-// openUserDB answers the handle of a named database, and it opens or makes
+// Open answers the handle of a named database, and it opens or makes
 // the file at the first use. Then, without the lock, it runs the one
 // automatic restore. That restore is for a database with backups and no
 // .sqlite file, as on a fresh device after a pull. Each other restore is
-// manual. See db_backup.go.
-func (a *App) openUserDB(name string) (*sql.DB, error) {
-	db, err := a.openUserDBLocked(name)
+// manual. See backup.go.
+func (svc Service) Open(name string) (*sql.DB, error) {
+	db, err := svc.openLocked(name)
 	if err != nil {
 		return nil, err
 	}
-	if reopened, err := a.bootstrapIfMissing(name); err != nil {
+	if reopened, err := svc.bootstrapIfMissing(name); err != nil {
 		// A failed bootstrap must not stop the database. The note script then
 		// sees an empty database. The backup file stays for a manual restore.
-		a.log(logx.DBBootstrap).Errf("%s: %v", name, err)
+		svc.Log(logx.DBBootstrap).Errf("%s: %v", name, err)
 	} else if reopened != nil {
 		// The bootstrap replaced the file and evicted the handle above. Give
 		// out the new handle.
@@ -77,25 +77,25 @@ func (a *App) openUserDB(name string) (*sql.DB, error) {
 	return db, nil
 }
 
-// openUserDBLocked opens a database, or answers the cached handle, under
-// a.sqlMu. openUserDB never holds the lock while bootstrapIfMissing runs a
+// openLocked opens a database, or answers the cached handle, under
+// svc.Store.mu. Open never holds the lock while bootstrapIfMissing runs a
 // whole restore.
-func (a *App) openUserDBLocked(name string) (*sql.DB, error) {
+func (svc Service) openLocked(name string) (*sql.DB, error) {
 	if !dbNameRe.MatchString(name) {
 		return nil, fmt.Errorf("invalid database name %q (allowed: letters, digits, '_', '-', max 64 chars)", name)
 	}
 
-	a.sqlMu.Lock()
-	defer a.sqlMu.Unlock()
+	svc.Store.mu.Lock()
+	defer svc.Store.mu.Unlock()
 
-	if a.sqlDBs == nil {
-		a.sqlDBs = make(map[string]*sql.DB)
+	if svc.Store.dbs == nil {
+		svc.Store.dbs = make(map[string]*sql.DB)
 	}
-	if db, ok := a.sqlDBs[name]; ok {
+	if db, ok := svc.Store.dbs[name]; ok {
 		return db, nil
 	}
 
-	dir := a.layout().DB()
+	dir := svc.Layout.DB()
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, fmt.Errorf("create db directory: %w", err)
 	}
@@ -114,34 +114,34 @@ func (a *App) openUserDBLocked(name string) (*sql.DB, error) {
 	// and they do not get SQLITE_BUSY.
 	db.SetMaxOpenConns(1)
 
-	a.sqlDBs[name] = db
+	svc.Store.dbs[name] = db
 	return db, nil
 }
 
-type sqlStatement struct {
+type Statement struct {
 	SQL  string        `json:"sql"`
 	Args []interface{} `json:"args"`
 }
 
-type sqlRequest struct {
-	DB         string         `json:"db"`
-	Statements []sqlStatement `json:"statements"`
+type Request struct {
+	DB         string      `json:"db"`
+	Statements []Statement `json:"statements"`
 }
 
-type sqlResult struct {
+type Result struct {
 	Columns      []string        `json:"columns,omitempty"`
 	Rows         [][]interface{} `json:"rows,omitempty"`
 	RowsAffected int64           `json:"rows_affected"`
 	LastInsertID int64           `json:"last_insert_id"`
 }
 
-type sqlResponse struct {
+type Response struct {
 	Status  string `json:"status"`
 	Message string `json:"message,omitempty"`
 	// FailedStatement is the index of the statement that failed. The handler
 	// sets it only when one statement caused the error.
-	FailedStatement *int        `json:"failed_statement,omitempty"`
-	Results         []sqlResult `json:"results,omitempty"`
+	FailedStatement *int     `json:"failed_statement,omitempty"`
+	Results         []Result `json:"results,omitempty"`
 }
 
 // returnsRows chooses Query or Exec from the first keyword. "WITH ... INSERT"
@@ -157,22 +157,22 @@ func returnsRows(query string) bool {
 	return false
 }
 
-// evictUserDB closes and forgets a cached handle, thus the next openUserDB
+// Evict closes and forgets a cached handle, thus the next Open
 // opens the file again. With isStaleDBHandleError, it lets /api/sql recover
 // from an error of the SQLITE_READONLY_DBMOVED class. Without the pair, each
 // query fails until a restart. See
 // doc/decisions/0010-write-a-pull-without-the-checkout-of-go-git.md for the
 // known cause.
-func (a *App) evictUserDB(name string) {
-	a.sqlMu.Lock()
-	db, ok := a.sqlDBs[name]
+func (svc Service) Evict(name string) {
+	svc.Store.mu.Lock()
+	db, ok := svc.Store.dbs[name]
 	if ok {
-		delete(a.sqlDBs, name)
+		delete(svc.Store.dbs, name)
 	}
-	a.sqlMu.Unlock()
+	svc.Store.mu.Unlock()
 	if ok {
 		if err := db.Close(); err != nil {
-			a.log(logx.DB).Errf("close evicted handle for %q: %v", name, err)
+			svc.Log(logx.DB).Errf("close evicted handle for %q: %v", name, err)
 		}
 	}
 }
@@ -192,14 +192,14 @@ func isStaleDBHandleError(err error) bool {
 		strings.Contains(msg, "(1032)")
 }
 
-// runSQLBatchWithRetry runs the statements against dbName as one transaction.
+// RunBatch runs the statements against dbName as one transaction.
 // After a stale-handle error, it evicts the handle, opens the database again,
 // and runs the batch ONE more time. A retry is safe, because the first
 // attempt committed nothing.
-func (a *App) runSQLBatchWithRetry(dbName string, statements []sqlStatement) ([]sqlResult, *int, error) {
+func (svc Service) RunBatch(dbName string, statements []Statement) ([]Result, *int, error) {
 	var lastErr error
 	for attempt := 1; attempt <= 2; attempt++ {
-		db, err := a.openUserDB(dbName)
+		db, err := svc.Open(dbName)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -207,19 +207,19 @@ func (a *App) runSQLBatchWithRetry(dbName string, statements []sqlStatement) ([]
 		tx, err := db.Begin()
 		if err != nil {
 			if attempt == 1 && isStaleDBHandleError(err) {
-				a.log(logx.DB).Infof("%s: stale handle on begin, reopening and retrying: %v", dbName, err)
-				a.evictUserDB(dbName)
+				svc.Log(logx.DB).Infof("%s: stale handle on begin, reopening and retrying: %v", dbName, err)
+				svc.Evict(dbName)
 				lastErr = err
 				continue
 			}
 			return nil, nil, fmt.Errorf("begin: %w", err)
 		}
 
-		results := make([]sqlResult, 0, len(statements))
+		results := make([]Result, 0, len(statements))
 		var failedIdx *int
 		var stmtErr error
 		for i, stmt := range statements {
-			var res sqlResult
+			var res Result
 			res, stmtErr = runStatement(tx, stmt)
 			if stmtErr != nil {
 				idx := i
@@ -232,8 +232,8 @@ func (a *App) runSQLBatchWithRetry(dbName string, statements []sqlStatement) ([]
 		if stmtErr != nil {
 			tx.Rollback()
 			if attempt == 1 && isStaleDBHandleError(stmtErr) {
-				a.log(logx.DB).Infof("%s: stale handle on statement #%d, reopening and retrying: %v", dbName, *failedIdx, stmtErr)
-				a.evictUserDB(dbName)
+				svc.Log(logx.DB).Infof("%s: stale handle on statement #%d, reopening and retrying: %v", dbName, *failedIdx, stmtErr)
+				svc.Evict(dbName)
 				lastErr = stmtErr
 				continue
 			}
@@ -242,8 +242,8 @@ func (a *App) runSQLBatchWithRetry(dbName string, statements []sqlStatement) ([]
 
 		if err := tx.Commit(); err != nil {
 			if attempt == 1 && isStaleDBHandleError(err) {
-				a.log(logx.DB).Infof("%s: stale handle on commit, reopening and retrying: %v", dbName, err)
-				a.evictUserDB(dbName)
+				svc.Log(logx.DB).Infof("%s: stale handle on commit, reopening and retrying: %v", dbName, err)
+				svc.Evict(dbName)
 				lastErr = err
 				continue
 			}
@@ -255,60 +255,60 @@ func (a *App) runSQLBatchWithRetry(dbName string, statements []sqlStatement) ([]
 	return nil, nil, fmt.Errorf("after retry: %w", lastErr)
 }
 
-// handleSQL runs one atomic batch against one named database. See the banner
+// HandleSQL runs one atomic batch against one named database. See the banner
 // for the protocol.
-func (a *App) handleSQL(w http.ResponseWriter, r *http.Request) {
+func (svc Service) HandleSQL(w http.ResponseWriter, r *http.Request) {
 
-	var req sqlRequest
+	var req Request
 	r.Body = http.MaxBytesReader(w, r.Body, sqlMaxBodyBytes)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		a.writeJSON(w, http.StatusBadRequest, sqlResponse{Status: "error", Message: "bad request: " + err.Error()})
+		svc.writeJSON(w, http.StatusBadRequest, Response{Status: "error", Message: "bad request: " + err.Error()})
 		return
 	}
 	if len(req.Statements) == 0 {
-		a.writeJSON(w, http.StatusBadRequest, sqlResponse{Status: "error", Message: "no statements"})
+		svc.writeJSON(w, http.StatusBadRequest, Response{Status: "error", Message: "no statements"})
 		return
 	}
-	if len(req.Statements) > sqlMaxStatements {
-		a.writeJSON(w, http.StatusBadRequest, sqlResponse{Status: "error",
-			Message: fmt.Sprintf("too many statements (%d > %d)", len(req.Statements), sqlMaxStatements)})
+	if len(req.Statements) > MaxStatements {
+		svc.writeJSON(w, http.StatusBadRequest, Response{Status: "error",
+			Message: fmt.Sprintf("too many statements (%d > %d)", len(req.Statements), MaxStatements)})
 		return
 	}
 
-	results, failedIdx, err := a.runSQLBatchWithRetry(req.DB, req.Statements)
+	results, failedIdx, err := svc.RunBatch(req.DB, req.Statements)
 	if err != nil {
-		a.writeJSON(w, http.StatusBadRequest, sqlResponse{
+		svc.writeJSON(w, http.StatusBadRequest, Response{
 			Status:          "error",
 			Message:         err.Error(),
 			FailedStatement: failedIdx,
 		})
 		return
 	}
-	a.writeJSON(w, http.StatusOK, sqlResponse{Status: "success", Results: results})
+	svc.writeJSON(w, http.StatusOK, Response{Status: "success", Results: results})
 }
 
-func runStatement(tx *sql.Tx, stmt sqlStatement) (sqlResult, error) {
+func runStatement(tx *sql.Tx, stmt Statement) (Result, error) {
 	if !returnsRows(stmt.SQL) {
 		res, err := tx.Exec(stmt.SQL, stmt.Args...)
 		if err != nil {
-			return sqlResult{}, err
+			return Result{}, err
 		}
 		affected, _ := res.RowsAffected()
 		lastID, _ := res.LastInsertId()
-		return sqlResult{RowsAffected: affected, LastInsertID: lastID}, nil
+		return Result{RowsAffected: affected, LastInsertID: lastID}, nil
 	}
 
 	rows, err := tx.Query(stmt.SQL, stmt.Args...)
 	if err != nil {
-		return sqlResult{}, err
+		return Result{}, err
 	}
 	defer rows.Close()
 
 	cols, err := rows.Columns()
 	if err != nil {
-		return sqlResult{}, err
+		return Result{}, err
 	}
-	out := sqlResult{Columns: cols, Rows: [][]interface{}{}}
+	out := Result{Columns: cols, Rows: [][]interface{}{}}
 
 	for rows.Next() {
 		raw := make([]interface{}, len(cols))
@@ -317,7 +317,7 @@ func runStatement(tx *sql.Tx, stmt sqlStatement) (sqlResult, error) {
 			ptrs[i] = &raw[i]
 		}
 		if err := rows.Scan(ptrs...); err != nil {
-			return sqlResult{}, err
+			return Result{}, err
 		}
 		// A []byte would encode as base64 in JSON. Send text as text.
 		for i, v := range raw {

@@ -1,4 +1,4 @@
-package backend
+package db
 
 import (
 	"fmt"
@@ -18,52 +18,49 @@ import (
 
 var dbBackupsPageTmpl = render.LoadTemplate("db_backups.html")
 
-// serveDBBackupsPage renders the Database Backups page. The button at the top
+// ServeBackupsPage renders the Database Backups page. The button at the top
 // of the Config page opens it. The page gets its data from GET
 // /api/db/backups, thus the template needs no render.Fill().
-func (a *App) serveDBBackupsPage(w http.ResponseWriter, r *http.Request) {
-	a.renderPage(w, http.StatusOK, "DB_Backups", render.PageHeader("Database Backups", "Settings"), dbBackupsPageTmpl)
+func (svc Service) ServeBackupsPage(w http.ResponseWriter, r *http.Request) {
+	svc.RenderPage(w, http.StatusOK, "DB_Backups", render.PageHeader("Database Backups", "Settings"), dbBackupsPageTmpl)
 }
 
-// handleDBBackupCreate answers POST /api/db/backup?db=NAME.
-func (a *App) handleDBBackupCreate(w http.ResponseWriter, r *http.Request) {
+// HandleBackupCreate answers POST /api/db/backup?db=NAME.
+func (svc Service) HandleBackupCreate(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("db")
 	if !dbNameRe.MatchString(name) {
-		a.writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("invalid db name %q", name))
+		svc.writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("invalid db name %q", name))
 		return
 	}
-	file, pruned, err := a.createDBBackup(name)
+	file, pruned, err := svc.CreateBackup(name)
 	if err != nil {
-		a.writeJSONError(w, http.StatusInternalServerError, err.Error())
+		svc.writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	a.writeJSON(w, http.StatusOK, map[string]interface{}{
+	svc.writeJSON(w, http.StatusOK, map[string]interface{}{
 		"status": "success",
 		"file":   file,
 		"pruned": pruned,
 	})
 }
 
-// handleDBRestore answers POST /api/db/restore?db=NAME&file=FILENAME.
-func (a *App) handleDBRestore(w http.ResponseWriter, r *http.Request) {
+// HandleRestore answers POST /api/db/restore?db=NAME&file=FILENAME.
+func (svc Service) HandleRestore(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("db")
 	fileName := r.URL.Query().Get("file")
 	if !dbNameRe.MatchString(name) {
-		a.writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("invalid db name %q", name))
+		svc.writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("invalid db name %q", name))
 		return
 	}
 	if !backupFileRe.MatchString(fileName) {
-		a.writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("invalid backup filename %q", fileName))
+		svc.writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("invalid backup filename %q", fileName))
 		return
 	}
-	a.dbRestoreMu.Lock()
-	err := a.restoreDBFromBackup(name, fileName)
-	a.dbRestoreMu.Unlock()
-	if err != nil {
-		a.writeJSONError(w, http.StatusInternalServerError, err.Error())
+	if err := svc.Restore(name, fileName); err != nil {
+		svc.writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	a.writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
+	svc.writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 
 type backupFileView struct {
@@ -87,15 +84,15 @@ type backupDBView struct {
 	Backups      []backupFileView `json:"backups"`
 }
 
-// handleDBBackupList answers GET /api/db/backups with each value of the
+// HandleBackupList answers GET /api/db/backups with each value of the
 // /db_backups page. It never opens a database, because an open can start the
 // bootstrap restore, and a listing must change nothing.
-func (a *App) handleDBBackupList(w http.ResponseWriter, r *http.Request) {
+func (svc Service) HandleBackupList(w http.ResponseWriter, r *http.Request) {
 
 	// Take each database that has a .sqlite file or only backups, as on a
 	// fresh device before the first open.
 	names := map[string]bool{}
-	if entries, err := os.ReadDir(a.layout().DB()); err == nil {
+	if entries, err := os.ReadDir(svc.Layout.DB()); err == nil {
 		for _, e := range entries {
 			if !e.IsDir() && strings.HasSuffix(e.Name(), ".sqlite") {
 				n := strings.TrimSuffix(e.Name(), ".sqlite")
@@ -105,7 +102,7 @@ func (a *App) handleDBBackupList(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	if entries, err := os.ReadDir(dbBackupRoot(a)); err == nil {
+	if entries, err := os.ReadDir(svc.backupRoot()); err == nil {
 		for _, e := range entries {
 			if e.IsDir() && dbNameRe.MatchString(e.Name()) {
 				names[e.Name()] = true
@@ -118,7 +115,7 @@ func (a *App) handleDBBackupList(w http.ResponseWriter, r *http.Request) {
 	}
 	sort.Strings(sorted)
 
-	depth := a.config.Get().BackupPruneDepth
+	depth := svc.PruneDepth
 	if depth <= 0 {
 		depth = 3
 	}
@@ -128,21 +125,21 @@ func (a *App) handleDBBackupList(w http.ResponseWriter, r *http.Request) {
 		v := backupDBView{Name: name}
 		// Keep the raw mtime for the state test below. The RFC3339 text in
 		// v.MTime has a precision of one second. A test against it would show
-		// "backup newer" directly after a backup, where createDBBackup made
+		// "backup newer" directly after a backup, where CreateBackup made
 		// the two mtimes equal.
 		var dbMTime time.Time
-		if info, err := os.Stat(a.userDBPath(name)); err == nil && info.Size() > 0 {
+		if info, err := os.Stat(svc.UserDBPath(name)); err == nil && info.Size() > 0 {
 			v.SQLiteExists = true
 			v.Size = info.Size()
 			dbMTime = info.ModTime()
 			v.MTime = dbMTime.UTC().Format(time.RFC3339)
 		}
 
-		files, _ := a.listBackupFiles(name)
+		files, _ := svc.ListBackupFiles(name)
 		var newestMTime time.Time
 		newestValid := false
 		for i, fn := range files {
-			full := filepath.Join(a.dbBackupDir(name), fn)
+			full := filepath.Join(svc.BackupDir(name), fn)
 			bv := backupFileView{File: fn}
 			if info, err := os.Stat(full); err == nil {
 				bv.Size = info.Size()
@@ -151,7 +148,7 @@ func (a *App) handleDBBackupList(w http.ResponseWriter, r *http.Request) {
 					newestMTime = info.ModTime()
 				}
 			}
-			if h, err := readBackupHeader(full); err == nil && h.Database == name {
+			if h, err := ReadBackupHeader(full); err == nil && h.Database == name {
 				bv.Valid = true
 				bv.Created = h.Created
 				bv.Hostname = h.Hostname
@@ -193,9 +190,9 @@ func (a *App) handleDBBackupList(w http.ResponseWriter, r *http.Request) {
 		dbs = append(dbs, v)
 	}
 
-	a.writeJSON(w, http.StatusOK, map[string]interface{}{
+	svc.writeJSON(w, http.StatusOK, map[string]interface{}{
 		"status":      "success",
-		"hostname":    a.config.Get().Hostname,
+		"hostname":    svc.Hostname,
 		"prune_depth": depth,
 		"databases":   dbs,
 	})

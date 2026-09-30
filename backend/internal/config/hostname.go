@@ -7,7 +7,7 @@ import (
 )
 
 // hostnameUnsafeRe finds each character that cannot be in the file name of a
-// database backup, <timestamp>_<hostname>.jsonl. See db_backup.go. The
+// database backup, <timestamp>_<hostname>.jsonl. See internal/db/backup.go. The
 // allowed set is [A-Za-z0-9_-], the same as for a database name.
 var hostnameUnsafeRe = regexp.MustCompile(`[^A-Za-z0-9_-]`)
 

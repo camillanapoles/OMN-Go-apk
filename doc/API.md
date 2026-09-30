@@ -1611,7 +1611,7 @@ A backup entry with `"valid": false` carries `"error": "<reason>"`.
 | `file` | string | yes | Must match the backup filename grammar above |
 
 Restores into `<storage>/db/<db>.sqlite` and destroys the current content.
-`dbRestoreMu` serializes this endpoint against the bootstrap restore. The
+`db.Store.restoreMu` serializes this endpoint against the bootstrap restore. The
 endpoint removes the open handle, so the next `/api/sql` call opens the new
 file. It sets the mtime of the restored `.sqlite` file to the mtime of the
 backup. The state dot on the page therefore reads `insync` at once.

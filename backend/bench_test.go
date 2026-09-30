@@ -234,19 +234,17 @@ func BenchmarkDBBackupRestore(b *testing.B) {
 	benchDatabase(b, a)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		rel, _, err := a.createDBBackup("bench")
+		rel, _, err := a.databases().CreateBackup("bench")
 		if err != nil {
 			b.Fatal(err)
 		}
 		file := path.Base(filepath.ToSlash(rel))
-		a.dbRestoreMu.Lock()
-		err = a.restoreDBFromBackup("bench", file)
-		a.dbRestoreMu.Unlock()
+		err = a.databases().Restore("bench", file)
 		if err != nil {
 			b.Fatal(err)
 		}
 		b.StopTimer()
-		if err := os.Remove(filepath.Join(a.dbBackupDir("bench"), file)); err != nil {
+		if err := os.Remove(filepath.Join(a.databases().BackupDir("bench"), file)); err != nil {
 			b.Fatal(err)
 		}
 		b.StartTimer()

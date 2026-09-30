@@ -1,4 +1,4 @@
-package backend
+package db
 
 import (
 	"bytes"
@@ -57,12 +57,12 @@ func encodeBackupValue(v interface{}, blobCol bool) interface{} {
 	return string(b)
 }
 
-// createDBBackup writes a new backup file of database name and prunes the
+// CreateBackup writes a new backup file of database name and prunes the
 // backups above the configured depth. It answers the relative path of the new
 // file and of each pruned file. The whole read runs in one transaction, thus
 // the copy is consistent while note scripts write.
-func (a *App) createDBBackup(name string) (created string, pruned []string, err error) {
-	db, err := a.openUserDB(name)
+func (svc Service) CreateBackup(name string) (created string, pruned []string, err error) {
+	db, err := svc.Open(name)
 	if err != nil {
 		return "", nil, err
 	}
@@ -204,14 +204,13 @@ func (a *App) createDBBackup(name string) (created string, pruned []string, err 
 
 	// The header is line 1, and the code builds it last, because it holds the
 	// counts. The list endpoint then reads one line for the metadata.
-	cfg := a.config.Get()
-	host := config.SanitizeHostname(cfg.Hostname)
+	host := config.SanitizeHostname(svc.Hostname)
 	if host == "" {
 		host = config.DefaultHostname()
 	}
 	header := backupHeader{
-		Format:   backupFormatName,
-		Version:  backupFormatVersion,
+		Format:   BackupFormatName,
+		Version:  BackupFormatVersion,
 		Database: name,
 		Created:  time.Now().UTC().Format(time.RFC3339),
 		Hostname: host,
@@ -223,7 +222,7 @@ func (a *App) createDBBackup(name string) (created string, pruned []string, err 
 		return "", nil, err
 	}
 
-	dir := a.dbBackupDir(name)
+	dir := svc.BackupDir(name)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", nil, fmt.Errorf("create backup directory: %w", err)
 	}
@@ -253,23 +252,23 @@ func (a *App) createDBBackup(name string) (created string, pruned []string, err 
 	// The database now equals this backup. Give the .sqlite file the mtime of
 	// the backup, thus the state dot of the page shows "in sync".
 	if info, err := os.Stat(target); err == nil {
-		if err := os.Chtimes(a.userDBPath(name), info.ModTime(), info.ModTime()); err != nil && !os.IsNotExist(err) {
-			a.log(logx.DBBackup).Errf("touch %s.sqlite: %v", name, err)
+		if err := os.Chtimes(svc.UserDBPath(name), info.ModTime(), info.ModTime()); err != nil && !os.IsNotExist(err) {
+			svc.Log(logx.DBBackup).Errf("touch %s.sqlite: %v", name, err)
 		}
 	}
 
-	pruned, err = a.pruneDBBackups(name)
+	pruned, err = svc.PruneBackups(name)
 	if err != nil {
 		// The backup worked. A prune fault does not fail the request.
-		a.log(logx.DBBackup).Errf("prune %s: %v", name, err)
+		svc.Log(logx.DBBackup).Errf("prune %s: %v", name, err)
 		err = nil
 	}
-	return a.relStoragePath(target), pruned, nil
+	return svc.relStoragePath(target), pruned, nil
 }
 
-// listBackupFiles answers the backup file names of name, newest first.
-func (a *App) listBackupFiles(name string) ([]string, error) {
-	entries, err := os.ReadDir(a.dbBackupDir(name))
+// ListBackupFiles answers the backup file names of name, newest first.
+func (svc Service) ListBackupFiles(name string) ([]string, error) {
+	entries, err := os.ReadDir(svc.BackupDir(name))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
@@ -283,31 +282,31 @@ func (a *App) listBackupFiles(name string) ([]string, error) {
 		}
 		files = append(files, e.Name())
 	}
-	sort.Slice(files, func(i, j int) bool { return backupNewerThan(files[i], files[j]) })
+	sort.Slice(files, func(i, j int) bool { return BackupNewerThan(files[i], files[j]) })
 	return files, nil
 }
 
-// pruneDBBackups removes the backups above the configured depth and keeps the
+// PruneBackups removes the backups above the configured depth and keeps the
 // newest. It answers the relative path of each removed file. git carries the
 // deletions of a tracked database. For a local-* database, they are final.
-func (a *App) pruneDBBackups(name string) ([]string, error) {
-	depth := a.config.Get().BackupPruneDepth
+func (svc Service) PruneBackups(name string) ([]string, error) {
+	depth := svc.PruneDepth
 	if depth <= 0 {
 		depth = 3
 	}
-	files, err := a.listBackupFiles(name)
+	files, err := svc.ListBackupFiles(name)
 	if err != nil {
 		return nil, err
 	}
 	var removed []string
 	for i := depth; i < len(files); i++ {
-		full := filepath.Join(a.dbBackupDir(name), files[i])
+		full := filepath.Join(svc.BackupDir(name), files[i])
 		if err := os.Remove(full); err != nil && !os.IsNotExist(err) {
-			a.log(logx.DBBackup).Errf("prune %s: %v", files[i], err)
+			svc.Log(logx.DBBackup).Errf("prune %s: %v", files[i], err)
 			continue
 		}
-		a.log(logx.DBBackup).Infof("%s: pruned %s", name, files[i])
-		removed = append(removed, a.relStoragePath(full))
+		svc.Log(logx.DBBackup).Infof("%s: pruned %s", name, files[i])
+		removed = append(removed, svc.relStoragePath(full))
 	}
 	return removed, nil
 }

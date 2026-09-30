@@ -64,11 +64,11 @@ platform wraps this binary in a different way:
    (`internal/render/markdown.go`, `internal/render/pages.go`,
    `internal/render/templates.go`). The backend writes the HTML cache to disk
    (`internal/render/cache.go`). It also holds an embedded SQLite database
-   (pure-Go `modernc.org/sqlite`, `sqlite.go` and the `db_backup*.go` files) and
-   runs git synchronization over SSH (`git_sync.go`). The build compiles all
-   frontend assets into the binary with `//go:embed`, and the backend extracts
-   them to the storage directory when it first needs them. This is why OMN-Go
-   works without an internet connection.
+   (pure-Go `modernc.org/sqlite`, `internal/db/sqlite.go` and the
+   `internal/db/backup*.go` files) and runs git synchronization over SSH
+   (`git_sync.go`). The build compiles all frontend assets into the binary with
+   `//go:embed`, and the backend extracts them to the storage directory when it
+   first needs them. This is why OMN-Go works without an internet connection.
 
 2. **The frontend (`backend/frontend/`):** Pure HTML, CSS, and vanilla
    JavaScript, with no React, no Vue, and no external CDN. The page

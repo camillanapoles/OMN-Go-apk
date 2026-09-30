@@ -87,7 +87,7 @@ Do not remove a constraint without an instruction from the maintainer.
 | --- | --- |
 | `main_desktop.go` | The only file in `package main`. It holds the only build tag: `//go:build !android`. |
 | `backend/` | The Go application. `package backend` holds most of the code, and the split into packages is in progress. |
-| `backend/internal/` | The packages of the split. `textmatch` holds the search matcher, and `noteheader` holds the header block. `logx` holds the log tags and the log hub. `config` holds the settings and their store. `storage` holds the storage layout, the application files and the plain files beside the notes. `render` holds the page compile, the page shell, the Tags page and the JSON answer. |
+| `backend/internal/` | The packages of the split. `textmatch` holds the search matcher, and `noteheader` holds the header block. `logx` holds the log tags and the log hub. `config` holds the settings and their store. `storage` holds the storage layout, the application files and the plain files beside the notes. `render` holds the page compile, the page shell, the Tags page and the JSON answer. `db` holds the SQLite databases of the notes and their backups. |
 | `backend/frontend/embed.go` | `package frontend`. It embeds `html/` and `md/` as `frontend.Static`, and `templates/` as `frontend.Templates`. |
 | `backend/frontend/templates/` | Server-side page fragments. Embedded as `frontend.Templates`. Never extracted to disk. |
 | `backend/frontend/html/` | `js/`, `css/`, `css/fonts/`, `json/`, `favicon.ico`. Embedded as `frontend.Static`. Extracted to the storage directory on demand. The user can edit these files with `?edit=true`. |
@@ -127,14 +127,15 @@ update these files.
   toolchain. Remember this before you change `go.mod`.
 * The driver is `modernc.org/sqlite`, because it is pure Go and works with
   `CGO_ENABLED=0`.
-* **Use one package for each component under `backend/internal/`.** The split is in
-  progress. A package imports only packages of a lower layer. `importLayers` in
-  `backend/import_layers_test.go` is the table, and `TestImportLayers` holds it. Give
-  each new package a row. At the end of the split, `backend` is the gomobile and
-  desktop facade. It then holds no logic, and it exports only functions of simple types.
-  Until then, the App side of a package is one file of `package backend`, for
-  example `config_app.go`, `storage_app.go` and `render_app.go`. Its methods give
-  the values of the App to the package.
+* **Use one package for each component under `backend/internal/`.** The split is
+  in progress. A package imports only packages of a lower layer. `importLayers`
+  in `backend/import_layers_test.go` is the table, and `TestImportLayers` holds
+  it. Give each new package a row. At the end of the split, `backend` is the
+  gomobile and desktop facade. It then holds no logic, and it exports only
+  functions of simple types. Until then, the App side of a package is one file
+  of `package backend`, for example `config_app.go`, `storage_app.go`,
+  `render_app.go` and `db_app.go`. Its methods give the values of the App to the
+  package.
 * **Until the split ends, keep the groups of `package backend` apart.** Each production
   file there belongs to one group of `fileGroups` in `backend/group_links_test.go`. A
   group uses only the groups of a lower layer. `TestGroupsUseOnlyLowerLayers` holds the
@@ -366,13 +367,14 @@ update these files.
   scope or an IIFE. Do not write a top-level `const` or `let`. Attach anything that
   an `onclick` calls to `window`. The server compiles a page once and caches it, so
   a note script must be idempotent.
-* **SQL API.** `window.omnGoOpenDatabase(name)` returns a handle at once. The handle
-  has `exec`, `batch`, `transaction`, and `readTransaction`. `window.openDatabase(...)`
-  is the legacy WebSQL entry point. The Go side is `POST /api/sql` in
-  `backend/sqlite.go`. Rules: admin only. All statements of one request run in one
-  transaction. A database name must match `^[A-Za-z0-9_-]{1,64}$`. That pattern is
-  the path-traversal guard. The body limit is 1 MiB. The statement limit is 500.
-  Each database file lives at `<StorageDir>/db/<name>.sqlite`.
+* **SQL API.** `window.omnGoOpenDatabase(name)` returns a handle at once. The
+  handle has `exec`, `batch`, `transaction`, and `readTransaction`.
+  `window.openDatabase(...)` is the legacy WebSQL entry point. The Go side is
+  `POST /api/sql` in `backend/internal/db/sqlite.go`. Rules: admin only. All
+  statements of one request run in one transaction. A database name must match
+  `^[A-Za-z0-9_-]{1,64}$`. That pattern is the path-traversal guard. The body
+  limit is 1 MiB. The statement limit is 500. Each database file lives at
+  `<StorageDir>/db/<name>.sqlite`.
 * **Database backups.** A backup holds the full database as JSONL. The user starts
   each backup by hand. File names are immutable:
   `html/db_backup/<db>/<UTCtimestamp>_<hostname>.jsonl`. The format version is 2.

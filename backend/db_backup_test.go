@@ -12,13 +12,14 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/internal/config"
+	"net.basov.omngo/backend/internal/db"
 	"net.basov.omngo/backend/internal/storage"
 )
 
-// These tests cover the whole-database JSONL backups of db_backup*.go. They
-// test the round trip, the full replace, trigger safety and the endpoints.
-// They also test indexes, sqlite_sequence, BLOBs, int64 values, the prune,
-// the bootstrap of a fresh device and the refusal of a damaged file.
+// These tests cover the whole-database JSONL backups of internal/db/backup*.go.
+// They test the round trip, the full replace, trigger safety and the endpoints.
+// They also test indexes, sqlite_sequence, BLOBs, int64 values, the prune, the
+// bootstrap of a fresh device and the refusal of a damaged file.
 //
 // Each helper here has the prefix dbb, thus it cannot collide with a helper
 // of another test file.
@@ -30,7 +31,7 @@ func dbbApp(t *testing.T) *App {
 
 func dbbExec(t *testing.T, a *App, db, stmt string, args ...interface{}) {
 	t.Helper()
-	h, err := a.openUserDB(db)
+	h, err := a.databases().Open(db)
 	if err != nil {
 		t.Fatalf("open %s: %v", db, err)
 	}
@@ -41,7 +42,7 @@ func dbbExec(t *testing.T, a *App, db, stmt string, args ...interface{}) {
 
 func dbbQueryInt(t *testing.T, a *App, db, query string) int64 {
 	t.Helper()
-	h, err := a.openUserDB(db)
+	h, err := a.databases().Open(db)
 	if err != nil {
 		t.Fatalf("open %s: %v", db, err)
 	}
@@ -55,20 +56,18 @@ func dbbQueryInt(t *testing.T, a *App, db, query string) int64 {
 // dbbBackup creates a backup and returns the bare backup filename.
 func dbbBackup(t *testing.T, a *App, db string) string {
 	t.Helper()
-	rel, _, err := a.createDBBackup(db)
+	rel, _, err := a.databases().CreateBackup(db)
 	if err != nil {
-		t.Fatalf("createDBBackup(%s): %v", db, err)
+		t.Fatalf("db.Service.CreateBackup(%s): %v", db, err)
 	}
 	return filepath.Base(rel)
 }
 
 func dbbRestore(t *testing.T, a *App, db, file string) {
 	t.Helper()
-	a.dbRestoreMu.Lock()
-	err := a.restoreDBFromBackup(db, file)
-	a.dbRestoreMu.Unlock()
+	err := a.databases().Restore(db, file)
 	if err != nil {
-		t.Fatalf("restoreDBFromBackup(%s, %s): %v", db, file, err)
+		t.Fatalf("db.Service.Restore(%s, %s): %v", db, file, err)
 	}
 }
 
@@ -90,7 +89,7 @@ func TestDBBackupRoundTripSchemaAndData(t *testing.T) {
 	if n := dbbQueryInt(t, a, "t1", `SELECT COUNT(*) FROM items`); n != 2 {
 		t.Fatalf("row count after restore = %d, want 2", n)
 	}
-	h, _ := a.openUserDB("t1")
+	h, _ := a.databases().Open("t1")
 	var txt string
 	if err := h.QueryRow(`SELECT txt FROM items WHERE id = 2`).Scan(&txt); err != nil {
 		t.Fatalf("read restored row: %v", err)
@@ -175,7 +174,7 @@ func TestDBBackupPreservesSequenceAndBigIntsAndBlobs(t *testing.T) {
 	if got := dbbQueryInt(t, a, "t1", `SELECT big FROM nums`); got != 9007199254740993 {
 		t.Fatalf("big integer mangled by restore: %d", got)
 	}
-	h, _ := a.openUserDB("t1")
+	h, _ := a.databases().Open("t1")
 	var back []byte
 	if err := h.QueryRow(`SELECT data FROM bin`).Scan(&back); err != nil {
 		t.Fatalf("read blob: %v", err)
@@ -193,15 +192,15 @@ func TestDBBackupPruneKeepsNewest(t *testing.T) {
 	var files []string
 	for i := 0; i < 3; i++ {
 		dbbExec(t, a, "t1", `INSERT INTO x VALUES (?)`, i) // content change per backup
-		// No sleep between the backups. Before backupNewerThan, this
+		// No sleep between the backups. Before db.BackupNewerThan, this
 		// test waited more than one second for each backup, because the
 		// prune kept the wrong files in one second.
 		files = append(files, dbbBackup(t, a, "t1"))
 	}
 
-	left, err := a.listBackupFiles("t1")
+	left, err := a.databases().ListBackupFiles("t1")
 	if err != nil {
-		t.Fatalf("listBackupFiles: %v", err)
+		t.Fatalf("db.Service.ListBackupFiles: %v", err)
 	}
 	if len(left) != 2 {
 		t.Fatalf("after 3 backups with depth 2, %d files remain: %v", len(left), left)
@@ -209,7 +208,7 @@ func TestDBBackupPruneKeepsNewest(t *testing.T) {
 	if left[0] != files[2] || left[1] != files[1] {
 		t.Fatalf("prune kept wrong files: have %v, want [%s %s]", left, files[2], files[1])
 	}
-	if _, err := os.Stat(filepath.Join(a.dbBackupDir("t1"), files[0])); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(a.databases().BackupDir("t1"), files[0])); !os.IsNotExist(err) {
 		t.Fatalf("oldest backup %s not pruned", files[0])
 	}
 }
@@ -221,8 +220,8 @@ func TestDBBackupBootstrapRestoresMissingDatabase(t *testing.T) {
 	dbbBackup(t, a, "t1")
 
 	// Simulate a fresh device: backups exist, the .sqlite cache does not.
-	a.evictUserDB("t1")
-	if err := os.Remove(a.userDBPath("t1")); err != nil {
+	a.databases().Evict("t1")
+	if err := os.Remove(a.databases().UserDBPath("t1")); err != nil {
 		t.Fatalf("remove sqlite: %v", err)
 	}
 
@@ -240,18 +239,16 @@ func TestDBRestoreRejectsDamagedAndForeignFiles(t *testing.T) {
 
 	// A copy with a git-conflict-marker line must be rejected whole, and
 	// the live database must stay untouched.
-	raw, err := os.ReadFile(filepath.Join(a.dbBackupDir("t1"), good))
+	raw, err := os.ReadFile(filepath.Join(a.databases().BackupDir("t1"), good))
 	if err != nil {
 		t.Fatalf("read backup: %v", err)
 	}
 	damagedName := "99991231T235959Z_corrupt.jsonl"
 	damaged := append(append([]byte{}, raw...), []byte("<<<<<<< HEAD\n")...)
-	if err := os.WriteFile(filepath.Join(a.dbBackupDir("t1"), damagedName), damaged, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(a.databases().BackupDir("t1"), damagedName), damaged, 0644); err != nil {
 		t.Fatalf("write damaged copy: %v", err)
 	}
-	a.dbRestoreMu.Lock()
-	err = a.restoreDBFromBackup("t1", damagedName)
-	a.dbRestoreMu.Unlock()
+	err = a.databases().Restore("t1", damagedName)
 	if err == nil {
 		t.Fatalf("damaged backup accepted")
 	}
@@ -262,21 +259,17 @@ func TestDBRestoreRejectsDamagedAndForeignFiles(t *testing.T) {
 	// A backup whose header names another database must be rejected.
 	dbbExec(t, a, "other", `CREATE TABLE y(b)`)
 	otherFile := dbbBackup(t, a, "other")
-	src := filepath.Join(a.dbBackupDir("other"), otherFile)
-	dst := filepath.Join(a.dbBackupDir("t1"), "99991231T235958Z_foreign.jsonl")
+	src := filepath.Join(a.databases().BackupDir("other"), otherFile)
+	dst := filepath.Join(a.databases().BackupDir("t1"), "99991231T235958Z_foreign.jsonl")
 	data, _ := os.ReadFile(src)
 	os.WriteFile(dst, data, 0644)
-	a.dbRestoreMu.Lock()
-	err = a.restoreDBFromBackup("t1", "99991231T235958Z_foreign.jsonl")
-	a.dbRestoreMu.Unlock()
+	err = a.databases().Restore("t1", "99991231T235958Z_foreign.jsonl")
 	if err == nil || !strings.Contains(err.Error(), "other") {
 		t.Fatalf("foreign-database backup not rejected properly: %v", err)
 	}
 
 	// Path traversal / invalid names never reach the filesystem.
-	a.dbRestoreMu.Lock()
-	err = a.restoreDBFromBackup("t1", "../../../etc/passwd")
-	a.dbRestoreMu.Unlock()
+	err = a.databases().Restore("t1", "../../../etc/passwd")
 	if err == nil {
 		t.Fatalf("invalid backup filename accepted")
 	}
@@ -385,11 +378,11 @@ func TestDBBackupHeaderIsFirstLineWithCounts(t *testing.T) {
 	dbbExec(t, a, "t1", `INSERT INTO x VALUES (1), (2), (3)`)
 	file := dbbBackup(t, a, "t1")
 
-	h, err := readBackupHeader(filepath.Join(a.dbBackupDir("t1"), file))
+	h, err := db.ReadBackupHeader(filepath.Join(a.databases().BackupDir("t1"), file))
 	if err != nil {
-		t.Fatalf("readBackupHeader: %v", err)
+		t.Fatalf("db.ReadBackupHeader: %v", err)
 	}
-	if h.Format != backupFormatName || h.Version != backupFormatVersion {
+	if h.Format != db.BackupFormatName || h.Version != db.BackupFormatVersion {
 		t.Fatalf("header format/version: %+v", h)
 	}
 	if h.Database != "t1" || h.Rows != 3 || h.Objects != 1 {
@@ -404,7 +397,7 @@ func TestDBBackupHeaderIsFirstLineWithCounts(t *testing.T) {
 // failed restore must leave this string as it was.
 func dbbLive(t *testing.T, a *App) string {
 	t.Helper()
-	h, err := a.openUserDB("t1")
+	h, err := a.databases().Open("t1")
 	if err != nil {
 		t.Fatalf("open t1: %v", err)
 	}
@@ -428,7 +421,7 @@ func dbbLive(t *testing.T, a *App) string {
 // A restore replaces the whole database. It must change all or nothing.
 // A backup file can come from a git pull. Such a file can hold a conflict
 // marker or a line from a newer version. Each case below damages one step
-// of restoreDBFromBackup. Each case must give an error. Each case must
+// of db.Service.Restore. Each case must give an error. Each case must
 // also keep the live database and the database directory as they were.
 // TestDBRestoreRejectsDamagedAndForeignFiles covers the conflict marker,
 // the foreign header and the bad file name.
@@ -437,7 +430,7 @@ func TestDBRestoreFailsWholeAtEachStep(t *testing.T) {
 	dbbExec(t, a, "t1", `CREATE TABLE x(id INTEGER PRIMARY KEY, a TEXT NOT NULL)`)
 	dbbExec(t, a, "t1", `CREATE INDEX x_a ON x(a)`)
 	dbbExec(t, a, "t1", `INSERT INTO x VALUES (1, 'one'), (2, 'two')`)
-	raw, err := os.ReadFile(filepath.Join(a.dbBackupDir("t1"), dbbBackup(t, a, "t1")))
+	raw, err := os.ReadFile(filepath.Join(a.databases().BackupDir("t1"), dbbBackup(t, a, "t1")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -480,12 +473,10 @@ func TestDBRestoreFailsWholeAtEachStep(t *testing.T) {
 {"kind":"trigger","name":"bad","sql":"CREATE TRIGGER bad"}`, "create trigger"},
 	} {
 		file := fmt.Sprintf("99991231T235959Z_case%02d.jsonl", i)
-		if err := os.WriteFile(filepath.Join(a.dbBackupDir("t1"), file), []byte(tc.content), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(a.databases().BackupDir("t1"), file), []byte(tc.content), 0644); err != nil {
 			t.Fatal(err)
 		}
-		a.dbRestoreMu.Lock()
-		err := a.restoreDBFromBackup("t1", file)
-		a.dbRestoreMu.Unlock()
+		err := a.databases().Restore("t1", file)
 		if err == nil {
 			t.Errorf("%s: the restore gave no error", tc.why)
 		} else if !strings.Contains(err.Error(), tc.errPart) {
@@ -494,7 +485,7 @@ func TestDBRestoreFailsWholeAtEachStep(t *testing.T) {
 		if got := dbbLive(t, a); got != want {
 			t.Errorf("%s: the live data changed to %s, want %s", tc.why, got, want)
 		}
-		if storage.FileExists(a.userDBPath("t1") + ".restoretmp") {
+		if storage.FileExists(a.databases().UserDBPath("t1") + ".restoretmp") {
 			t.Errorf("%s: the temporary database is still on disk", tc.why)
 		}
 	}
@@ -529,14 +520,14 @@ func TestDBRestoreEndpointFaults(t *testing.T) {
 	}
 }
 
-// listBackupFiles must answer the newest backup first. The bootstrap of a
-// fresh device restores the first name, and the prune keeps the first
-// names. The table holds each name that the string order put in the
-// wrong place. These are a counter, a counter of two digits, and a host
-// name that starts with a digit.
+// db.Service.ListBackupFiles must answer the newest backup first. The bootstrap
+// of a fresh device restores the first name, and the prune keeps the first
+// names. The table holds each name that the string order put in the wrong
+// place. These are a counter, a counter of two digits, and a host name that
+// starts with a digit.
 func TestListBackupFilesNewestFirst(t *testing.T) {
 	a := dbbApp(t)
-	dir := a.dbBackupDir("t1")
+	dir := a.databases().BackupDir("t1")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -553,7 +544,7 @@ func TestListBackupFilesNewestFirst(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	got, err := a.listBackupFiles("t1")
+	got, err := a.databases().ListBackupFiles("t1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -563,8 +554,8 @@ func TestListBackupFilesNewestFirst(t *testing.T) {
 }
 
 // Four backups in a fast loop often fall in one second. The prune keeps
-// three. The backup that createDBBackup made last must be one of them.
-// Before backupNewerThan, the prune removed that backup when its name had
+// three. The backup that db.Service.CreateBackup made last must be one of them.
+// Before db.BackupNewerThan, the prune removed that backup when its name had
 // a counter.
 func TestDBBackupPruneKeepsTheLastBackup(t *testing.T) {
 	a := dbbApp(t)
@@ -574,10 +565,10 @@ func TestDBBackupPruneKeepsTheLastBackup(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		last = dbbBackup(t, a, "t1")
 	}
-	if !storage.FileExists(filepath.Join(a.dbBackupDir("t1"), last)) {
+	if !storage.FileExists(filepath.Join(a.databases().BackupDir("t1"), last)) {
 		t.Fatalf("the prune removed the last backup %s", last)
 	}
-	files, err := a.listBackupFiles("t1")
+	files, err := a.databases().ListBackupFiles("t1")
 	if err != nil {
 		t.Fatal(err)
 	}

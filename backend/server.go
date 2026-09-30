@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"database/sql"
 	"fmt"
 	"net"
 	"net/http"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"net.basov.omngo/backend/internal/config"
+	"net.basov.omngo/backend/internal/db"
 	"net.basov.omngo/backend/internal/logx"
 	"net.basov.omngo/backend/internal/render"
 )
@@ -27,12 +27,7 @@ type App struct {
 	hostKeys    hostKeyState
 	Router      *http.ServeMux
 
-	sqlMu  sync.Mutex         // guards sqlDBs (see sqlite.go)
-	sqlDBs map[string]*sql.DB // lazily-opened user SQLite handles, by name
-
-	// dbRestoreMu serializes each database restore and each swap. Never take
-	// it while you hold sqlMu.
-	dbRestoreMu sync.Mutex
+	dbs db.Store // the open user databases (see db_app.go)
 
 	// search is the global index (search_index.go). It is empty until global
 	// search is on.

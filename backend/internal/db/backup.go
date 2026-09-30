@@ -1,4 +1,4 @@
-package backend
+package db
 
 import (
 	"path/filepath"
@@ -50,28 +50,28 @@ import (
 // parse of its line, and the restore applies nothing.
 
 const (
-	backupFormatName    = "omn-db-backup"
-	backupFormatVersion = 2
+	BackupFormatName    = "omn-db-backup"
+	BackupFormatVersion = 2
 	backupMaxLineBytes  = 10 << 20 // same 10MB row cap the old loader used
 )
 
 // backupFileRe checks a backup file name that reaches the restore endpoint.
 // The endpoint builds a path from it, thus this is the traversal guard. It
-// also filters a directory listing. See backupNewerThan for the order.
+// also filters a directory listing. See BackupNewerThan for the order.
 var backupFileRe = regexp.MustCompile(`^[0-9]{8}T[0-9]{6}Z(_[0-9]+)?_[A-Za-z0-9_-]{1,64}\.jsonl$`)
 
 // backupOrderRe reads the time stamp and the counter of a backup name.
 var backupOrderRe = regexp.MustCompile(`^([0-9]{8}T[0-9]{6}Z)(?:_([0-9]+))?_`)
 
-// backupNewerThan tells whether backup name a is newer than b. The time stamp
-// decides first, and then the counter. createDBBackup gives no counter to the
+// BackupNewerThan tells whether backup name a is newer than b. The time stamp
+// decides first, and then the counter. CreateBackup gives no counter to the
 // first backup of a second, 2 to the second, and so on, thus no counter
 // counts as 1. The full name decides last, thus the order is stable.
 //
 // The string order is wrong: "..Z_2_host" sorts before "..Z_host", and
 // "..Z_10_host" before "..Z_9_host". The prune would then remove the newest
 // backup. TestListBackupFilesNewestFirst holds the rule.
-func backupNewerThan(a, b string) bool {
+func BackupNewerThan(a, b string) bool {
 	sa, ca := backupOrder(a)
 	sb, cb := backupOrder(b)
 	if sa != sb {
@@ -99,20 +99,25 @@ func backupOrder(name string) (stamp string, counter int) {
 	return m[1], counter
 }
 
-func dbBackupRoot(a *App) string {
-	return a.layout().HTML("db_backup")
+// backupRoot is the directory of the backups of each database.
+func (svc Service) backupRoot() string {
+	return svc.Layout.HTML("db_backup")
 }
-func (a *App) dbBackupDir(name string) string {
-	return filepath.Join(dbBackupRoot(a), name)
+
+// BackupDir is the directory of the backups of database name.
+func (svc Service) BackupDir(name string) string {
+	return filepath.Join(svc.backupRoot(), name)
 }
-func (a *App) userDBPath(name string) string {
-	return a.layout().DB(name + ".sqlite")
+
+// UserDBPath is the .sqlite file of database name.
+func (svc Service) UserDBPath(name string) string {
+	return svc.Layout.DB(name + ".sqlite")
 }
 
 // relStoragePath changes an absolute path under StorageDir into the relative
 // form with slashes that git status uses.
-func (a *App) relStoragePath(full string) string {
-	rel, err := filepath.Rel(a.StorageDir, full)
+func (svc Service) relStoragePath(full string) string {
+	rel, err := filepath.Rel(string(svc.Layout), full)
 	if err != nil {
 		return full
 	}
