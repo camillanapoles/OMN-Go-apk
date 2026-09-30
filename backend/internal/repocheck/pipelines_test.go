@@ -1,4 +1,4 @@
-package backend
+package repocheck
 
 // ----------------------------------------------------------------------
 // The three build pipelines must agree

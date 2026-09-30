@@ -1,4 +1,4 @@
-package backend
+package repocheck
 
 import (
 	"fmt"
@@ -69,7 +69,7 @@ func portsJavaConfig(t *testing.T) string {
 
 func portsJavaFile(t *testing.T, name string) string {
 	t.Helper()
-	path := filepath.Join("..", "android", "app", "src", "main", "java", "net", "basov", "omngo", name)
+	path := filepath.Join(repoRoot, "android", "app", "src", "main", "java", "net", "basov", "omngo", name)
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Skipf("%s is not in this tree: %v", name, err)
@@ -99,7 +99,7 @@ var goForbiddenFirstCharRe = regexp.MustCompile(`strings\.HasPrefix\(line, "(.)"
 func TestHeaderRuleHasAFrontendCopy(t *testing.T) {
 	js := portsJS(t, "omn-go-editor.js")
 
-	goSrc, err := os.ReadFile("internal/noteheader/noteheader.go")
+	goSrc, err := readBackendFile("internal/noteheader/noteheader.go")
 	if err != nil {
 		t.Fatalf("internal/noteheader/noteheader.go: %v", err)
 	}
@@ -392,7 +392,7 @@ func TestEveryHandKeptCopyHasAGuard(t *testing.T) {
 	// gives none.
 	sources := map[string]bool{}
 	var testFiles []string
-	err := filepath.WalkDir(".", func(p string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(backendDir, func(p string, d fs.DirEntry, err error) error {
 		if err == nil && !d.IsDir() && strings.HasSuffix(p, "_test.go") {
 			testFiles = append(testFiles, p)
 		}

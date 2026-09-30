@@ -1,7 +1,7 @@
 // The header-block rule, run in the REAL JavaScript.
 //
-// WHY THIS TEST EXISTS. backend/ports_test.go already compares the two
-// languages, and it says out loud what it cannot do:
+// WHY THIS TEST EXISTS. backend/internal/repocheck/ports_test.go already
+// compares the two languages, and it says out loud what it cannot do:
 //
 //   "A transcription is not the JavaScript itself. This test can
 //    therefore not find a fault of the transcription."

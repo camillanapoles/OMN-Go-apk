@@ -250,33 +250,6 @@ func TestRetiredAssetIsNotShipped(t *testing.T) {
 	}
 }
 
-// The F-Droid build fetches each vendor asset with this script, and it
-// writes the files by path. A script that writes to the old directory
-// gives an APK with no KaTeX and no icon font.
-//
-// The Docker build does not run the script. A local build would thus look
-// correct and hide the fault until the release.
-func TestFdroidFetchScriptWritesUnderOMNGo(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("..", "android", "fdroid_fetch_assets.sh"))
-	if err != nil {
-		t.Skipf("the script is not in this tree: %v", err)
-	}
-	script := string(raw)
-
-	for _, want := range []string{
-		`JS_DIR="$REPO_ROOT/backend/frontend/html/js/OMN-Go"`,
-		`CSS_DIR="$REPO_ROOT/backend/frontend/html/css/OMN-Go"`,
-		`FONT_DIR="$REPO_ROOT/backend/frontend/html/css/OMN-Go/fonts"`,
-	} {
-		if !strings.Contains(script, want) {
-			t.Errorf("the F-Droid script does not hold %s", want)
-		}
-	}
-	if strings.Contains(script, "github-markdown") {
-		t.Error("the F-Droid script still fetches markdown.css, which this build dropped")
-	}
-}
-
 // No template and no bundled note may load markdown.css. The build does
 // not ship the file, thus a reference to it would answer 404.
 func TestNoPageLoadsMarkdownCSS(t *testing.T) {

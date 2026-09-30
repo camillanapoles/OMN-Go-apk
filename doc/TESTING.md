@@ -28,19 +28,23 @@ that tag passed the gate.
 
 | Part | Where | Language of the test | Needs |
 | --- | --- | --- | --- |
-| The Go application | `backend/*_test.go`, and `*_test.go` of each package under `backend/internal/` | Go | nothing |
+| The Go application | `*_test.go` of each package under `backend/internal/` | Go | nothing |
 | The Android configuration reader | `android/test/` | Java | a JDK |
 | The frontend pure functions | `backend/frontend/test/*.test.js` | JavaScript | Node |
 
 This document gives no count of tests. A count in a document goes out of
 date with the next test. `go test -v ./backend/...` lists each test.
 
+Each package holds the tests of its own code. `backend/internal/repocheck`
+holds only tests. Each one reads files outside one package: the source
+scans, the ports between two languages, the build files and the documents.
+
 The Java and the JavaScript tests are started BY a Go test. There is no
 second command and no second gate.
 
-* `backend/java_test.go` compiles and runs
+* `backend/internal/repocheck/java_test.go` compiles and runs
   `android/test/java/net/basov/omngo/OmnConfigTest.java`.
-* `backend/internal/app/js_test.go` runs `node --test` over
+* `backend/internal/repocheck/js_test.go` runs `node --test` over
   `backend/frontend/test/*.test.js`.
 
 **Each one skips when its tool is absent.** A machine with no JDK and no
@@ -62,8 +66,8 @@ runner from npm would be the first `package.json` of this project.
 `node --test` is part of Node 18 and later, thus the tests need no package
 and no `node_modules`.
 
-`TestAndroidGradleHasOneDependency` in `backend/java_test.go` fails when a
-dependency appears.
+`TestAndroidGradleHasOneDependency` in `backend/internal/repocheck/java_test.go`
+fails when a dependency appears.
 
 ### The Java under test imports no Android package
 
@@ -102,7 +106,8 @@ In a Node module, the fault did not show. See
 call promises. A ReferenceError is a failure. A TypeError is not, because
 the page is a stub and not a browser.
 
-Two tests of `js_test.go` run BOTH languages against one another. Each
+Two tests of `backend/internal/app/js_port_test.go` run BOTH languages
+against one another. Each
 one starts on the Go side, because the Go side is what writes the input.
 
 `TestEverySyncLineReachesTheOverlay` runs a whole sync, reads the lines
@@ -157,7 +162,7 @@ dependency and no import outside `java.io` and `java.util`.
 
 Some rules of this application exist two times on purpose. The Go side
 answers for the server, and a copy answers for the page or for the Android
-layer. `backend/ports_test.go` holds a test for each pair.
+layer. `backend/internal/repocheck/ports_test.go` holds a test for each pair.
 
 Most of those tests read the other language and compare a VALUE in its
 source. That finds a rule that MOVED. It cannot find a copy that was wrong
@@ -166,9 +171,9 @@ the day a person wrote it, and `ports_test.go` says so.
 **One pair is tested by running both.** `isHeaderFirstLine` and
 `firstLineAfterHeader` in `omn-go-editor.js` are a port of
 `backend/internal/noteheader/noteheader.go`.
-`TestHeaderPortAgreesWithTheRealJavaScript` in `backend/internal/app/js_test.go`
-runs the real JavaScript through Node and compares each answer against
-`noteheader.Parse`.
+`TestHeaderPortAgreesWithTheRealJavaScript` in
+`backend/internal/repocheck/js_test.go` runs the real JavaScript through Node
+and compares each answer against `noteheader.Parse`.
 
 The cases live in `backend/frontend/test/header-cases.json`, and both
 languages read that one file. Add a case there when you find a note shape
@@ -209,15 +214,15 @@ browser, and the release build stays as it is.
 
 ## 6. The binary size report
 
-`TestBinarySize` in `backend/binary_size_test.go` builds the release
-binaries and compares their size with a baseline build. It reports the
+`TestBinarySize` in `backend/internal/repocheck/binary_size_test.go` builds the
+release binaries and compares their size with a baseline build. It reports the
 change in bytes and in percent for each target.
 
 **The normal gate skips it.** Five builds take minutes on a cold cache.
 Set `OMN_BINARY_SIZE=1` to run it:
 
 ```sh
-OMN_BINARY_SIZE=1 go test -v -run 'TestBinarySize$' -timeout 30m ./backend/
+OMN_BINARY_SIZE=1 go test -v -run 'TestBinarySize$' -timeout 30m ./backend/internal/repocheck/
 ```
 
 The targets use the release flags of the Dockerfile and `CGO_ENABLED=0`.
@@ -231,10 +236,11 @@ A Linux build stands for the Android ABI of the same CPU.
 | `linux-arm7` | Android armeabi-v7a |
 | `linux-386` | Android x86 |
 
-**The baseline.** `backend/testdata/binary_size_baseline.json` holds the
-git reference of the baseline build, its sizes, and the Go version that
-made them. A different Go version also changes the size. The report then says so, and the growth
-limit does not apply.
+**The baseline.**
+`backend/internal/repocheck/testdata/binary_size_baseline.json` holds the git
+reference of the baseline build, its sizes, and the Go version that made them. A
+different Go version also changes the size. The report then says so, and the
+growth limit does not apply.
 
 | Setting | Effect |
 | --- | --- |
@@ -275,7 +281,7 @@ Use the benchmarks before and after a refactor patch:
 2. Run the benchmarks and keep the result:
 
    ```sh
-   go test -run '^$' -bench . -benchmem -count 5 ./backend/ > before.txt
+   go test -run '^$' -bench . -benchmem -count 5 ./backend/internal/app/ > before.txt
    ```
 
 3. Apply the patch.

@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -23,60 +22,6 @@ import (
 	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
 )
-
-// logPrintfAllowed names the only two files that may call log.Printf. No *App
-// can reach either call site. render.LoadTemplate in
-// internal/render/templates.go runs at package init. logAnchorsOff and
-// addBookmarks in internal/search/sections.go run from a package-level function
-// inside a sync.Once, and from a method on searchDocument, which has no
-// application.
-//
-// Each of those lines is a fault, and a fault always prints, so the missing
-// level costs the reader nothing. They write "(error)" in the text by hand,
-// which the second half of this test checks.
-var logPrintfAllowed = map[string]bool{
-	"internal/render/templates.go": true,
-	"internal/search/sections.go":  true,
-}
-
-// handWrittenLevelRe matches the shape those two files must produce:
-// a bracketed tag, then "(error)", then the message.
-var handWrittenLevelRe = regexp.MustCompile(`^log\.Printf\("\[[a-z0-9-]+\] \(error\) `)
-
-// TestNoDirectLogPrintf exists because a log.Printf line reaches stdout and
-// the browser with no tag and no level. The Config page can then never
-// switch it off, and the person who asked for less noise still gets it.
-//
-// The scan reads each production file below backend/, thus a package of the
-// split cannot hide a call.
-func TestNoDirectLogPrintf(t *testing.T) {
-	// A test file does not ship to a device, and productionGoFiles skips
-	// it. This file names the banned call as a string.
-	for _, name := range productionGoFiles(t) {
-		src, err := readBackendFile(name)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for i, line := range strings.Split(string(src), "\n") {
-			trimmed := strings.TrimSpace(line)
-			if !strings.HasPrefix(trimmed, "log.Printf(") {
-				continue
-			}
-			if !logPrintfAllowed[name] {
-				t.Errorf("%s:%d calls log.Printf. Use a.log(tag).Debugf, Infof "+
-					"or Errf with a tag from internal/logx/levels.go. A line with no "+
-					"level cannot be filtered, and the reader has no way to "+
-					"switch it off.", name, i+1)
-				continue
-			}
-			if !handWrittenLevelRe.MatchString(trimmed) {
-				t.Errorf("%s:%d is an allowed log.Printf, but its text does not "+
-					"start with \"[tag] (error) \". The browser reads that shape "+
-					"to decide what to print.", name, i+1)
-			}
-		}
-	}
-}
 
 // TestEmitLogLineShape pins the text the browser parses. omn-go-sse.js reads
 // the tag and the level out of each line, and applySyncLogLine skips the

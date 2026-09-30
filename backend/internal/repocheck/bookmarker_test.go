@@ -1,21 +1,12 @@
-package backend
+package repocheck
 
 import (
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 
 	"net.basov.omngo/backend/frontend"
 )
-
-// readRepoFile reads a file of the repository by a path from the root.
-// The tests run in backend/, thus each path starts one level up.
-func readRepoFile(rel string) (string, error) {
-	raw, err := os.ReadFile(filepath.Join("..", filepath.FromSlash(rel)))
-	return string(raw), err
-}
 
 // ----------------------------------------------------------------------
 // The settings key of the Bookmarks page

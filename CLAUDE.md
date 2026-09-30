@@ -33,8 +33,8 @@ Do not remove a constraint without an instruction from the maintainer.
    `atomic.Uint64` types. Never write `atomic.AddInt64(&field, ...)`. A bare
    64-bit atomic panics on `armeabi-v7a` and on `x86`. F-Droid publishes those
    builds. The test `TestNoBare64BitAtomics` in
-   `backend/internal/app/middleware_test.go` scans the source and enforces this
-   rule.
+   `backend/internal/repocheck/source_rules_test.go` scans the source and
+   enforces this rule.
 5. **The WebView floor is Chromium 85 and `minSdk 23`.** `html/js/OMN-Go/omn-go-compat.js`
    holds the only ES5 code in the project. Two rules keep it working, and
    `TestCompatScriptIsFirstAndES5` enforces both. **Keep the file in ES5**, and
@@ -87,8 +87,9 @@ Do not remove a constraint without an instruction from the maintainer.
 | Path | Contents |
 | --- | --- |
 | `main_desktop.go` | The only file in `package main`. It holds the only build tag: `//go:build !android`. |
-| `backend/` | `package backend`, the facade for gomobile and for `main_desktop.go`. `backend.go` holds its six functions, and `version.go` holds `APP_VERSION`. The tests that read the whole repository are also here. |
+| `backend/` | `package backend`, the facade for gomobile and for `main_desktop.go`. `backend.go` holds its six functions, and `version.go` holds `APP_VERSION`. |
 | `backend/internal/app/` | `package app`, the application. It holds the `App` type, the server, the routes, the handlers and the pages. Each `*_app.go` file gives the values of the App to one package of `backend/internal/`. |
+| `backend/internal/repocheck/` | `package repocheck`, which holds only tests. Each test reads the files of the repository and checks a rule that spans more than one package or more than one language. |
 | `backend/internal/` | The packages of the split. `textmatch` holds the search matcher, and `noteheader` holds the header block. `logx` holds the log tags and the log hub. `config` holds the settings and their store. `storage` holds the storage layout, the application files and the plain files beside the notes. `render` holds the page compile, the page shell, the Tags page and the JSON answer. `db` holds the SQLite databases of the notes and their backups. `gitsync` holds the git sync and the host keys. `search` holds the page search and the global search index. `files` holds the Files page. `exchange` holds the export and the import of a note. `status` holds the Status page and /api/status. |
 | `backend/frontend/embed.go` | `package frontend`. It embeds `html/` and `md/` as `frontend.Static`, and `templates/` as `frontend.Templates`. |
 | `backend/frontend/templates/` | Server-side page fragments. Embedded as `frontend.Templates`. Never extracted to disk. |
@@ -115,9 +116,10 @@ update these files.
 
 * The module is `net.basov.omngo`. The language version is `go 1.25`. go-git v5.19.2
   needs Go 1.25 or later, thus the line cannot go lower.
-* The toolchain image is `golang:1.26.0-bookworm`. The F-Droid recipe builds with the
-  srclib `go@go1.26.0`, thus the two builds use the same compiler. Change the image,
-  the recipe and `backend/testdata/binary_size_baseline.json` together.
+* The toolchain image is `golang:1.26.0-bookworm`. The F-Droid recipe builds
+  with the srclib `go@go1.26.0`, thus the two builds use the same compiler.
+  Change the image, the recipe and
+  `backend/internal/repocheck/testdata/binary_size_baseline.json` together.
 * Each build fetches the newest `golang.org/x/mobile` with `go get -tool`. That
   version needs Go 1.26.0, thus the real build uses Go 1.26 and not Go 1.25.
 * The module has three direct dependencies. Each one has its own `require` line:
@@ -131,14 +133,14 @@ update these files.
   `CGO_ENABLED=0`.
 * **Use one package for each component under `backend/internal/`.** A package
   imports only packages of a lower layer. `importLayers` in
-  `backend/import_layers_test.go` is the table, and `TestImportLayers` holds it.
-  Give each new package a row. `backend` is the gomobile and desktop facade. It
-  holds no logic, and it exports only functions of simple types. The
-  application is `package app` in `backend/internal/app/`. The App side of a
-  package is one file there, for example `config_app.go`, `storage_app.go`,
-  `render_app.go`, `db_app.go`, `gitsync_app.go`, `search_app.go`,
-  `files_app.go`, `exchange_app.go` and `status_app.go`. Its methods give the
-  values of the App to the package.
+  `backend/internal/repocheck/import_layers_test.go` is the table, and
+  `TestImportLayers` holds it. Give each new package a row. `backend` is the
+  gomobile and desktop facade. It holds no logic, and it exports only functions
+  of simple types. The application is `package app` in `backend/internal/app/`.
+  The App side of a package is one file there, for example `config_app.go`,
+  `storage_app.go`, `render_app.go`, `db_app.go`, `gitsync_app.go`,
+  `search_app.go`, `files_app.go`, `exchange_app.go` and `status_app.go`. Its
+  methods give the values of the App to the package.
 * **Keep the groups of `package app` apart.** Each production file there belongs
   to one group of `fileGroups` in `backend/internal/app/group_links_test.go`. A
   group uses only the groups of a lower layer. `TestGroupsUseOnlyLowerLayers`
@@ -462,17 +464,18 @@ subject line, also when it has no list.
 ## 8. Tests
 
 * Each Go package holds its own tests. The tests of the application live in
-  `backend/internal/app/`. The tests in `backend/` read the whole repository,
-  for example `ports_test.go` and `pipelines_test.go`. Most production files
+  `backend/internal/app/`. The tests in `backend/internal/repocheck/` read the
+  whole repository, for example `ports_test.go` and `pipelines_test.go`. Put a
+  new test that reads files outside its own package there. Most production files
   have a test file of the same name beside them. Some test files hold one topic
   across many files, for example `baseline_test.go`. Each test uses the package
   of its directory, so the tests are white-box tests.
 * **Go is the one gate, and it is not the only language.**
-  `backend/internal/app/js_test.go` runs the JavaScript tests of
-  `backend/frontend/test/` with `node --test`. `backend/java_test.go` compiles
-  and runs `android/test/` with `javac` and `java`. Each one skips when the tool
-  is absent, and the build image holds both. `doc/TESTING.md` maps the whole
-  set.
+  `backend/internal/repocheck/js_test.go` runs the JavaScript tests of
+  `backend/frontend/test/` with `node --test`.
+  `backend/internal/repocheck/java_test.go` compiles and runs `android/test/`
+  with `javac` and `java`. Each one skips when the tool is absent, and the build
+  image holds both. `doc/TESTING.md` maps the whole set.
 * **A test that reads source text proves what a file SAYS. A test that runs the
   code proves what the code DOES.** Prefer the second. A test that runs the code
   finds faults that a test of the source text cannot see.
@@ -515,10 +518,12 @@ subject line, also when it has no list.
   JavaScript tests. `project_builder` copies `/gate-passed` from the `test` stage, thus
   no artifact comes from a build with a failed gate. `--build-arg SKIP_TESTS=1` skips
   the gate and prints a warning. Do not use that argument for work that you push.
-* **The three builds must agree.** `backend/pipelines_test.go` compares the Android API
-  level, the Go version and the NDK. It reads the Docker files and
+* **The three builds must agree.**
+  `backend/internal/repocheck/pipelines_test.go` compares the Android API level,
+  the Go version and the NDK. It reads the Docker files and
   `android/app/build.gradle`. It also reads the last version in
-  `metadata/net.basov.omngo.fdroid.yml`. `-androidapi` must be the same as `minSdk`. When the recipe on the F-Droid server changes, copy it into
+  `metadata/net.basov.omngo.fdroid.yml`. `-androidapi` must be the same as
+  `minSdk`. When the recipe on the F-Droid server changes, copy it into
   `metadata/` first. The tests then show each difference.
 * **Two builds of one commit give the same APK.** `gomobile bind` has `-trimpath`, and
   `build.gradle` removes the dependency list from the APK. `TestAndroidBuildIsTheSameOnEachHost`
@@ -567,9 +572,10 @@ Check your own text before you give a patch. A sentence over the limit and a
 banned word are both easy to find with a search, and both are easy to miss by
 eye.
 
-**`TestNoCommentStyleFault` in `backend/comment_style_test.go` counts them.** It
-reads each whole line comment of every Go, JavaScript and Java file, and it
-demands zero. A comment that breaks a rule fails the gate.
+**`TestNoCommentStyleFault` in
+`backend/internal/repocheck/comment_style_test.go` counts them.** It reads each
+whole line comment of every Go, JavaScript and Java file, and it demands zero. A
+comment that breaks a rule fails the gate.
 
 **`TestNoVersionNumberInComments` in the same file** demands zero comment
 lines with a version number. It reads the same files, and in a JavaScript and a

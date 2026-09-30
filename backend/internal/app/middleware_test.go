@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
-	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -111,21 +110,9 @@ func TestConnectionMiddlewareLetsAHandlerReplaceCacheControl(t *testing.T) {
 	}
 }
 
-// A 64-bit atomic needs an 8-byte-aligned address. A 32-bit build aligns a
-// struct to 4. The rule that usually saves you is this: "the first word in
-// an allocated struct can be relied upon to be 64-bit aligned". It covers
-// the FIRST word alone. App.ActiveConns sits after Config and a RWMutex, on
-// GOARCH=386 and armeabi-v7a puts it at an offset of 164: a multiple of 4
-// and not of 8. connectionMiddleware wraps every route, so the first request
-// on such a build panicked with "unaligned 64-bit atomic operation" and the
-// browser saw an empty response. arm64 aligns to 8 naturally and hid it, so
-// the whole 32-bit half of the ABI split was broken and nothing said so.
-//
-// atomic.Int64 carries its own alignment guarantee. This test keeps it that
-// way. It also stops a person who introduces the pattern again somewhere
-// else. The architecture that catches the fault is not the one that this
-// test runs on.
-func TestNoBare64BitAtomics(t *testing.T) {
+// App.ActiveConns must align itself on a 32-bit build. See
+// TestNoBare64BitAtomics in internal/repocheck for the reason.
+func TestActiveConnsIsAnAtomicInt64(t *testing.T) {
 	field, ok := reflect.TypeOf(App{}).FieldByName("ActiveConns")
 	if !ok {
 		t.Fatal("App has no ActiveConns field")
@@ -133,28 +120,5 @@ func TestNoBare64BitAtomics(t *testing.T) {
 	if field.Type != reflect.TypeOf(atomic.Int64{}) {
 		t.Errorf("App.ActiveConns is %s, want atomic.Int64 - a bare int64 with "+
 			"atomic.AddInt64 panics on every 32-bit build", field.Type)
-	}
-
-	banned := []string{
-		"atomic.AddInt64(", "atomic.LoadInt64(", "atomic.StoreInt64(",
-		"atomic.SwapInt64(", "atomic.CompareAndSwapInt64(",
-		"atomic.AddUint64(", "atomic.LoadUint64(", "atomic.StoreUint64(",
-		"atomic.SwapUint64(", "atomic.CompareAndSwapUint64(",
-	}
-	// Test files are not shipped to a device, and this one names every
-	// banned call as a string. productionGoFiles skips each test file.
-	for _, name := range productionGoFiles(t) {
-		src, err := readBackendFile(name)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, call := range banned {
-			if strings.Contains(string(src), call) {
-				t.Errorf("%s uses %s. On a 32-bit build that panics unless the "+
-					"address happens to be 8-byte aligned, which a struct field "+
-					"cannot promise. Use the atomic.Int64 / atomic.Uint64 types, "+
-					"which align themselves.", name, call)
-			}
-		}
 	}
 }

@@ -220,39 +220,6 @@ func writeConfigWithMime(t *testing.T, path string, mime map[string]string) {
 	}
 }
 
-// ----------------------------------------------------------------------
-// The content type of a page
-// ----------------------------------------------------------------------
-
-// render.WriteHTMLHeader is the one place that names the content type of a
-// page. A handler that writes the header by hand can lose the charset.
-//
-// This test scans the source, the same as TestNoDirectLogPrintf.
-func TestNoBareHTMLContentType(t *testing.T) {
-	// A test file ships to no device, and this file names the banned text
-	// as a string. productionGoFiles skips each test file.
-	for _, name := range productionGoFiles(t) {
-		// internal/render/pages.go declares the value, thus it holds the text
-		// once.
-		if name == "internal/render/pages.go" {
-			continue
-		}
-		src, err := readBackendFile(name)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for i, line := range strings.Split(string(src), "\n") {
-			if !strings.Contains(line, `Set("Content-Type", "text/html`) {
-				continue
-			}
-			t.Errorf("%s:%d writes the HTML content type by hand. Call "+
-				"render.WriteHTMLHeader(w) instead. A header with no charset lets the "+
-				"browser guess the encoding of a page that the server renders.",
-				name, i+1)
-		}
-	}
-}
-
 // The one value that render.WriteHTMLHeader writes. It carries the charset, and
 // it keeps the prefix that pageCacheWriter reads.
 func TestPageContentTypeCarriesTheCharset(t *testing.T) {

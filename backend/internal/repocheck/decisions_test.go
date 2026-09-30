@@ -1,4 +1,4 @@
-package backend
+package repocheck
 
 // ----------------------------------------------------------------------
 // The decision records, against the tree
@@ -38,7 +38,7 @@ var decRecordPathRe = regexp.MustCompile(`doc/decisions/[0-9]{4}-[a-z0-9-]+\.md`
 // has no doc/decisions directory. See the banner above.
 func decRecords(t *testing.T) []string {
 	t.Helper()
-	entries, err := os.ReadDir(filepath.Join("..", "doc", "decisions"))
+	entries, err := os.ReadDir(filepath.Join(repoRoot, "doc", "decisions"))
 	if os.IsNotExist(err) {
 		t.Skipf("doc/decisions is not in this tree: %v", err)
 	}

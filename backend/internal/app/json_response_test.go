@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 )
 
@@ -26,22 +25,5 @@ func TestWriteJSONErrorShape(t *testing.T) {
 	}
 	if body["status"] != "error" || body["message"] != `bad "name"` || len(body) != 2 {
 		t.Errorf("the body is %v", body)
-	}
-}
-
-// writeJSON is the one JSON writer. A second encoder on a ResponseWriter
-// fails this test.
-func TestOnlyWriteJSONEncodesAnAnswer(t *testing.T) {
-	for _, f := range productionGoFiles(t) {
-		if f == "internal/render/json_response.go" {
-			continue
-		}
-		src, err := readBackendFile(f)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if strings.Contains(string(src), "json.NewEncoder(w)") {
-			t.Errorf("%s encodes an answer. Call a.writeJSON.", f)
-		}
 	}
 }

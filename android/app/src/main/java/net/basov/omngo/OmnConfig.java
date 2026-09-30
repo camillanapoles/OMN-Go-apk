@@ -26,7 +26,8 @@ import java.util.Map;
 // reads the file with java.io and parses it with the small parser below.
 // javac and java alone can then run a test of it. See
 // android/test/java/net/basov/omngo/OmnConfigTest.java, which
-// TestJavaUnitTests in backend/java_test.go compiles and runs.
+// TestJavaUnitTests in backend/internal/repocheck/java_test.go compiles and
+// runs.
 //
 // IT ADDS NO GRADLE DEPENDENCY. Rule 1 of CLAUDE.md section 1 holds: the
 // one dependency of the Android build is the fileTree of libs. The F-Droid
@@ -48,7 +49,7 @@ final class OmnConfig {
 
     // The default upload cap. It mirrors config.DefaultMaxUploadSizeMB in
     // backend/internal/config/config.go. TestUploadLimitHasAJavaCopy in
-    // backend/ports_test.go compares the two.
+    // backend/internal/repocheck/ports_test.go compares the two.
     static final int DEFAULT_MAX_UPLOAD_MB = 3;
 
     private OmnConfig() {

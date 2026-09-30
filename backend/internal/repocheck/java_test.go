@@ -1,4 +1,4 @@
-package backend
+package repocheck
 
 // ----------------------------------------------------------------------
 // The Android layer, from the Go gate
@@ -79,7 +79,7 @@ func TestAndroidGradleHasOneDependency(t *testing.T) {
 // reaches the F-Droid build.
 func TestNoAndroidTestSourceSet(t *testing.T) {
 	for _, name := range []string{"test", "androidTest", "testFdroid", "testStandard"} {
-		p := filepath.Join("..", "android", "app", "src", name)
+		p := filepath.Join(repoRoot, "android", "app", "src", name)
 		if _, err := os.Stat(p); err == nil {
 			t.Errorf("android/app/src/%s exists. Gradle reads each source set there, "+
 				"thus the F-Droid build would compile it. The Java test belongs at "+
@@ -178,7 +178,7 @@ func TestJavaUnitTests(t *testing.T) {
 		testSrc = "android/test/java/net/basov/omngo/OmnConfigTest.java"
 	)
 	for _, rel := range []string{mainSrc, testSrc} {
-		if _, sErr := os.Stat(filepath.Join("..", filepath.FromSlash(rel))); sErr != nil {
+		if _, sErr := os.Stat(filepath.Join(repoRoot, filepath.FromSlash(rel))); sErr != nil {
 			t.Fatalf("%s is missing: %v", rel, sErr)
 		}
 	}
@@ -193,8 +193,8 @@ func TestJavaUnitTests(t *testing.T) {
 	// 127 in a comment. This line makes the two compilers agree.
 	out := t.TempDir()
 	build := exec.Command(javac, "-encoding", "UTF-8", "-d", out,
-		filepath.Join("..", filepath.FromSlash(mainSrc)),
-		filepath.Join("..", filepath.FromSlash(testSrc)))
+		filepath.Join(repoRoot, filepath.FromSlash(mainSrc)),
+		filepath.Join(repoRoot, filepath.FromSlash(testSrc)))
 	if compiled, cErr := build.CombinedOutput(); cErr != nil {
 		t.Fatalf("javac failed: %v\n%s", cErr, compiled)
 	}
@@ -277,7 +277,7 @@ func TestAndroidConfigCallSitesTypeCheck(t *testing.T) {
 	}
 
 	out, cErr := exec.Command(javac, "-encoding", "UTF-8", "-d", dir,
-		filepath.Join("..", filepath.FromSlash(
+		filepath.Join(repoRoot, filepath.FromSlash(
 			"android/app/src/main/java/net/basov/omngo/OmnConfig.java")),
 		checkSrc).CombinedOutput()
 	if cErr != nil {

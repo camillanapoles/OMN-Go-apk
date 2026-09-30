@@ -13,16 +13,16 @@ import java.util.Map;
 // part of the Android project, and the F-Droid build server builds that
 // project from the committed Gradle configuration. This directory is
 // outside the project, thus Gradle never looks at it and the F-Droid build
-// cannot see it. TestNoAndroidTestSourceSet in backend/java_test.go holds
-// that rule.
+// cannot see it. TestNoAndroidTestSourceSet in
+// backend/internal/repocheck/java_test.go holds that rule.
 //
 // WHY IT USES NO JUnit. A test framework is a Gradle dependency, and rule
 // 1 of CLAUDE.md section 1 allows one dependency. The check methods below
 // are ten lines, and javac and java run this file with no library at all.
 //
-// TestJavaUnitTests in backend/java_test.go compiles this file together
-// with OmnConfig.java and runs it. A failed check writes a line and sets
-// the exit code, thus the Go test reports the same fault.
+// TestJavaUnitTests in backend/internal/repocheck/java_test.go compiles this
+// file together with OmnConfig.java and runs it. A failed check writes a line
+// and sets the exit code, thus the Go test reports the same fault.
 public final class OmnConfigTest {
 
     private static int failures = 0;

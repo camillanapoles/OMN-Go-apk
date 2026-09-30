@@ -14,7 +14,7 @@ package app
 // slower. Run the benchmarks on master before a refactor patch and again
 // after it. Then compare the two results.
 //
-//	go test -run '^$' -bench . -benchmem -count 5 ./backend/ > before.txt
+//	go test -run '^$' -bench . -benchmem -count 5 ./backend/internal/app/ > before.txt
 //
 // The normal gate does not run a benchmark. TestBenchmarkFixtures runs in
 // the gate. It checks that each fixture below still gives the data that

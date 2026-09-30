@@ -1,4 +1,4 @@
-package backend
+package repocheck
 
 // ----------------------------------------------------------------------
 // The endpoint reference, against the tree
@@ -49,7 +49,7 @@ func apiDocResolve(name string) string {
 		filepath.Join("backend", "frontend", "html", "js", "OMN-Go", name),
 		filepath.Join("backend", "frontend", "html", "js", name),
 	} {
-		p := filepath.Join("..", filepath.FromSlash(candidate))
+		p := filepath.Join(repoRoot, filepath.FromSlash(candidate))
 		if st, err := os.Stat(p); err == nil && !st.IsDir() {
 			return candidate
 		}

@@ -1,4 +1,4 @@
-package backend
+package repocheck
 
 // ----------------------------------------------------------------------
 // The binary size report
@@ -13,7 +13,7 @@ package backend
 // IT RUNS ONLY ON REQUEST. Five builds take minutes on a cold cache,
 // thus the normal gate skips the test. The command is:
 //
-//	OMN_BINARY_SIZE=1 go test -v -run 'TestBinarySize$' -timeout 30m ./backend/
+//	OMN_BINARY_SIZE=1 go test -v -run 'TestBinarySize$' -timeout 30m ./backend/internal/repocheck/
 //
 // THE BASELINE. testdata/binary_size_baseline.json holds the git reference
 // of the baseline build, its sizes, and the Go version that made them. A different Go version
@@ -248,7 +248,7 @@ func TestBinarySize(t *testing.T) {
 	if err != nil {
 		t.Skip("no go command on this machine")
 	}
-	const root = ".."
+	const root = repoRoot
 	goVersion := sizeCommand(t, root, nil, goTool, "env", "GOVERSION")
 
 	stored, storedErr := readSizeBaseline(sizeBaselineFile)

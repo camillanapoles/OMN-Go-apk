@@ -25,7 +25,7 @@ A comment says what the code does now and why. It does not tell the
 history of the code:
 
 * No version number. `TestNoVersionNumberInComments` in
-  `backend/comment_style_test.go` counts them.
+  `backend/internal/repocheck/comment_style_test.go` counts them.
 * No account of what the code did before, for example "until", "used to"
   or "before this change".
 * No account of the fault that caused a change. Put that in a record, and
@@ -38,7 +38,7 @@ A comment names a record with its path:
 // client sends. See doc/decisions/0001-sign-the-session-cookie.md.
 ```
 
-Two tests in `backend/decisions_test.go` check the records:
+Two tests in `backend/internal/repocheck/decisions_test.go` check the records:
 
 * `TestEachDecisionRecordIsListed` checks the name, the number and the
   first line of each record. It also checks that the index below links

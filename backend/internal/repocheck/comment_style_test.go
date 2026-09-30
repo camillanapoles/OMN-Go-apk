@@ -1,4 +1,4 @@
-package backend
+package repocheck
 
 // ----------------------------------------------------------------------
 // The source style gate
@@ -258,7 +258,7 @@ func commentStyleFiles(t *testing.T) []string {
 		}
 	}
 
-	roots, err := filepath.Glob(filepath.Join("..", "*.go"))
+	roots, err := filepath.Glob(filepath.Join(repoRoot, "*.go"))
 	if err != nil {
 		t.Fatalf("the glob of the repository root failed: %v", err)
 	}
@@ -267,7 +267,7 @@ func commentStyleFiles(t *testing.T) []string {
 	}
 
 	for _, root := range styleScanRoots {
-		base := filepath.Join("..", root)
+		base := filepath.Join(repoRoot, root)
 		err := filepath.WalkDir(base, func(p string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
@@ -278,7 +278,7 @@ func commentStyleFiles(t *testing.T) []string {
 				}
 				return nil
 			}
-			rel, relErr := filepath.Rel("..", p)
+			rel, relErr := filepath.Rel(repoRoot, p)
 			if relErr != nil {
 				return relErr
 			}
