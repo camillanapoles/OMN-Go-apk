@@ -19,7 +19,7 @@ func (a *App) statusService() status.Service {
 		Version:         APP_VERSION,
 		StartedAt:       a.startedAt,
 		BoundAddr:       addr,
-		ActiveConns:     a.ActiveConnCount(),
+		ActiveConns:     a.activeConnCount(),
 		FallbackPort:    a.fallbackPort(),
 		AssetsRefreshed: AssetsRefreshed(),
 		Android:         &a.android,
@@ -62,6 +62,6 @@ func (a *App) setBoundAddress(addr string) {
 	a.metaMu.Unlock()
 }
 
-func (a *App) ActiveConnCount() int64 {
+func (a *App) activeConnCount() int64 {
 	return a.ActiveConns.Load()
 }

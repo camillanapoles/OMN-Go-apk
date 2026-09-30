@@ -1194,7 +1194,7 @@ func TestBaseline_CompiledHTMLShapeAcrossWritePaths(t *testing.T) {
 //
 // A page that holds its EventSource open forever stalls the desktop
 // connections. The client closes it on pagehide. This is the server half.
-// HandleLogsSSE must register a client on connect, and it must DE-register
+// handleLogsSSE must register a client on connect, and it must DE-register
 // that client when the request context ends.
 // ---------------------------------------------------------------------
 
@@ -1215,7 +1215,7 @@ func waitFor(cond func() bool, timeout time.Duration) bool {
 
 func TestBaseline_LogsSSERegistersAndReleasesClient(t *testing.T) {
 	a := newTestApp(t)
-	srv := httptest.NewServer(http.HandlerFunc(a.HandleLogsSSE))
+	srv := httptest.NewServer(http.HandlerFunc(a.handleLogsSSE))
 	defer srv.Close()
 
 	base := countLogClients(a)

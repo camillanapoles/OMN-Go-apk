@@ -142,14 +142,15 @@ update these files.
   group uses only the groups of a lower layer. `TestGroupsUseOnlyLowerLayers` holds the
   rule, with no exception. When a group must call a higher group, set a hook in
   `connectGroups`.
-* **Keep the exported surface small.** Export only what the Android layer or the desktop
-  entry point calls. The Android layer calls `StartServer`, `AssetsRefreshed`,
-  `SetAndroidPackage` and `SetLANAddresses`. `main_desktop.go` calls `StartServer`,
-  `WaitUntilReady` and `GetServerPort`. Write everything else as a lowercase method on
-  `*App`.
-* The package also exports the type `App` and more methods of `App`. No caller
-  outside the package uses them. gomobile still makes a Java binding for each
-  one. Do not add an exported name.
+* **Keep the exported surface small.** Export only what the Android layer or
+  the desktop entry point calls. The Android layer calls `StartServer`,
+  `AssetsRefreshed`, `SetAndroidPackage` and `SetLANAddresses`.
+  `main_desktop.go` calls `StartServer`, `WaitUntilReady` and `ServerPort`.
+  These six functions are the facade. Write everything else as a lowercase
+  method on `*App`.
+* The package also exports the type `App`. No caller outside the package uses
+  it, and it leaves `package backend` with the move of the app group. Do not
+  add an exported name.
 * **Names.** Use `handleXxx` for an API endpoint. Use `serveXxx` for a page or an
   asset. Use `renderXxxPage` with an `xxxView` struct. Use `normalizeXxx` for value
   repair. Write a predicate as a question: `storage.IsLocalOnlyPath`,

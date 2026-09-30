@@ -72,9 +72,9 @@ type App struct {
 	sessionKey  []byte
 }
 
-// WaitUntilReady blocks until the HTTP server listens. It also returns
+// waitUntilReady blocks until the HTTP server listens. It also returns
 // when the bind fails, thus a caller never waits for ever.
-func (a *App) WaitUntilReady() {
+func (a *App) waitUntilReady() {
 	<-a.ready
 }
 
@@ -148,7 +148,38 @@ func SetLANAddresses(list string) {
 // and the fdroid flavor can run side by side, thus they need two ports. See
 // DEFAULT_SERVER_PORT in android/app/build.gradle. The desktop passes 0 for
 // 8080.
-func StartServer(storageDir string, defaultPort int) *App {
+func StartServer(storageDir string, defaultPort int) {
+	startServer(storageDir, defaultPort)
+}
+
+// WaitUntilReady blocks until the server of StartServer listens. It also
+// returns when the bind fails, and at once when StartServer did not run.
+// main_desktop.go calls it before it opens the browser. gomobile exports it.
+func WaitUntilReady() {
+	if a := currentApp(); a != nil {
+		a.waitUntilReady()
+	}
+}
+
+// ServerPort answers the port of the server of StartServer, or 0 when
+// StartServer did not run. main_desktop.go builds the address of the browser
+// from it. gomobile exports it.
+func ServerPort() int {
+	if a := currentApp(); a != nil {
+		return a.serverPort()
+	}
+	return 0
+}
+
+// currentApp answers runningApp under its lock.
+func currentApp() *App {
+	runningMu.Lock()
+	defer runningMu.Unlock()
+	return runningApp
+}
+
+// startServer is StartServer. It answers the App for the tests.
+func startServer(storageDir string, defaultPort int) *App {
 	a := &App{
 		Router:    http.NewServeMux(),
 		ready:     make(chan struct{}),
@@ -223,8 +254,8 @@ func StartServer(storageDir string, defaultPort int) *App {
 	return a
 }
 
-// GetServerPort answers the configured port, for main_desktop.go.
-func (a *App) GetServerPort() int {
+// serverPort answers the configured port. See ServerPort.
+func (a *App) serverPort() int {
 	return a.config.Get().ServerPort
 }
 
@@ -242,7 +273,7 @@ type routeTable interface {
 func (a *App) registerRoutes(mux routeTable) {
 	// /api/logs and /api/logs/history are admin only. A remote caller
 	// reads no log line, live or held. See handleLogHistory.
-	route(mux, "GET", "/api/logs", a.authMiddleware(a.HandleLogsSSE))
+	route(mux, "GET", "/api/logs", a.authMiddleware(a.handleLogsSSE))
 	route(mux, "GET", "/api/logs/history", a.authMiddleware(a.handleLogHistory))
 
 	// The catch-all and the asset trees take each method.

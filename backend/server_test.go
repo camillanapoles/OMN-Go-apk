@@ -43,16 +43,16 @@ func srvStart(t *testing.T, port int) *App {
 	prev := log.Writer()
 	t.Cleanup(func() { log.SetOutput(prev) })
 
-	a := StartServer(siDir(t), port)
+	a := startServer(siDir(t), port)
 	done := make(chan struct{})
 	go func() {
-		a.WaitUntilReady()
+		a.waitUntilReady()
 		close(done)
 	}()
 	select {
 	case <-done:
 	case <-time.After(10 * time.Second):
-		t.Fatal("WaitUntilReady did not return in ten seconds")
+		t.Fatal("waitUntilReady did not return in ten seconds")
 	}
 	return a
 }
@@ -65,8 +65,12 @@ func TestStartServerServesOnTheFlavorPort(t *testing.T) {
 	port := srvFreePort(t)
 	a := srvStart(t, port)
 
-	if got := a.GetServerPort(); got != port {
-		t.Errorf("GetServerPort() = %d, want %d", got, port)
+	if got := a.serverPort(); got != port {
+		t.Errorf("serverPort() = %d, want %d", got, port)
+	}
+	// main_desktop.go reads the port through the facade function.
+	if got := ServerPort(); got != port {
+		t.Errorf("ServerPort() = %d, want %d", got, port)
 	}
 	host, boundPort, _ := a.boundAddress()
 	if host != "127.0.0.1" || boundPort != strconv.Itoa(port) {
@@ -136,5 +140,25 @@ func TestRestartAnswersAndThenRestarts(t *testing.T) {
 	case <-called:
 		t.Error("the restart hook ran two times. The GET must not start it.")
 	case <-time.After(700 * time.Millisecond):
+	}
+}
+
+// Before StartServer, the two functions of main_desktop.go answer at once.
+// WaitUntilReady must not block, and ServerPort answers 0.
+func TestFacadeAnswersBeforeStartServer(t *testing.T) {
+	stClearRunning()
+	t.Cleanup(stClearRunning)
+	done := make(chan struct{})
+	go func() {
+		WaitUntilReady()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("WaitUntilReady blocked with no server")
+	}
+	if got := ServerPort(); got != 0 {
+		t.Errorf("ServerPort() = %d before StartServer, want 0", got)
 	}
 }

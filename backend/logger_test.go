@@ -403,7 +403,7 @@ func TestLogHistoryEndpointIsAdminOnly(t *testing.T) {
 //
 // This test drives the REAL registration through a real mux, the same as
 // the history test above. The request of each allowed case carries a
-// context that is already canceled, because HandleLogsSSE blocks until
+// context that is already canceled, because handleLogsSSE blocks until
 // the context ends.
 func TestLogStreamIsAdminOnly(t *testing.T) {
 	a := newTestApp(t)

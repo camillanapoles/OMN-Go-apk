@@ -12,13 +12,13 @@ import (
 )
 
 func main() {
-	app := backend.StartServer("", 0) // desktop: OS-appropriate storage default, historical port default (8080)
+	backend.StartServer("", 0) // desktop: OS-appropriate storage default, historical port default (8080)
 
 	// Block until the listener has bound. Do not guess with a fixed
 	// time.Sleep(500ms). Such a sleep can fire too early on a slow boot,
 	// which is Docker or Android, and it wastes time on a fast one.
-	app.WaitUntilReady()
-	url := fmt.Sprintf("http://localhost:%d", app.GetServerPort())
+	backend.WaitUntilReady()
+	url := fmt.Sprintf("http://localhost:%d", backend.ServerPort())
 
 	// A replacement process that /api/restart spawns marks itself with this
 	// env var. The browser tab of the user already exists, because the
