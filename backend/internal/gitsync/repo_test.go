@@ -13,6 +13,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/storage"
+	"net.basov.omngo/backend/internal/testkit"
 )
 
 // Tests for internal/gitsync/repo.go and internal/gitsync/commit.go: the ignore
@@ -38,7 +39,7 @@ func newTestRepo(t *testing.T) (*testApp, *git.Repository, *git.Worktree) {
 	if err != nil {
 		t.Fatalf("Worktree: %v", err)
 	}
-	return &testApp{StorageDir: dir}, repo, wt
+	return &testApp{App: &testkit.App{StorageDir: dir}}, repo, wt
 }
 
 func testCommit(t *testing.T, wt *git.Worktree, msg string) plumbing.Hash {
@@ -107,7 +108,7 @@ func gitignoreLines(t *testing.T, a *testApp) map[string]int {
 // to GitignorePatterns is caught. A reorder counts, and so does a
 // dropped or an added entry.
 func TestEnsureGitignoreFreshInstall(t *testing.T) {
-	a := &testApp{StorageDir: t.TempDir()}
+	a := &testApp{App: &testkit.App{StorageDir: t.TempDir()}}
 	a.gitSync().EnsureGitignore()
 
 	want := "# OMN-Go sync ignore\n" +
@@ -175,7 +176,7 @@ func TestEnsureGitignoreFreshInstall(t *testing.T) {
 //
 // It must also NOT duplicate a pattern that is already there.
 func TestEnsureGitignoreBackfillLineExact(t *testing.T) {
-	a := &testApp{StorageDir: t.TempDir()}
+	a := &testApp{App: &testkit.App{StorageDir: t.TempDir()}}
 	// An old install that predates most of the current list: it has *.woff2
 	// (the substring trap) but not *.woff, and is missing /db/ etc.
 	existing := "# OMN-Go sync ignore\nconfig.json\n*.html\n*.woff2\n/md/local/\n"
@@ -209,7 +210,7 @@ func TestEnsureGitignoreBackfillLineExact(t *testing.T) {
 // backfill finds nothing missing, thus it must not rewrite the file. Above
 // all it must not append a duplicate trailing block.
 func TestEnsureGitignoreNoRewriteWhenComplete(t *testing.T) {
-	a := &testApp{StorageDir: t.TempDir()}
+	a := &testApp{App: &testkit.App{StorageDir: t.TempDir()}}
 	a.gitSync().EnsureGitignore() // write the canonical file
 	before, err := os.ReadFile(filepath.Join(a.StorageDir, ".gitignore"))
 	if err != nil {
@@ -230,7 +231,7 @@ func TestEnsureGitignoreNoRewriteWhenComplete(t *testing.T) {
 // new one. The old line is not harmful, but two rules for one job drift
 // apart, and the file must stay equal to GitignorePatterns.
 func TestEnsureGitignoreDropsTheObsoleteLocalDatabaseRule(t *testing.T) {
-	a := &testApp{StorageDir: t.TempDir()}
+	a := &testApp{App: &testkit.App{StorageDir: t.TempDir()}}
 	existing := "# OMN-Go sync ignore\nconfig.json\n*.html\n/db/\n/html/db_backup/local-*/\n"
 	if err := os.WriteFile(filepath.Join(a.StorageDir, ".gitignore"), []byte(existing), 0644); err != nil {
 		t.Fatal(err)
@@ -448,7 +449,7 @@ func TestRemoteLogLinesHideThePassword(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg := a.config.Get()
+	cfg := a.Config.Get()
 	cfg.GitServers = []config.GitServer{{Name: "home", URL: "https://ann:FIRST-SECRET@example.com/n.git"}}
 	if _, err := a.gitSync().EnsureSlotRemotes(repo, cfg); err != nil {
 		t.Fatal(err)
@@ -460,7 +461,7 @@ func TestRemoteLogLinesHideThePassword(t *testing.T) {
 	if err := a.gitSync().EnsureOriginRemote(repo, "https://ann:THIRD-SECRET@example.com/n.git"); err != nil {
 		t.Fatal(err)
 	}
-	lines := strings.Join(a.logs.Snapshot(), "\n")
+	lines := strings.Join(a.Logs.Snapshot(), "\n")
 	if !strings.Contains(lines, "ann@example.com") {
 		t.Fatalf("the log names no remote:\n%s", lines)
 	}

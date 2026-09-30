@@ -90,7 +90,7 @@ Do not remove a constraint without an instruction from the maintainer.
 | `backend/` | `package backend`, the facade for gomobile and for `main_desktop.go`. `backend.go` holds its six functions, and `version.go` holds `APP_VERSION`. |
 | `backend/internal/app/` | `package app`, the application. It holds the `App` type, the server, the routes, the handlers and the pages. Each `*_app.go` file gives the values of the App to one package of `backend/internal/`. |
 | `backend/internal/repocheck/` | `package repocheck`, which holds only tests. Each test reads the files of the repository and checks a rule that spans more than one package or more than one language. |
-| `backend/internal/` | The packages of the split. `textmatch` holds the search matcher, and `noteheader` holds the header block. `logx` holds the log tags and the log hub. `config` holds the settings and their store. `storage` holds the storage layout, the application files and the plain files beside the notes. `render` holds the page compile, the page shell, the Tags page and the JSON answer. `db` holds the SQLite databases of the notes and their backups. `gitsync` holds the git sync and the host keys. `search` holds the page search and the global search index. `files` holds the Files page. `exchange` holds the export and the import of a note. `status` holds the Status page and /api/status. |
+| `backend/internal/` | The packages of the split. `textmatch` holds the search matcher, and `noteheader` holds the header block. `logx` holds the log tags and the log hub. `config` holds the settings and their store. `storage` holds the storage layout, the application files and the plain files beside the notes. `render` holds the page compile, the page shell, the Tags page and the JSON answer. `db` holds the SQLite databases of the notes and their backups. `gitsync` holds the git sync and the host keys. `search` holds the page search and the global search index. `files` holds the Files page. `exchange` holds the export and the import of a note. `status` holds the Status page and /api/status. `testkit` holds the stand-in of the App for the tests of the feature packages. Only test files import it. |
 | `backend/frontend/embed.go` | `package frontend`. It embeds `html/` and `md/` as `frontend.Static`, and `templates/` as `frontend.Templates`. |
 | `backend/frontend/templates/` | Server-side page fragments. Embedded as `frontend.Templates`. Never extracted to disk. |
 | `backend/frontend/html/` | `js/`, `css/`, `css/fonts/`, `json/`, `favicon.ico`. Embedded as `frontend.Static`. Extracted to the storage directory on demand. The user can edit these files with `?edit=true`. |
@@ -483,7 +483,10 @@ subject line, also when it has no list.
   `t.TempDir()`. The project uses no assertion library and no mock library.
 * In `package app`, build the application under test with `newTestApp(t)` from
   `handlers_test.go`. A feature package has a `testApp` in `harness_test.go`.
-  It stands in for the App, and `newTestApp(t)` there builds it.
+  It embeds `testkit.App` of `backend/internal/testkit`, and it adds the fields
+  and the Service of that package. `newTestApp(t)` there builds it. The tests
+  of `storage` and `render` have a `testApp` of their own, because `testkit`
+  imports both packages.
 * Write a helper with a lowercase name. Take `t *testing.T` as the first parameter.
   Call `t.Helper()`.
 * Add a file prefix to a helper name that can collide across files.

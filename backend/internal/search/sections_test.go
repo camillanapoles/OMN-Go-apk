@@ -27,6 +27,7 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/internal/config"
+	"net.basov.omngo/backend/internal/testkit"
 )
 
 // forceAnchors pins the renderer self-check for one test.
@@ -59,7 +60,7 @@ func forceAnchors(t *testing.T, ok bool) {
 // goldmark does here, now", and that is the claim a link into a section
 // makes.
 func TestHeadingIDsAgreeWithTheRenderer(t *testing.T) {
-	a := &testApp{}
+	a := &testApp{App: &testkit.App{}}
 
 	docs := []string{
 		"# Hello World",
@@ -569,7 +570,7 @@ func predictedIDs(body string) []string {
 // baseline suite's helper so the two files stay independent.
 func headingIDs2(a *testApp, md string) []string {
 	out := []string{}
-	for _, m := range headingIDAttrRe.FindAllStringSubmatch(a.testRenderer().RenderMarkdown([]byte(md)), -1) {
+	for _, m := range headingIDAttrRe.FindAllStringSubmatch(a.Renderer().RenderMarkdown([]byte(md)), -1) {
 		out = append(out, m[1])
 	}
 	return out

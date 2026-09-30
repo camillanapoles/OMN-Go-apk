@@ -3,57 +3,31 @@ package gitsync
 import (
 	"net/http"
 	"os"
-	"path/filepath"
-	"sync/atomic"
 	"testing"
 
-	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
 	"net.basov.omngo/backend/internal/render"
 	"net.basov.omngo/backend/internal/storage"
+	"net.basov.omngo/backend/internal/testkit"
 )
 
-// testApp stands in for the App of package app. It holds the storage
-// directory, the settings, the sync state and the log hub, the same fields
-// that the App gives to a Service. The tests of this package read these
-// fields by the names of the App, thus a test reads the same here and in
-// package app.
+// testApp stands in for the App of package app. testkit.App holds the
+// storage directory, the settings and the log hub. It adds the sync state.
 type testApp struct {
-	StorageDir string
-	config     config.Store
-	git        State
-	filter     atomic.Value
-	logs       logx.Hub
+	*testkit.App
+	git State
 }
 
-// newTestApp answers the stand-in of a fresh install. It makes md/ and html/
-// and loads the settings, the same as newTestApp of package app.
-func newTestApp(t *testing.T) *testApp {
-	t.Helper()
-	a := &testApp{StorageDir: t.TempDir()}
-	for _, d := range []string{"md", "html"} {
-		if err := os.MkdirAll(filepath.Join(a.StorageDir, d), 0755); err != nil {
-			t.Fatal(err)
-		}
-	}
-	a.config.Update(func(c *config.Config) {
-		config.Load(c, a.layout().Config(), 8080, a.log(logx.Config))
-	})
-	return a
-}
-
-func (a *testApp) layout() storage.Layout { return storage.Layout(a.StorageDir) }
-
-func (a *testApp) log(tag logx.Tag) logx.Logger { return logx.New(tag, &a.filter, &a.logs) }
+func newTestApp(t *testing.T) *testApp { return &testApp{App: testkit.New(t)} }
 
 // gitSync answers the Service of the stand-in, the same as gitSync of
 // package app.
 func (a *testApp) gitSync() Service {
 	return Service{
 		State:  &a.git,
-		Layout: a.layout(),
-		Config: a.config.Get(),
-		Log:    a.log,
+		Layout: a.Layout(),
+		Config: a.Config.Get(),
+		Log:    a.Log,
 	}
 }
 
@@ -72,12 +46,12 @@ func (a *testApp) handleTrustHostKey(w http.ResponseWriter, r *http.Request) {
 // syncNoteFilesToHTML copies the plain files of md/ to html/, the same as
 // syncNoteFilesToHTML of package app.
 func (a *testApp) syncNoteFilesToHTML() {
-	storage.SyncNoteFilesToHTML(a.layout(), a.log(logx.NoteFiles))
+	storage.SyncNoteFilesToHTML(a.Layout(), a.Log(logx.NoteFiles))
 }
 
 // writeJSON writes one JSON answer, the same as writeJSON of package app.
 func (a *testApp) writeJSON(w http.ResponseWriter, code int, v any) {
-	render.WriteJSON(w, code, v, a.log(logx.Server))
+	render.WriteJSON(w, code, v, a.Log(logx.Server))
 }
 
 // runtimeSupportsFileMode answers whether Perm() reports what os.WriteFile

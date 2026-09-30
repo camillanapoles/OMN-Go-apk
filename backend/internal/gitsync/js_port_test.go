@@ -80,7 +80,7 @@ func jsSyncLines(t *testing.T) []string {
 	_ = a.gitSync().SyncRepo("push_force", "take mine")
 
 	var out []string
-	for _, line := range a.logs.Snapshot() {
+	for _, line := range a.Logs.Snapshot() {
 		if strings.Contains(line, "[sync]") {
 			out = append(out, strings.TrimRight(line, "\n"))
 		}

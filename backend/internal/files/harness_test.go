@@ -2,59 +2,23 @@ package files
 
 import (
 	"net/http"
-	"os"
-	"path/filepath"
-	"sync/atomic"
 	"testing"
 
-	"net.basov.omngo/backend/internal/config"
-	"net.basov.omngo/backend/internal/logx"
-	"net.basov.omngo/backend/internal/render"
-	"net.basov.omngo/backend/internal/storage"
+	"net.basov.omngo/backend/internal/testkit"
 )
 
-// testApp stands in for the App of package app. It holds the storage
-// directory and the settings, the fields that the App gives to a Service.
-// The tests of this package read them by the names of the App.
+// testApp stands in for the App of package app. testkit.App holds the
+// storage directory, the settings and the log hub.
 type testApp struct {
-	StorageDir string
-	config     config.Store
-	filter     atomic.Value
-	hub        logx.Hub
+	*testkit.App
 }
 
-// newTestApp answers the stand-in of a fresh install. It makes md/ and html/
-// and loads the settings, the same as newTestApp of package app.
-func newTestApp(t *testing.T) *testApp {
-	t.Helper()
-	a := &testApp{StorageDir: t.TempDir()}
-	for _, d := range []string{"md", "html"} {
-		if err := os.MkdirAll(filepath.Join(a.StorageDir, d), 0755); err != nil {
-			t.Fatal(err)
-		}
-	}
-	a.config.Update(func(c *config.Config) {
-		config.Load(c, a.layout().Config(), 8080, logx.New(logx.Config, &a.filter, &a.hub))
-	})
-	return a
-}
-
-func (a *testApp) layout() storage.Layout { return storage.Layout(a.StorageDir) }
-
-// renderPage writes one page in the page shell, the same as renderPage of
-// package app.
-func (a *testApp) renderPage(w http.ResponseWriter, code int, name string, header []byte, body string) {
-	rd := render.Renderer{Layout: a.layout(), Config: a.config.Get(), Version: "test", Generator: "OMN-Go test"}
-	compiled := rd.CompilePageWithBody(name, header, body)
-	render.WriteHTMLHeader(w)
-	w.WriteHeader(code)
-	w.Write(rd.InjectRuntimeVars(compiled))
-}
+func newTestApp(t *testing.T) *testApp { return &testApp{App: testkit.New(t)} }
 
 // filesService answers the Service of the stand-in, the same as filesService
 // of package app.
 func (a *testApp) filesService() Service {
-	return Service{Layout: a.layout(), MimeTypes: a.config.Get().MimeTypes, RenderPage: a.renderPage}
+	return Service{Layout: a.Layout(), MimeTypes: a.Config.Get().MimeTypes, RenderPage: a.RenderPage}
 }
 
 func (a *testApp) serveFilesPage(w http.ResponseWriter, r *http.Request) {

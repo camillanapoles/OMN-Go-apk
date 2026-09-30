@@ -145,7 +145,7 @@ func TestPageSearch_NeedsNothing(t *testing.T) {
 	writeSearchNote(t, a, "Note.md", "Title: A Note\n\nthe quick brown fox\n")
 
 	// A zero App: no config loaded, no search settings, nothing warmed.
-	if cfg := a.config.Get(); cfg.ServerPort != 0 {
+	if cfg := a.Config.Get(); cfg.ServerPort != 0 {
 		t.Fatalf("test precondition: expected an unconfigured App, got %+v", cfg)
 	}
 
@@ -462,7 +462,7 @@ func TestParseQuery(t *testing.T) {
 // existing applyOfflineUI() hides it there with no extra code.
 func TestSearchButtonIsInTheRenderedPage(t *testing.T) {
 	a := newTestApp(t)
-	page := string(a.testRenderer().CompilePage("Note", []byte("Title: A Note\n\nbody")))
+	page := string(a.Renderer().CompilePage("Note", []byte("Title: A Note\n\nbody")))
 
 	if !strings.Contains(page, "omnSearchOpen()") {
 		t.Fatal("rendered page has no search button")

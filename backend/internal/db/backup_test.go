@@ -13,6 +13,7 @@ import (
 
 	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/storage"
+	"net.basov.omngo/backend/internal/testkit"
 )
 
 // These tests cover the whole-database JSONL backups of internal/db/backup*.go.
@@ -25,7 +26,7 @@ import (
 
 func dbbApp(t *testing.T) *testApp {
 	t.Helper()
-	return &testApp{StorageDir: t.TempDir()}
+	return &testApp{App: &testkit.App{StorageDir: t.TempDir()}}
 }
 
 func dbbExec(t *testing.T, a *testApp, db, stmt string, args ...interface{}) {
@@ -185,7 +186,7 @@ func TestDBBackupPreservesSequenceAndBigIntsAndBlobs(t *testing.T) {
 
 func TestDBBackupPruneKeepsNewest(t *testing.T) {
 	a := dbbApp(t)
-	a.config.Update(func(c *config.Config) { c.BackupPruneDepth = 2 })
+	a.Config.Update(func(c *config.Config) { c.BackupPruneDepth = 2 })
 	dbbExec(t, a, "t1", `CREATE TABLE x(a)`)
 
 	var files []string
@@ -559,7 +560,7 @@ func TestListBackupFilesNewestFirst(t *testing.T) {
 func TestDBBackupPruneKeepsTheLastBackup(t *testing.T) {
 	a := dbbApp(t)
 	dbbExec(t, a, "t1", `CREATE TABLE x(a)`)
-	a.config.Update(func(c *config.Config) { c.BackupPruneDepth = 3 })
+	a.Config.Update(func(c *config.Config) { c.BackupPruneDepth = 3 })
 	var last string
 	for i := 0; i < 4; i++ {
 		last = dbbBackup(t, a, "t1")

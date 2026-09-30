@@ -14,6 +14,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"net.basov.omngo/backend/internal/config"
+	"net.basov.omngo/backend/internal/testkit"
 )
 
 // getStatus runs the handler and returns the decoded document.
@@ -57,8 +58,8 @@ func TestStatusDefaultSectionsAreCheap(t *testing.T) {
 	if res.GitDirty != nil {
 		t.Error("the git worktree was read without being asked for")
 	}
-	if res.Server.AppVersion != testVersion {
-		t.Errorf("app_version = %q, want %q", res.Server.AppVersion, testVersion)
+	if res.Server.AppVersion != testkit.Version {
+		t.Errorf("app_version = %q, want %q", res.Server.AppVersion, testkit.Version)
 	}
 	if res.Server.UptimeS < 89 {
 		t.Errorf("uptime_s = %d, want about 90", res.Server.UptimeS)
@@ -90,7 +91,7 @@ func TestStatusHasNoBindAddress(t *testing.T) {
 // network, which is why the test asserts the shape and not the count.
 func TestStatusLANURLShape(t *testing.T) {
 	a := newTestApp(t)
-	a.config.Update(func(c *config.Config) { c.ShareLAN = true })
+	a.Config.Update(func(c *config.Config) { c.ShareLAN = true })
 
 	res, _ := getStatus(t, a, "sections=server")
 	seen := map[string]bool{}
@@ -112,7 +113,7 @@ func TestStatusLANURLShape(t *testing.T) {
 
 	// Sharing off: the list stays empty, because no other device can
 	// reach this server.
-	a.config.Update(func(c *config.Config) { c.ShareLAN = false })
+	a.Config.Update(func(c *config.Config) { c.ShareLAN = false })
 	res, _ = getStatus(t, a, "sections=server")
 	if len(res.Server.LANURLs) != 0 {
 		t.Errorf("lan_urls = %v with sharing off, want none", res.Server.LANURLs)
@@ -322,7 +323,7 @@ func TestRemoteRefCandidates(t *testing.T) {
 // The remote URL is reported without its password.
 func TestStatusRedactsGitPassword(t *testing.T) {
 	a := newTestApp(t)
-	a.config.Update(func(c *config.Config) {
+	a.Config.Update(func(c *config.Config) {
 		c.GitServers = []config.GitServer{{
 			Name: "home",
 			URL:  "https://user:secret@example.com/notes.git",
@@ -346,7 +347,7 @@ func TestStatusRedactsGitPassword(t *testing.T) {
 // format.
 func TestStatusNeverCarriesSecrets(t *testing.T) {
 	a := newTestApp(t)
-	a.config.Update(func(c *config.Config) {
+	a.Config.Update(func(c *config.Config) {
 		c.AdminPassword = "admin_secret_value"
 		c.GitServers = []config.GitServer{{
 			Name: "home", URL: "https://u:pw_secret_value@example.com/n.git",
@@ -383,7 +384,7 @@ func TestStatusMarkdownFormat(t *testing.T) {
 		t.Errorf("Content-Type = %q, want text/plain; charset=utf-8", ct)
 	}
 	body := rec.Body.String()
-	for _, want := range []string{"# OMN-Go status", "## Server", "| app_version | " + testVersion + " |"} {
+	for _, want := range []string{"# OMN-Go status", "## Server", "| app_version | " + testkit.Version + " |"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("markdown misses %q:\n%s", want, body)
 		}

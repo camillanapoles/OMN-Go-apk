@@ -832,7 +832,7 @@ func TestFilesPage_WritesNothing(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(a.StorageDir, "md", "OMNGoFiles.md")); err == nil {
 		t.Error("the page synthesized an md/ source for itself")
 	}
-	if _, err := os.Stat(a.layout().PageHTML("OMNGoFiles")); err == nil {
+	if _, err := os.Stat(a.Layout().PageHTML("OMNGoFiles")); err == nil {
 		t.Error("the page wrote an html/ cache; it must stay dynamic")
 	}
 }

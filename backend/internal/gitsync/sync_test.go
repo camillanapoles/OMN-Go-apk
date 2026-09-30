@@ -48,6 +48,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	cryptossh "golang.org/x/crypto/ssh"
 	"net.basov.omngo/backend/internal/config"
+	"net.basov.omngo/backend/internal/testkit"
 )
 
 // gsSignature is the author of each commit that the harness makes. A
@@ -88,7 +89,7 @@ func gsRemote(t *testing.T) string {
 func gsApp(t *testing.T, remote string) *testApp {
 	t.Helper()
 	a := newTestApp(t)
-	a.config.Update(func(c *config.Config) {
+	a.Config.Update(func(c *config.Config) {
 		c.GitServers = make([]config.GitServer, config.MaxGitServers)
 		c.GitServers[0].Name = "harness"
 		c.GitServers[0].URL = remote
@@ -269,7 +270,7 @@ func TestSyncHarnessGivesAnAuthThatParses(t *testing.T) {
 	// The same call with no key must still fail. A test that forgets the
 	// key would otherwise pass for the wrong reason.
 	b := newTestApp(t)
-	b.config.Update(func(c *config.Config) {
+	b.Config.Update(func(c *config.Config) {
 		c.GitServers = make([]config.GitServer, config.MaxGitServers)
 		c.GitServers[0].URL = "git@example.invalid:notes.git"
 		c.ActiveGitIndex = 0
@@ -1163,7 +1164,7 @@ func TestWriteTreeToWorktreeCreatesNestedDirs(t *testing.T) {
 }
 
 func TestPremergeHeadRoundTrip(t *testing.T) {
-	a := &testApp{StorageDir: t.TempDir()}
+	a := &testApp{App: &testkit.App{StorageDir: t.TempDir()}}
 	if err := os.MkdirAll(filepath.Join(a.StorageDir, ".git"), 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -1190,7 +1191,7 @@ func TestPremergeHeadRoundTrip(t *testing.T) {
 }
 
 func TestMergeParentRoundTrip(t *testing.T) {
-	a := &testApp{StorageDir: t.TempDir()}
+	a := &testApp{App: &testkit.App{StorageDir: t.TempDir()}}
 	if err := os.MkdirAll(filepath.Join(a.StorageDir, ".git"), 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -1300,7 +1301,7 @@ func TestAheadOfRemoteWithNoCommits(t *testing.T) {
 // A pull brings the md/ original and no html/ copy. Rebuilding the copy is
 // what keeps the file's URL working before the next start.
 func TestSyncNoteFilesToHTMLRebuildsAfterAPull(t *testing.T) {
-	a := &testApp{StorageDir: t.TempDir()}
+	a := &testApp{App: &testkit.App{StorageDir: t.TempDir()}}
 	src := filepath.Join(a.StorageDir, "md", "project", "log.txt")
 	if err := os.MkdirAll(filepath.Dir(src), 0755); err != nil {
 		t.Fatal(err)

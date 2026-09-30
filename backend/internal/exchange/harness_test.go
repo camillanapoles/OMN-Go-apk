@@ -2,63 +2,31 @@ package exchange
 
 import (
 	"net/http"
-	"os"
-	"path/filepath"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"net.basov.omngo/backend/internal/config"
-	"net.basov.omngo/backend/internal/logx"
-	"net.basov.omngo/backend/internal/render"
-	"net.basov.omngo/backend/internal/storage"
+	"net.basov.omngo/backend/internal/testkit"
 )
 
-// testApp stands in for the App of package app. It holds the storage
-// directory and the settings, the fields that the App gives to a Service.
-// The tests of this package read them by the names of the App.
+// testApp stands in for the App of package app. testkit.App holds the
+// storage directory, the settings and the log hub.
 type testApp struct {
-	StorageDir string
-	config     config.Store
-	filter     atomic.Value
-	hub        logx.Hub
+	*testkit.App
 }
 
-// newTestApp answers the stand-in of a fresh install. It makes md/ and html/
-// and loads the settings, the same as newTestApp of package app.
-func newTestApp(t *testing.T) *testApp {
-	t.Helper()
-	a := &testApp{StorageDir: t.TempDir()}
-	for _, d := range []string{"md", "html"} {
-		if err := os.MkdirAll(filepath.Join(a.StorageDir, d), 0755); err != nil {
-			t.Fatal(err)
-		}
-	}
-	a.config.Update(func(c *config.Config) {
-		config.Load(c, a.layout().Config(), 8080, a.log(logx.Config))
-	})
-	return a
-}
-
-func (a *testApp) layout() storage.Layout { return storage.Layout(a.StorageDir) }
-
-func (a *testApp) log(tag logx.Tag) logx.Logger { return logx.New(tag, &a.filter, &a.hub) }
+func newTestApp(t *testing.T) *testApp { return &testApp{App: testkit.New(t)} }
 
 // exchange answers the Service of the stand-in, the same as exchange of
 // package app.
 func (a *testApp) exchange() Service {
-	cfg := a.config.Get()
+	cfg := a.Config.Get()
 	return Service{
-		Layout:         a.layout(),
+		Layout:         a.Layout(),
 		MimeTypes:      cfg.MimeTypes,
 		MaxUploadBytes: config.MaxUploadBytes(cfg),
-		Log:            a.log,
+		Log:            a.Log,
 	}
-}
-
-// renderer answers the page compile of the stand-in.
-func (a *testApp) renderer() render.Renderer {
-	return render.Renderer{Layout: a.layout(), Config: a.config.Get(), Version: "test", Generator: "OMN-Go test"}
 }
 
 func (a *testApp) exportNoteSource(name string) ([]byte, string, error) {

@@ -584,7 +584,7 @@ func TestHandleImportNoteRefusals(t *testing.T) {
 	}
 	// Larger than the upload limit: refused whole rather than imported
 	// truncated.
-	a.config.Update(func(c *config.Config) { c.MaxUploadSizeMB = 1 })
+	a.Config.Update(func(c *config.Config) { c.MaxUploadSizeMB = 1 })
 	big := strings.Repeat("x", 2*1024*1024)
 	rec := exchangeReq(t, a.handleImportNote, http.MethodPost, "/api/import/note",
 		strings.NewReader(big), "text/markdown")
@@ -744,7 +744,7 @@ func TestIncomingIndexLinkRewrites(t *testing.T) {
 	a := newTestApp(t)
 	in := incomingDirName + "/" + incomingIndexBase
 	want := in + ".html"
-	rd := a.renderer()
+	rd := a.Renderer()
 	if got := rd.RewriteInternalLink(in); got != want {
 		t.Errorf("RewriteInternalLink(%q) = %q, want %q", in, got, want)
 	}

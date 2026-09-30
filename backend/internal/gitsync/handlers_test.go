@@ -746,7 +746,7 @@ func TestSyncPreviewAnswersWithNoUsableKey(t *testing.T) {
 
 	// The key goes away after the repository exists, thus the remote is
 	// configured and the authentication is not.
-	a.config.Update(func(c *config.Config) { c.GitServers[0].SSHKeyData = "" })
+	a.Config.Update(func(c *config.Config) { c.GitServers[0].SSHKeyData = "" })
 
 	w := ghPreview(t, a, "GET", "action=upload")
 	if w.Code != http.StatusOK {
@@ -778,7 +778,7 @@ func TestSyncPreviewAnswersWhenTheRemoteIsUnreachable(t *testing.T) {
 	if err := a.gitSync().SyncRepo("push", "the first commit of this device"); err != nil {
 		t.Fatalf("the push: %v", err)
 	}
-	a.config.Update(func(c *config.Config) { c.GitServers[0].URL = "/no/such/path.git" })
+	a.Config.Update(func(c *config.Config) { c.GitServers[0].URL = "/no/such/path.git" })
 
 	w := ghPreview(t, a, "GET", "action=upload")
 	if w.Code != http.StatusOK {
