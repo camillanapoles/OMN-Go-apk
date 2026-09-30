@@ -1,4 +1,4 @@
-package app
+package db
 
 import (
 	"encoding/json"
@@ -8,17 +8,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"net.basov.omngo/backend/internal/db"
 )
 
-func postSQL(t *testing.T, a *App, body string) (*httptest.ResponseRecorder, db.Response) {
+func postSQL(t *testing.T, a *testApp, body string) (*httptest.ResponseRecorder, Response) {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodPost, "/api/sql", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	a.handleSQL(rec, req)
-	var resp db.Response
+	var resp Response
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("response is not JSON (%v): %s", err, rec.Body.String())
 	}
@@ -96,7 +94,7 @@ func TestSQLBatchRollsBackAtomically(t *testing.T) {
 func TestSQLDatabaseNameValidation(t *testing.T) {
 	a := newTestApp(t)
 	for _, bad := range []string{"../evil", "a/b", "", "name.with.dots", strings.Repeat("x", 65)} {
-		body, _ := json.Marshal(db.Request{DB: bad, Statements: []db.Statement{{SQL: "SELECT 1"}}})
+		body, _ := json.Marshal(Request{DB: bad, Statements: []Statement{{SQL: "SELECT 1"}}})
 		rec, resp := postSQL(t, a, string(body))
 		if rec.Code != http.StatusBadRequest || resp.Status != "error" {
 			t.Errorf("db name %q: expected 400/error, got %d/%s", bad, rec.Code, resp.Status)
@@ -113,11 +111,11 @@ func TestSQLRequestLimits(t *testing.T) {
 	a := newTestApp(t)
 
 	// Too many statements.
-	stmts := make([]db.Statement, db.MaxStatements+1)
+	stmts := make([]Statement, MaxStatements+1)
 	for i := range stmts {
-		stmts[i] = db.Statement{SQL: "SELECT 1"}
+		stmts[i] = Statement{SQL: "SELECT 1"}
 	}
-	body, _ := json.Marshal(db.Request{DB: "notes", Statements: stmts})
+	body, _ := json.Marshal(Request{DB: "notes", Statements: stmts})
 	rec, resp := postSQL(t, a, string(body))
 	if rec.Code != http.StatusBadRequest || resp.Status != "error" {
 		t.Errorf("oversized batch: expected 400/error, got %d/%s", rec.Code, resp.Status)

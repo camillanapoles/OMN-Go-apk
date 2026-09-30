@@ -1,4 +1,4 @@
-package app
+package db
 
 import (
 	"bytes"
@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/internal/config"
-	"net.basov.omngo/backend/internal/db"
 	"net.basov.omngo/backend/internal/storage"
 )
 
@@ -24,12 +23,12 @@ import (
 // Each helper here has the prefix dbb, thus it cannot collide with a helper
 // of another test file.
 
-func dbbApp(t *testing.T) *App {
+func dbbApp(t *testing.T) *testApp {
 	t.Helper()
-	return &App{StorageDir: t.TempDir()}
+	return &testApp{StorageDir: t.TempDir()}
 }
 
-func dbbExec(t *testing.T, a *App, db, stmt string, args ...interface{}) {
+func dbbExec(t *testing.T, a *testApp, db, stmt string, args ...interface{}) {
 	t.Helper()
 	h, err := a.databases().Open(db)
 	if err != nil {
@@ -40,7 +39,7 @@ func dbbExec(t *testing.T, a *App, db, stmt string, args ...interface{}) {
 	}
 }
 
-func dbbQueryInt(t *testing.T, a *App, db, query string) int64 {
+func dbbQueryInt(t *testing.T, a *testApp, db, query string) int64 {
 	t.Helper()
 	h, err := a.databases().Open(db)
 	if err != nil {
@@ -54,20 +53,20 @@ func dbbQueryInt(t *testing.T, a *App, db, query string) int64 {
 }
 
 // dbbBackup creates a backup and returns the bare backup filename.
-func dbbBackup(t *testing.T, a *App, db string) string {
+func dbbBackup(t *testing.T, a *testApp, db string) string {
 	t.Helper()
 	rel, _, err := a.databases().CreateBackup(db)
 	if err != nil {
-		t.Fatalf("db.Service.CreateBackup(%s): %v", db, err)
+		t.Fatalf("Service.CreateBackup(%s): %v", db, err)
 	}
 	return filepath.Base(rel)
 }
 
-func dbbRestore(t *testing.T, a *App, db, file string) {
+func dbbRestore(t *testing.T, a *testApp, db, file string) {
 	t.Helper()
 	err := a.databases().Restore(db, file)
 	if err != nil {
-		t.Fatalf("db.Service.Restore(%s, %s): %v", db, file, err)
+		t.Fatalf("Service.Restore(%s, %s): %v", db, file, err)
 	}
 }
 
@@ -192,7 +191,7 @@ func TestDBBackupPruneKeepsNewest(t *testing.T) {
 	var files []string
 	for i := 0; i < 3; i++ {
 		dbbExec(t, a, "t1", `INSERT INTO x VALUES (?)`, i) // content change per backup
-		// No sleep between the backups. Before db.BackupNewerThan, this
+		// No sleep between the backups. Before BackupNewerThan, this
 		// test waited more than one second for each backup, because the
 		// prune kept the wrong files in one second.
 		files = append(files, dbbBackup(t, a, "t1"))
@@ -200,7 +199,7 @@ func TestDBBackupPruneKeepsNewest(t *testing.T) {
 
 	left, err := a.databases().ListBackupFiles("t1")
 	if err != nil {
-		t.Fatalf("db.Service.ListBackupFiles: %v", err)
+		t.Fatalf("Service.ListBackupFiles: %v", err)
 	}
 	if len(left) != 2 {
 		t.Fatalf("after 3 backups with depth 2, %d files remain: %v", len(left), left)
@@ -378,11 +377,11 @@ func TestDBBackupHeaderIsFirstLineWithCounts(t *testing.T) {
 	dbbExec(t, a, "t1", `INSERT INTO x VALUES (1), (2), (3)`)
 	file := dbbBackup(t, a, "t1")
 
-	h, err := db.ReadBackupHeader(filepath.Join(a.databases().BackupDir("t1"), file))
+	h, err := ReadBackupHeader(filepath.Join(a.databases().BackupDir("t1"), file))
 	if err != nil {
-		t.Fatalf("db.ReadBackupHeader: %v", err)
+		t.Fatalf("ReadBackupHeader: %v", err)
 	}
-	if h.Format != db.BackupFormatName || h.Version != db.BackupFormatVersion {
+	if h.Format != BackupFormatName || h.Version != BackupFormatVersion {
 		t.Fatalf("header format/version: %+v", h)
 	}
 	if h.Database != "t1" || h.Rows != 3 || h.Objects != 1 {
@@ -395,7 +394,7 @@ func TestDBBackupHeaderIsFirstLineWithCounts(t *testing.T) {
 
 // dbbLive answers the rows of table x in database t1 as one string. A
 // failed restore must leave this string as it was.
-func dbbLive(t *testing.T, a *App) string {
+func dbbLive(t *testing.T, a *testApp) string {
 	t.Helper()
 	h, err := a.databases().Open("t1")
 	if err != nil {
@@ -421,7 +420,7 @@ func dbbLive(t *testing.T, a *App) string {
 // A restore replaces the whole database. It must change all or nothing.
 // A backup file can come from a git pull. Such a file can hold a conflict
 // marker or a line from a newer version. Each case below damages one step
-// of db.Service.Restore. Each case must give an error. Each case must
+// of Service.Restore. Each case must give an error. Each case must
 // also keep the live database and the database directory as they were.
 // TestDBRestoreRejectsDamagedAndForeignFiles covers the conflict marker,
 // the foreign header and the bad file name.
@@ -520,7 +519,7 @@ func TestDBRestoreEndpointFaults(t *testing.T) {
 	}
 }
 
-// db.Service.ListBackupFiles must answer the newest backup first. The bootstrap
+// Service.ListBackupFiles must answer the newest backup first. The bootstrap
 // of a fresh device restores the first name, and the prune keeps the first
 // names. The table holds each name that the string order put in the wrong
 // place. These are a counter, a counter of two digits, and a host name that
@@ -554,8 +553,8 @@ func TestListBackupFilesNewestFirst(t *testing.T) {
 }
 
 // Four backups in a fast loop often fall in one second. The prune keeps
-// three. The backup that db.Service.CreateBackup made last must be one of them.
-// Before db.BackupNewerThan, the prune removed that backup when its name had
+// three. The backup that Service.CreateBackup made last must be one of them.
+// Before BackupNewerThan, the prune removed that backup when its name had
 // a counter.
 func TestDBBackupPruneKeepsTheLastBackup(t *testing.T) {
 	a := dbbApp(t)

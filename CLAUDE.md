@@ -481,11 +481,13 @@ subject line, also when it has no list.
   finds faults that a test of the source text cannot see.
 * The tests use the standard library `testing` package, `net/http/httptest`, and
   `t.TempDir()`. The project uses no assertion library and no mock library.
-* Build the application under test with `newTestApp(t)` from `handlers_test.go`.
+* In `package app`, build the application under test with `newTestApp(t)` from
+  `handlers_test.go`. A feature package has a `testApp` in `harness_test.go`.
+  It stands in for the App, and `newTestApp(t)` there builds it.
 * Write a helper with a lowercase name. Take `t *testing.T` as the first parameter.
   Call `t.Helper()`.
 * Add a file prefix to a helper name that can collide across files.
-  `db_backup_test.go` uses `dbbApp`, `dbbExec`, and `dbbBackup`.
+  `internal/db/backup_test.go` uses `dbbApp`, `dbbExec`, and `dbbBackup`.
 * Write table-driven tests with anonymous structs. Use `t.Run` rarely.
 * **Give each test a comment that says why it exists.** A failure must then read
   either as "you broke it" or as "you changed it on purpose, so update the golden
