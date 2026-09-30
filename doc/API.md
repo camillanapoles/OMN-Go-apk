@@ -1,7 +1,7 @@
 # OMN-Go Server API
 
 Reference for every HTTP endpoint that the backend exposes
-(`backend/server.go`, `backend/log_handlers.go`).
+(`backend/internal/app/server.go`, `backend/internal/app/log_handlers.go`).
 
 Applies to OMN-Go **26.08.2** (`backend/version.go`, `APP_VERSION`).
 
@@ -46,12 +46,12 @@ Routing uses the Go standard library `http.ServeMux`. This has four effects:
 * **Each route except the catch-all and the asset trees names its
   method**, for example `POST /api/save`. A `GET` route also takes `HEAD`.
   The table in §3 gives the method of each route.
-* **The router answers another method with `405`.** The body is the plain
-  text `Method Not Allowed`, and the `Allow` header names the methods of
-  the route. The router sends this answer before `authMiddleware` runs.
-  `ServeMux` cannot send it alone, because the catch-all `/` takes
-  each path. `route` in `backend/server.go` also registers the bare path
-  with a handler that answers `405`.
+* **The router answers another method with `405`.** The body is the plain text
+  `Method Not Allowed`, and the `Allow` header names the methods of the route.
+  The router sends this answer before `authMiddleware` runs. `ServeMux` cannot
+  send it alone, because the catch-all `/` takes each path. `route` in
+  `backend/internal/app/server.go` also registers the bare path with a handler
+  that answers `405`.
 * **A `GET` writes nothing.** `r.FormValue` reads the URL query string
   *and* the form body. A write route takes `POST` only, thus a link or an
   image on another site cannot save a note. A form on another site can
@@ -101,10 +101,10 @@ A JSON endpoint answers an error in one of three shapes:
 `/api/status`, `/api/sync/preview` and `/api/logs/history` answer an error
 with `http.Error`, as plain text.
 
-**Cache-Control.** Each response carries `Cache-Control: no-cache`. The
-header is set in `connectionMiddleware` (`backend/middleware.go`). That
-function wraps each route. The header thus applies to a page, to an API
-answer and to a static file.
+**Cache-Control.** Each response carries `Cache-Control: no-cache`. The header
+is set in `connectionMiddleware` (`backend/internal/app/middleware.go`). That
+function wraps each route. The header thus applies to a page, to an API answer
+and to a static file.
 
 `no-cache` does not stop the cache. The client keeps its copy, but it
 asks the server each time. The server answers `304 Not Modified` while
@@ -123,7 +123,8 @@ A handler that writes `Cache-Control` later replaces this value.
 
 ### 2.1 Model
 
-`authMiddleware` (`backend/middleware.go`) wraps the protected endpoints:
+`authMiddleware` (`backend/internal/app/middleware.go`) wraps the protected
+endpoints:
 
 1. **A local connection bypasses authentication.** If the peer address is
    `127.0.0.1`, `::1` or `localhost`, the endpoint runs with no further
@@ -131,9 +132,9 @@ A handler that writes `Cache-Control` later replaces this value.
    browser work without a login.
 2. For every other connection, the request must carry a **signed**
    `session_role` cookie with an accepted role. `readSessionRole`
-   (`backend/session.go`) is the one reader of that cookie. `hasRole`
-   (`backend/middleware.go`) accepts it. `admin` is the one role. See
-   `doc/decisions/0018-keep-one-role.md`.
+   (`backend/internal/app/session.go`) is the one reader of that cookie.
+   `hasRole` (`backend/internal/app/middleware.go`) accepts it. `admin` is the
+   one role. See `doc/decisions/0018-keep-one-role.md`.
 3. A missing, changed or expired cookie gives `401 Unauthorized` with the
    body `Unauthorized`.
 
@@ -211,7 +212,7 @@ first connection, and it stops when the key changes. See
 A local connection is always admin. A page of another site that the
 browser of the device opens thus must not reach the server through that
 browser. `connectionMiddleware` asks `foreignRequest`
-(`backend/request_guard.go`) before each route, and it answers
+(`backend/internal/app/request_guard.go`) before each route, and it answers
 `403 Forbidden` with a plain text reason in these cases:
 
 | Case | Reason in the body |
@@ -239,10 +240,10 @@ The router refuses each method that the first column does not list, with
 `405`. A `GET` route also takes `HEAD`. The last three rows go through the
 catch-all and the asset trees, and these take each method. See §1.2.
 
-The page-access table, `systemPages` in `backend/page_access.go`, registers
-the seven pages above the last three rows. Each row gives the address, the
-handler and the role. A caller without the role gets a refusal page with
-the code `200`.
+The page-access table, `systemPages` in `backend/internal/app/page_access.go`,
+registers the seven pages above the last three rows. Each row gives the address,
+the handler and the role. A caller without the role gets a refusal page with the
+code `200`.
 
 | Method(s) | URL | Auth | Response |
 | --- | --- | --- | --- |
@@ -304,7 +305,7 @@ endpoint.
 | --- | --- | --- | --- |
 | `200` | `text/plain` | `OK` | Sets the signed `session_role` cookie and the `session_role_hint` cookie, for the `admin` role. See §2.2. |
 | `401` | `text/plain` | `Invalid` | No cookie set |
-| `500` | `text/plain` | `Login unavailable` | This install has no session key and could not make one. See `sessionSecret` in `backend/session.go`. |
+| `500` | `text/plain` | `Login unavailable` | This install has no session key and could not make one. See `sessionSecret` in `backend/internal/app/session.go`. |
 
 ```bash
 curl -i -c jar.txt -d 'password=admin_secret_changeme' http://host:8080/login
@@ -1367,7 +1368,7 @@ needs the debug lines of that moment.
 **Why it is admin only and `/api/logs` is not.** The stream carries what
 happens while a person watches. The ring carries what happened before that
 person arrived, which is the shape a reader on the LAN would want. See
-`handleLogHistory` in `backend/log_handlers.go`.
+`handleLogHistory` in `backend/internal/app/log_handlers.go`.
 
 **The ring never replays on the stream.** `applySyncLogLine` in
 `omn-go-sse.js` reads `[sync] (debug)` lines off the raw stream to drive
@@ -1986,8 +1987,9 @@ server.
 | `/OMNGoLogs.html` | `serveLogsPage` | The Log page. **Admin-only** |
 
 Each special page is a row of the page-access table in
-`backend/page_access.go`. The router sends it to its handler, thus `?edit` and the catch-all do not
-apply to it. A remote caller gets the refusal page for an admin-only row.
+`backend/internal/app/page_access.go`. The router sends it to its handler, thus
+`?edit` and the catch-all do not apply to it. A remote caller gets the refusal
+page for an admin-only row.
 
 `render.Renderer.InjectRuntimeVars` adds this block to every served page:
 
@@ -2008,9 +2010,10 @@ fonts sit at `/css/OMN-Go/fonts/…`. The two user files stay at
 `/js/omn-go-custom.js` and `/css/omn-go-custom.css`.
 
 A request for the OLD URL of a moved file answers with the file at its new
-place. See `legacyAssetURL` in `backend/serving.go`. That rule keeps a note
-working when it names `/js/Bookmarker.js`, which `md/Bookmarks.md` does. The
-rule covers the moved files alone, thus `/js/mine.js` still answers `404`.
+place. See `legacyAssetURL` in `backend/internal/app/serving.go`. That rule
+keeps a note working when it names `/js/Bookmarker.js`, which `md/Bookmarks.md`
+does. The rule covers the moved files alone, thus `/js/mine.js` still answers
+`404`.
 | root catch-all (`/favicon.ico`, `/robots.txt`, …) | `html/` | Same lazy extraction |
 | `/images/` | `html/images/` | Pure user content, never embedded |
 | `/user_json/` | `html/user_json/` | Pure user content, never embedded |
@@ -2108,9 +2111,9 @@ reads `same size`. Reading an embedded file is not writing, so this does not
 break the rule below.
 
 **Authorization.** The page is admin-only, with the usual local connection
-bypass. It is a row of the page-access table in `backend/page_access.go`,
-thus it has its own exact route. The catch-all that serves each other page needs no
-authentication.
+bypass. It is a row of the page-access table in
+`backend/internal/app/page_access.go`, thus it has its own exact route. The
+catch-all that serves each other page needs no authentication.
 
 The page does **not** wrap `authMiddleware`. A remote caller gets a **200** and
 the refusal page, which says that the page is for the admin and how to log

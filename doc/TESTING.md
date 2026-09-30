@@ -28,7 +28,7 @@ that tag passed the gate.
 
 | Part | Where | Language of the test | Needs |
 | --- | --- | --- | --- |
-| The Go application | `backend/*_test.go` | Go | nothing |
+| The Go application | `backend/*_test.go`, and `*_test.go` of each package under `backend/internal/` | Go | nothing |
 | The Android configuration reader | `android/test/` | Java | a JDK |
 | The frontend pure functions | `backend/frontend/test/*.test.js` | JavaScript | Node |
 
@@ -40,7 +40,7 @@ second command and no second gate.
 
 * `backend/java_test.go` compiles and runs
   `android/test/java/net/basov/omngo/OmnConfigTest.java`.
-* `backend/js_test.go` runs `node --test` over
+* `backend/internal/app/js_test.go` runs `node --test` over
   `backend/frontend/test/*.test.js`.
 
 **Each one skips when its tool is absent.** A machine with no JDK and no
@@ -166,8 +166,9 @@ the day a person wrote it, and `ports_test.go` says so.
 **One pair is tested by running both.** `isHeaderFirstLine` and
 `firstLineAfterHeader` in `omn-go-editor.js` are a port of
 `backend/internal/noteheader/noteheader.go`.
-`TestHeaderPortAgreesWithTheRealJavaScript` in `backend/js_test.go` runs the real JavaScript through Node and compares
-each answer against `noteheader.Parse`.
+`TestHeaderPortAgreesWithTheRealJavaScript` in `backend/internal/app/js_test.go`
+runs the real JavaScript through Node and compares each answer against
+`noteheader.Parse`.
 
 The cases live in `backend/frontend/test/header-cases.json`, and both
 languages read that one file. Add a case there when you find a note shape
@@ -189,9 +190,9 @@ fullscreen modes, the intent dispatch and the Termux path each need a
 device or an emulator. An emulator needs a test framework, and a test
 framework is a Gradle dependency.
 
-**The git remote over SSH.** `backend/git_sync_test.go` drives the real sync
-code against a BARE REPOSITORY ON DISK, which needs no server and no network. It
-cannot test the SSH transport, and it cannot test a network failure.
+**The git remote over SSH.** `backend/internal/app/git_sync_test.go` drives the
+real sync code against a BARE REPOSITORY ON DISK, which needs no server and no
+network. It cannot test the SSH transport, and it cannot test a network failure.
 `gitsync.Service.GetSSHAuth` runs in each of those tests, and the code that
 speaks SSH does not.
 
@@ -251,8 +252,8 @@ report. `TestBinarySizeBaselineFile` checks the JSON file.
 
 ## 7. The benchmarks
 
-`backend/bench_test.go` holds seven benchmarks. Each one measures a path
-that a person waits for.
+`backend/internal/app/bench_test.go` holds seven benchmarks. Each one measures a
+path that a person waits for.
 
 | Benchmark | What it measures |
 | --- | --- |

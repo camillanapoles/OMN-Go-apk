@@ -3,7 +3,7 @@
 * Status: accepted
 * Version: 26.08.21, 26.08.61
 * Code: `connectionMiddleware` and `pageCacheWriter` in
-  `backend/middleware.go`
+  `backend/internal/app/middleware.go`
 
 ## Context
 

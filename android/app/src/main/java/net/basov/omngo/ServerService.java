@@ -70,8 +70,8 @@ public class ServerService extends Service {
      * (net.basov.omngo vs net.basov.omngo.fdroid - see the productFlavors
      * block in build.gradle) with no need to know the package name up
      * front. Passed into Backend.startServer() below so the Go side (see
-     * initStorage's overrideDir in backend/storage.go) uses the same
-     * directory instead of a hardcoded "net.basov.omngo" literal that was
+     * initStorage's overrideDir in backend/internal/app/storage.go) uses the
+     * same directory instead of a hardcoded "net.basov.omngo" literal that was
      * wrong for the fdroid flavor. Falls back to building the same path
      * from getPackageName() if the media-dirs API returns nothing (should
      * be rare in practice), which - unlike the old literal - is still

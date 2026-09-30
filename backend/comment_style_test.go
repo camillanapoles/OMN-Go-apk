@@ -539,8 +539,8 @@ func TestCommentStyleScanReachesEachTree(t *testing.T) {
 	}
 	want := []string{
 		"main_desktop.go",
-		"backend/handlers.go",
-		"backend/handlers_test.go",
+		"backend/internal/app/handlers.go",
+		"backend/internal/app/handlers_test.go",
 		"backend/frontend/html/js/OMN-Go/omn-go-core.js",
 		"backend/frontend/test/header.test.js",
 		"android/app/src/main/java/net/basov/omngo/MainActivity.java",

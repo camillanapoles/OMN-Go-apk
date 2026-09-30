@@ -3,9 +3,9 @@
 * Status: accepted
 * Version: 26.08.70, 26.09.38, 26.09.59
 * Code: `backend/internal/logx/levels.go`, `Hub` in
-  `backend/internal/logx/hub.go`,
-  `handleLogHistory` in `backend/log_handlers.go`, `registerRoutes` in
-  `backend/server.go`
+  `backend/internal/logx/hub.go`, `handleLogHistory` in
+  `backend/internal/app/log_handlers.go`, `registerRoutes` in
+  `backend/internal/app/server.go`
 
 ## Context
 

@@ -4,7 +4,7 @@
 * Version: 1.8.11, 26.08.21
 * Code: `storage.RefreshEmbeddedAssets` in
   `backend/internal/storage/assets.go`, `AssetsRefreshed` in
-  `backend/storage_app.go`, `MainActivity.java`
+  `backend/internal/app/storage_app.go`, `MainActivity.java`
 
 ## Context
 

@@ -29,11 +29,12 @@ Do not remove a constraint without an instruction from the maintainer.
    runtime permission. The Go package cannot read the flavor applicationId.
    `ServerService.storageDir(ctx)` passes the path into `StartServer`. The
    `runtime.GOOS == "android"` branch in `initStorage` is a fallback only.
-4. **Do not use bare 64-bit atomics.** Use the `atomic.Int64` and `atomic.Uint64`
-   types. Never write `atomic.AddInt64(&field, ...)`. A bare 64-bit atomic panics on
-   `armeabi-v7a` and on `x86`. F-Droid publishes those builds. The test
-   `TestNoBare64BitAtomics` in `backend/middleware_test.go` scans the source and
-   enforces this rule.
+4. **Do not use bare 64-bit atomics.** Use the `atomic.Int64` and
+   `atomic.Uint64` types. Never write `atomic.AddInt64(&field, ...)`. A bare
+   64-bit atomic panics on `armeabi-v7a` and on `x86`. F-Droid publishes those
+   builds. The test `TestNoBare64BitAtomics` in
+   `backend/internal/app/middleware_test.go` scans the source and enforces this
+   rule.
 5. **The WebView floor is Chromium 85 and `minSdk 23`.** `html/js/OMN-Go/omn-go-compat.js`
    holds the only ES5 code in the project. Two rules keep it working, and
    `TestCompatScriptIsFirstAndES5` enforces both. **Keep the file in ES5**, and
@@ -86,7 +87,8 @@ Do not remove a constraint without an instruction from the maintainer.
 | Path | Contents |
 | --- | --- |
 | `main_desktop.go` | The only file in `package main`. It holds the only build tag: `//go:build !android`. |
-| `backend/` | The Go application. `package backend` holds most of the code, and the split into packages is in progress. |
+| `backend/` | `package backend`, the facade for gomobile and for `main_desktop.go`. `backend.go` holds its six functions, and `version.go` holds `APP_VERSION`. The tests that read the whole repository are also here. |
+| `backend/internal/app/` | `package app`, the application. It holds the `App` type, the server, the routes, the handlers and the pages. Each `*_app.go` file gives the values of the App to one package of `backend/internal/`. |
 | `backend/internal/` | The packages of the split. `textmatch` holds the search matcher, and `noteheader` holds the header block. `logx` holds the log tags and the log hub. `config` holds the settings and their store. `storage` holds the storage layout, the application files and the plain files beside the notes. `render` holds the page compile, the page shell, the Tags page and the JSON answer. `db` holds the SQLite databases of the notes and their backups. `gitsync` holds the git sync and the host keys. `search` holds the page search and the global search index. `files` holds the Files page. `exchange` holds the export and the import of a note. `status` holds the Status page and /api/status. |
 | `backend/frontend/embed.go` | `package frontend`. It embeds `html/` and `md/` as `frontend.Static`, and `templates/` as `frontend.Templates`. |
 | `backend/frontend/templates/` | Server-side page fragments. Embedded as `frontend.Templates`. Never extracted to disk. |
@@ -127,30 +129,32 @@ update these files.
   toolchain. Remember this before you change `go.mod`.
 * The driver is `modernc.org/sqlite`, because it is pure Go and works with
   `CGO_ENABLED=0`.
-* **Use one package for each component under `backend/internal/`.** The split is
-  in progress. A package imports only packages of a lower layer. `importLayers`
-  in `backend/import_layers_test.go` is the table, and `TestImportLayers` holds
-  it. Give each new package a row. At the end of the split, `backend` is the
-  gomobile and desktop facade. It then holds no logic, and it exports only
-  functions of simple types. Until then, the App side of a package is one file
-  of `package backend`, for example `config_app.go`, `storage_app.go`,
+* **Use one package for each component under `backend/internal/`.** A package
+  imports only packages of a lower layer. `importLayers` in
+  `backend/import_layers_test.go` is the table, and `TestImportLayers` holds it.
+  Give each new package a row. `backend` is the gomobile and desktop facade. It
+  holds no logic, and it exports only functions of simple types. The
+  application is `package app` in `backend/internal/app/`. The App side of a
+  package is one file there, for example `config_app.go`, `storage_app.go`,
   `render_app.go`, `db_app.go`, `gitsync_app.go`, `search_app.go`,
   `files_app.go`, `exchange_app.go` and `status_app.go`. Its methods give the
   values of the App to the package.
-* **Until the split ends, keep the groups of `package backend` apart.** Each production
-  file there belongs to one group of `fileGroups` in `backend/group_links_test.go`. A
-  group uses only the groups of a lower layer. `TestGroupsUseOnlyLowerLayers` holds the
-  rule, with no exception. When a group must call a higher group, set a hook in
-  `connectGroups`.
+* **Keep the groups of `package app` apart.** Each production file there belongs
+  to one group of `fileGroups` in `backend/internal/app/group_links_test.go`. A
+  group uses only the groups of a lower layer. `TestGroupsUseOnlyLowerLayers`
+  holds the rule, with no exception. When a group must call a higher group, set
+  a hook in `connectGroups`.
 * **Keep the exported surface small.** Export only what the Android layer or
   the desktop entry point calls. The Android layer calls `StartServer`,
   `AssetsRefreshed`, `SetAndroidPackage` and `SetLANAddresses`.
   `main_desktop.go` calls `StartServer`, `WaitUntilReady` and `ServerPort`.
-  These six functions are the facade. Write everything else as a lowercase
-  method on `*App`.
-* The package also exports the type `App`. No caller outside the package uses
-  it, and it leaves `package backend` with the move of the app group. Do not
-  add an exported name.
+  These six functions are the facade in `backend/backend.go`. Each one calls
+  the function of the same name in `package app`. Write everything else as a
+  lowercase method on `*App`.
+* `package app` exports the type `App`, the six functions and `SetVersion`.
+  Only `backend/backend.go` calls them. `SetVersion` gives `APP_VERSION` to
+  the app, because `package app` cannot import `backend`. Do not add an
+  exported name.
 * **Names.** Use `handleXxx` for an API endpoint. Use `serveXxx` for a page or an
   asset. Use `renderXxxPage` with an `xxxView` struct. Use `normalizeXxx` for value
   repair. Write a predicate as a question: `storage.IsLocalOnlyPath`,
@@ -215,17 +219,18 @@ update these files.
   The `config.NormalizeXxx` functions repair an unknown enum value. The loader, the POST
   handler, and the renderer then always agree. A request that omits a field leaves
   that field alone. See `configFieldSent` in `config_handlers.go`.
-* **Routes.** Register every route in `registerRoutes` in `backend/server.go`.
-  `StartServer` calls it with `a.Router`, a plain `http.ServeMux`. The parameter
-  is the small `routeTable` interface, thus `TestBaseline_RouteSet` can pass a
-  recorder and read the real table. Do not register a route anywhere else. Use
-  the form `route(mux, "POST", "/api/x", a.authMiddleware(a.handleX))`. Give a
-  route that reads the method GET. Give a route that writes the method POST.
-  `route` also registers the bare path, and that path answers 405 for another
-  method. Do not check `r.Method` in a handler. A protected route needs the
-  admin role. Add a comment to any registration that differs from this form.
-  Add a system page as a row of `systemPages` in `backend/page_access.go`. Do
-  not check the role in a page handler.
+* **Routes.** Register every route in `registerRoutes` in
+  `backend/internal/app/server.go`. `StartServer` calls it with `a.Router`, a
+  plain `http.ServeMux`. The parameter is the small `routeTable` interface, thus
+  `TestBaseline_RouteSet` can pass a recorder and read the real table. Do not
+  register a route anywhere else. Use the form `route(mux, "POST", "/api/x",
+  a.authMiddleware(a.handleX))`. Give a route that reads the method GET. Give a
+  route that writes the method POST. `route` also registers the bare path, and
+  that path answers 405 for another method. Do not check `r.Method` in a
+  handler. A protected route needs the admin role. Add a comment to any
+  registration that differs from this form. Add a system page as a row of
+  `systemPages` in `backend/internal/app/page_access.go`. Do not check the role
+  in a page handler.
 * **Comments say what the code does now, and why, one time.** Many files start
   with a `// ---` banner. The banner gives the design decision and the rejected
   alternative. Write the same kind of justification for new code that is not
@@ -456,15 +461,18 @@ subject line, also when it has no list.
 
 ## 8. Tests
 
-* The Go tests live in `backend/`. Most production files have a test file of the
-  same name beside them. Some test files hold one topic across many files. Examples
-  are `baseline_test.go`, `ports_test.go` and `pipelines_test.go`. All tests use
-  `package backend`, so they are white-box tests.
-* **Go is the one gate, and it is not the only language.** `backend/js_test.go`
-  runs the JavaScript tests of `backend/frontend/test/` with `node --test`.
-  `backend/java_test.go` compiles and runs `android/test/` with `javac` and
-  `java`. Each one skips when the tool is absent, and the build image holds both.
-  `doc/TESTING.md` maps the whole set.
+* Each Go package holds its own tests. The tests of the application live in
+  `backend/internal/app/`. The tests in `backend/` read the whole repository,
+  for example `ports_test.go` and `pipelines_test.go`. Most production files
+  have a test file of the same name beside them. Some test files hold one topic
+  across many files, for example `baseline_test.go`. Each test uses the package
+  of its directory, so the tests are white-box tests.
+* **Go is the one gate, and it is not the only language.**
+  `backend/internal/app/js_test.go` runs the JavaScript tests of
+  `backend/frontend/test/` with `node --test`. `backend/java_test.go` compiles
+  and runs `android/test/` with `javac` and `java`. Each one skips when the tool
+  is absent, and the build image holds both. `doc/TESTING.md` maps the whole
+  set.
 * **A test that reads source text proves what a file SAYS. A test that runs the
   code proves what the code DOES.** Prefer the second. A test that runs the code
   finds faults that a test of the source text cannot see.

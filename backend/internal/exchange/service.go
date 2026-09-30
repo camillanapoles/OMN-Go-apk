@@ -10,7 +10,7 @@ import (
 
 // Service is the note exchange for one call. The App makes one with its
 // storage layout, two settings and its loggers. See exchange in
-// backend/exchange_app.go.
+// backend/internal/app/exchange_app.go.
 type Service struct {
 	Layout         storage.Layout
 	MimeTypes      map[string]string // the mime_types setting

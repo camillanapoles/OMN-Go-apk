@@ -20,8 +20,9 @@ import (
 // file reaches StorageDir in one of two ways:
 //
 //	- A USER file comes from the embed ONLY when it is absent.
-//	  materializeAsset in backend/serving.go extracts an html/ file at the
-//	  first request, and the start extracts the starter notes one time.
+//	  materializeAsset in backend/internal/app/serving.go extracts an html/
+//	  file at the first request, and the start extracts the starter notes
+//	  one time.
 //	  After that, the copy belongs to the user, for example md/Welcome.md.
 //	- A VERSION-DEPENDENT file (VersionDependentAssets) must match the
 //	  running build: the app scripts, the app styles and the system notes.
@@ -50,7 +51,8 @@ var backupLabelSanitizer = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 // EACH FILE BELOW html/ IS IN AN OMN-Go DIRECTORY.
 // TestEveryAppAssetIsUnderOMNGo holds that rule. The two user files stay at
 // html/js/omn-go-custom.js and html/css/omn-go-custom.css. legacyAssetURL in
-// backend/serving.go answers a request for an old path from the new place. See
+// backend/internal/app/serving.go answers a request for an old path from the
+// new place. See
 // doc/decisions/0007-keep-the-application-files-in-omn-go-directories.md.
 var VersionDependentAssets = []string{
 	"html/js/OMN-Go/omn-go-compat.js",
@@ -107,9 +109,9 @@ var RetiredAssets = []string{
 }
 
 // RetiredFonts adds the old place of each web font to RetiredAssets. A font is
-// not version-dependent: materializeAsset in backend/serving.go writes it when
-// a page asks for it. The list comes from the embedded tree, thus a new font
-// needs no change here.
+// not version-dependent: materializeAsset in backend/internal/app/serving.go
+// writes it when a page asks for it. The list comes from the embedded tree,
+// thus a new font needs no change here.
 var RetiredFonts = func() []string {
 	entries, err := frontend.Static.ReadDir("html/css/OMN-Go/fonts")
 	if err != nil {

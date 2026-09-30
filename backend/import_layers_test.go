@@ -12,11 +12,11 @@ import (
 	"testing"
 )
 
-// importLayers gives the layer of each package of the module. A package
-// imports only packages of a lower layer. Each new package under
-// backend/internal gets a row here. The layers are the same as groupLayers
-// in group_links_test.go: 0 for the leaves, up to 6 for app. backend is the
-// facade on top.
+// importLayers gives the layer of each package of the module. A package imports
+// only packages of a lower layer. Each new package under backend/internal gets
+// a row here. The layers are the same as groupLayers in
+// internal/app/group_links_test.go: 0 for the leaves, up to 6 for app. backend
+// is the facade on top.
 var importLayers = map[string]int{
 	"net.basov.omngo/backend/frontend":            0,
 	"net.basov.omngo/backend/internal/logx":       0,
@@ -31,6 +31,7 @@ var importLayers = map[string]int{
 	"net.basov.omngo/backend/internal/status":     5,
 	"net.basov.omngo/backend/internal/noteheader": 0,
 	"net.basov.omngo/backend/internal/textmatch":  0,
+	"net.basov.omngo/backend/internal/app":        6,
 	"net.basov.omngo/backend":                     7,
 }
 

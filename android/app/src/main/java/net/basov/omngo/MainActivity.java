@@ -458,7 +458,8 @@ public class MainActivity extends Activity {
                 // The server is up at this point. startService above sends
                 // onStartCommand to this same main thread, and
                 // Backend.startServer completes the work with the assets
-                // before it returns. See initStorage in backend/storage.go.
+                // before it returns. See initStorage in
+                // backend/internal/app/storage.go.
                 // This runnable comes 1 second later.
                 if (!assetCacheCleared && Backend.assetsRefreshed()) {
                     assetCacheCleared = true;
@@ -743,8 +744,9 @@ public class MainActivity extends Activity {
     //      extension whitelist and max-size limit that saveUploadedFile
     //      enforces on the server for the own drag-and-drop upload of the
     //      editor. The limit comes from max_upload_size_mb in config.json.
-    //      See backend/upload_handlers.go. If imageUploadExtensions or
-    //      jsonUploadExtensions changes there, change the whitelist here too.
+    //      See backend/internal/app/upload_handlers.go. If
+    //      imageUploadExtensions or jsonUploadExtensions changes there,
+    //      change the whitelist here too.
     //   2. Build the same snippet format that those Go handlers return.
     //      An image gets an HTML <img class="omn-imported-image"> tag, and
     //      JSON gets [name](/user_json/name) markdown link syntax. POST it
@@ -752,8 +754,8 @@ public class MainActivity extends Activity {
     //      QuickNotes.md append and compile logic of the server is thus
     //      reused and not duplicated here. See handleQuickNote. A loopback
     //      request bypasses authMiddleware entirely, see
-    //      backend/middleware.go, thus no session or cookie handling is
-    //      needed.
+    //      backend/internal/app/middleware.go, thus no session or cookie
+    //      handling is needed.
     // This runs entirely on a background thread and never touches webView,
     // thus it is safe whatever page is loaded. Only a single-file share is
     // handled, which is ACTION_SEND and not ACTION_SEND_MULTIPLE. That
@@ -761,9 +763,9 @@ public class MainActivity extends Activity {
 
     // JSON and image extensions this app accepts via share - kept in sync
     // with jsonUploadExtensions / imageUploadExtensions in
-    // backend/upload_handlers.go. These two sets are the one source in this
-    // file. isSharedFileIntent and handleSharedFile both use them, thus no
-    // other line types the lists again.
+    // backend/internal/app/upload_handlers.go. These two sets are the one
+    // source in this file. isSharedFileIntent and handleSharedFile both use
+    // them, thus no other line types the lists again.
     private static final java.util.Set<String> SHARED_JSON_EXT =
         new java.util.HashSet<>(java.util.Arrays.asList(".json", ".jsonl"));
     private static final java.util.Set<String> SHARED_IMAGE_EXT =
@@ -982,8 +984,8 @@ public class MainActivity extends Activity {
      * the note, and the incoming index lists it when the user is ready.
      *
      * The editor is recognized by its URL: ?edit=true is served by the
-     * standalone editor page (see serveEditor in backend/handlers.go), and
-     * the query stays in the address.
+     * standalone editor page (see serveEditor in
+     * backend/internal/app/handlers.go), and the query stays in the address.
      */
     private void openImportedNote(final String url) {
         runOnUiThread(new Runnable() {
@@ -1089,7 +1091,8 @@ public class MainActivity extends Activity {
                     }
 
                     // This is the format that handleUpload and
-                    // handleUploadJSON in backend/upload_handlers.go make.
+                    // handleUploadJSON in
+                    // backend/internal/app/upload_handlers.go make.
                     // If either one changes, change this code by hand.
                     //
                     // Images went from markdown image syntax to an HTML
@@ -1220,7 +1223,8 @@ public class MainActivity extends Activity {
     }
 
     // POSTs note (already-built markdown) to /api/quick, appending it to
-    // QuickNotes.md - see handleQuickNote in backend/note_handlers.go.
+    // QuickNotes.md - see handleQuickNote in
+    // backend/internal/app/note_handlers.go.
     private void postQuickNote(String note) throws java.io.IOException {
         java.net.URL url = new java.net.URL(serverBase() + "/api/quick");
         java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();

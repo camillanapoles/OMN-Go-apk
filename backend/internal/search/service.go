@@ -11,7 +11,7 @@ import (
 
 // Service is the search feature for one call. The App makes one with its
 // index, its storage layout, a copy of the settings, its loggers and its page
-// shell. See searchService in backend/search_app.go.
+// shell. See searchService in backend/internal/app/search_app.go.
 type Service struct {
 	Index      *Index // nil before initStorage makes the index
 	Layout     storage.Layout

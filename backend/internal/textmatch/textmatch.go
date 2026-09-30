@@ -19,7 +19,7 @@ package textmatch
 // scores 85, and a perfect subsequence scores 95. An order by score alone
 // would thus put a vague match above the word itself. TierPhrase stands above
 // the three rungs, and it belongs to a whole query. See scoreDocument in
-// package backend.
+// package search.
 //
 // ScoreTerm runs rungs 1 and 2. Rung 3 needs a set of candidate tokens, and
 // only the caller can make that set: the index, or the search of one page.

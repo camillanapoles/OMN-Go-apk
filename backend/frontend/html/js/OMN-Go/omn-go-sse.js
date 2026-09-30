@@ -506,8 +506,9 @@ if (window.location.protocol !== 'file:') {
     //
     // THIS VALUE DECIDES NOTHING ON THE SERVER. The server reads the
     // signed session_role cookie, which is HttpOnly and thus invisible
-    // here. See the banner of backend/session.go. A reader who changes
-    // this cookie changes what this page shows and gets no permission.
+    // here. See the banner of backend/internal/app/session.go. A reader who
+    // changes this cookie changes what this page shows and gets no
+    // permission.
     //
     // A test of document.cookie for 'session_role' finds nothing, because
     // the signed cookie is HttpOnly.

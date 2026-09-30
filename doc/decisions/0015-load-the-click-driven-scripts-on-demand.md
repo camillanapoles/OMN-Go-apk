@@ -51,5 +51,5 @@ presses a control: a sync button, the bookmark button or the magnifier.
   promised name, and a ReferenceError fails the test. `dom-stub.js`
   loads a file as a Node module. That gives the file its own scope, which
   hides this fault.
-* `TestJavaScriptUnitTests` in `backend/js_test.go` runs that test in the
-  gate.
+* `TestJavaScriptUnitTests` in `backend/internal/app/js_test.go` runs that test
+  in the gate.

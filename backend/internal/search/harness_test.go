@@ -13,10 +13,10 @@ import (
 	"net.basov.omngo/backend/internal/storage"
 )
 
-// testApp stands in for the App of package backend. It holds the storage
+// testApp stands in for the App of package app. It holds the storage
 // directory, the settings and the index, the same fields that the App gives
 // to a Service. The tests of this package read these fields by the names of
-// the App, thus a test reads the same here and in package backend.
+// the App, thus a test reads the same here and in package app.
 type testApp struct {
 	StorageDir string
 	config     config.Store
@@ -26,7 +26,7 @@ type testApp struct {
 }
 
 // newTestApp answers the stand-in of a fresh install. It makes md/ and html/
-// and loads the settings, the same as newTestApp of package backend.
+// and loads the settings, the same as newTestApp of package app.
 func newTestApp(t *testing.T) *testApp {
 	t.Helper()
 	a := &testApp{StorageDir: t.TempDir()}
@@ -42,7 +42,7 @@ func newTestApp(t *testing.T) *testApp {
 }
 
 // newUnconfiguredApp answers the stand-in with md/ and html/ and the zero
-// Config, the same as newUnconfiguredApp of package backend.
+// Config, the same as newUnconfiguredApp of package app.
 func newUnconfiguredApp(t *testing.T) *testApp {
 	t.Helper()
 	a := &testApp{StorageDir: t.TempDir()}
@@ -65,7 +65,7 @@ func (a *testApp) testRenderer() *render.Renderer {
 }
 
 // renderPage writes one page in the page shell, the same as renderPage of
-// package backend.
+// package app.
 func (a *testApp) renderPage(w http.ResponseWriter, code int, name string, header []byte, body string) {
 	rd := a.testRenderer()
 	compiled := rd.CompilePageWithBody(name, header, body)
@@ -79,7 +79,7 @@ func (a *testApp) layout() storage.Layout { return storage.Layout(a.StorageDir) 
 func (a *testApp) log(tag logx.Tag) logx.Logger { return logx.New(tag, &a.filter, &a.hub) }
 
 // searchService answers the Service of the stand-in, the same as
-// searchService of package backend.
+// searchService of package app.
 func (a *testApp) searchService() Service {
 	return Service{
 		Index:      a.search,

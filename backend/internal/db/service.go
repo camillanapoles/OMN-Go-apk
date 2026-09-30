@@ -22,7 +22,7 @@ type Store struct {
 
 // Service is the db feature for one call. The App makes one with its
 // store, its storage layout, two settings, its loggers and its page shell.
-// See databases in backend/db_app.go.
+// See databases in backend/internal/app/db_app.go.
 type Service struct {
 	Store      *Store
 	Layout     storage.Layout

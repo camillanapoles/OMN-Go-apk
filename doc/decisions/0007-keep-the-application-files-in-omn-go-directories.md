@@ -4,8 +4,8 @@
 * Version: 26.09.12
 * Code: `storage.VersionDependentAssets`, `storage.RetiredAssets` and
   `removeRetiredAssets` in `backend/internal/storage/assets.go`,
-  `legacyAssetURL` in `backend/serving.go`, `gitsync.GitignorePatterns` in
-  `backend/internal/gitsync/repo.go`
+  `legacyAssetURL` in `backend/internal/app/serving.go`,
+  `gitsync.GitignorePatterns` in `backend/internal/gitsync/repo.go`
 
 ## Context
 
@@ -38,5 +38,5 @@ directory could not tell which file belongs to whom.
   delete it.
 * `storage.RetiredAssets` only grows. An install can skip any number of
   versions.
-* `TestEveryAppAssetIsUnderOMNGo` in `backend/assets_layout_test.go`
-  holds the rule for each new file.
+* `TestEveryAppAssetIsUnderOMNGo` in
+  `backend/internal/app/assets_layout_test.go` holds the rule for each new file.

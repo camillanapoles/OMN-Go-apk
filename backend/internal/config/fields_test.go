@@ -15,7 +15,7 @@ import (
 // Tests for the table of settings in fields.go.
 //
 // The table is the one authority for the form side of a setting. These
-// tests hold that claim. The tests of package backend pin the apply
+// tests hold that claim. The tests of package app pin the apply
 // behavior itself. They post real forms and read the result. Nothing here
 // repeats that work.
 

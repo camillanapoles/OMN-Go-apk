@@ -13,7 +13,7 @@ import (
 
 // Service is the Status page for one request. The App makes one with its
 // storage layout, a copy of the settings and the facts of the server process.
-// See statusService in backend/status_app.go.
+// See statusService in backend/internal/app/status_app.go.
 type Service struct {
 	Layout          storage.Layout
 	Config          config.Config

@@ -8,7 +8,7 @@ import "sync"
 //
 // A LOG LINE MUST NEVER TAKE THIS LOCK. The loadConfig method of package
 // backend holds the write lock and writes log lines. See applyLogFilter
-// in backend/config_app.go.
+// in backend/internal/app/config_app.go.
 type Store struct {
 	mu  sync.RWMutex
 	cfg Config

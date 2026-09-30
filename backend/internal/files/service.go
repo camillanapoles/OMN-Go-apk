@@ -8,7 +8,7 @@ import (
 
 // Service is the Files page for one request. The App makes one with its
 // storage layout, its mime_types setting and its page shell. See
-// filesService in backend/files_app.go.
+// filesService in backend/internal/app/files_app.go.
 type Service struct {
 	Layout     storage.Layout
 	MimeTypes  map[string]string // the mime_types setting

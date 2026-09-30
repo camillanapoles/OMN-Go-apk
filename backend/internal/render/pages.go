@@ -151,8 +151,8 @@ func (rd *Renderer) InjectRuntimeVars(page []byte) []byte {
 
 // WriteHTMLHeader is the ONE place that sets the type of a page, with the
 // charset: a page that the server renders has no <meta charset>.
-// pageCacheWriter in backend/middleware.go reads the prefix "text/html". See
-// TestConnectionMiddlewareUsesNoStoreForAPage.
+// pageCacheWriter in backend/internal/app/middleware.go reads the prefix
+// "text/html". See TestConnectionMiddlewareUsesNoStoreForAPage.
 func WriteHTMLHeader(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", HTMLContentType)
 }

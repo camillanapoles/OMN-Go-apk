@@ -5,7 +5,8 @@ package storage
 // ----------------------------------------------------------------------
 //
 // md/ is the notes tree. html/ is what the server sends: a URL that is not a
-// page resolves under html/ alone. See materializeAsset in backend/serving.go.
+// page resolves under html/ alone. See materializeAsset in
+// backend/internal/app/serving.go.
 //
 // A person keeps a text file beside the note that links to it, for example
 // md/Log.md and md/log.txt. Git sync carries md/, and a file manager shows

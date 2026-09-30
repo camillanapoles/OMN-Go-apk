@@ -20,7 +20,7 @@ type State struct {
 
 // Service is the sync feature for one call. The App makes one with its
 // state, its storage layout, a copy of the settings and its loggers. See
-// gitSync in backend/gitsync_app.go.
+// gitSync in backend/internal/app/gitsync_app.go.
 type Service struct {
 	State  *State
 	Layout storage.Layout

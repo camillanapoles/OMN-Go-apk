@@ -14,7 +14,7 @@ import (
 	"net.basov.omngo/backend/internal/storage"
 )
 
-// testApp stands in for the App of package backend. It holds the storage
+// testApp stands in for the App of package app. It holds the storage
 // directory and the settings, the fields that the App gives to a Service.
 // The tests of this package read them by the names of the App.
 type testApp struct {
@@ -25,7 +25,7 @@ type testApp struct {
 }
 
 // newTestApp answers the stand-in of a fresh install. It makes md/ and html/
-// and loads the settings, the same as newTestApp of package backend.
+// and loads the settings, the same as newTestApp of package app.
 func newTestApp(t *testing.T) *testApp {
 	t.Helper()
 	a := &testApp{StorageDir: t.TempDir()}
@@ -45,7 +45,7 @@ func (a *testApp) layout() storage.Layout { return storage.Layout(a.StorageDir) 
 func (a *testApp) log(tag logx.Tag) logx.Logger { return logx.New(tag, &a.filter, &a.hub) }
 
 // exchange answers the Service of the stand-in, the same as exchange of
-// package backend.
+// package app.
 func (a *testApp) exchange() Service {
 	cfg := a.config.Get()
 	return Service{

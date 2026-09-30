@@ -2,7 +2,8 @@
 
 * Status: accepted
 * Version: 26.09.6
-* Code: `backend/session.go`, `hasRole` in `backend/middleware.go`
+* Code: `backend/internal/app/session.go`, `hasRole` in
+  `backend/internal/app/middleware.go`
 
 ## Context
 

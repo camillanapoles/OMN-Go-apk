@@ -2,8 +2,9 @@
 
 * Status: accepted
 * Version: 26.09.106
-* Code: `foreignRequest` and `isKnownHost` in `backend/request_guard.go`,
-  `connectionMiddleware` in `backend/middleware.go`
+* Code: `foreignRequest` and `isKnownHost` in
+  `backend/internal/app/request_guard.go`, `connectionMiddleware` in
+  `backend/internal/app/middleware.go`
 
 ## Context
 

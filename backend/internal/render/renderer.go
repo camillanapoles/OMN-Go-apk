@@ -7,7 +7,7 @@ import (
 
 // Renderer holds each value that a page compile needs. The App makes one
 // for each call, with a copy of the settings of that moment. See renderer in
-// backend/render_app.go.
+// backend/internal/app/render_app.go.
 type Renderer struct {
 	Layout storage.Layout
 	Config config.Config

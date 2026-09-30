@@ -18,7 +18,7 @@ import (
 // testVersion is the APP_VERSION of the stand-in.
 const testVersion = "test"
 
-// testApp stands in for the App of package backend. It holds the storage
+// testApp stands in for the App of package app. It holds the storage
 // directory, the settings, the start time, the Android facts and the index,
 // the fields that the App gives to a Service. The tests of this package read
 // them by the names of the App.
@@ -33,7 +33,7 @@ type testApp struct {
 }
 
 // newTestApp answers the stand-in of a fresh install. It makes md/ and html/
-// and loads the settings, the same as newTestApp of package backend.
+// and loads the settings, the same as newTestApp of package app.
 func newTestApp(t *testing.T) *testApp {
 	t.Helper()
 	a := &testApp{StorageDir: t.TempDir(), startedAt: time.Now()}
@@ -53,7 +53,7 @@ func (a *testApp) layout() storage.Layout { return storage.Layout(a.StorageDir) 
 func (a *testApp) log(tag logx.Tag) logx.Logger { return logx.New(tag, &a.filter, &a.hub) }
 
 // renderPage writes one page in the page shell, the same as renderPage of
-// package backend.
+// package app.
 func (a *testApp) renderPage(w http.ResponseWriter, code int, name string, header []byte, body string) {
 	rd := render.Renderer{Layout: a.layout(), Config: a.config.Get(), Version: "test", Generator: "OMN-Go test"}
 	compiled := rd.CompilePageWithBody(name, header, body)
@@ -63,7 +63,7 @@ func (a *testApp) renderPage(w http.ResponseWriter, code int, name string, heade
 }
 
 // statusService answers the Service of the stand-in, the same as
-// statusService of package backend.
+// statusService of package app.
 func (a *testApp) statusService() Service {
 	return Service{
 		Layout:       a.layout(),

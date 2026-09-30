@@ -3,7 +3,7 @@
 * Status: accepted
 * Version: 26.09.7
 * Code: `config.ApplyGitServerForm` in `backend/internal/config/fields.go`,
-  `gitServerView` and `configPageView` in `backend/config_page.go`,
+  `gitServerView` and `configPageView` in `backend/internal/app/config_page.go`,
   `backend/frontend/html/js/OMN-Go/omn-go-config.js`
 
 ## Context
@@ -34,7 +34,7 @@ key with an empty one.
 
 * To clear a password, the reader must type in the box. An empty box that
   is not dirty changes nothing.
-* `TestConfigPageCarriesNoSecret` and `TestConfigPostKeepsAnUnsentGitSecret`
-  in `backend/config_secrets_test.go` hold the two halves of the rule.
+* `TestConfigPageCarriesNoSecret` and `TestConfigPostKeepsAnUnsentGitSecret` in
+  `backend/internal/app/config_secrets_test.go` hold the two halves of the rule.
 * `TestSecretAttributeHasAFrontendReader` checks that the page and the
   script use the same attribute name.

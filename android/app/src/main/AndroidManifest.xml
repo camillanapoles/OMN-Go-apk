@@ -123,7 +123,7 @@
               the text/plain filter above; only image/* and
               application/json are advertised, matching the "only images
               and JSON accepted" whitelist saveUploadedFile enforces
-              server-side (backend/handlers.go).
+              server-side (backend/internal/app/handlers.go).
             -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
