@@ -14,6 +14,7 @@ import (
 	"net.basov.omngo/backend/internal/gitsync"
 	"net.basov.omngo/backend/internal/logx"
 	"net.basov.omngo/backend/internal/render"
+	"net.basov.omngo/backend/internal/search"
 )
 
 // App encapsulates the global state for the backend
@@ -29,9 +30,9 @@ type App struct {
 	dbs db.Store      // the open user databases (see db_app.go)
 	git gitsync.State // the lock of the repository and the host keys (see gitsync_app.go)
 
-	// search is the global index (search_index.go). It is empty until global
-	// search is on.
-	search *searchIndex
+	// search is the global index (internal/search/index.go). It is empty until
+	// global search is on.
+	search *search.Index
 
 	// onPageWritten is the hook of renderAndCache. The page cache thus does
 	// not call the search index. connectGroups sets the hook, and a nil hook

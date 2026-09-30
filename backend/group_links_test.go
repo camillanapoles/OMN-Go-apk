@@ -25,10 +25,7 @@ var fileGroups = map[string]string{
 	"files_index.go": "files", "files_page.go": "files", "files_state.go": "files",
 	"note_exchange.go": "exchange", "note_exchange_http.go": "exchange",
 	"status.go": "status", "status_collect.go": "status", "status_render.go": "status",
-	"search.go": "search", "search_document.go": "search",
-	"search_http.go": "search", "search_index.go": "search",
-	"search_index_build.go": "search", "search_page.go": "search",
-	"search_score.go": "search", "search_sections.go": "search",
+	"search_app.go":  "search",
 	"gitsync_app.go": "gitsync",
 	"db_app.go":      "db",
 

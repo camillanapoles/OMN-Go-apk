@@ -9,6 +9,7 @@ import (
 
 	"net.basov.omngo/backend/frontend"
 	"net.basov.omngo/backend/internal/logx"
+	"net.basov.omngo/backend/internal/search"
 )
 
 // initStorage sets a.StorageDir and makes its layout. A non-empty overrideDir
@@ -63,7 +64,7 @@ func (a *App) initStorage(overrideDir string) {
 
 	// The index struct exists from the start. It stays empty until a person
 	// turns global search on.
-	a.search = &searchIndex{}
+	a.search = &search.Index{}
 	// The hooks of connectGroups need the index, thus they follow it.
 	a.connectGroups()
 

@@ -571,17 +571,18 @@ if (window.location.protocol !== 'file:') {
         // A result lists each matching line. To open the first match in the
         // note is right for the first line alone. These are the same two
         // parameters that the results page puts on its links, which are
-        // highlightURL and snippetURL in search.go. A result thus behaves
-        // identically, whichever list it came from. The receiving page strips
-        // them from the address bar once applied, see omn-go-core.js.
+        // highlightURL and snippetURL in internal/search/search.go. A result
+        // thus behaves identically, whichever list it came from. The receiving
+        // page strips them from the address bar once applied, see
+        // omn-go-core.js.
         function withHighlight(url, m) {
             // The fragment stays last. A sectioned result arrives here as
             // "/Bookmarks.html#2026-06-15-200000". A blind append gives
-            // "#2026-06-15-200000?hl=cats". That is one fragment that names
-            // no element, and no query string at all, thus the page neither
-            // scrolls nor highlights. This mirrors highlightURL in search.go.
-            // The two build the same URL from opposite ends of the app, and
-            // they have to agree.
+            // "#2026-06-15-200000?hl=cats". That is one fragment that names no
+            // element, and no query string at all, thus the page neither
+            // scrolls nor highlights. This mirrors highlightURL in
+            // internal/search/search.go. The two build the same URL from
+            // opposite ends of the app, and they have to agree.
             var frag = '';
             var hash = url.indexOf('#');
             if (hash >= 0) {

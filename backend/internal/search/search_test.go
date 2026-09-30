@@ -1,4 +1,4 @@
-package backend
+package search
 
 // Tests for page-scope search: the always-on half of the feature.
 //
@@ -49,7 +49,7 @@ loadJSON();
 </script>
 `
 
-func searchReq(t *testing.T, a *App, query url.Values) (*httptest.ResponseRecorder, searchResponse) {
+func searchReq(t *testing.T, a *testApp, query url.Values) (*httptest.ResponseRecorder, searchResponse) {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodGet, "/api/search?"+query.Encode(), nil)
 	rec := httptest.NewRecorder()
@@ -483,7 +483,7 @@ func TestSearchButtonIsInTheRenderedPage(t *testing.T) {
 	}
 }
 
-func writeSearchNote(t *testing.T, a *App, rel, content string) {
+func writeSearchNote(t *testing.T, a *testApp, rel, content string) {
 	t.Helper()
 	p := filepath.Join(a.StorageDir, "md", filepath.FromSlash(rel))
 	if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
@@ -608,12 +608,12 @@ func TestEditorFindInputsDoNotDisableTheIME(t *testing.T) {
 // ---------------------------------------------------------------------
 
 // phraseDoc writes one note and gives its search document back.
-func phraseDoc(t *testing.T, a *App, name, content string) *searchDocument {
+func phraseDoc(t *testing.T, a *testApp, name, content string) *searchDocument {
 	t.Helper()
 	writeSearchNote(t, a, name+".md", content)
-	doc, err := a.loadPageDocument(name)
+	doc, err := a.searchService().LoadPageDocument(name)
 	if err != nil || doc == nil {
-		t.Fatalf("loadPageDocument(%q): %v", name, err)
+		t.Fatalf("LoadPageDocument(%q): %v", name, err)
 	}
 	return doc
 }
@@ -723,7 +723,7 @@ func TestPhraseTierIsLiteralAndAdjacent(t *testing.T) {
 
 // cutDoc writes a note whose first lines carry the query and whose tail
 // carries one letter of it.
-func cutDoc(t *testing.T, a *App, name string, tail int) *searchDocument {
+func cutDoc(t *testing.T, a *testApp, name string, tail int) *searchDocument {
 	t.Helper()
 	body := "Title: A note\n\nBuild the project and run the tests.\n" +
 		"The project waits here.\nThe tests wait here.\n"
@@ -862,7 +862,7 @@ func TestCutSnippetsInTheResponse(t *testing.T) {
 
 // csDoc writes a note that answers a two-word query on some lines with
 // the rare word and on others with the common word alone.
-func csDoc(t *testing.T, a *App, name string) *searchDocument {
+func csDoc(t *testing.T, a *testApp, name string) *searchDocument {
 	t.Helper()
 	body := "Title: A note\n\n" +
 		"The kingfisher waits by the water.\n" +

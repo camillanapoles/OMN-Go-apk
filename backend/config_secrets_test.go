@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -79,7 +80,7 @@ func TestEverySecretBoxIsMarked(t *testing.T) {
 
 	want := []string{"admin_password"}
 	for i := 0; i < config.MaxGitServers; i++ {
-		want = append(want, "git_key_"+itoa(i), "git_pass_"+itoa(i))
+		want = append(want, "git_key_"+strconv.Itoa(i), "git_pass_"+strconv.Itoa(i))
 	}
 	for _, name := range want {
 		if !strings.Contains(page, `data-secret="`+name+`"`) {

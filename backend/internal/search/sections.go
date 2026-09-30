@@ -1,4 +1,4 @@
-package backend
+package search
 
 // ----------------------------------------------------------------------
 // Sections: the address of a PART of a document

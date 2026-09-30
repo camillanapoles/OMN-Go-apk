@@ -2,6 +2,7 @@ package backend
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -385,19 +386,23 @@ func TestEveryHandKeptCopyHasAGuard(t *testing.T) {
 		{"the data-secret attribute", "TestSecretAttributeHasAFrontendReader"},
 	}
 
-	// Each named guard must exist in this package. A renamed test that
-	// nobody updated here leaves a row that promises a guard and gives
-	// none.
+	// Each named guard must exist in a test file below backend/. A guard
+	// moves with its package, thus the walk reads each directory. A renamed
+	// test that nobody updated here leaves a row that promises a guard and
+	// gives none.
 	sources := map[string]bool{}
-	entries, err := os.ReadDir(".")
+	var testFiles []string
+	err := filepath.WalkDir(".", func(p string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() && strings.HasSuffix(p, "_test.go") {
+			testFiles = append(testFiles, p)
+		}
+		return err
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, e := range entries {
-		if !strings.HasSuffix(e.Name(), "_test.go") {
-			continue
-		}
-		data, err := os.ReadFile(e.Name())
+	for _, name := range testFiles {
+		data, err := os.ReadFile(name)
 		if err != nil {
 			continue
 		}

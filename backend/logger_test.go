@@ -28,15 +28,16 @@ import (
 // logPrintfAllowed names the only two files that may call log.Printf. No *App
 // can reach either call site. render.LoadTemplate in
 // internal/render/templates.go runs at package init. logAnchorsOff and
-// addBookmarks in search_sections.go run from a package-level function inside a
-// sync.Once, and from a method on searchDocument, which has no application.
+// addBookmarks in internal/search/sections.go run from a package-level function
+// inside a sync.Once, and from a method on searchDocument, which has no
+// application.
 //
 // Each of those lines is a fault, and a fault always prints, so the missing
 // level costs the reader nothing. They write "(error)" in the text by hand,
 // which the second half of this test checks.
 var logPrintfAllowed = map[string]bool{
 	"internal/render/templates.go": true,
-	"search_sections.go":           true,
+	"internal/search/sections.go":  true,
 }
 
 // handWrittenLevelRe matches the shape those two files must produce:

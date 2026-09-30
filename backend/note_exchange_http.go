@@ -113,8 +113,8 @@ func (a *App) handleImportNote(w http.ResponseWriter, r *http.Request) {
 }
 
 // readImportBody reads at most limit bytes, and it answers an error when the
-// body has more. Do NOT use readCapped of search.go, because it cuts the
-// file, and half a note is not a useful import.
+// body has more. Do NOT use readCapped of internal/search/search.go, because it
+// cuts the file, and half a note is not a useful import.
 func readImportBody(r io.Reader, limit int64) ([]byte, error) {
 	data, err := io.ReadAll(io.LimitReader(r, limit+1))
 	if err != nil {

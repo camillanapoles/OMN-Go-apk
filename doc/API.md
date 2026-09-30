@@ -740,7 +740,7 @@ both scopes. Only the searched content differs.
 Page scope reads that one file for each request and keeps nothing. This is why
 page scope has no setting. There is no continuing cost that a setting could
 remove. The server answers global scope from the in-memory index
-(`backend/search_index.go`). The server builds that index only when
+(`backend/internal/search/index.go`). The server builds that index only when
 `search_enabled` is on.
 
 **Parameters** (query string)
@@ -803,7 +803,7 @@ The reason is arithmetic. A document score is the sum over the terms, and a
 field carries a weight. Several query words loose in one title thus outscore
 a body line that holds the sentence. A bonus large enough to close that gap
 in one query is too large in the next one. See the banner of `scoreDocument`
-in `backend/search_score.go` for the measurements. New in 26.08.80.
+in `backend/internal/search/score.go` for the measurements. New in 26.08.80.
 
 **Response** `200`
 
@@ -947,7 +947,8 @@ therefore the plain one, and a refresh does not apply the highlight again.
 
 The parameter repeats instead of one comma-joined value, because a term can
 contain a comma. The client ignores a term shorter than 2 runes (`OMN_HL_MIN`
-in `omn-go-core.js`, `highlightMinRunes` in `search.go` — the two ends agree).
+in `omn-go-core.js`, `highlightMinRunes` in `internal/search/search.go` — the
+two ends agree).
 
 `omn-go-core.js` handles all of this. The highlight therefore works on a page
 opened from disk with no server running, and on a page that the search panel

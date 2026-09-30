@@ -1,4 +1,4 @@
-package backend
+package search
 
 import (
 	"os"
@@ -9,6 +9,7 @@ import (
 	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/noteheader"
 	"net.basov.omngo/backend/internal/render"
+	"net.basov.omngo/backend/internal/storage"
 	"net.basov.omngo/backend/internal/textmatch"
 )
 
@@ -45,21 +46,21 @@ type searchDocument struct {
 	truncated bool
 }
 
-// loadPageDocument reads the one file of a page query. resolvePageName
+// LoadPageDocument reads the one file of a page query. resolvePageName
 // decides what name means. A missing file, or one outside the storage
 // directory, gives nil and no error, thus a query cannot probe the file
 // system.
-func (a *App) loadPageDocument(name string) (*searchDocument, error) {
+func (svc Service) LoadPageDocument(name string) (*searchDocument, error) {
 	if name == "" {
 		return nil, nil
 	}
-	mdPath, htmlPath, baseName, isPage := a.resolvePageName(name)
+	mdPath, htmlPath, baseName, isPage := storage.ResolvePageName(svc.Layout, svc.Config.MimeTypes, name)
 
 	filePath := htmlPath
 	if isPage {
 		filePath = mdPath
 	}
-	if !a.layout().Contains(filePath) {
+	if !svc.Layout.Contains(filePath) {
 		return nil, nil
 	}
 

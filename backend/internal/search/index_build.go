@@ -1,4 +1,4 @@
-package backend
+package search
 
 import (
 	"io/fs"
@@ -19,7 +19,7 @@ type searchRoot struct {
 	exts []string
 }
 
-func (a *App) searchRoots(kinds []string) []searchRoot {
+func (svc Service) searchRoots(kinds []string) []searchRoot {
 	want := map[string]bool{}
 	for _, k := range kinds {
 		want[k] = true
@@ -28,44 +28,44 @@ func (a *App) searchRoots(kinds []string) []searchRoot {
 	if want[config.SearchKindMD] || want[config.SearchKindBookmarks] {
 		roots = append(roots, searchRoot{
 			kind: config.SearchKindMD,
-			dir:  a.layout().MD(),
+			dir:  svc.Layout.MD(),
 			exts: []string{".md"},
 		})
 	}
 	if want[config.SearchKindJS] {
 		roots = append(roots, searchRoot{
 			kind: config.SearchKindJS,
-			dir:  a.layout().HTML("js"),
+			dir:  svc.Layout.HTML("js"),
 			exts: []string{".js"},
 		})
 	}
 	if want[config.SearchKindJSON] {
 		roots = append(roots, searchRoot{
 			kind: config.SearchKindJSON,
-			dir:  a.layout().HTML("json"),
+			dir:  svc.Layout.HTML("json"),
 			exts: []string{".json"},
 		})
 	}
 	if want[config.SearchKindUserJSON] {
 		roots = append(roots, searchRoot{
 			kind: config.SearchKindUserJSON,
-			dir:  a.layout().HTML("user_json"),
+			dir:  svc.Layout.HTML("user_json"),
 			exts: []string{".json", ".jsonl"},
 		})
 	}
 	return roots
 }
 
-// rebuildSearchIndex walks the enabled roots and replaces the index. It makes
+// RebuildIndex walks the enabled roots and replaces the index. It makes
 // the new map first, and swaps it in under the write lock. A query thus sees
 // the whole old index or the whole new one.
-func (a *App) rebuildSearchIndex() {
-	cfg := a.config.Get()
+func (svc Service) RebuildIndex() {
+	cfg := svc.Config
 	if !cfg.SearchEnabled {
-		a.dropSearchIndex()
+		svc.DropIndex()
 		return
 	}
-	if a.search == nil {
+	if svc.Index == nil {
 		return
 	}
 
@@ -88,7 +88,7 @@ func (a *App) rebuildSearchIndex() {
 	var bytes int64
 	capped := false
 
-	for _, root := range a.searchRoots(kinds) {
+	for _, root := range svc.searchRoots(kinds) {
 		_ = filepath.WalkDir(root.dir, func(p string, e fs.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				return nil
@@ -141,7 +141,7 @@ func (a *App) rebuildSearchIndex() {
 			if err != nil {
 				return nil
 			}
-			doc := a.indexFile(root.kind, kind, rel, p, info, bundled, docFreq)
+			doc := svc.indexFile(root.kind, kind, rel, p, info, bundled, docFreq)
 			if doc == nil {
 				return nil
 			}
@@ -160,32 +160,32 @@ func (a *App) rebuildSearchIndex() {
 		}
 	}
 
-	stamp := a.searchStamp(kinds)
+	stamp := svc.searchStamp(kinds)
 
-	a.search.mu.Lock()
-	a.search.docs = docs
-	a.search.common = common
-	a.search.lines = lines
-	a.search.bytes = bytes
-	a.search.stamp = stamp
-	a.search.checked = time.Now()
-	a.search.built = time.Now()
-	a.search.dirty = false
-	a.search.kinds = strings.Join(kinds, ",")
-	a.search.bundled = cfg.SearchBundled
-	a.search.mu.Unlock()
+	svc.Index.mu.Lock()
+	svc.Index.docs = docs
+	svc.Index.commonSet = common
+	svc.Index.lines = lines
+	svc.Index.bytes = bytes
+	svc.Index.stamp = stamp
+	svc.Index.checked = time.Now()
+	svc.Index.built = time.Now()
+	svc.Index.dirty = false
+	svc.Index.kinds = strings.Join(kinds, ",")
+	svc.Index.bundled = cfg.SearchBundled
+	svc.Index.mu.Unlock()
 
 	if capped {
-		a.log(logx.Search).Errf("index capped at %d MB of text; some files were left out", maxIndexBytes>>20)
+		svc.Log(logx.Search).Errf("index capped at %d MB of text; some files were left out", maxIndexBytes>>20)
 	}
-	a.log(logx.Search).Infof("Indexed %d files (%d lines, %.1f MB) in %s",
+	svc.Log(logx.Search).Infof("Indexed %d files (%d lines, %.1f MB) in %s",
 		len(docs), lines, float64(bytes)/(1<<20), time.Since(started).Round(time.Millisecond))
 }
 
 // indexFile reads one file and keeps what the index needs. docFreq counts the
 // DOCUMENTS that hold a word. A word that appears twenty times in this file
 // thus adds one.
-func (a *App) indexFile(rootKind, kind, rel, path string, info fs.FileInfo, bundled bool, docFreq map[string]int) *indexedDoc {
+func (svc Service) indexFile(rootKind, kind, rel, path string, info fs.FileInfo, bundled bool, docFreq map[string]int) *indexedDoc {
 	data, truncated, err := readCapped(path, maxIndexFileBytes)
 	if err != nil || isBinary(data) {
 		return nil
@@ -270,7 +270,7 @@ func hasExt(name string, exts []string) bool {
 }
 
 // searchStamp walks with stat only. It opens no file.
-func (a *App) searchStamp(kinds []string) indexStamp {
+func (svc Service) searchStamp(kinds []string) indexStamp {
 	var st indexStamp
 	consider := func(e fs.DirEntry, countSize bool) {
 		info, err := e.Info()
@@ -284,7 +284,7 @@ func (a *App) searchStamp(kinds []string) indexStamp {
 			st.bytes += info.Size()
 		}
 	}
-	for _, root := range a.searchRoots(kinds) {
+	for _, root := range svc.searchRoots(kinds) {
 		_ = filepath.WalkDir(root.dir, func(p string, e fs.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				return nil
@@ -307,50 +307,50 @@ func (a *App) searchStamp(kinds []string) indexStamp {
 	return st
 }
 
-// ensureSearchIndex runs before each global query. It builds the index when
+// EnsureIndex runs before each global query. It builds the index when
 // none exists. It checks the files at most once for each
 // indexStaleCheckEvery, unless a write inside the process marked the index
 // dirty.
-func (a *App) ensureSearchIndex() bool {
-	cfg := a.config.Get()
-	if !cfg.SearchEnabled || a.search == nil {
+func (svc Service) EnsureIndex() bool {
+	cfg := svc.Config
+	if !cfg.SearchEnabled || svc.Index == nil {
 		return false
 	}
 	kinds := strings.Join(config.NormalizeSearchKinds(cfg.SearchKinds), ",")
 
-	a.search.mu.RLock()
-	built := a.search.docs != nil
-	checked := a.search.checked
-	dirty := a.search.dirty
-	stamp := a.search.stamp
-	sameSettings := a.search.kinds == kinds && a.search.bundled == cfg.SearchBundled
-	a.search.mu.RUnlock()
+	svc.Index.mu.RLock()
+	built := svc.Index.docs != nil
+	checked := svc.Index.checked
+	dirty := svc.Index.dirty
+	stamp := svc.Index.stamp
+	sameSettings := svc.Index.kinds == kinds && svc.Index.bundled == cfg.SearchBundled
+	svc.Index.mu.RUnlock()
 
 	// A change of the settings changes what the index covers. Rebuild it,
 	// whatever the file times say.
 	if !built || !sameSettings {
-		a.rebuildSearchIndex()
-		return a.searchIndexBuilt()
+		svc.RebuildIndex()
+		return svc.Index.Built()
 	}
 	// A write inside the process changed the CONTENT, and the process knows
 	// it. A stat check would add nothing, and it can be wrong. An mtime can
 	// have a precision of one second, thus the stamp can miss an edit.
 	if dirty {
-		a.rebuildSearchIndex()
-		return a.searchIndexBuilt()
+		svc.RebuildIndex()
+		return svc.Index.Built()
 	}
 	if time.Since(checked) < indexStaleCheckEvery {
 		return true
 	}
 
-	fresh := a.searchStamp(config.NormalizeSearchKinds(cfg.SearchKinds))
+	fresh := svc.searchStamp(config.NormalizeSearchKinds(cfg.SearchKinds))
 	if fresh == stamp {
-		a.search.mu.Lock()
-		a.search.checked = time.Now()
-		a.search.dirty = false
-		a.search.mu.Unlock()
+		svc.Index.mu.Lock()
+		svc.Index.checked = time.Now()
+		svc.Index.dirty = false
+		svc.Index.mu.Unlock()
 		return true
 	}
-	a.rebuildSearchIndex()
-	return a.searchIndexBuilt()
+	svc.RebuildIndex()
+	return svc.Index.Built()
 }

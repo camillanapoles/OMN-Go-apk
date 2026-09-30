@@ -385,15 +385,11 @@ func TestAPageWriteMarksTheIndexDirty(t *testing.T) {
 	a, dir := siApp(t)
 	a.initStorage(dir)
 	// precompileAllPages runs in the background, thus the lock guards dirty.
-	a.search.mu.Lock()
-	a.search.dirty = false
-	a.search.mu.Unlock()
+	a.search.MarkChecked(time.Now())
 	if _, err := a.renderAndCache("Note", []byte("Title: Note\n\nbody\n")); err != nil {
 		t.Fatal(err)
 	}
-	a.search.mu.RLock()
-	dirty := a.search.dirty
-	a.search.mu.RUnlock()
+	dirty := a.search.Stats().Dirty
 	if !dirty {
 		t.Error("a page write did not mark the search index dirty")
 	}

@@ -216,37 +216,18 @@ func (a *App) statusSearchSection(cfg config.Config) *statusSearch {
 	if a.search == nil {
 		return out
 	}
-
-	a.search.mu.RLock()
-	defer a.search.mu.RUnlock()
-
-	out.Docs = len(a.search.docs)
-	out.Lines = a.search.lines
-	out.Bytes = a.search.bytes
-	out.Dirty = a.search.dirty
-	if !a.search.built.IsZero() {
-		out.Built = statusTime(a.search.built)
+	st := a.search.Stats()
+	out.Docs = st.Docs
+	out.Lines = st.Lines
+	out.Bytes = st.Bytes
+	out.Dirty = st.Dirty
+	if !st.Built.IsZero() {
+		out.Built = statusTime(st.Built)
 	}
-	if !a.search.checked.IsZero() {
-		out.Checked = statusTime(a.search.checked)
+	if !st.Checked.IsZero() {
+		out.Checked = statusTime(st.Checked)
 	}
-
-	// This is an ESTIMATE, and the field name says so. Go cannot measure a
-	// live object graph. The count covers one 8-byte mask for each line, the
-	// 64-byte signature and the strings. A flat value covers the struct and
-	// its map entry.
-	const perDocOverhead = 160
-	var est int64
-	for path, doc := range a.search.docs {
-		est += int64(perDocOverhead + len(path))
-		est += int64(len(doc.Path) + len(doc.Kind) + len(doc.Name) + len(doc.Title) + len(doc.URL))
-		for _, t := range doc.Tags {
-			est += int64(len(t) + 16)
-		}
-		est += int64(8 * len(doc.LineMasks))
-		est += 8 + 64 // FieldMask + Tri
-	}
-	out.IndexBytesEstimate = est
+	out.IndexBytesEstimate = st.BytesEstimate
 	return out
 }
 

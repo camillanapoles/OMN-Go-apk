@@ -1,11 +1,11 @@
-package backend
+package search
 
 // ----------------------------------------------------------------------
 // Search: the query layer
 // ----------------------------------------------------------------------
 //
 // PAGE search (scope=page) reads the open note and keeps nothing. GLOBAL
-// search (scope=all) uses the index of search_index.go, and it needs
+// search (scope=all) uses the index of index.go, and it needs
 // search_enabled. Both use the matcher of package textmatch and the same
 // response shape.
 

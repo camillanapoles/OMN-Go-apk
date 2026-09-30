@@ -1,4 +1,4 @@
-package backend
+package search
 
 // Tests for ?hl= - the terms a result carries so the page it opens marks them
 // and scrolls to the first.
@@ -162,7 +162,7 @@ func TestSearchAPIReturnsHighlightTerms(t *testing.T) {
 // than navigating, and it uses the same list.
 func TestSearchAPIHighlightInPageScope(t *testing.T) {
 	a := newTestApp(t)
-	a.search = &searchIndex{}
+	a.search = &Index{}
 	writeSearchNote(t, a, "Page.md", "Title: Page\n\nthe needle is here\n")
 
 	_, resp := searchReq(t, a, url.Values{

@@ -1,4 +1,4 @@
-package backend
+package search
 
 // ----------------------------------------------------------------------
 // The global search index
@@ -37,7 +37,7 @@ import (
 const (
 	// indexStaleCheckEvery limits how often a query pays for the stat walk.
 	// At 10 000 files, the walk took 24 ms, too much for each keystroke. A
-	// write inside the process does not wait. See markSearchIndexDirty. The
+	// write inside the process does not wait. See MarkDirty. The
 	// limit thus only delays an edit from an external editor or a git
 	// checkout.
 	indexStaleCheckEvery = 2 * time.Second
@@ -136,25 +136,25 @@ func trigrams(s []rune) []uint32 {
 // media of Android is one of them. Two edits in one second thus keep the same
 // newest mtime, but the size changes for almost each real edit. An external
 // edit that keeps the size in the same second waits for the next change. An
-// edit through the app does not use the stamp. See ensureSearchIndex.
+// edit through the app does not use the stamp. See EnsureIndex.
 type indexStamp struct {
 	files  int
 	newest time.Time
 	bytes  int64
 }
 
-type searchIndex struct {
-	mu      sync.RWMutex
-	docs    map[string]*indexedDoc
-	stamp   indexStamp
-	checked time.Time // when stamp was last verified against disk
-	built   time.Time // when the current contents were assembled
-	dirty   bool      // an in-process write happened; re-check without waiting
-	lines   int
-	bytes   int64
-	kinds   string // the SearchKinds the current contents were built for
-	bundled bool   // ... and the SearchBundled setting
-	common  map[string]bool
+type Index struct {
+	mu        sync.RWMutex
+	docs      map[string]*indexedDoc
+	stamp     indexStamp
+	checked   time.Time // when stamp was last verified against disk
+	built     time.Time // when the current contents were assembled
+	dirty     bool      // an in-process write happened; re-check without waiting
+	lines     int
+	bytes     int64
+	kinds     string // the SearchKinds the current contents were built for
+	bundled   bool   // ... and the SearchBundled setting
+	commonSet map[string]bool
 }
 
 // ----------------------------------------------------------------------
@@ -198,82 +198,136 @@ func indexWords(rs []rune, into map[string]bool) {
 	flush()
 }
 
-// commonWords answers the set of words that carry little in this collection.
+// CommonWords answers the set of words that carry little in this collection.
 // It answers nil when no index exists, and cutSnippets then counts no word as
 // common.
-func (a *App) commonWords() map[string]bool {
-	if a.search == nil {
+func (ix *Index) CommonWords() map[string]bool {
+	if ix == nil {
 		return nil
 	}
-	a.search.mu.RLock()
-	defer a.search.mu.RUnlock()
-	return a.search.common
+	ix.mu.RLock()
+	defer ix.mu.RUnlock()
+	return ix.commonSet
 }
 
-// connectGroups sets markSearchIndexDirty as the hook onPageWritten.
+// connectGroups sets MarkDirty as the hook onPageWritten.
 // renderAndCache writes each change of a note inside the process, and it
 // calls the hook. Examples are a save, a quick note, a bookmark, a sync and a
 // precompile.
-func (a *App) markSearchIndexDirty() {
-	if a.search == nil {
+func (ix *Index) MarkDirty() {
+	if ix == nil {
 		return
 	}
-	a.search.mu.Lock()
-	a.search.dirty = true
-	a.search.mu.Unlock()
+	ix.mu.Lock()
+	ix.dirty = true
+	ix.mu.Unlock()
 }
 
-// dropSearchIndex releases the index and its memory when a person turns
+// DropIndex releases the index and its memory when a person turns
 // global search off. A device that is short of memory needs that at once, and
 // not after a restart.
-func (a *App) dropSearchIndex() {
-	if a.search == nil {
+func (svc Service) DropIndex() {
+	if svc.Index == nil {
 		return
 	}
-	a.search.mu.Lock()
-	had := len(a.search.docs)
-	a.search.docs = nil
-	a.search.common = nil
-	a.search.lines = 0
-	a.search.bytes = 0
-	a.search.built = time.Time{}
-	a.search.mu.Unlock()
+	svc.Index.mu.Lock()
+	had := len(svc.Index.docs)
+	svc.Index.docs = nil
+	svc.Index.commonSet = nil
+	svc.Index.lines = 0
+	svc.Index.bytes = 0
+	svc.Index.built = time.Time{}
+	svc.Index.mu.Unlock()
 	if had > 0 {
-		a.log(logx.Search).Infof("index dropped (%d documents released)", had)
+		svc.Log(logx.Search).Infof("index dropped (%d documents released)", had)
 	}
 }
 
-// searchIndexBuilt reports whether an index exists. globalSearchAvailable
+// Built reports whether an index exists. GlobalAvailable
 // reads it, thus the dialog never offers a scope that this server cannot
 // serve.
-func (a *App) searchIndexBuilt() bool {
-	if a.search == nil {
+func (ix *Index) Built() bool {
+	if ix == nil {
 		return false
 	}
-	a.search.mu.RLock()
-	defer a.search.mu.RUnlock()
-	return a.search.docs != nil
+	ix.mu.RLock()
+	defer ix.mu.RUnlock()
+	return ix.docs != nil
 }
 
-// searchIndexStatus is the line on the Config page. A person must see how
+// IndexStatus is the line on the Config page. A person must see how
 // much memory the index uses before the person turns it off.
-func (a *App) searchIndexStatus() string {
-	cfg := a.config.Get()
+func (svc Service) IndexStatus() string {
+	cfg := svc.Config
 	if !cfg.SearchEnabled {
 		return "Off - page search still works, and costs nothing."
 	}
-	if a.search == nil {
+	if svc.Index == nil {
 		return "Not built yet."
 	}
-	a.search.mu.RLock()
-	defer a.search.mu.RUnlock()
-	if a.search.docs == nil {
+	svc.Index.mu.RLock()
+	defer svc.Index.mu.RUnlock()
+	if svc.Index.docs == nil {
 		return "Not built yet."
 	}
 	// The measured memory is about 0.53 times the indexed text.
-	resident := float64(a.search.bytes) / (1 << 20) * 0.53
-	return fmtIndexStatus(len(a.search.docs), a.search.lines,
-		float64(a.search.bytes)/(1<<20), resident, a.search.built)
+	resident := float64(svc.Index.bytes) / (1 << 20) * 0.53
+	return fmtIndexStatus(len(svc.Index.docs), svc.Index.lines,
+		float64(svc.Index.bytes)/(1<<20), resident, svc.Index.built)
+}
+
+// Stats is a copy of the counters of the index, for the Status page.
+type Stats struct {
+	Docs    int
+	Lines   int
+	Bytes   int64
+	Dirty   bool
+	Built   time.Time
+	Checked time.Time
+	// BytesEstimate is an ESTIMATE of the memory of the index. Go cannot
+	// measure a live object graph. The count covers one 8-byte mask for each
+	// line, the 64-byte signature and the strings. A flat value covers the
+	// struct and its map entry.
+	BytesEstimate int64
+}
+
+// Stats answers the counters of the index under the read lock. A nil index
+// answers zero values.
+func (ix *Index) Stats() Stats {
+	if ix == nil {
+		return Stats{}
+	}
+	ix.mu.RLock()
+	defer ix.mu.RUnlock()
+	st := Stats{
+		Docs:    len(ix.docs),
+		Lines:   ix.lines,
+		Bytes:   ix.bytes,
+		Dirty:   ix.dirty,
+		Built:   ix.built,
+		Checked: ix.checked,
+	}
+	const perDocOverhead = 160
+	for path, doc := range ix.docs {
+		st.BytesEstimate += int64(perDocOverhead + len(path))
+		st.BytesEstimate += int64(len(doc.Path) + len(doc.Kind) + len(doc.Name) + len(doc.Title) + len(doc.URL))
+		for _, t := range doc.Tags {
+			st.BytesEstimate += int64(len(t) + 16)
+		}
+		st.BytesEstimate += int64(8 * len(doc.LineMasks))
+		st.BytesEstimate += 8 + 64 // FieldMask + Tri
+	}
+	return st
+}
+
+// MarkChecked records a check of the files at time at, and it clears the
+// dirty flag. The tests use it to put the index inside or outside the window
+// of indexStaleCheckEvery.
+func (ix *Index) MarkChecked(at time.Time) {
+	ix.mu.Lock()
+	ix.checked = at
+	ix.dirty = false
+	ix.mu.Unlock()
 }
 
 func fmtIndexStatus(docs, lines int, mb, residentMB float64, built time.Time) string {
@@ -294,34 +348,34 @@ func fmtIndexStatus(docs, lines int, mb, residentMB float64, built time.Time) st
 	return b.String()
 }
 
-// snapshotDocs answers the documents under a read lock. A query then reads
+// Docs answers the documents under a read lock. A query then reads
 // files without the lock.
-func (a *App) snapshotDocs() []*indexedDoc {
-	if a.search == nil {
+func (ix *Index) Docs() []*indexedDoc {
+	if ix == nil {
 		return nil
 	}
-	a.search.mu.RLock()
-	defer a.search.mu.RUnlock()
-	out := make([]*indexedDoc, 0, len(a.search.docs))
-	for _, d := range a.search.docs {
+	ix.mu.RLock()
+	defer ix.mu.RUnlock()
+	out := make([]*indexedDoc, 0, len(ix.docs))
+	for _, d := range ix.docs {
 		out = append(out, d)
 	}
 	return out
 }
 
-// storagePath maps a storage-relative path of a document to disk.
-func (a *App) storagePath(rel string) string {
-	return a.layout().File(filepath.FromSlash(rel))
+// StoragePath maps a storage-relative path of a document to disk.
+func (svc Service) StoragePath(rel string) string {
+	return svc.Layout.File(filepath.FromSlash(rel))
 }
 
-// reloadDocument reads an indexed document again, and answers its full search
+// ReloadDocument reads an indexed document again, and answers its full search
 // form. It answers nil when the file is gone, thus a deleted note does not
 // fail a query.
-func (a *App) reloadDocument(d *indexedDoc) *searchDocument {
-	data, truncated, err := readCapped(a.storagePath(d.Path), maxIndexFileBytes)
+func (svc Service) ReloadDocument(d *indexedDoc) *searchDocument {
+	data, truncated, err := readCapped(svc.StoragePath(d.Path), maxIndexFileBytes)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			a.log(logx.Search).Errf("%s: %v", d.Path, err)
+			svc.Log(logx.Search).Errf("%s: %v", d.Path, err)
 		}
 		return nil
 	}

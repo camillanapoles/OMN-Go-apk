@@ -2,8 +2,9 @@
 
 * Status: accepted
 * Version: 26.08.81, 26.09.40
-* Code: `cutSnippets` in `backend/search_http.go`, `commonWords` and
-  `commonWordShare` in `backend/search_index.go`
+* Code: `cutSnippets` in `backend/internal/search/http.go`,
+  `search.Index.CommonWords` and `commonWordShare` in
+  `backend/internal/search/index.go`
 
 ## Context
 
@@ -27,8 +28,9 @@ meets all three conditions:
 
 * The term is longer than one rune. A term of one Han, Hiragana, Katakana
   or Hangul rune is a whole word, thus it counts as long.
-* The term is not common in this collection. A word is common when more
-  than half of the indexed documents hold it. `commonWords` gives the set.
+* The term is not common in this collection. A word is common when more than
+  half of the indexed documents hold it. `search.Index.CommonWords` gives the
+  set.
 * The term matches the row verbatim, and not as scattered letters.
 
 The order is part of the rule. The window of ten comes first, and the cut
@@ -64,5 +66,5 @@ note that matched always shows something.
   worst case is thus the same as no cut.
 * With global search off, no index exists and the set is empty. The cut
   then uses the first two conditions alone.
-* The tests of `backend/search_test.go` and `backend/search_index_test.go`
-  break each condition in turn.
+* The tests of `backend/internal/search/search_test.go` and
+  `backend/internal/search/index_test.go` break each condition in turn.

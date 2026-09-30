@@ -1,4 +1,4 @@
-package backend
+package search
 
 // Tests for the results page.
 //
@@ -17,7 +17,7 @@ import (
 	"net.basov.omngo/backend/internal/config"
 )
 
-func getSearchPage(t *testing.T, a *App, query string) *httptest.ResponseRecorder {
+func getSearchPage(t *testing.T, a *testApp, query string) *httptest.ResponseRecorder {
 	t.Helper()
 	target := "/OMNGoSearch.html"
 	if query != "" {
@@ -25,7 +25,9 @@ func getSearchPage(t *testing.T, a *App, query string) *httptest.ResponseRecorde
 	}
 	req := httptest.NewRequest(http.MethodGet, target, nil)
 	req.Header.Set("Accept", "text/html")
-	return routeServe(a, req)
+	rec := httptest.NewRecorder()
+	a.serveSearchPage(rec, req)
+	return rec
 }
 
 func TestSearchPage_RendersResults(t *testing.T) {
@@ -153,7 +155,7 @@ func TestSearchPage_EmptyStateNamesTheCorpus(t *testing.T) {
 // the cause nor the cure. One setting on the Config page is the cure.
 func TestSearchPage_ExplainsHowToEnableGlobalSearch(t *testing.T) {
 	a := newTestApp(t)
-	a.search = &searchIndex{}
+	a.search = &Index{}
 
 	rec := getSearchPage(t, a, "")
 	if rec.Code != http.StatusOK {
@@ -182,7 +184,7 @@ func TestSearchPage_ExplainsHowToEnableGlobalSearch(t *testing.T) {
 	}
 
 	// Still dynamic: no source note, nothing written.
-	if _, err := readIfExists(a.storagePath("md/OMNGoSearch.md")); err == nil {
+	if _, err := readIfExists(a.searchService().StoragePath("md/OMNGoSearch.md")); err == nil {
 		t.Error("serving the disabled page created md/OMNGoSearch.md")
 	}
 	if _, err := readIfExists(a.layout().PageHTML("OMNGoSearch")); err == nil {
@@ -194,7 +196,7 @@ func TestSearchPage_ExplainsHowToEnableGlobalSearch(t *testing.T) {
 // It does not get an empty result list, which would read as "nothing matched".
 func TestSearchPage_DisabledIgnoresTheQuery(t *testing.T) {
 	a := newTestApp(t)
-	a.search = &searchIndex{}
+	a.search = &Index{}
 
 	body := getSearchPage(t, a, "anything").Body.String()
 	if strings.Contains(body, "No matches") {

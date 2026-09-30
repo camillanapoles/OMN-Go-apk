@@ -1,4 +1,4 @@
-package backend
+package search
 
 import "net.basov.omngo/backend/internal/textmatch"
 
@@ -192,7 +192,7 @@ type typoResult struct {
 }
 
 // scoreTypoInDocument runs the edit-distance rung over the tokens of the
-// document. The index keeps no tokens. See the banner of search_index.go. The
+// document. The index keeps no tokens. See the banner of index.go. The
 // spans mark the matched TOKEN, which is the real text, and not the
 // misspelled query.
 func scoreTypoInDocument(term []rune, d *searchDocument) (typoResult, []lineHit, bool) {

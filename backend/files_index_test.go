@@ -24,6 +24,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1019,7 +1020,7 @@ func TestFilesPage_HostileDirNeverEscapes(t *testing.T) {
 func TestFilesPage_CapIsHonest(t *testing.T) {
 	a := newTestApp(t)
 	for i := 0; i < 250; i++ {
-		writeDiskFile(t, a, filepath.ToSlash(filepath.Join("many", itoa(i)+".txt")), "x")
+		writeDiskFile(t, a, filepath.ToSlash(filepath.Join("many", strconv.Itoa(i)+".txt")), "x")
 	}
 
 	body := served(t, a, "many%2F")
@@ -1045,7 +1046,7 @@ func TestFilesPage_CapIsHonest(t *testing.T) {
 func TestFilesPage_DirectoryRowsAreNeverCapped(t *testing.T) {
 	a := newTestApp(t)
 	for i := 0; i < 250; i++ {
-		writeDiskFile(t, a, "d"+itoa(i)+"/f.txt", "x")
+		writeDiskFile(t, a, "d"+strconv.Itoa(i)+"/f.txt", "x")
 	}
 	if !strings.Contains(served(t, a, ""), "dir=d249%2F") {
 		t.Error("the 250th directory is missing; directory rows must not be capped")
@@ -1082,7 +1083,7 @@ func TestFilesPage_EscapesFileNames(t *testing.T) {
 func TestFilesPage_ScalesToABigDirectory(t *testing.T) {
 	a := newTestApp(t)
 	for i := 0; i < 3000; i++ {
-		writeDiskFile(t, a, "big"+itoa(i)+".txt", "x")
+		writeDiskFile(t, a, "big"+strconv.Itoa(i)+".txt", "x")
 	}
 
 	body := served(t, a, "")

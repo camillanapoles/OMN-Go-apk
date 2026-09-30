@@ -80,7 +80,7 @@ the status of the old record to `replaced by NNNN`.
 | [0006](0006-replace-the-application-files-at-each-new-version.md) | Replace the application files at each new version. | `internal/storage/assets.go`, `storage_app.go`, `MainActivity.java` |
 | [0007](0007-keep-the-application-files-in-omn-go-directories.md) | Keep the application files in OMN-Go directories. | `internal/storage/assets.go`, `serving.go`, `internal/gitsync/repo.go` |
 | [0008](0008-render-the-pages-without-html-template.md) | Render the pages without html/template. | `internal/render/templates.go` |
-| [0009](0009-show-only-the-search-rows-that-carry-a-word-of-the-query.md) | Show only the search rows that carry a word of the query. | `search_http.go`, `search_index.go` |
+| [0009](0009-show-only-the-search-rows-that-carry-a-word-of-the-query.md) | Show only the search rows that carry a word of the query. | `internal/search/http.go`, `internal/search/index.go` |
 | [0010](0010-write-a-pull-without-the-checkout-of-go-git.md) | Write a pull without the checkout of go-git. | `internal/gitsync/pull.go` |
 | [0011](0011-push-each-time-and-let-the-remote-answer.md) | Push each time, and let the remote answer. | `internal/gitsync/push.go` |
 | [0012](0012-keep-one-remote-for-each-git-server-slot.md) | Keep one remote for each git server slot. | `internal/gitsync/repo.go` |

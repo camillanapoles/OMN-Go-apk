@@ -12,6 +12,7 @@ package backend
 import (
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -20,7 +21,59 @@ import (
 
 	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/render"
+	"net.basov.omngo/backend/internal/search"
 )
+
+// enabledSearchApp answers a test App with global search on and an empty
+// index. The tests of package search have their own copy.
+func enabledSearchApp(t *testing.T, kinds ...string) *App {
+	t.Helper()
+	a := newTestApp(t)
+	a.search = &search.Index{}
+	if len(kinds) == 0 {
+		kinds = []string{config.SearchKindMD, config.SearchKindBookmarks}
+	}
+	a.config.Update(func(c *config.Config) {
+		c.SearchEnabled = true
+		c.SearchKinds = kinds
+	})
+	return a
+}
+
+// writeSearchNote writes md/rel with content.
+func writeSearchNote(t *testing.T, a *App, rel, content string) {
+	t.Helper()
+	p := filepath.Join(a.StorageDir, "md", filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// searchAnswer holds the fields of the /api/search answer that the tests of
+// this file read.
+type searchAnswer struct {
+	Scope   string            `json:"scope"`
+	Total   int               `json:"total"`
+	Results []json.RawMessage `json:"results"`
+	Status  string            `json:"status"`
+	Error   string            `json:"error"`
+}
+
+// searchReq sends GET /api/search to the App and decodes the answer.
+func searchReq(t *testing.T, a *App, query url.Values) (*httptest.ResponseRecorder, searchAnswer) {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, "/api/search?"+query.Encode(), nil)
+	rec := httptest.NewRecorder()
+	a.handleSearch(rec, req)
+	var resp searchAnswer
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("response is not JSON (%v): %s", err, rec.Body.String())
+	}
+	return rec, resp
+}
 
 func TestNormalizeSearchKinds(t *testing.T) {
 	// Absent (nil) and empty are NOT the same thing. The difference is what
@@ -327,5 +380,41 @@ func TestConfigPageSearchScreen(t *testing.T) {
 	// The memory cost is stated where the switch is, not buried in a manual.
 	if !strings.Contains(strings.ToLower(body), "memory") {
 		t.Error("the enable checkbox does not mention what it costs")
+	}
+}
+
+// ---------------------------------------------------------------------
+// The switch
+// ---------------------------------------------------------------------
+
+func TestSearchToggleReleasesAndRebuilds(t *testing.T) {
+	a := enabledSearchApp(t)
+	a.config.Update(func(c *config.Config) { c.GitServers = make([]config.GitServer, config.MaxGitServers) })
+	writeSearchNote(t, a, "Note.md", "Title: A Note\n\nneedle\n")
+	a.rebuildSearchIndex()
+
+	if !a.search.Built() {
+		t.Fatal("index not built")
+	}
+	if !a.globalSearchAvailable() {
+		t.Fatal("global search should be available once enabled and built")
+	}
+
+	// The switch to off releases the memory at once, with no restart. A
+	// person turns the search off when a device is already short of memory.
+	postForm(t, a.handleConfigPost, "/api/config", url.Values{
+		"search_enabled": {"false"},
+		"search_kinds":   {"md"},
+	})
+	if a.search.Built() {
+		t.Error("the index is still there after the switch to off")
+	}
+	if a.globalSearchAvailable() {
+		t.Error("global search still reports available with the setting off")
+	}
+
+	// None of it changes page search.
+	if _, resp := searchReq(t, a, url.Values{"q": {"needle"}, "scope": {"page"}, "on": {"Note"}}); len(resp.Results) != 1 {
+		t.Error("page search broke when global search was switched off")
 	}
 }

@@ -1,4 +1,4 @@
-package backend
+package search
 
 // Tests for the global index.
 //
@@ -25,10 +25,10 @@ import (
 	"net.basov.omngo/backend/internal/config"
 )
 
-func enabledSearchApp(t *testing.T, kinds ...string) *App {
+func enabledSearchApp(t *testing.T, kinds ...string) *testApp {
 	t.Helper()
 	a := newTestApp(t)
-	a.search = &searchIndex{}
+	a.search = &Index{}
 	if len(kinds) == 0 {
 		kinds = []string{config.SearchKindMD, config.SearchKindBookmarks}
 	}
@@ -39,7 +39,7 @@ func enabledSearchApp(t *testing.T, kinds ...string) *App {
 	return a
 }
 
-func writeAsset(t *testing.T, a *App, rel, content string) {
+func writeAsset(t *testing.T, a *testApp, rel, content string) {
 	t.Helper()
 	p := filepath.Join(a.StorageDir, "html", filepath.FromSlash(rel))
 	if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
@@ -126,7 +126,7 @@ func TestIndexBookmarksAreTheirOwnKind(t *testing.T) {
 
 	a.rebuildSearchIndex()
 	kinds := map[string]string{}
-	for _, d := range a.snapshotDocs() {
+	for _, d := range a.search.Docs() {
 		kinds[d.Path] = d.Kind
 	}
 	if kinds["md/Bookmarks.md"] != config.SearchKindBookmarks {
@@ -153,7 +153,7 @@ func TestIndexHoldsNoText(t *testing.T) {
 	writeSearchNote(t, a, "Note.md", "Title: A Note\n\n"+secret+" body text\n")
 	a.rebuildSearchIndex()
 
-	docs := a.snapshotDocs()
+	docs := a.search.Docs()
 	if len(docs) != 1 {
 		t.Fatalf("got %d docs", len(docs))
 	}
@@ -220,8 +220,8 @@ func TestIndexFilterHasNoFalseNegatives(t *testing.T) {
 		}
 		// Brute force: read and score everything, filter be damned.
 		wanted := map[string]bool{}
-		for _, d := range a.snapshotDocs() {
-			doc := a.reloadDocument(d)
+		for _, d := range a.search.Docs() {
+			doc := a.searchService().ReloadDocument(d)
 			if doc == nil {
 				continue
 			}
@@ -231,7 +231,7 @@ func TestIndexFilterHasNoFalseNegatives(t *testing.T) {
 		}
 		// Filtered: what the index would let through.
 		got := map[string]bool{}
-		for _, d := range a.snapshotDocs() {
+		for _, d := range a.search.Docs() {
 			feasible := true
 			for _, term := range q.terms {
 				if !d.couldMatchTerm(term) {
@@ -242,7 +242,7 @@ func TestIndexFilterHasNoFalseNegatives(t *testing.T) {
 			if !feasible {
 				continue
 			}
-			doc := a.reloadDocument(d)
+			doc := a.searchService().ReloadDocument(d)
 			if doc == nil {
 				continue
 			}
@@ -417,10 +417,7 @@ func TestIndexNoticesExternalEditWithUnchangedMtime(t *testing.T) {
 	}
 
 	// Past the rate-limit window, so the walk actually runs.
-	a.search.mu.Lock()
-	a.search.checked = time.Now().Add(-2 * indexStaleCheckEvery)
-	a.search.dirty = false
-	a.search.mu.Unlock()
+	a.search.MarkChecked(time.Now().Add(-2 * indexStaleCheckEvery))
 
 	if _, resp := searchReq(t, a, url.Values{"q": {"different"}, "scope": {"all"}}); resp.Total != 1 {
 		t.Error("an external edit with an unchanged mtime was never noticed; the stamp needs more than times")
@@ -432,13 +429,13 @@ func TestIndexDoesNotRebuildWhenNothingChanged(t *testing.T) {
 	writeSearchNote(t, a, "Note.md", "Title: A Note\n\nstable text\n")
 	a.rebuildSearchIndex()
 
-	built := a.search.built
+	built := a.search.Stats().Built
 	// Two queries in a row, with the tree untouched: the first may re-stat,
 	// neither may rebuild.
 	searchReq(t, a, url.Values{"q": {"stable"}, "scope": {"all"}})
 	searchReq(t, a, url.Values{"q": {"stable"}, "scope": {"all"}})
 
-	if !a.search.built.Equal(built) {
+	if !a.search.Stats().Built.Equal(built) {
 		t.Error("the index rebuilt itself although nothing on disk changed")
 	}
 }
@@ -448,10 +445,7 @@ func TestIndexStatWalkIsRateLimited(t *testing.T) {
 	writeSearchNote(t, a, "Note.md", "Title: A Note\n\ntext\n")
 	a.rebuildSearchIndex()
 
-	a.search.mu.Lock()
-	a.search.checked = time.Now()
-	a.search.dirty = false
-	a.search.mu.Unlock()
+	a.search.MarkChecked(time.Now())
 
 	// A change made behind the server's back, with the interval not yet
 	// elapsed: deliberately NOT seen. At 10 000 files the walk costs ~24 ms,
@@ -462,9 +456,7 @@ func TestIndexStatWalkIsRateLimited(t *testing.T) {
 	}
 
 	// Once the window passes, it is seen without anyone doing anything.
-	a.search.mu.Lock()
-	a.search.checked = time.Now().Add(-2 * indexStaleCheckEvery)
-	a.search.mu.Unlock()
+	a.search.MarkChecked(time.Now().Add(-2 * indexStaleCheckEvery))
 	if _, resp := searchReq(t, a, url.Values{"q": {"externally"}, "scope": {"all"}}); resp.Total != 1 {
 		t.Error("an external change was never noticed")
 	}
@@ -488,45 +480,9 @@ func TestIndexRebuildsWhenSettingsChange(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------
-// The switch
-// ---------------------------------------------------------------------
-
-func TestSearchToggleReleasesAndRebuilds(t *testing.T) {
-	a := enabledSearchApp(t)
-	a.config.Update(func(c *config.Config) { c.GitServers = make([]config.GitServer, config.MaxGitServers) })
-	writeSearchNote(t, a, "Note.md", "Title: A Note\n\nneedle\n")
-	a.rebuildSearchIndex()
-
-	if !a.searchIndexBuilt() {
-		t.Fatal("index not built")
-	}
-	if !a.globalSearchAvailable() {
-		t.Fatal("global search should be available once enabled and built")
-	}
-
-	// Switching off releases the memory immediately - no restart, because
-	// turning this off is what someone does when a device is already short.
-	postForm(t, a.handleConfigPost, "/api/config", url.Values{
-		"search_enabled": {"false"},
-		"search_kinds":   {"md"},
-	})
-	if a.searchIndexBuilt() {
-		t.Error("the index survived being switched off")
-	}
-	if a.globalSearchAvailable() {
-		t.Error("global search still reports available with the setting off")
-	}
-
-	// And page search is untouched by any of it.
-	if _, resp := searchReq(t, a, url.Values{"q": {"needle"}, "scope": {"page"}, "on": {"Note"}}); len(resp.Results) != 1 {
-		t.Error("page search broke when global search was switched off")
-	}
-}
-
 func TestSearchIndexStatusLine(t *testing.T) {
 	a := newTestApp(t)
-	a.search = &searchIndex{}
+	a.search = &Index{}
 
 	if got := a.searchIndexStatus(); !strings.Contains(got, "Off") {
 		t.Errorf("status with search off = %q", got)
@@ -560,9 +516,9 @@ func TestOneDecimalAndItoa(t *testing.T) {
 	}
 }
 
-func indexedPaths(a *App) []string {
+func indexedPaths(a *testApp) []string {
 	var out []string
-	for _, d := range a.snapshotDocs() {
+	for _, d := range a.search.Docs() {
 		out = append(out, d.Path)
 	}
 	for i := 1; i < len(out); i++ {
@@ -595,7 +551,7 @@ func readIfExists(path string) ([]byte, error) {
 // The common words of the collection
 // ----------------------------------------------------------------------
 //
-// See the banner of commonWordShare in search_index.go for why the set
+// See the banner of commonWordShare in index.go for why the set
 // exists, and doc/decisions/0009-show-only-the-search-rows-that-carry-a-word-of-the-query.md
 // for the measurement that asked for it.
 //
@@ -619,7 +575,7 @@ func readIfExists(path string) ([]byte, error) {
 
 // ciCorpus writes n notes. Each one holds the words of common, and note
 // number i also holds a word of its own.
-func ciCorpus(t *testing.T, a *App, n int, common string) {
+func ciCorpus(t *testing.T, a *testApp, n int, common string) {
 	t.Helper()
 	for i := 0; i < n; i++ {
 		writeSearchNote(t, a, fmt.Sprintf("Note%02d.md", i),
@@ -633,7 +589,7 @@ func TestCommonWordsHoldsTheWordsAboveTheHalf(t *testing.T) {
 	a := enabledSearchApp(t)
 	ciCorpus(t, a, 10, "the parser reads the file and it writes the answer")
 
-	common := a.commonWords()
+	common := a.search.CommonWords()
 	if len(common) == 0 {
 		t.Fatal("the set is empty after a rebuild that indexed ten notes")
 	}
@@ -665,7 +621,7 @@ func TestCommonWordsCountsDocumentsAndNotOccurrences(t *testing.T) {
 	}
 	a.rebuildSearchIndex()
 
-	if a.commonWords()["kingfisher"] {
+	if a.search.CommonWords()["kingfisher"] {
 		t.Error("a word of one note in ten reads as common, thus the count is " +
 			"of occurrences and not of documents")
 	}
@@ -675,15 +631,15 @@ func TestCommonWordsCountsDocumentsAndNotOccurrences(t *testing.T) {
 // common.
 func TestCommonWordsIsEmptyWithNoIndex(t *testing.T) {
 	a := enabledSearchApp(t)
-	if got := a.commonWords(); len(got) != 0 {
+	if got := a.search.CommonWords(); len(got) != 0 {
 		t.Errorf("the set holds %d words before any rebuild", len(got))
 	}
 	ciCorpus(t, a, 4, "one common line for each note")
-	if len(a.commonWords()) == 0 {
+	if len(a.search.CommonWords()) == 0 {
 		t.Fatal("the set is empty after a rebuild")
 	}
 	a.dropSearchIndex()
-	if got := a.commonWords(); len(got) != 0 {
+	if got := a.search.CommonWords(); len(got) != 0 {
 		t.Errorf("the set survived the drop of the index with %d words", len(got))
 	}
 }

@@ -1,4 +1,4 @@
-package backend
+package search
 
 // Tests for sections. That is the machinery behind one thing. A result
 // points at the bookmark or the timestamped entry it matched, and not at the
@@ -59,7 +59,7 @@ func forceAnchors(t *testing.T, ok bool) {
 // goldmark does here, now", and that is the claim a link into a section
 // makes.
 func TestHeadingIDsAgreeWithTheRenderer(t *testing.T) {
-	a := &App{}
+	a := &testApp{}
 
 	docs := []string{
 		"# Hello World",
@@ -521,7 +521,7 @@ func TestQuickNoteResultCarriesTheSectionAnchor(t *testing.T) {
 func TestPageScopeDoesNotAnchor(t *testing.T) {
 	forceAnchors(t, true)
 	a := newTestApp(t)
-	a.search = &searchIndex{}
+	a.search = &Index{}
 	writeSearchNote(t, a, "Notes.md", "Title: Notes\n\n# One\n\nthe needle\n")
 
 	_, resp := searchReq(t, a, url.Values{
@@ -567,7 +567,7 @@ func predictedIDs(body string) []string {
 
 // headingIDs2 asks the REAL renderer what ids it emits. Named apart from the
 // baseline suite's helper so the two files stay independent.
-func headingIDs2(a *App, md string) []string {
+func headingIDs2(a *testApp, md string) []string {
 	out := []string{}
 	for _, m := range headingIDAttrRe.FindAllStringSubmatch(a.testRenderer().RenderMarkdown([]byte(md)), -1) {
 		out = append(out, m[1])
@@ -581,9 +581,9 @@ func sectionsOf(t *testing.T, body string) []docSection {
 	return sectionsFromHeadings(lines, classifyContexts(lines), 1)
 }
 
-func loadDoc(t *testing.T, a *App, name string) *searchDocument {
+func loadDoc(t *testing.T, a *testApp, name string) *searchDocument {
 	t.Helper()
-	doc, err := a.loadPageDocument(name)
+	doc, err := a.searchService().LoadPageDocument(name)
 	if err != nil {
 		t.Fatal(err)
 	}

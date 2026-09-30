@@ -39,6 +39,7 @@ import (
 	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/gitsync"
 	"net.basov.omngo/backend/internal/render"
+	"net.basov.omngo/backend/internal/search"
 	"net.basov.omngo/backend/internal/storage"
 )
 
@@ -156,7 +157,7 @@ func TestBaseline_ServeHTMLPageDispatch(t *testing.T) {
 		a.config.Update(func(c *config.Config) { c.SearchEnabled = true })
 		defer a.config.Update(func(c *config.Config) { c.SearchEnabled = false })
 		if a.search == nil {
-			a.search = &searchIndex{}
+			a.search = &search.Index{}
 		}
 		rec = getPage(t, a, "/OMNGoSearch.html?q=hello")
 		if rec.Code != http.StatusOK {

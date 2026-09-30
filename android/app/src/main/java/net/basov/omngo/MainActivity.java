@@ -1002,7 +1002,7 @@ public class MainActivity extends Activity {
      *
      * Refuses rather than truncates: half a note is not an import. This is
      * the same choice readImportBody makes on the Go side, and the reason
-     * neither of them is search.go's readCapped.
+     * neither of them is readCapped of backend/internal/search/search.go.
      */
     private byte[] readUriCapped(android.net.Uri uri, long maxBytes) throws java.io.IOException {
         java.io.InputStream in = getContentResolver().openInputStream(uri);

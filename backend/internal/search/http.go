@@ -1,4 +1,4 @@
-package backend
+package search
 
 import (
 	"net/http"
@@ -16,19 +16,19 @@ import (
 // it. A switch that saves nothing only gives one more way to break the
 // feature.
 
-// globalSearchAvailable answers "can this server search each file now": the
+// GlobalAvailable answers "can this server search each file now": the
 // user asked for it AND an index exists. injectRuntimeVars gives it to each
 // page as OMN_SEARCH_GLOBAL, thus the dialog never offers a scope that fails.
-func (a *App) globalSearchAvailable() bool {
-	return a.config.Get().SearchEnabled && a.searchIndexBuilt()
+func (svc Service) GlobalAvailable() bool {
+	return svc.Config.SearchEnabled && svc.Index.Built()
 }
 
-// defaultSearchScope is the scope of a request without one. It follows the
+// defaultScope is the scope of a request without one. It follows the
 // setting, but it falls back to page scope when global search cannot answer.
 // A request with no preference must not get a scope that fails.
-func (a *App) defaultSearchScope() string {
-	if a.globalSearchAvailable() {
-		return config.NormalizeSearchScope(a.config.Get().SearchScope)
+func (svc Service) defaultScope() string {
+	if svc.GlobalAvailable() {
+		return config.NormalizeSearchScope(svc.Config.SearchScope)
 	}
 	return config.SearchScopePage
 }
@@ -45,7 +45,7 @@ type searchMatch struct {
 
 // searchSection names the part of a document that holds a hit: a bookmark, a
 // quick note, or a heading section. ID can be empty while Label is not, and
-// the UI then shows the label with no link. See search_sections.go.
+// the UI then shows the label with no link. See sections.go.
 type searchSection struct {
 	ID    string `json:"id,omitempty"`
 	Label string `json:"label,omitempty"`
@@ -79,16 +79,16 @@ type searchResponse struct {
 	Highlight []string `json:"highlight,omitempty"`
 }
 
-// handleSearch answers GET /api/search. It has NO authMiddleware, the same as
+// HandleSearch answers GET /api/search. It has NO authMiddleware, the same as
 // /api/note, because a search shows nothing that a remote caller cannot fetch
 // file by file. See doc/API.md.
-func (a *App) handleSearch(w http.ResponseWriter, r *http.Request) {
+func (svc Service) HandleSearch(w http.ResponseWriter, r *http.Request) {
 	started := time.Now()
 	qs := r.URL.Query()
 
 	scope := strings.ToLower(strings.TrimSpace(qs.Get("scope")))
 	if scope == "" {
-		scope = a.defaultSearchScope()
+		scope = svc.defaultScope()
 	}
 
 	resp := searchResponse{
@@ -100,21 +100,21 @@ func (a *App) handleSearch(w http.ResponseWriter, r *http.Request) {
 	code := http.StatusOK
 	switch scope {
 	case config.SearchScopePage:
-		a.searchPage(&resp, qs)
+		svc.searchPage(&resp, qs)
 	case config.SearchScopeAll:
 		switch {
-		case !a.config.Get().SearchEnabled:
+		case !svc.Config.SearchEnabled:
 			// This is not an empty result. "Nothing matched" is about the
 			// notes, and this answer is about the settings.
 			code = http.StatusServiceUnavailable
 			resp.Status = "disabled"
 			resp.Error = "global search is off (Settings -> Search)"
-		case !a.ensureSearchIndex():
+		case !svc.EnsureIndex():
 			code = http.StatusServiceUnavailable
 			resp.Status = "unavailable"
 			resp.Error = "the search index is not ready"
 		default:
-			a.searchGlobal(&resp, qs)
+			svc.searchGlobal(&resp, qs)
 		}
 	default:
 		code = http.StatusBadRequest
@@ -126,11 +126,11 @@ func (a *App) handleSearch(w http.ResponseWriter, r *http.Request) {
 		resp.Highlight = highlightTerms(parseQuery(resp.Query))
 	}
 	resp.TookMS = time.Since(started).Milliseconds()
-	a.writeJSON(w, code, resp)
+	svc.writeJSON(w, code, resp)
 }
 
 // searchPage fills resp from the one document that "on" names.
-func (a *App) searchPage(resp *searchResponse, qs map[string][]string) {
+func (svc Service) searchPage(resp *searchResponse, qs map[string][]string) {
 	get := func(k string) string {
 		if v, ok := qs[k]; ok && len(v) > 0 {
 			return v[0]
@@ -143,9 +143,9 @@ func (a *App) searchPage(resp *searchResponse, qs map[string][]string) {
 		return // an empty query is an empty result, not an error
 	}
 
-	doc, err := a.loadPageDocument(get("on"))
+	doc, err := svc.LoadPageDocument(get("on"))
 	if err != nil {
-		a.log(logx.Search).Errf("%s: %v", get("on"), err)
+		svc.Log(logx.Search).Errf("%s: %v", get("on"), err)
 		return
 	}
 	if doc == nil {
@@ -221,7 +221,7 @@ func cutSnippets(q parsedQuery, hits []lineHit, limit int, common map[string]boo
 // searchGlobal answers a query of scope=all. It tests each document against
 // the masks and the trigram signature with no I/O, and it reads only the
 // documents that can match. The code of page search scores them.
-func (a *App) searchGlobal(resp *searchResponse, qs map[string][]string) {
+func (svc Service) searchGlobal(resp *searchResponse, qs map[string][]string) {
 	get := func(k string) string {
 		if v, ok := qs[k]; ok && len(v) > 0 {
 			return v[0]
@@ -246,10 +246,10 @@ func (a *App) searchGlobal(resp *searchResponse, qs map[string][]string) {
 		hits  []lineHit
 	}
 	var found []scored
-	common := a.commonWords()
+	common := svc.Index.CommonWords()
 	read := 0
 
-	for _, d := range a.snapshotDocs() {
+	for _, d := range svc.Index.Docs() {
 		if !kindAllowed(d.Kind, kindFilter, q.kinds) {
 			continue
 		}
@@ -265,7 +265,7 @@ func (a *App) searchGlobal(resp *searchResponse, qs map[string][]string) {
 		}
 
 		// Only now does the search open a file.
-		doc := a.reloadDocument(d)
+		doc := svc.ReloadDocument(d)
 		if doc == nil {
 			continue
 		}
@@ -317,7 +317,7 @@ func (a *App) searchGlobal(resp *searchResponse, qs map[string][]string) {
 		resp.Results = append(resp.Results, res)
 	}
 	if read > 0 {
-		a.log(logx.Search).Infof("%q: %d candidates read, %d matched", resp.Query, read, resp.Total)
+		svc.Log(logx.Search).Infof("%q: %d candidates read, %d matched", resp.Query, read, resp.Total)
 	}
 }
 
@@ -344,18 +344,18 @@ func buildMatches(doc *searchDocument, hits []lineHit) ([]searchMatch, string) {
 	return out, anchor
 }
 
-// serveSearchPage renders /OMNGoSearch.html for each request. It has no md/
+// ServeSearchPage renders /OMNGoSearch.html for each request. It has no md/
 // source and no cache. The page is for GLOBAL search only. With global search
 // off, it names the setting. Page search lives in the dialog.
-func (a *App) serveSearchPage(w http.ResponseWriter, r *http.Request) {
-	cfg := a.config.Get()
+func (svc Service) ServeSearchPage(w http.ResponseWriter, r *http.Request) {
+	cfg := svc.Config
 
 	// A note can link to the Search page, thus a person can reach it when
 	// search is off. The page then says why it can do nothing, and where to
 	// change that.
 	if !cfg.SearchEnabled {
 		body := renderSearchPage(searchPageView{Disabled: true})
-		a.renderPage(w, http.StatusOK, "Search", render.PageHeader("Search", "System"), body)
+		svc.RenderPage(w, http.StatusOK, "Search", render.PageHeader("Search", "System"), body)
 		return
 	}
 
@@ -366,11 +366,11 @@ func (a *App) serveSearchPage(w http.ResponseWriter, r *http.Request) {
 		Highlight:    highlightTerms(parseQuery(query)),
 	}
 
-	if strings.TrimSpace(query) != "" && a.ensureSearchIndex() {
+	if strings.TrimSpace(query) != "" && svc.EnsureIndex() {
 		// The page and the API use the same code, thus the page and the
 		// dialog always agree.
 		resp := searchResponse{Query: query, Scope: config.SearchScopeAll, Results: []searchResult{}}
-		a.searchGlobal(&resp, map[string][]string{"q": {query}})
+		svc.searchGlobal(&resp, map[string][]string{"q": {query}})
 		view.Results = resp.Results
 		view.Total = resp.Total
 		view.Truncated = resp.Truncated
@@ -381,5 +381,5 @@ func (a *App) serveSearchPage(w http.ResponseWriter, r *http.Request) {
 		title = "Search: " + query
 	}
 	body := renderSearchPage(view)
-	a.renderPage(w, http.StatusOK, title, render.PageHeader(title, "System"), body)
+	svc.RenderPage(w, http.StatusOK, title, render.PageHeader(title, "System"), body)
 }

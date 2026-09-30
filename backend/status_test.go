@@ -441,26 +441,20 @@ func TestStatusAndroidPackage(t *testing.T) {
 	}
 }
 
-// The estimate counts what the index holds, and it grows with the index.
+// The Status page shows the counters of the index, and the estimate grows
+// with the index. The test builds a real index of one note.
 func TestStatusSearchEstimate(t *testing.T) {
-	a := newTestApp(t)
-	a.config.Update(func(c *config.Config) { c.SearchEnabled = true })
-	a.search = &searchIndex{
-		docs: map[string]*indexedDoc{
-			"md/One.md": {
-				Path: "md/One.md", Kind: "note", Name: "One", Title: "One",
-				URL: "/One.html", Tags: []string{"Test"},
-				LineMasks: make([]uint64, 20),
-			},
-		},
-		lines: 20,
-		bytes: 400,
-		built: time.Now(),
+	a := enabledSearchApp(t)
+	writeSearchNote(t, a, "One.md", "Title: One\nTags: Test\n\nfirst line\nsecond line\n")
+	a.rebuildSearchIndex()
+	want := a.search.Stats()
+	if want.Docs != 1 || want.Lines == 0 || want.Bytes == 0 {
+		t.Fatalf("test precondition: the index of one note is %+v", want)
 	}
 
 	res, _ := getStatus(t, a, "sections=search")
-	if res.Search.Docs != 1 || res.Search.Lines != 20 || res.Search.Bytes != 400 {
-		t.Errorf("counters wrong: %+v", res.Search)
+	if res.Search.Docs != want.Docs || res.Search.Lines != want.Lines || res.Search.Bytes != want.Bytes {
+		t.Errorf("counters wrong: %+v, the index holds %+v", res.Search, want)
 	}
 	if res.Search.IndexBytesEstimate <= 160 {
 		t.Errorf("index_bytes_estimate = %d, want more than the flat allowance",
