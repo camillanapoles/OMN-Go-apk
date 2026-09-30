@@ -36,6 +36,7 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/noteheader"
 )
 
 // headerCaseFile is the table that BOTH languages read. See its own
@@ -73,9 +74,9 @@ func readHeaderCases(t *testing.T) []headerCase {
 // two answers directly.
 func TestHeaderCasesRunThroughTheGoAuthority(t *testing.T) {
 	for _, c := range readHeaderCases(t) {
-		at := parseHeaderBlock(c.Content).BodyOffset
+		at := noteheader.Parse(c.Content).BodyOffset
 		if at < 0 || at > len(c.Content) {
-			t.Errorf("%s: parseHeaderBlock gave the offset %d for a note of %d bytes",
+			t.Errorf("%s: noteheader.Parse gave the offset %d for a note of %d bytes",
 				c.Name, at, len(c.Content))
 		}
 	}
@@ -84,7 +85,7 @@ func TestHeaderCasesRunThroughTheGoAuthority(t *testing.T) {
 // THE TEST THAT ports_test.go COULD NOT WRITE.
 //
 // It runs the REAL omn-go-editor.js through node and compares each answer
-// against parseHeaderBlock. A difference means the editor puts the caret
+// against noteheader.Parse. A difference means the editor puts the caret
 // in one place and the server reads the body from another.
 //
 // It skips with no node. The build image has one.
@@ -120,7 +121,7 @@ process.stdout.write(JSON.stringify(out));
 	}
 
 	for i, c := range cases {
-		want := parseHeaderBlock(c.Content).BodyOffset
+		want := noteheader.Parse(c.Content).BodyOffset
 		if got[i] == want {
 			continue
 		}
@@ -128,7 +129,7 @@ process.stdout.write(JSON.stringify(out));
 			"  the server reads the body as %q\n"+
 			"  the editor puts the caret at  %q\n"+
 			"  Keep isHeaderFirstLine and firstLineAfterHeader in "+
-			"omn-go-editor.js the same as header_block.go. See CLAUDE.md section 5.",
+			"omn-go-editor.js the same as internal/noteheader. See CLAUDE.md section 5.",
 			c.Name, want, got[i], c.Content[want:], c.Content[min(got[i], len(c.Content)):])
 	}
 }

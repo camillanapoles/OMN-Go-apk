@@ -1,7 +1,7 @@
 {
   "comment": [
     "The shared cases of the header-block rule. THREE readers use this file.",
-    "backend/ports_test.go runs each case through parseHeaderBlock, the Go",
+    "backend/ports_test.go runs each case through noteheader.Parse, the Go",
     "authority. header.test.js runs each case through the REAL JavaScript of",
     "omn-go-editor.js. The two must answer the same offset.",
     "",

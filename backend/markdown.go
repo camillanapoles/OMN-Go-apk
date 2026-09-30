@@ -13,6 +13,7 @@ import (
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer/html"
+	"net.basov.omngo/backend/internal/noteheader"
 )
 
 // hrefRe finds the raw value of an href attribute, thus the code can decide
@@ -221,8 +222,8 @@ func (a *App) compilePage(name string, mdContent []byte) []byte {
 // not rendered. The Config page and the wait page of the external editor use
 // that. ?edit=true goes to renderEditorPage, and not here.
 func (a *App) compilePageWithBody(name string, mdContent []byte, customBody string) []byte {
-	// parseHeaderBlock is the one header split. See header_block.go.
-	hb := parseHeaderBlock(string(mdContent))
+	// noteheader.Parse is the one header split. See package noteheader.
+	hb := noteheader.Parse(string(mdContent))
 	var headers []string
 	if hb.HasHeader {
 		headers = strings.Split(hb.Header, "\n")
@@ -305,8 +306,8 @@ func (a *App) ensureHeaderModified(content string, defaultTitle string) string {
 	content = strings.ReplaceAll(content, "\r\n", "\n")
 	now := time.Now().Format("2006-01-02 15:04:05")
 
-	// Use the one header split. See header_block.go.
-	hb := parseHeaderBlock(content)
+	// Use the one header split. See package noteheader.
+	hb := noteheader.Parse(content)
 
 	if hb.HasHeader {
 		headerLines := strings.Split(hb.Header, "\n")
@@ -323,8 +324,8 @@ func (a *App) ensureHeaderModified(content string, defaultTitle string) string {
 			headerLines = append(headerLines, fmt.Sprintf("Modified: %s", now))
 		}
 		// This rebuild uses a fixed "\n\n". A header that ended at a body
-		// line thus gets an empty line after it. header_block.go explains why
-		// setHeaderKey does not do this.
+		// line thus gets an empty line after it. The noteheader package says
+		// why noteheader.SetKey does not do this.
 		return strings.Join(headerLines, "\n") + "\n\n" + hb.Body
 	}
 

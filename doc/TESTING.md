@@ -165,9 +165,9 @@ the day a person wrote it, and `ports_test.go` says so.
 
 **One pair is tested by running both.** `isHeaderFirstLine` and
 `firstLineAfterHeader` in `omn-go-editor.js` are a port of
-`header_block.go`. `TestHeaderPortAgreesWithTheRealJavaScript` in
-`backend/js_test.go` runs the real JavaScript through Node and compares
-each answer against `parseHeaderBlock`.
+`backend/internal/noteheader/noteheader.go`.
+`TestHeaderPortAgreesWithTheRealJavaScript` in `backend/js_test.go` runs the real JavaScript through Node and compares
+each answer against `noteheader.Parse`.
 
 The cases live in `backend/frontend/test/header-cases.json`, and both
 languages read that one file. Add a case there when you find a note shape

@@ -28,6 +28,8 @@ import (
 	"strings"
 	"sync"
 	"unicode"
+
+	"net.basov.omngo/backend/internal/textmatch"
 )
 
 // docSection is one part of a document, from line start to line end, both
@@ -472,7 +474,7 @@ func (d *searchDocument) addBookmarks(body string, firstLineNo int) {
 			continue
 		}
 		text := strings.Join(parts, bookmarkJoin)
-		f := fold(text)
-		d.lines = append(d.lines, docLine{no: start, raw: text, fold: f, mask: runeMask(f)})
+		f := textmatch.Fold(text)
+		d.lines = append(d.lines, docLine{no: start, raw: text, fold: f, mask: textmatch.RuneMask(f)})
 	}
 }

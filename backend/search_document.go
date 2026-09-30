@@ -5,6 +5,9 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"net.basov.omngo/backend/internal/noteheader"
+	"net.basov.omngo/backend/internal/textmatch"
 )
 
 // docField is one short weighted field: a title, a tag or the path.
@@ -115,7 +118,7 @@ func newAssetDocument(rel, content string, truncated bool) *searchDocument {
 // fields, and only the BODY gives content lines. The line numbers count the
 // header too.
 func (d *searchDocument) parseMarkdown(content string) {
-	hb := parseHeaderBlock(content)
+	hb := noteheader.Parse(content)
 	title, tags := extractTitleTags(content)
 	if title == "" {
 		title = d.Name
@@ -124,10 +127,10 @@ func (d *searchDocument) parseMarkdown(content string) {
 	d.Tags = tags
 
 	d.fields = append(d.fields,
-		docField{name: "title", text: fold(title), weight: weightTitle},
-		docField{name: "path", text: fold(d.Name), weight: weightPath})
+		docField{name: "title", text: textmatch.Fold(title), weight: weightTitle},
+		docField{name: "path", text: textmatch.Fold(d.Name), weight: weightPath})
 	for _, t := range tags {
-		d.fields = append(d.fields, docField{name: "tag", text: fold(t), weight: weightTags})
+		d.fields = append(d.fields, docField{name: "tag", text: textmatch.Fold(t), weight: weightTags})
 	}
 	if hb.HasHeader {
 		for _, h := range strings.Split(hb.Header, "\n") {
@@ -141,7 +144,7 @@ func (d *searchDocument) parseMarkdown(content string) {
 			}
 			if v = strings.TrimSpace(v); v != "" {
 				d.fields = append(d.fields, docField{
-					name: strings.ToLower(strings.TrimSpace(k)), text: fold(v), weight: weightHeader})
+					name: strings.ToLower(strings.TrimSpace(k)), text: textmatch.Fold(v), weight: weightHeader})
 			}
 		}
 	}
@@ -162,7 +165,7 @@ func (d *searchDocument) parseMarkdown(content string) {
 func (d *searchDocument) parsePlain(content string) {
 	d.Title = path.Base(d.Name)
 	d.fields = append(d.fields,
-		docField{name: "path", text: fold(d.Name), weight: weightPath})
+		docField{name: "path", text: textmatch.Fold(d.Name), weight: weightPath})
 	d.addLines(content, 1)
 }
 
@@ -176,12 +179,12 @@ func (d *searchDocument) addLines(content string, firstLineNo int) ([]string, []
 		if strings.TrimSpace(line) == "" {
 			continue // an empty line can never match, and costs memory to keep
 		}
-		f := fold(line)
+		f := textmatch.Fold(line)
 		d.lines = append(d.lines, docLine{
 			no:      firstLineNo + i,
 			raw:     line,
 			fold:    f,
-			mask:    runeMask(f),
+			mask:    textmatch.RuneMask(f),
 			context: contexts[i],
 		})
 	}

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"net.basov.omngo/backend/internal/noteheader"
 )
 
 // ----------------------------------------------------------------------
@@ -54,7 +56,7 @@ func tagSlug(tag string) string {
 // keeps the order and can hold a duplicate. buildTagIndex removes the
 // duplicates.
 func extractTitleTags(content string) (title string, tags []string) {
-	hb := parseHeaderBlock(content)
+	hb := noteheader.Parse(content)
 	if !hb.HasHeader {
 		return "", nil
 	}

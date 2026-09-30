@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"net.basov.omngo/backend/internal/textmatch"
 )
 
 // Only GLOBAL search has a setting. Page search has no cost when nobody uses
@@ -29,7 +31,7 @@ func (a *App) defaultSearchScope() string {
 }
 
 // searchMatch is one snippet of the response. Spans are [start, len] pairs in
-// RUNE offsets into Text. See the banner of search_match.go.
+// RUNE offsets into Text. See the banner of package textmatch.
 type searchMatch struct {
 	Line    int            `json:"line"`
 	Context string         `json:"context,omitempty"`
@@ -191,11 +193,11 @@ func cutSnippets(q parsedQuery, hits []lineHit, limit int, common map[string]boo
 	for _, h := range hits {
 		carries := false
 		for _, term := range q.terms {
-			if isShortTerm(term.runes) || common[string(term.runes)] {
+			if textmatch.IsShortTerm(term.runes) || common[string(term.runes)] {
 				continue
 			}
-			_, _, tier, ok := scoreTerm(term.runes, h.line.fold)
-			if !ok || tier != tierSubstring {
+			_, _, tier, ok := textmatch.ScoreTerm(term.runes, h.line.fold)
+			if !ok || tier != textmatch.TierSubstring {
 				continue
 			}
 			carries = true
@@ -237,7 +239,7 @@ func (a *App) searchGlobal(resp *searchResponse, qs map[string][]string) {
 		doc   *searchDocument
 		index *indexedDoc
 		score int
-		tier  matchTier
+		tier  textmatch.Tier
 		hits  []lineHit
 	}
 	var found []scored
@@ -278,7 +280,7 @@ func (a *App) searchGlobal(resp *searchResponse, qs map[string][]string) {
 	sortScored := func(i, j int) bool {
 		a1, b1 := found[i], found[j]
 		if a1.tier != b1.tier || a1.score != b1.score {
-			return betterMatch(a1.tier, a1.score, b1.tier, b1.score)
+			return textmatch.BetterMatch(a1.tier, a1.score, b1.tier, b1.score)
 		}
 		if !a1.index.ModTime.Equal(b1.index.ModTime) {
 			return a1.index.ModTime.After(b1.index.ModTime)

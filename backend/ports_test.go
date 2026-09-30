@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/noteheader"
 )
 
 // ----------------------------------------------------------------------
@@ -94,9 +95,9 @@ var goForbiddenFirstCharRe = regexp.MustCompile(`strings\.HasPrefix\(line, "(.)"
 func TestHeaderRuleHasAFrontendCopy(t *testing.T) {
 	js := portsJS(t, "omn-go-editor.js")
 
-	goSrc, err := os.ReadFile("header_block.go")
+	goSrc, err := os.ReadFile("internal/noteheader/noteheader.go")
 	if err != nil {
-		t.Fatalf("header_block.go: %v", err)
+		t.Fatalf("internal/noteheader/noteheader.go: %v", err)
 	}
 
 	jsChars := jsForbiddenFirstCharRe.FindAllStringSubmatch(js, -1)
@@ -143,7 +144,7 @@ func TestHeaderRuleHasAFrontendCopy(t *testing.T) {
 		{"no colon here", false},
 	}
 	for _, c := range cases {
-		if got := isHeaderFirstLine(c.line); got != c.want {
+		if got := noteheader.IsFirstLine(c.line); got != c.want {
 			t.Errorf("isHeaderFirstLine(%q) = %v, want %v", c.line, got, c.want)
 		}
 	}
@@ -429,7 +430,7 @@ func jsFirstLineAfterHeader(text string) int {
 	if nl != -1 {
 		firstLine = text[:nl]
 	}
-	if !isHeaderFirstLine(firstLine) {
+	if !noteheader.IsFirstLine(firstLine) {
 		return 0
 	}
 
@@ -446,7 +447,7 @@ func jsFirstLineAfterHeader(text string) int {
 			offset += len(lines[i]) + 1
 			return clamp(offset)
 		}
-		if !isHeaderFirstLine(lines[i]) {
+		if !noteheader.IsFirstLine(lines[i]) {
 			return clamp(offset)
 		}
 		offset += len(lines[i]) + 1
@@ -454,7 +455,7 @@ func jsFirstLineAfterHeader(text string) int {
 	return len(text)
 }
 
-// parseHeaderBlock ends a header at an empty line or a line of spaces. It
+// noteheader.Parse ends a header at an empty line or a line of spaces. It
 // also ends it at the first line that is not a metadata key line.
 // firstLineAfterHeader must do the same. A copy that looks for an empty
 // line alone reads four of the eight notes below differently. The worst
@@ -474,7 +475,7 @@ func TestHeaderBodyStartHasAFrontendCopy(t *testing.T) {
 		{"an empty note", ""},
 	}
 	for _, c := range cases {
-		want := parseHeaderBlock(c.content).BodyOffset
+		want := noteheader.Parse(c.content).BodyOffset
 		got := jsFirstLineAfterHeader(c.content)
 		if got != want {
 			t.Errorf("%s: the body starts at %d in Go and at %d in the editor.\n"+
@@ -504,13 +505,13 @@ func TestHeaderPortShapeIsUnchanged(t *testing.T) {
 	// The two endings of the rule, and the walk that finds them.
 	for _, want := range []struct{ code, why string }{
 		{"text.split('\\n')", "the function must walk the lines, and not look for one blank line"},
-		{"lines[i].trim() === ''", "a separator of spaces must end the header, the same as parseHeaderBlock"},
+		{"lines[i].trim() === ''", "a separator of spaces must end the header, the same as noteheader.Parse"},
 		{"!isHeaderFirstLine(lines[i])", "a line that is not a key line must end the header and start the body"},
 	} {
 		if !strings.Contains(body, want.code) {
 			t.Errorf("firstLineAfterHeader no longer holds %q. %s. "+
 				"Bring jsFirstLineAfterHeader in ports_test.go up to the new shape "+
-				"and check it against parseHeaderBlock.", want.code, want.why)
+				"and check it against noteheader.Parse.", want.code, want.why)
 		}
 	}
 	if strings.Contains(body, `/\r?\n\r?\n/`) {

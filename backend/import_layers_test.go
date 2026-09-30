@@ -17,8 +17,10 @@ import (
 // in group_links_test.go: 0 for the leaves, up to 6 for app. backend is the
 // facade on top.
 var importLayers = map[string]int{
-	"net.basov.omngo/backend/frontend": 0,
-	"net.basov.omngo/backend":          7,
+	"net.basov.omngo/backend/frontend":            0,
+	"net.basov.omngo/backend/internal/noteheader": 0,
+	"net.basov.omngo/backend/internal/textmatch":  0,
+	"net.basov.omngo/backend":                     7,
 }
 
 // TestImportLayers reads the imports of each production file below

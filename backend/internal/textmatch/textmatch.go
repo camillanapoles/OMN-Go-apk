@@ -1,4 +1,5 @@
-package backend
+// Package textmatch scores a search term against a text. It has no state.
+package textmatch
 
 // ----------------------------------------------------------------------
 // The fuzzy matcher
@@ -10,18 +11,19 @@ package backend
 //
 // The ladder has three rungs, and the first rung that hits wins:
 //
-//	1. scoreSubstring    The folded term appears as it is.
+//	1. ScoreSubstring    The folded term appears as it is.
 //	2. scoreSubsequence  The runes of the term appear in order, as in fzf.
-//	3. scoreTypo         A bounded edit distance finds a misspelling.
+//	3. ScoreTypo         A bounded edit distance finds a misspelling.
 //
-// betterMatch compares the rungs BEFORE the scores. The weakest substring hit
+// BetterMatch compares the rungs BEFORE the scores. The weakest substring hit
 // scores 85, and a perfect subsequence scores 95. An order by score alone
-// would thus put a vague match above the word itself. tierPhrase stands above
-// the three rungs, and it belongs to a whole query. See scoreDocument.
+// would thus put a vague match above the word itself. TierPhrase stands above
+// the three rungs, and it belongs to a whole query. See scoreDocument in
+// package backend.
 //
-// scoreTerm runs rungs 1 and 2. Rung 3 needs a set of candidate tokens, and
+// ScoreTerm runs rungs 1 and 2. Rung 3 needs a set of candidate tokens, and
 // only the caller can make that set: the index, or the search of one page.
-// This file thus gives tokenize, scoreTypo and osaDistance to the caller.
+// This file thus gives Tokenize, ScoreTypo and osaDistance to the caller.
 //
 // Each rung answers a different question: "I know what it says", "I remember
 // the name roughly", and "I typed it wrong". One scorer for all three
@@ -29,34 +31,34 @@ package backend
 
 import "unicode"
 
-// span is the range of a match in a candidate, in rune offsets.
-type span struct{ Start, Len int }
+// Span is the range of a match in a candidate, in rune offsets.
+type Span struct{ Start, Len int }
 
-// matchTier records the rung that gave a score. A test can thus check how an
+// Tier records the rung that gave a score. A test can thus check how an
 // input matched, and not only that it matched.
-type matchTier uint8
+type Tier uint8
 
 const (
-	tierNone matchTier = iota
-	// tierPhrase belongs to a whole query, and scoreTerm never returns it.
+	TierNone Tier = iota
+	// TierPhrase belongs to a whole query, and ScoreTerm never returns it.
 	// scoreDocument gives it to a document, and to the line, that holds each
 	// query word in order and side by side. It is a rung and not a bonus,
 	// because a bonus cannot win against a sum. See scoreDocument.
-	tierPhrase
-	tierSubstring
-	tierSubsequence
-	tierTypo
+	TierPhrase
+	TierSubstring
+	TierSubsequence
+	TierTypo
 )
 
-func (t matchTier) String() string {
+func (t Tier) String() string {
 	switch t {
-	case tierPhrase:
+	case TierPhrase:
 		return "phrase"
-	case tierSubstring:
+	case TierSubstring:
 		return "substring"
-	case tierSubsequence:
+	case TierSubsequence:
 		return "subsequence"
-	case tierTypo:
+	case TierTypo:
 		return "typo"
 	default:
 		return "none"
@@ -94,13 +96,13 @@ const (
 	maxTokenLen     = 32 // base64 blobs and minified identifiers are not queries
 )
 
-// foldTable holds the diacritic mappings that the fold applies after it
+// FoldTable holds the diacritic mappings that the fold applies after it
 // lowercases a rune. Each entry maps ONE rune to ONE rune, because a change
 // of length moves each span. An expanding fold, such as ß to ss, is absent on
 // purpose. ё maps to е, because a person often types е for ё. OMN_FOLD_TABLE
 // in omn-go-core.js is a copy, and TestFoldTableHasAFrontendCopy compares the
 // two.
-var foldTable = map[rune]rune{
+var FoldTable = map[rune]rune{
 	'à': 'a', 'á': 'a', 'â': 'a', 'ã': 'a', 'ä': 'a', 'å': 'a',
 	'è': 'e', 'é': 'e', 'ê': 'e', 'ë': 'e',
 	'ì': 'i', 'í': 'i', 'î': 'i', 'ï': 'i',
@@ -111,7 +113,7 @@ var foldTable = map[rune]rune{
 	'ё': 'е',
 }
 
-// foldRune lowercases a rune and removes the diacritics of foldTable.
+// foldRune lowercases a rune and removes the diacritics of FoldTable.
 func foldRune(r rune) rune {
 	if r < utf8SelfMax {
 		if r >= 'A' && r <= 'Z' {
@@ -120,7 +122,7 @@ func foldRune(r rune) rune {
 		return r
 	}
 	r = unicode.ToLower(r)
-	if f, ok := foldTable[r]; ok {
+	if f, ok := FoldTable[r]; ok {
 		return f
 	}
 	return r
@@ -130,9 +132,9 @@ func foldRune(r rune) rune {
 // no map lookup. The fold runs over each line of each indexed file.
 const utf8SelfMax = 0x80
 
-// fold answers s folded, as runes. It gives one rune for each input rune,
+// Fold answers s folded, as runes. It gives one rune for each input rune,
 // thus an offset in the result is also an offset in s.
-func fold(s string) []rune {
+func Fold(s string) []rune {
 	out := make([]rune, 0, len(s))
 	for _, r := range s {
 		out = append(out, foldRune(r))
@@ -140,10 +142,10 @@ func fold(s string) []rune {
 	return out
 }
 
-// isShortTerm tells whether a term is too short to match a line alone. One
+// IsShortTerm tells whether a term is too short to match a line alone. One
 // Latin or Cyrillic rune hits almost each line. One Han, Hiragana, Katakana
 // or Hangul rune is a whole word, thus it is never short.
-func isShortTerm(runes []rune) bool {
+func IsShortTerm(runes []rune) bool {
 	if len(runes) > 1 || len(runes) == 0 {
 		return false
 	}
@@ -154,18 +156,18 @@ func isShortTerm(runes []rune) bool {
 		!unicode.Is(unicode.Hangul, r)
 }
 
-// isWordRune tells what is inside a word, for the word bonuses and for
-// tokenize. A letter or a digit of any script counts. '_' counts too, because
+// IsWordRune tells what is inside a word, for the word bonuses and for
+// Tokenize. A letter or a digit of any script counts. '_' counts too, because
 // it joins the parts of an identifier.
-func isWordRune(r rune) bool {
+func IsWordRune(r rune) bool {
 	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_'
 }
 
-// runeMask answers a 64-bit signature of the runes in rs. Rungs 1 and 2 need
-// EACH rune of the term, thus maskRejects never rejects a real match. A
+// RuneMask answers a 64-bit signature of the runes in rs. Rungs 1 and 2 need
+// EACH rune of the term, thus MaskRejects never rejects a real match. A
 // collision costs only a check that finds nothing. Rung 3 cannot use the
 // mask, because a typo is a rune that the text does not have.
-func runeMask(rs []rune) uint64 {
+func RuneMask(rs []rune) uint64 {
 	var m uint64
 	for _, r := range rs {
 		m |= 1 << (uint32(r) % 64)
@@ -173,21 +175,21 @@ func runeMask(rs []rune) uint64 {
 	return m
 }
 
-// maskRejects reports whether cand cannot possibly contain every rune of term.
-func maskRejects(termMask, candMask uint64) bool {
+// MaskRejects reports whether cand cannot possibly contain every rune of term.
+func MaskRejects(termMask, candMask uint64) bool {
 	return termMask&^candMask != 0
 }
 
-// tokenize splits raw text into folded tokens for the typo rung. A token is a
-// run of word runes. tokenize also gives the camelCase parts of an
+// Tokenize splits raw text into folded tokens for the typo rung. A token is a
+// run of word runes. Tokenize also gives the camelCase parts of an
 // identifier, thus a typo of "json" reaches "loadJSON". It reads the RAW
 // text, because the fold removes the case that the split needs.
 //
-// tokenize drops a token outside [minTokenLen, maxTokenLen]. The typo rung
+// Tokenize drops a token outside [minTokenLen, maxTokenLen]. The typo rung
 // needs a term of 4 runes or more, and a token must be within k runes of the
 // term in length. A token of 1 or 2 runes thus never matches. The upper bound
 // drops a base64 blob.
-func tokenize(s string) []string {
+func Tokenize(s string) []string {
 	var out []string
 	emit := func(t []rune) {
 		if len(t) < minTokenLen || len(t) > maxTokenLen {
@@ -215,7 +217,7 @@ func tokenize(s string) []string {
 	}
 
 	for _, r := range s {
-		if isWordRune(r) {
+		if IsWordRune(r) {
 			word = append(word, r)
 			continue
 		}
@@ -269,26 +271,26 @@ func indexRunes(hay, needle []rune, from int) int {
 	return -1
 }
 
-// scoreSubstring scores each hit of a folded term in cand, and it answers a
+// ScoreSubstring scores each hit of a folded term in cand, and it answers a
 // span for each hit. The score comes from the best hit, and not from the
 // first. "xjson /json" thus gets the score of "/json".
-func scoreSubstring(term, cand []rune) (int, []span, bool) {
+func ScoreSubstring(term, cand []rune) (int, []Span, bool) {
 	if len(term) == 0 {
 		return 0, nil, false
 	}
-	var spans []span
+	var spans []Span
 	best := 0
 	for at := indexRunes(cand, term, 0); at >= 0; at = indexRunes(cand, term, at+1) {
-		spans = append(spans, span{Start: at, Len: len(term)})
+		spans = append(spans, Span{Start: at, Len: len(term)})
 
 		s := substringBase
 		if len(cand) == len(term) {
 			s += bonusFieldEqual
 		}
-		if at == 0 || !isWordRune(cand[at-1]) {
+		if at == 0 || !IsWordRune(cand[at-1]) {
 			s += bonusWordStart
 		}
-		if end := at + len(term); end >= len(cand) || !isWordRune(cand[end]) {
+		if end := at + len(term); end >= len(cand) || !IsWordRune(cand[end]) {
 			s += bonusWordEnd
 		}
 		pos := at
@@ -314,12 +316,12 @@ func scoreSubstring(term, cand []rune) (int, []span, bool) {
 // word start. A division by the length would lower the score of a longer
 // query, and the results would move while the user types. The fold removed
 // the case, thus only a separator marks a word start here.
-func scoreSubsequence(term, cand []rune) (int, []span, bool) {
+func scoreSubsequence(term, cand []rune) (int, []Span, bool) {
 	if len(term) == 0 {
 		return 0, nil, false
 	}
 	raw, ti, gaps, skipped, prev := 0, 0, 0, 0, -2
-	var spans []span
+	var spans []Span
 	for ci := 0; ci < len(cand) && ti < len(term); ci++ {
 		if cand[ci] != term[ti] {
 			continue
@@ -333,9 +335,9 @@ func scoreSubsequence(term, cand []rune) (int, []span, bool) {
 				gaps++
 				skipped += ci - prev - 1
 			}
-			spans = append(spans, span{Start: ci, Len: 1})
+			spans = append(spans, Span{Start: ci, Len: 1})
 		}
-		if ci == 0 || !isWordRune(cand[ci-1]) {
+		if ci == 0 || !IsWordRune(cand[ci-1]) {
 			raw += subseqWordStart
 		}
 		prev = ci
@@ -363,9 +365,9 @@ func scoreSubsequence(term, cand []rune) (int, []span, bool) {
 	return score, spans, true
 }
 
-// typoBudget answers the number of edits for a term of this length. It
+// TypoBudget answers the number of edits for a term of this length. It
 // answers 0 for a term that is too short to guess.
-func typoBudget(termLen int) int {
+func TypoBudget(termLen int) int {
 	switch {
 	case termLen >= typoK2TermLen:
 		return 2
@@ -430,51 +432,51 @@ func osaDistance(a, b []rune, k int) int {
 	return prev[lb]
 }
 
-// scoreTypo scores a folded term against one token from tokenize. The caller
+// ScoreTypo scores a folded term against one token from Tokenize. The caller
 // chooses the tokens. This rung cannot use the mask, thus a whole corpus
 // would cost quadratic time. The index first narrows the tokens by trigram
 // signature. A page search tries the tokens of its one file.
-func scoreTypo(term, token []rune) (int, matchTier, bool) {
-	k := typoBudget(len(term))
+func ScoreTypo(term, token []rune) (int, Tier, bool) {
+	k := TypoBudget(len(term))
 	if k == 0 || len(token) < minTokenLen {
-		return 0, tierNone, false
+		return 0, TierNone, false
 	}
 	d := osaDistance(term, token, k)
 	if d > k {
-		return 0, tierNone, false
+		return 0, TierNone, false
 	}
-	return typoBase - typoPerEdit*d, tierTypo, true
+	return typoBase - typoPerEdit*d, TierTypo, true
 }
 
-// scoreTerm runs rungs 1 and 2 against one folded candidate: a title, a tag,
-// a path or a line. Rung 3 needs tokens. See scoreTypo.
-func scoreTerm(term, cand []rune) (int, []span, matchTier, bool) {
+// ScoreTerm runs rungs 1 and 2 against one folded candidate: a title, a tag,
+// a path or a line. Rung 3 needs tokens. See ScoreTypo.
+func ScoreTerm(term, cand []rune) (int, []Span, Tier, bool) {
 	if len(term) == 0 || len(cand) == 0 {
-		return 0, nil, tierNone, false
+		return 0, nil, TierNone, false
 	}
-	if s, spans, ok := scoreSubstring(term, cand); ok {
-		return s, spans, tierSubstring, true
+	if s, spans, ok := ScoreSubstring(term, cand); ok {
+		return s, spans, TierSubstring, true
 	}
 	if len(term) < minFuzzyTermLen {
 		// One or two runes match almost any text as a subsequence. Stop here,
 		// or the list fills with noise before the third keystroke.
-		return 0, nil, tierNone, false
+		return 0, nil, TierNone, false
 	}
 	if s, spans, ok := scoreSubsequence(term, cand); ok {
-		return s, spans, tierSubsequence, true
+		return s, spans, TierSubsequence, true
 	}
-	return 0, nil, tierNone, false
+	return 0, nil, TierNone, false
 }
 
-// betterMatch reports whether match A ranks above match B. It is the ONE
+// BetterMatch reports whether match A ranks above match B. It is the ONE
 // place of the order rule. A better tier always wins, and within a tier the
 // higher score wins. See the banner. TestTierSeparation holds the rule.
-func betterMatch(aTier matchTier, aScore int, bTier matchTier, bScore int) bool {
+func BetterMatch(aTier Tier, aScore int, bTier Tier, bScore int) bool {
 	if aTier != bTier {
-		if aTier == tierNone {
+		if aTier == TierNone {
 			return false
 		}
-		if bTier == tierNone {
+		if bTier == TierNone {
 			return true
 		}
 		return aTier < bTier
@@ -482,13 +484,13 @@ func betterMatch(aTier matchTier, aScore int, bTier matchTier, bScore int) bool 
 	return aScore > bScore
 }
 
-// mergeSpans sorts spans by start, and it merges a pair that overlaps or
+// MergeSpans sorts spans by start, and it merges a pair that overlaps or
 // touches. A renderer then never gets a nested highlight.
-func mergeSpans(spans []span) []span {
+func MergeSpans(spans []Span) []Span {
 	if len(spans) < 2 {
 		return spans
 	}
-	sorted := make([]span, len(spans))
+	sorted := make([]Span, len(spans))
 	copy(sorted, spans)
 	for i := 1; i < len(sorted); i++ {
 		for j := i; j > 0 && sorted[j].Start < sorted[j-1].Start; j-- {

@@ -17,6 +17,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"net.basov.omngo/backend/internal/noteheader"
 )
 
 const (
@@ -64,7 +66,7 @@ const (
 
 // exportNoteSource answers the Markdown of a note, ready to send, and the
 // name of the attachment. It SETS FileName:, and it does not add a second
-// line. An imported note already has one. See setHeaderKey.
+// line. An imported note already has one. See noteheader.SetKey.
 func (a *App) exportNoteSource(name string) (data []byte, filename string, err error) {
 	mdPath, _, baseName, isPage := a.resolvePageName(name)
 	if !isPage {
@@ -74,7 +76,7 @@ func (a *App) exportNoteSource(name string) (data []byte, filename string, err e
 	if err != nil {
 		return nil, "", err
 	}
-	out := setHeaderKey(normalizeNewlines(string(src)), headerKeyFileName, baseName)
+	out := noteheader.SetKey(normalizeNewlines(string(src)), headerKeyFileName, baseName)
 	return []byte(out), flattenExportName(baseName) + ".md", nil
 }
 
@@ -170,7 +172,7 @@ func (a *App) importNote(content []byte, displayName string, now time.Time) (imp
 	}
 
 	// Keep FileName:, because it tells where this copy came from. An export
-	// sets the line again with setHeaderKey.
+	// sets the line again with noteheader.SetKey.
 	original, _ := headerValue(src, headerKeyFileName)
 
 	rel := sanitizeImportPath(original)
@@ -210,7 +212,7 @@ func (a *App) importNote(content []byte, displayName string, now time.Time) (imp
 
 	// Record when the note arrived. Date: and Modified: are facts of the
 	// sender, and they stay as they are.
-	src = setHeaderKey(src, headerKeyImported, now.Format("2006-01-02 15:04:05"))
+	src = noteheader.SetKey(src, headerKeyImported, now.Format("2006-01-02 15:04:05"))
 
 	if err := os.WriteFile(filepath.Join(fullDir, base+".md"), []byte(src), 0644); err != nil {
 		return importResult{}, err
@@ -445,7 +447,7 @@ func (a *App) addIncomingIndexLine(res importResult, now time.Time) error {
 	line := "* <span class=\"omn-incoming-when\">" + now.Format("2006-01-02 15:04") +
 		"</span> · [" + label + "](" + hrefEscapePath(res.Rel) + ")"
 
-	header, sep, body := splitHeaderRegion(content)
+	header, sep, body := noteheader.SplitRegion(content)
 	if header == "" {
 		return os.WriteFile(indexPath, []byte(line+"\n\n"+content), 0644)
 	}
@@ -507,12 +509,12 @@ func normalizeNewlines(s string) string {
 
 // headerValue reads one header key, and it does not remove it.
 func headerValue(content, key string) (string, bool) {
-	header, _, _ := splitHeaderRegion(content)
+	header, _, _ := noteheader.SplitRegion(content)
 	if header == "" {
 		return "", false
 	}
 	for _, l := range strings.Split(header, "\n") {
-		if strings.EqualFold(headerKeyOf(l), key) {
+		if strings.EqualFold(noteheader.KeyOf(l), key) {
 			if c := strings.IndexByte(l, ':'); c >= 0 {
 				return strings.TrimSpace(l[c+1:]), true
 			}

@@ -748,10 +748,10 @@
         }
     }
 
-    // isHeaderFirstLine is a direct port of the Go isHeaderFirstLine, in
-    // backend/header_block.go. The FIRST line of a note is a metadata key
-    // line only when it contains ':' and does not start with a space, '#',
-    // or '<'. Keep the two in sync.
+    // isHeaderFirstLine is a direct port of noteheader.IsFirstLine in
+    // backend/internal/noteheader/noteheader.go. The FIRST line of a note is
+    // a metadata key line only when it contains ':' and does not start with
+    // a space, '#', or '<'. Keep the two in sync.
     function isHeaderFirstLine(line) {
         if (line.charAt(line.length - 1) === '\r') line = line.slice(0, -1);
         if (line.indexOf(':') === -1) return false;
@@ -760,9 +760,9 @@
     }
 
     // Returns the character offset of the first line after the metadata
-    // header of the note. It is a port of parseHeaderBlock in
-    // backend/header_block.go. The caret of the editor and the server thus
-    // agree about where a header block ends.
+    // header of the note. It is a port of noteheader.Parse in
+    // backend/internal/noteheader/noteheader.go. The caret of the editor and
+    // the server thus agree about where a header block ends.
     //
     // THE RULE HAS TWO ENDINGS.
     // A header exists only when the first line is a metadata key line. It
@@ -783,7 +783,7 @@
     //       The search misses a separator of spaces.
     //
     // TestHeaderBodyStartHasAFrontendCopy compares the two sides against a
-    // table of notes. Change this function and header_block.go together.
+    // table of notes. Change this function and noteheader.go together.
     function firstLineAfterHeader(text) {
         var nl = text.indexOf('\n');
         var firstLine = nl === -1 ? text : text.slice(0, nl);

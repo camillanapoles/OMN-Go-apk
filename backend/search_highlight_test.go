@@ -19,6 +19,7 @@ import (
 	"unicode/utf8"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/textmatch"
 )
 
 func hlOf(t *testing.T, query string) []string {
@@ -85,7 +86,7 @@ func TestHighlightTermsAreNotFolded(t *testing.T) {
 		}
 	}
 	// And the folded form really is different, or this test proves nothing.
-	if string(fold("Ёлка")) == "Ёлка" {
+	if string(textmatch.Fold("Ёлка")) == "Ёлка" {
 		t.Fatal("fold() no longer changes this input; pick another")
 	}
 }
@@ -367,31 +368,31 @@ func TestFoldTableHasAFrontendCopy(t *testing.T) {
 	// Same size, and the same entry for each key. A missing row is a
 	// character the reader sees marked in the panel and not in the page.
 	// An extra row marks a word that the server never matched.
-	for from, to := range foldTable {
+	for from, to := range textmatch.FoldTable {
 		got, ok := js[from]
 		switch {
 		case !ok:
-			t.Errorf("foldTable maps %q to %q, and OMN_FOLD_TABLE has no row "+
+			t.Errorf("textmatch.FoldTable maps %q to %q, and OMN_FOLD_TABLE has no row "+
 				"for it. Add '\\u%04x': '\\u%04x' to omn-go-core.js.", from, to, from, to)
 		case got != to:
-			t.Errorf("foldTable maps %q to %q, OMN_FOLD_TABLE maps it to %q", from, to, got)
+			t.Errorf("textmatch.FoldTable maps %q to %q, OMN_FOLD_TABLE maps it to %q", from, to, got)
 		}
 	}
 	for from, to := range js {
-		if _, ok := foldTable[from]; !ok {
-			t.Errorf("OMN_FOLD_TABLE maps %q to %q, and foldTable has no row "+
+		if _, ok := textmatch.FoldTable[from]; !ok {
+			t.Errorf("OMN_FOLD_TABLE maps %q to %q, and textmatch.FoldTable has no row "+
 				"for it. The page then marks a word the server never matched.", from, to)
 		}
 	}
 
 	// Every row must keep the length, in both copies. A fold that grows
 	// moves every span after it, and the marks land on the wrong words.
-	for from, to := range foldTable {
+	for from, to := range textmatch.FoldTable {
 		if len(string(from)) != len(string(from)) || to == 0 {
 			t.Errorf("row %q is not one rune to one rune", from)
 		}
 		if utf8.RuneCountInString(string(to)) != 1 {
-			t.Errorf("foldTable maps %q to %d runes, want 1", from, utf8.RuneCountInString(string(to)))
+			t.Errorf("textmatch.FoldTable maps %q to %d runes, want 1", from, utf8.RuneCountInString(string(to)))
 		}
 	}
 

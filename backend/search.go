@@ -6,7 +6,7 @@ package backend
 //
 // PAGE search (scope=page) reads the open note and keeps nothing. GLOBAL
 // search (scope=all) uses the index of search_index.go, and it needs
-// search_enabled. Both use the matcher of search_match.go and the same
+// search_enabled. Both use the matcher of package textmatch and the same
 // response shape.
 
 import (
@@ -17,6 +17,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"net.basov.omngo/backend/internal/textmatch"
 )
 
 // These are the limits and defaults of one request.
@@ -98,12 +100,12 @@ func parseQuery(q string) parsedQuery {
 				continue
 			}
 		}
-		runes := fold(f)
+		runes := textmatch.Fold(f)
 		if len(runes) == 0 {
 			continue
 		}
 		out.terms = append(out.terms, queryTerm{
-			runes: runes, mask: runeMask(runes), field: field, raw: f,
+			runes: runes, mask: textmatch.RuneMask(runes), field: field, raw: f,
 		})
 	}
 	return out

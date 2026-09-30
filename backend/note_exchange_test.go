@@ -1,7 +1,7 @@
 package backend
 
 // Tests for note exchange (note_exchange.go) and the two header-key helpers
-// it needs (header_block.go).
+// it needs (package noteheader).
 //
 // Two properties carry the weight here.
 //
@@ -12,7 +12,7 @@ package backend
 // RESOLVES a "..".
 //
 // A KEY IS SET, NOT APPENDED. A note can hop twice, and a header block that
-// carries "Imported:" two times has no defined meaning. parseHeaderBlock
+// carries "Imported:" two times has no defined meaning. noteheader.Parse
 // hands the first one to whatever reads it, and which is first is an
 // accident of the order that the hops ran in.
 
@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/noteheader"
 )
 
 // testNow is fixed so that a test can state exactly what Imported: and the
@@ -87,14 +88,14 @@ func TestSetHeaderKey(t *testing.T) {
 		} else if strings.Contains(c.want, "FileName: new") {
 			value = "new"
 		}
-		if got := setHeaderKey(c.in, "FileName", value); got != c.want {
+		if got := noteheader.SetKey(c.in, "FileName", value); got != c.want {
 			t.Errorf("%s:\n got  %q\n want %q", c.what, got, c.want)
 		}
 	}
 
 	// A sender may write the key in another case. It is matched without
 	// regard to case and written back in ours.
-	got := setHeaderKey("Title: T\nfilename: old\n\nB\n", "FileName", "new")
+	got := noteheader.SetKey("Title: T\nfilename: old\n\nB\n", "FileName", "new")
 	if got != "Title: T\nFileName: new\n\nB\n" {
 		t.Errorf("case-insensitive replace: got %q", got)
 	}
@@ -342,7 +343,7 @@ func TestIncomingIndex(t *testing.T) {
 	if !strings.HasPrefix(idx, "Title: Incoming notes\n") {
 		t.Errorf("the index has no header block:\n%s", idx)
 	}
-	hb := parseHeaderBlock(idx)
+	hb := noteheader.Parse(idx)
 	if !hb.HasHeader {
 		t.Fatal("the index does not parse as a note with a header")
 	}
@@ -616,7 +617,7 @@ func TestEnsureIncomingIndex(t *testing.T) {
 	if strings.Index(idx, incomingListMarker) < 0 {
 		t.Errorf("the starter carries no list marker:\n%s", idx)
 	}
-	hb := parseHeaderBlock(idx)
+	hb := noteheader.Parse(idx)
 	if !hb.HasHeader || strings.Contains(hb.Header, incomingListMarker) {
 		t.Errorf("the marker was read as part of the header block:\n%s", hb.Header)
 	}
@@ -943,7 +944,7 @@ func TestIncomingTemplateCarriesItsMarkers(t *testing.T) {
 		}
 	}
 	// One header block, one marker, and nothing else.
-	hb := parseHeaderBlock(starter)
+	hb := noteheader.Parse(starter)
 	if !hb.HasHeader {
 		t.Fatal("the starter has no header block")
 	}

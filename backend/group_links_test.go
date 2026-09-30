@@ -16,8 +16,6 @@ import (
 // each group a package, and the compiler then holds the layers.
 var fileGroups = map[string]string{
 	"log_levels.go": "logx", "logger.go": "logx",
-	"search_match.go": "textmatch",
-	"header_block.go": "noteheader",
 
 	"config.go": "config", "config_fields.go": "config",
 	"config_store.go": "config", "hostname.go": "config", "version.go": "config",
@@ -59,7 +57,7 @@ var fileGroups = map[string]string{
 // above storage. The Status page reports on each feature, thus status is
 // above the features.
 var groupLayers = map[string]int{
-	"logx": 0, "textmatch": 0, "noteheader": 0,
+	"logx":    0,
 	"config":  1,
 	"storage": 2,
 	"render":  3,

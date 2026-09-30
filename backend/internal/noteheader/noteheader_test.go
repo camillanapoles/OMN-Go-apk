@@ -1,9 +1,9 @@
-package backend
+package noteheader
 
 import "testing"
 
 // TestParseHeaderBlock pins the behavior of the one header-block parser in
-// header_block.go. It is the one authority that every Go caller shares.
+// noteheader.go. It is the one authority that every Go caller shares.
 //
 // The interesting rows are the edge cases that separate copies of the
 // parser would handle differently. A first line that starts with '#' or '<' is body, and not a
@@ -125,7 +125,7 @@ func TestParseHeaderBlock(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hb := parseHeaderBlock(tt.in)
+			hb := Parse(tt.in)
 			if hb.HasHeader != tt.hasHeader {
 				t.Errorf("HasHeader = %v, want %v", hb.HasHeader, tt.hasHeader)
 			}
@@ -155,12 +155,12 @@ func TestIsHeaderFirstLine(t *testing.T) {
 	yes := []string{"Title: X", "Just: kidding", "Date: 2026-01-01 00:00:00", "A:b"}
 	no := []string{"no colon here", "# Head: x", "<script>x: 1", " indented: x", "", "plain"}
 	for _, s := range yes {
-		if !isHeaderFirstLine(s) {
+		if !IsFirstLine(s) {
 			t.Errorf("isHeaderFirstLine(%q) = false, want true", s)
 		}
 	}
 	for _, s := range no {
-		if isHeaderFirstLine(s) {
+		if IsFirstLine(s) {
 			t.Errorf("isHeaderFirstLine(%q) = true, want false", s)
 		}
 	}

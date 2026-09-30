@@ -167,8 +167,8 @@ window.OMNProgress = (function() {
 
 var OMN_HL_MIN = 2;   // 1 character marks half the page
 
-// OMN_FOLD_TABLE is a port of foldTable in backend/search_match.go. The two
-// must stay the same. TestFoldTableHasAFrontendCopy compares them.
+// OMN_FOLD_TABLE is a port of textmatch.FoldTable in
+// backend/internal/textmatch/textmatch.go. The two must stay the same. TestFoldTableHasAFrontendCopy compares them.
 //
 // The server folds before it matches, thus a search for "elka" finds a note
 // titled "Elka" with the Cyrillic yo. The panel marks that word, because the

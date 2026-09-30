@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/noteheader"
 )
 
 func (a *App) getExternalEditPageBody(fileName string, viewURL string) string {
@@ -332,8 +333,8 @@ func (a *App) handleNewPage(w http.ResponseWriter, r *http.Request) {
 			linkStr := fmt.Sprintf("* [%s](%s.html)", title, linkHref)
 
 			// The new link goes below the header block, or at the top of a
-			// note with no header. See header_block.go.
-			hb := parseHeaderBlock(content)
+			// note with no header. See package noteheader.
+			hb := noteheader.Parse(content)
 			if hb.HasHeader {
 				if hb.Body != "" {
 					content = hb.Header + "\n\n" + linkStr + "\n" + hb.Body

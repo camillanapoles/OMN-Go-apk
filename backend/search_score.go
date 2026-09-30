@@ -1,29 +1,31 @@
 package backend
 
+import "net.basov.omngo/backend/internal/textmatch"
+
 // lineHit is one matching content line, with the spans of each term merged.
 type lineHit struct {
 	line  *docLine
 	score int
-	tier  matchTier
-	spans []span
+	tier  textmatch.Tier
+	spans []textmatch.Span
 }
 
 // scoreDocument applies AND: each term must hit the document. For each term,
-// the best tier and weighted score wins. See betterMatch.
+// the best tier and weighted score wins. See textmatch.BetterMatch.
 //
 // THE PHRASE RUNG. A document that holds the whole query, in order and side
-// by side in the folded text, gets tierPhrase above each sum. A bonus cannot
+// by side in the folded text, gets textmatch.TierPhrase above each sum. A bonus cannot
 // do that: five loose words in one title scored 2001, and the sentence scored
 // 718. TestPhraseTierBeatsAHigherScore holds the rule. The loop counts the
 // DISTINCT terms of each line and field, thus the phrase test reads few
 // lines. A query with a field prefix is never a phrase.
-func scoreDocument(q parsedQuery, d *searchDocument) (int, matchTier, []lineHit, bool) {
+func scoreDocument(q parsedQuery, d *searchDocument) (int, textmatch.Tier, []lineHit, bool) {
 	if len(q.terms) == 0 {
-		return 0, tierNone, nil, false
+		return 0, textmatch.TierNone, nil, false
 	}
 
 	total := 0
-	worst := tierSubstring // the document's tier is its WEAKEST term's tier
+	worst := textmatch.TierSubstring // the document's tier is its WEAKEST term's tier
 	hits := map[int]*lineHit{}
 
 	// The phrase counters are a slice, because a map hash for each hit costs
@@ -42,21 +44,21 @@ func scoreDocument(q parsedQuery, d *searchDocument) (int, matchTier, []lineHit,
 	}
 
 	for _, term := range q.terms {
-		bestScore, bestTier := 0, tierNone
+		bestScore, bestTier := 0, textmatch.TierNone
 
 		for fi, f := range d.fields {
 			if term.field != "" && term.field != f.name {
 				continue
 			}
-			s, _, tier, ok := scoreTerm(term.runes, f.text)
+			s, _, tier, ok := textmatch.ScoreTerm(term.runes, f.text)
 			if !ok {
 				continue
 			}
-			if phraseWanted && tier == tierSubstring {
+			if phraseWanted && tier == textmatch.TierSubstring {
 				perField[fi]++
 			}
 			weighted := s * f.weight / 10
-			if betterMatch(tier, weighted, bestTier, bestScore) {
+			if textmatch.BetterMatch(tier, weighted, bestTier, bestScore) {
 				bestScore, bestTier = weighted, tier
 			}
 		}
@@ -64,18 +66,18 @@ func scoreDocument(q parsedQuery, d *searchDocument) (int, matchTier, []lineHit,
 		if term.field == "" {
 			for i := range d.lines {
 				ln := &d.lines[i]
-				if maskRejects(term.mask, ln.mask) {
+				if textmatch.MaskRejects(term.mask, ln.mask) {
 					continue // no rune loop, no allocation
 				}
-				s, spans, tier, ok := scoreTerm(term.runes, ln.fold)
+				s, spans, tier, ok := textmatch.ScoreTerm(term.runes, ln.fold)
 				if !ok {
 					continue
 				}
-				if phraseWanted && tier == tierSubstring {
+				if phraseWanted && tier == textmatch.TierSubstring {
 					perLine[i]++
 				}
 				weighted := s * weightContent / 10
-				if betterMatch(tier, weighted, bestTier, bestScore) {
+				if textmatch.BetterMatch(tier, weighted, bestTier, bestScore) {
 					bestScore, bestTier = weighted, tier
 				}
 				h := hits[ln.no]
@@ -94,12 +96,12 @@ func scoreDocument(q parsedQuery, d *searchDocument) (int, matchTier, []lineHit,
 			}
 		}
 
-		if bestTier == tierNone && term.field == "" {
+		if bestTier == textmatch.TierNone && term.field == "" {
 			// Nothing matched as a substring or a subsequence. Try the typo
 			// rung before the code drops the document. It finds "fetch" for
 			// "fecth". It cannot use the mask, thus it runs last.
 			if s, spans, ok := scoreTypoInDocument(term.runes, d); ok {
-				bestScore, bestTier = s.score, tierTypo
+				bestScore, bestTier = s.score, textmatch.TierTypo
 				for _, lh := range spans {
 					h := hits[lh.line.no]
 					if h == nil {
@@ -114,8 +116,8 @@ func scoreDocument(q parsedQuery, d *searchDocument) (int, matchTier, []lineHit,
 				}
 			}
 		}
-		if bestTier == tierNone {
-			return 0, tierNone, nil, false // AND: one miss drops the document
+		if bestTier == textmatch.TierNone {
+			return 0, textmatch.TierNone, nil, false // AND: one miss drops the document
 		}
 		if bestTier > worst {
 			worst = bestTier
@@ -131,7 +133,7 @@ func scoreDocument(q parsedQuery, d *searchDocument) (int, matchTier, []lineHit,
 		found := false
 		for fi, n := range perField {
 			if n == full {
-				if _, _, ok := scoreSubstring(want, d.fields[fi].text); ok {
+				if _, _, ok := textmatch.ScoreSubstring(want, d.fields[fi].text); ok {
 					found = true
 					break
 				}
@@ -141,17 +143,17 @@ func scoreDocument(q parsedQuery, d *searchDocument) (int, matchTier, []lineHit,
 			if n != full {
 				continue
 			}
-			if _, _, ok := scoreSubstring(want, d.lines[i].fold); ok {
+			if _, _, ok := textmatch.ScoreSubstring(want, d.lines[i].fold); ok {
 				found = true
 				// The line takes the rung too, thus the panel shows the line
 				// that the reader typed first.
 				if h := hits[d.lines[i].no]; h != nil {
-					h.tier = tierPhrase
+					h.tier = textmatch.TierPhrase
 				}
 			}
 		}
 		if found {
-			worst = tierPhrase
+			worst = textmatch.TierPhrase
 		}
 	}
 
@@ -163,7 +165,7 @@ func scoreDocument(q parsedQuery, d *searchDocument) (int, matchTier, []lineHit,
 
 	ordered := make([]lineHit, 0, len(hits))
 	for _, h := range hits {
-		h.spans = mergeSpans(h.spans)
+		h.spans = textmatch.MergeSpans(h.spans)
 		ordered = append(ordered, *h)
 	}
 	sortLineHits(ordered)
@@ -194,7 +196,7 @@ type typoResult struct {
 // spans mark the matched TOKEN, which is the real text, and not the
 // misspelled query.
 func scoreTypoInDocument(term []rune, d *searchDocument) (typoResult, []lineHit, bool) {
-	if typoBudget(len(term)) == 0 {
+	if textmatch.TypoBudget(len(term)) == 0 {
 		return typoResult{}, nil, false
 	}
 
@@ -203,12 +205,12 @@ func scoreTypoInDocument(term []rune, d *searchDocument) (typoResult, []lineHit,
 	seen := map[string]bool{}
 
 	consider := func(text string, weight int) {
-		for _, tok := range tokenize(text) {
+		for _, tok := range textmatch.Tokenize(text) {
 			if seen[tok] {
 				continue
 			}
 			seen[tok] = true
-			s, _, ok := scoreTypo(term, []rune(tok))
+			s, _, ok := textmatch.ScoreTypo(term, []rune(tok))
 			if !ok {
 				continue
 			}
@@ -233,8 +235,8 @@ func scoreTypoInDocument(term []rune, d *searchDocument) (typoResult, []lineHit,
 	needle := []rune(best.token)
 	for i := range d.lines {
 		ln := &d.lines[i]
-		if _, spans, ok := scoreSubstring(needle, ln.fold); ok {
-			hits = append(hits, lineHit{line: ln, score: best.score, tier: tierTypo, spans: spans})
+		if _, spans, ok := textmatch.ScoreSubstring(needle, ln.fold); ok {
+			hits = append(hits, lineHit{line: ln, score: best.score, tier: textmatch.TierTypo, spans: spans})
 		}
 	}
 	return best, hits, true
@@ -246,7 +248,7 @@ func sortLineHits(hits []lineHit) {
 	for i := 1; i < len(hits); i++ {
 		for j := i; j > 0; j-- {
 			a, b := hits[j], hits[j-1]
-			if betterMatch(a.tier, a.score, b.tier, b.score) ||
+			if textmatch.BetterMatch(a.tier, a.score, b.tier, b.score) ||
 				(a.tier == b.tier && a.score == b.score && a.line.no < b.line.no) {
 				hits[j], hits[j-1] = hits[j-1], hits[j]
 				continue
@@ -259,7 +261,7 @@ func sortLineHits(hits []lineHit) {
 // snippetFor cuts a line to fit a result row, and it moves the spans. A long
 // line gets a window around the first hit. It drops a span outside the
 // window, because a span that misses its match is worse than none.
-func snippetFor(raw string, spans []span) (string, []span) {
+func snippetFor(raw string, spans []textmatch.Span) (string, []textmatch.Span) {
 	runes := []rune(raw)
 
 	lead := 0
@@ -271,7 +273,7 @@ func snippetFor(raw string, spans []span) (string, []span) {
 		end--
 	}
 	runes = runes[lead:end]
-	shifted := make([]span, 0, len(spans))
+	shifted := make([]textmatch.Span, 0, len(spans))
 	for _, s := range spans {
 		s.Start -= lead
 		if s.Start >= 0 && s.Start+s.Len <= len(runes) {
@@ -303,7 +305,7 @@ func snippetFor(raw string, spans []span) (string, []span) {
 		suffix = "…"
 	}
 
-	out := make([]span, 0, len(shifted))
+	out := make([]textmatch.Span, 0, len(shifted))
 	for _, s := range shifted {
 		if s.Start < start || s.Start+s.Len > stop {
 			continue

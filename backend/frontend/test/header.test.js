@@ -52,7 +52,8 @@ test('firstLineAfterHeader never puts the caret inside the header block', () => 
 
 test('isHeaderFirstLine follows the four rules of the header block', () => {
     // A header block exists only when the first line holds a colon and
-    // does not start with a space, a hash or a "<". See header_block.go.
+    // does not start with a space, a hash or a "<". See
+    // backend/internal/noteheader/noteheader.go.
     for (const [line, want] of [
         ['Title: X', true],
         ['URL: http://example.org', true],

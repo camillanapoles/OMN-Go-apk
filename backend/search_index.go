@@ -29,6 +29,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"net.basov.omngo/backend/internal/textmatch"
 )
 
 const (
@@ -75,11 +77,11 @@ type indexedDoc struct {
 // candidate set small. The mask test gives no false negative for rungs 1 and
 // 2, because both need each rune. The trigram test covers the typo rung.
 func (d *indexedDoc) couldMatchTerm(t queryTerm) bool {
-	if !maskRejects(t.mask, d.FieldMask) {
+	if !textmatch.MaskRejects(t.mask, d.FieldMask) {
 		return true
 	}
 	for _, m := range d.LineMasks {
-		if !maskRejects(t.mask, m) {
+		if !textmatch.MaskRejects(t.mask, m) {
 			return true
 		}
 	}
@@ -89,7 +91,7 @@ func (d *indexedDoc) couldMatchTerm(t queryTerm) bool {
 // couldMatchTypo applies the trigram bound. A term of length L within k edits
 // still shares at least L-2-3k of its trigrams with the text.
 func (d *indexedDoc) couldMatchTypo(term []rune) bool {
-	k := typoBudget(len(term))
+	k := textmatch.TypoBudget(len(term))
 	if k == 0 {
 		return false
 	}
@@ -186,7 +188,7 @@ func indexWords(rs []rune, into map[string]bool) {
 		}
 	}
 	for _, r := range rs {
-		if isWordRune(r) {
+		if textmatch.IsWordRune(r) {
 			w = append(w, r)
 			continue
 		}

@@ -49,7 +49,7 @@ Do not remove a constraint without an instruction from the maintainer.
    distribution. F-Droid signs the package on its own server. A local build looks
    official, but it is not official.
 7. **Give each decision one authority.** Each decision has one implementation.
-   `parseHeaderBlock` is the only header-block parser. `renderAndCache` is the only
+   `noteheader.Parse` is the only header-block parser. `renderAndCache` is the only
    writer of `html/<name>.html`. `resolvePageName` is the only name resolver.
    `hasRole` is the only role check. `systemPages` is the only page-access table.
    `storageLayout` is the only code that joins a name to `StorageDir`.
@@ -83,6 +83,7 @@ Do not remove a constraint without an instruction from the maintainer.
 | --- | --- |
 | `main_desktop.go` | The only file in `package main`. It holds the only build tag: `//go:build !android`. |
 | `backend/` | The Go application. `package backend` holds most of the code, and the split into packages is in progress. |
+| `backend/internal/` | The packages of the split: `textmatch` (the search matcher) and `noteheader` (the header block). |
 | `backend/frontend/embed.go` | `package frontend`. It embeds `html/` and `md/` as `frontend.Static`, and `templates/` as `frontend.Templates`. |
 | `backend/frontend/templates/` | Server-side page fragments. Embedded as `frontend.Templates`. Never extracted to disk. |
 | `backend/frontend/html/` | `js/`, `css/`, `css/fonts/`, `json/`, `favicon.ico`. Embedded as `frontend.Static`. Extracted to the storage directory on demand. The user can edit these files with `?edit=true`. |
@@ -287,9 +288,9 @@ update these files.
   `doc/decisions/0015-load-the-click-driven-scripts-on-demand.md`.
   `backend/frontend/test/lazy.test.js` runs each exported function of each lazy
   file and fails on a free variable.
-* **The fold table has two implementations on purpose.** `foldTable` in
-  `backend/search_match.go` folds before the server matches. `OMN_FOLD_TABLE` in
-  `omn-go-core.js` folds again in the page. The server sends the term unfolded in
+* **The fold table has two implementations on purpose.** `textmatch.FoldTable` in
+  `backend/internal/textmatch/textmatch.go` folds before the server matches.
+  `OMN_FOLD_TABLE` in `omn-go-core.js` folds again in the page. The server sends the term unfolded in
   `?hl=`, because the reader has to see the word as typed, thus the page cannot
   match on a lowercase alone. `TestFoldTableHasAFrontendCopy` compares the two
   tables and checks that the three call sites use them. Each row maps one
@@ -334,14 +335,14 @@ update these files.
     `/api/search` for the note on screen. A bare name is ambiguous when it
     ends in a real file extension. `renderInternalEditor` does this, and
     `omnGoCurrentNoteName` in `omn-go-core.js` does it for the frontend.
-* `parseHeaderBlock` in `backend/header_block.go` is the only parser. A header block
-  exists only if the first line holds a colon and does not start with a space, `#`,
+* `noteheader.Parse` in `backend/internal/noteheader/noteheader.go` is the only parser.
+  A header block exists only if the first line holds a colon and does not start with a space, `#`,
   or `<`. The header block ends at the first empty line, which the parser drops. It
   also ends at the first non-header line, which the parser keeps.
 * `isHeaderFirstLine` and `firstLineAfterHeader` in `omn-go-editor.js` are a direct
   port of the Go code. **Keep the two versions the same.**
-* Read or write a single key with `setHeaderKey` or `splitHeaderRegion`. These
-  functions splice into the original string. The result
+* Read or write a single key with `noteheader.SetKey` or `noteheader.SplitRegion`.
+  These functions splice into the original string. The result
   keeps `header + separator + body` equal to the content, byte for byte. Never
   rebuild a header block with a hard-coded `"\n\n"`.
 * Write one line for each paragraph in a bundled note. `html.WithHardWraps()` is on.

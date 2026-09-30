@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/textmatch"
 )
 
 // The real line 15 of backend/frontend/md/Test/OMN-Go/Fetch.md, used as the
@@ -310,7 +311,7 @@ prose four
 
 func TestSnippetFor(t *testing.T) {
 	// Short line: whitespace trimmed, spans shifted with it.
-	text, spans := snippetFor("    hello world  ", []span{{Start: 10, Len: 5}})
+	text, spans := snippetFor("    hello world  ", []textmatch.Span{{Start: 10, Len: 5}})
 	if text != "hello world" {
 		t.Errorf("text = %q", text)
 	}
@@ -320,7 +321,7 @@ func TestSnippetFor(t *testing.T) {
 
 	// Long line: a window around the first hit, with ellipses, spans shifted.
 	long := strings.Repeat("x", 200) + "needle" + strings.Repeat("y", 200)
-	text, spans = snippetFor(long, []span{{Start: 200, Len: 6}})
+	text, spans = snippetFor(long, []textmatch.Span{{Start: 200, Len: 6}})
 	runes := []rune(text)
 	if len(runes) > snippetMaxRunes+2 {
 		t.Errorf("snippet is %d runes, want at most %d plus ellipses", len(runes), snippetMaxRunes)
@@ -602,7 +603,7 @@ func TestEditorFindInputsDoNotDisableTheIME(t *testing.T) {
 // A reader who types a whole sentence wants the note that holds that
 // sentence. A plain sum of the scores favors a title. Five loose query
 // words in one title can outscore the note that holds the sentence in a
-// body line. tierPhrase answers that, and the tests below pin each edge of
+// body line. textmatch.TierPhrase answers that, and the tests below pin each edge of
 // the rule.
 // ---------------------------------------------------------------------
 
@@ -633,17 +634,17 @@ func TestPhraseTierBeatsAHigherScore(t *testing.T) {
 	if !eOK || !dOK {
 		t.Fatal("both notes must match every term")
 	}
-	if eTier != tierPhrase {
+	if eTier != textmatch.TierPhrase {
 		t.Errorf("the note holding the sentence has tier %s, want phrase", eTier)
 	}
-	if dTier == tierPhrase {
+	if dTier == textmatch.TierPhrase {
 		t.Error("the decoy has no sentence, and it took the phrase rung")
 	}
 	if dScore <= eScore {
 		t.Fatalf("the decoy scores %d and the exact note %d. This test proves "+
 			"nothing unless the decoy scores MORE.", dScore, eScore)
 	}
-	if !betterMatch(eTier, eScore, dTier, dScore) {
+	if !textmatch.BetterMatch(eTier, eScore, dTier, dScore) {
 		t.Errorf("the decoy still ranks first: exact=%s/%d decoy=%s/%d",
 			eTier, eScore, dTier, dScore)
 	}
@@ -660,7 +661,7 @@ func TestPhraseTierMarksTheLineToo(t *testing.T) {
 	if !ok || len(hits) == 0 {
 		t.Fatal("no hits")
 	}
-	if hits[0].tier != tierPhrase {
+	if hits[0].tier != textmatch.TierPhrase {
 		t.Errorf("the first line has tier %s, want phrase: %q",
 			hits[0].tier, strings.TrimSpace(hits[0].line.raw))
 	}
@@ -677,7 +678,7 @@ func TestPhraseTierNeedsTwoTermsAndNoField(t *testing.T) {
 	a := newTestApp(t)
 	doc := phraseDoc(t, a, "note", "Title: Build the project\n\nBuild the project.\n")
 	for _, query := range []string{"project", "title:build project", "build title:project"} {
-		if _, tier, _, ok := scoreDocument(parseQuery(query), doc); ok && tier == tierPhrase {
+		if _, tier, _, ok := scoreDocument(parseQuery(query), doc); ok && tier == textmatch.TierPhrase {
 			t.Errorf("query %q took the phrase rung", query)
 		}
 	}
@@ -703,7 +704,7 @@ func TestPhraseTierIsLiteralAndAdjacent(t *testing.T) {
 	for _, c := range cases {
 		doc := phraseDoc(t, a, c.name, "Title: N\n\n"+c.body)
 		_, tier, _, ok := scoreDocument(parseQuery("build the project"), doc)
-		got := ok && tier == tierPhrase
+		got := ok && tier == textmatch.TierPhrase
 		if got != c.phrase {
 			t.Errorf("%s (%s): phrase=%v want %v, body %q",
 				c.name, c.comment, got, c.phrase, c.body)
@@ -809,16 +810,16 @@ func TestShortTermKeepsAWholeWord(t *testing.T) {
 	// a real search: the query "猫" scored 390 in the laboratory, and 0 with
 	// such a rule.
 	for _, s := range []string{"猫", "犬", "の", "ア", "한"} {
-		if isShortTerm([]rune(s)) {
+		if textmatch.IsShortTerm([]rune(s)) {
 			t.Errorf("%q reads as a short term, and it is a whole word", s)
 		}
 	}
 	for _, s := range []string{"a", "и", "1", "_"} {
-		if !isShortTerm([]rune(s)) {
+		if !textmatch.IsShortTerm([]rune(s)) {
 			t.Errorf("%q does not read as a short term", s)
 		}
 	}
-	if isShortTerm([]rune("ab")) || isShortTerm(nil) {
+	if textmatch.IsShortTerm([]rune("ab")) || textmatch.IsShortTerm(nil) {
 		t.Error("only a term of exactly one rune can be short")
 	}
 }
@@ -919,7 +920,7 @@ func TestCutSnippetsWithNoCommonSetKeepsTheCommonRows(t *testing.T) {
 
 // A row that matches only as a SUBSEQUENCE goes.
 //
-// scoreTerm answers true for a line that holds the runes of the term in
+// textmatch.ScoreTerm answers true for a line that holds the runes of the term in
 // order and apart. A line that says "the cabinet at the top" carries
 // "cat" that way, and it says nothing about a cat.
 //
@@ -940,11 +941,11 @@ func TestCutSnippetsNeedsAVerbatimMatch(t *testing.T) {
 		t.Fatal("the note must match")
 	}
 
-	// Every line of the window carries "cat" through scoreTerm, thus a rule
+	// Every line of the window carries "cat" through textmatch.ScoreTerm, thus a rule
 	// with no verbatim test would keep each of them.
 	loose := 0
 	for _, h := range hits {
-		if _, _, _, ok := scoreTerm([]rune("cat"), h.line.fold); ok {
+		if _, _, _, ok := textmatch.ScoreTerm([]rune("cat"), h.line.fold); ok {
 			loose++
 		}
 	}

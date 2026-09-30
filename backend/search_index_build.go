@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"net.basov.omngo/backend/internal/textmatch"
 )
 
 // searchRoot tells where one kind of file lives.
@@ -208,7 +210,7 @@ func (a *App) indexFile(rootKind, kind, rel, path string, info fs.FileInfo, bund
 		LineMasks: make([]uint64, 0, len(doc.lines)),
 	}
 	for _, f := range doc.fields {
-		out.FieldMask |= runeMask(f.text)
+		out.FieldMask |= textmatch.RuneMask(f.text)
 		addTrigrams(&out.Tri, f.text)
 	}
 	for i := range doc.lines {
