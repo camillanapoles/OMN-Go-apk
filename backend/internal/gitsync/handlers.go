@@ -1,4 +1,4 @@
-package backend
+package gitsync
 
 import (
 	"errors"
@@ -18,7 +18,7 @@ import (
 //
 // /api/sync runs one action and answers with a status word. /api/sync/preview
 // tells what an upload would send, and it changes nothing. doc/API.md holds
-// both shapes. The banner of git_repo.go says what each git file holds.
+// both shapes. The banner of repo.go says what each git file holds.
 
 // syncConflict is the conflict answer of /api/sync. It also sends "files",
 // the paths in conflict, for the conflict dialog.
@@ -28,21 +28,21 @@ type syncConflict struct {
 	Files   []string `json:"files"`
 }
 
-// newSyncConflict makes a conflict answer. The list is never null, thus the
+// NewSyncConflict makes a conflict answer. The list is never null, thus the
 // dialog needs no guard.
-func newSyncConflict(message string, files []string) syncConflict {
+func NewSyncConflict(message string, files []string) syncConflict {
 	if files == nil {
 		files = []string{}
 	}
 	return syncConflict{Status: "conflict", Message: message, Files: files}
 }
 
-func (a *App) handleSync(w http.ResponseWriter, r *http.Request) {
+func (svc Service) HandleSync(w http.ResponseWriter, r *http.Request) {
 	// r.FormValue reads the form body first, and then the query string. The
 	// page posts a form. TestHandleSyncReadsTheQueryString tests the query
 	// string.
 	if err := r.ParseForm(); err != nil {
-		a.writeJSON(w, http.StatusOK, render.JSONStatus{Status: "error", Message: "bad request: " + err.Error()})
+		svc.writeJSON(w, http.StatusOK, render.JSONStatus{Status: "error", Message: "bad request: " + err.Error()})
 		return
 	}
 
@@ -64,44 +64,44 @@ func (a *App) handleSync(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := a.SyncRepo(action, message); err != nil {
+	if err := svc.SyncRepo(action, message); err != nil {
 		// A changed host key carries the two fingerprints, and the page
 		// asks the person to trust the new key.
-		if change, ok := hostKeyChangeOf(err); ok {
-			a.writeJSON(w, http.StatusOK, hostKeyAnswer{Status: "host_key_changed",
+		if change, ok := HostKeyChangeOf(err); ok {
+			svc.writeJSON(w, http.StatusOK, hostKeyAnswer{Status: "host_key_changed",
 				Message: err.Error(), hostKeyChange: change})
 			return
 		}
-		if status, msg, ok := syncErrorStatus(err); ok {
+		if status, msg, ok := SyncErrorStatus(err); ok {
 			// A conflict carries the paths in conflict, and the dialog lists
 			// them. Each other status gets the plain body.
-			var ce *syncConflictError
+			var ce *SyncConflictError
 			if status == "conflict" && errors.As(err, &ce) {
-				a.writeJSON(w, http.StatusOK, newSyncConflict(msg, ce.Files))
+				svc.writeJSON(w, http.StatusOK, NewSyncConflict(msg, ce.Files))
 			} else {
-				a.writeJSON(w, http.StatusOK, render.JSONStatus{Status: status, Message: msg})
+				svc.writeJSON(w, http.StatusOK, render.JSONStatus{Status: status, Message: msg})
 			}
 		} else {
-			a.writeJSON(w, http.StatusOK, render.JSONStatus{Status: "error", Message: err.Error()})
+			svc.writeJSON(w, http.StatusOK, render.JSONStatus{Status: "error", Message: err.Error()})
 		}
 		return
 	}
 
-	a.writeJSON(w, http.StatusOK, render.JSONStatus{Status: "success"})
+	svc.writeJSON(w, http.StatusOK, render.JSONStatus{Status: "success"})
 }
 
-func (a *App) handleSyncPreview(w http.ResponseWriter, r *http.Request) {
+func (svc Service) HandleSyncPreview(w http.ResponseWriter, r *http.Request) {
 	action := r.URL.Query().Get("action")
 	if action != "upload" {
 		http.Error(w, "Only upload preview supported", 400)
 		return
 	}
 
-	// GitMutex stops this read while a sync changes the worktree.
-	a.GitMutex.Lock()
-	defer a.GitMutex.Unlock()
+	// State.mu stops this read while a sync changes the worktree.
+	svc.State.mu.Lock()
+	defer svc.State.mu.Unlock()
 
-	repo, err := a.getOrInitRepo()
+	repo, err := svc.GetOrInitRepo()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Repo init failed: %v", err), 500)
 		return
@@ -112,7 +112,7 @@ func (a *App) handleSyncPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	matcher, err := a.loadGitignoreMatcher(wTree)
+	matcher, err := svc.LoadGitignoreMatcher(wTree)
 	if err != nil {
 		matcher = gitignore.NewMatcher(nil)
 	}
@@ -141,7 +141,7 @@ func (a *App) handleSyncPreview(w http.ResponseWriter, r *http.Request) {
 	// next commit, and the other devices delete it. See
 	// untrackLocalOnlyPaths. The status does not show such a path when its
 	// content did not change, thus the preview reads the index too.
-	files = append(files, a.untrackTrackedPaths(repo)...)
+	files = append(files, svc.UntrackTrackedPaths(repo)...)
 
 	// A clean worktree can still hold a commit that the remote does not have:
 	// a push failed, or the active profile changed. The page must then offer
@@ -150,17 +150,17 @@ func (a *App) handleSyncPreview(w http.ResponseWriter, r *http.Request) {
 	// doc/decisions/0011-push-each-time-and-let-the-remote-answer.md.
 	ahead := unpushedState{}
 	if len(files) == 0 {
-		if remoteName, rErr := a.ensureRemotesAndGetActive(repo); rErr != nil {
+		if remoteName, rErr := svc.EnsureRemotesAndGetActive(repo); rErr != nil {
 			ahead.Error = rErr.Error()
-		} else if auth, aErr := a.getSSHAuth(); aErr != nil {
+		} else if auth, aErr := svc.GetSSHAuth(); aErr != nil {
 			// With no usable key, the local half of the check still finds a
 			// failed push.
-			ahead = a.aheadOfRemote(repo, remoteName, nil)
+			ahead = svc.AheadOfRemote(repo, remoteName, nil)
 			if !ahead.Verified && ahead.Error == "" {
 				ahead.Error = aErr.Error()
 			}
 		} else {
-			ahead = a.aheadOfRemote(repo, remoteName, auth)
+			ahead = svc.AheadOfRemote(repo, remoteName, auth)
 		}
 	}
 
@@ -168,7 +168,7 @@ func (a *App) handleSyncPreview(w http.ResponseWriter, r *http.Request) {
 	if files == nil {
 		files = []string{}
 	}
-	a.writeJSON(w, http.StatusOK, syncPreviewResponse{
+	svc.writeJSON(w, http.StatusOK, SyncPreviewResponse{
 		Files:       files,
 		Unpushed:    ahead.Unpushed,
 		Remote:      ahead.Remote,

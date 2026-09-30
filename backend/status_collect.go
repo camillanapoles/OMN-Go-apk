@@ -18,6 +18,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/cache"
 	"github.com/go-git/go-git/v5/storage/filesystem"
 	"net.basov.omngo/backend/internal/config"
+	"net.basov.omngo/backend/internal/gitsync"
 	"net.basov.omngo/backend/internal/logx"
 	"net.basov.omngo/backend/internal/storage"
 )
@@ -93,9 +94,9 @@ func (a *App) statusGitSection(cfg config.Config) (*statusGit, error) {
 			out.Configured = true
 			name := strings.TrimSpace(slot.Name)
 			if name == "" {
-				name = slotRemoteName(idx)
+				name = gitsync.SlotRemoteName(idx)
 			}
-			out.Remote = &statusGitRemote{Name: name, URL: redactGitURL(slot.URL)}
+			out.Remote = &statusGitRemote{Name: name, URL: gitsync.RedactGitURL(slot.URL)}
 		}
 	}
 
@@ -131,8 +132,8 @@ func (a *App) statusGitSection(cfg config.Config) (*statusGit, error) {
 }
 
 // remoteRefCandidates names the remotes to read, most specific first.
-// ensureSlotRemotes gives each server slot its own remote, for example
-// "gitserver0". "origin" is the fallback remote. See
+// gitsync.Service.EnsureSlotRemotes gives each server slot its own remote, for
+// example "gitserver0". "origin" is the fallback remote. See
 // doc/decisions/0012-keep-one-remote-for-each-git-server-slot.md. A detached
 // HEAD has no branch, and no remote-tracking ref.
 func remoteRefCandidates(cfg config.Config, branch string) []string {
@@ -142,7 +143,7 @@ func remoteRefCandidates(cfg config.Config, branch string) []string {
 	out := []string{}
 	if idx := cfg.ActiveGitIndex; idx >= 0 && idx < len(cfg.GitServers) &&
 		strings.TrimSpace(cfg.GitServers[idx].URL) != "" {
-		out = append(out, slotRemoteName(idx))
+		out = append(out, gitsync.SlotRemoteName(idx))
 	}
 	return append(out, "origin")
 }
@@ -425,12 +426,13 @@ func defaultRouteIP() net.IP {
 	return nil
 }
 
-// openRepoReadOnly opens the storage repository and makes nothing. It uses
-// the same file system wrappers as getOrInitRepo in git_repo.go, thus both
-// see one worktree. With no repository on disk, it answers an error.
+// openRepoReadOnly opens the storage repository and makes nothing. It uses the
+// same file system wrappers as gitsync.Service.GetOrInitRepo in
+// internal/gitsync/repo.go, thus both see one worktree. With no repository on
+// disk, it answers an error.
 func (a *App) openRepoReadOnly() (*git.Repository, error) {
 	baseFS := osfs.New(a.StorageDir)
-	wtFS := &NoLockFS{&stableMtimeFS{baseFS}}
+	wtFS := gitsync.WorktreeFS(baseFS)
 	dotFS, err := wtFS.Chroot(".git")
 	if err != nil {
 		return nil, err

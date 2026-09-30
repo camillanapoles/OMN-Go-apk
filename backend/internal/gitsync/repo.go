@@ -1,4 +1,4 @@
-package backend
+package gitsync
 
 import (
 	"fmt"
@@ -32,15 +32,15 @@ import (
 //
 // Seven files hold the git code:
 //
-//	git_fs.go        The go-billy wrappers for Android.
-//	git_repo.go      The ignore rules, the remotes and the SSH key.
-//	git_commit.go    The commit, and the paths that it must not track.
-//	git_sync.go      SyncRepo, the sync errors and the shared helpers.
-//	git_pull.go      The pull paths.
-//	git_push.go      The push, and the test for commits that wait.
-//	git_handlers.go  The HTTP handlers of /api/sync.
+//	fs.go        The go-billy wrappers for Android.
+//	repo.go      The ignore rules, the remotes and the SSH key.
+//	commit.go    The commit, and the paths that it must not track.
+//	sync.go      SyncRepo, the sync errors and the shared helpers.
+//	pull.go      The pull paths.
+//	push.go      The push, and the test for commits that wait.
+//	handlers.go  The HTTP handlers of /api/sync.
 
-// gitignorePatterns is the one list for the sync .gitignore. ensureGitignore
+// GitignorePatterns is the one list for the sync .gitignore. EnsureGitignore
 // writes it for a new install, and it adds each missing line to an old one.
 //
 // The order is part of the rule. A "!" line must follow the pattern that it
@@ -48,10 +48,10 @@ import (
 // "!/html/images/", is NOT here. With the go-git matcher, it includes each
 // file below the directory, and "/html/images/*" then has no effect.
 //
-// Keep gitignoreLocalOnlyPattern last. The go-git matcher reads the patterns
+// Keep GitignoreLocalOnlyPattern last. The go-git matcher reads the patterns
 // from the end, thus the last match wins. A local-only name thus stays out of
 // git below a "!" line, for example html/images/local-map.svg.
-var gitignorePatterns = []string{
+var GitignorePatterns = []string{
 	"config.json",
 	"assets_version",
 	// session_secret is the HMAC key of the session cookie. A device with the
@@ -89,7 +89,7 @@ var gitignorePatterns = []string{
 	"/html/js/OMN-Go/highlight.min.js",
 	"/html/js/OMN-Go/Bookmarker.js",
 	// A .txt beside a note lives in md/, and the server copies it into html/.
-	// Only the md/ file goes to git. See isDerivedTextPath.
+	// Only the md/ file goes to git. See IsDerivedTextPath.
 	"/html/**/*.txt",
 	"/md/AndroidIntents.md",
 	"/md/BookmarksHowTo.md",
@@ -101,18 +101,18 @@ var gitignorePatterns = []string{
 	"/md/UserManual.md",
 	"/md/local/",
 	"/db/",
-	gitignoreLocalOnlyPattern,
+	GitignoreLocalOnlyPattern,
 }
 
-// gitignoreLocalOnlyPattern is the .gitignore form of the local-only rule of
+// GitignoreLocalOnlyPattern is the .gitignore form of the local-only rule of
 // internal/storage/paths.go. The pattern has no "/", thus go-git compares it
 // with each segment of a path, at each depth.
-const gitignoreLocalOnlyPattern = storage.LocalOnlyPrefix + "*"
+const GitignoreLocalOnlyPattern = storage.LocalOnlyPrefix + "*"
 
-// obsoleteGitignoreLines are the lines that ensureGitignore deletes from an
+// obsoleteGitignoreLines are the lines that EnsureGitignore deletes from an
 // existing file.
 var obsoleteGitignoreLines = map[string]bool{
-	// These lines negate a directory alone. See gitignorePatterns.
+	// These lines negate a directory alone. See GitignorePatterns.
 	"!/html/images/":       true,
 	"!/html/images/icons/": true,
 	// The general local-* rule covers the same files.
@@ -134,13 +134,13 @@ var obsoleteGitignoreLines = map[string]bool{
 	"/html/js/Bookmarker.js":              true,
 }
 
-func (a *App) ensureGitignore() {
-	gitignorePath := a.layout().File(storage.GitignoreFilename)
-	gitignoreBase := "# OMN-Go sync ignore\n" + strings.Join(gitignorePatterns, "\n") + "\n"
+func (svc Service) EnsureGitignore() {
+	gitignorePath := svc.Layout.File(storage.GitignoreFilename)
+	gitignoreBase := "# OMN-Go sync ignore\n" + strings.Join(GitignorePatterns, "\n") + "\n"
 	content, err := os.ReadFile(gitignorePath)
 	if os.IsNotExist(err) {
 		os.WriteFile(gitignorePath, []byte(gitignoreBase), 0644)
-		a.log(logx.Sync).Infof("Created .gitignore")
+		svc.Log(logx.Sync).Infof("Created .gitignore")
 		return
 	}
 	if err != nil {
@@ -173,7 +173,7 @@ func (a *App) ensureGitignore() {
 		present[strings.TrimSpace(line)] = true
 	}
 	var missing []string
-	for _, patt := range gitignorePatterns {
+	for _, patt := range GitignorePatterns {
 		if !present[patt] {
 			missing = append(missing, patt)
 		}
@@ -189,19 +189,18 @@ func (a *App) ensureGitignore() {
 
 	if rewritten || appended {
 		if err := os.WriteFile(gitignorePath, content, 0644); err != nil {
-			a.log(logx.Sync).Errf("cannot update .gitignore: %v", err)
+			svc.Log(logx.Sync).Errf("cannot update .gitignore: %v", err)
 			return
 		}
-		a.log(logx.Sync).Infof("Updated .gitignore (rewritten=%v, appended=%v)", rewritten, appended)
+		svc.Log(logx.Sync).Infof("Updated .gitignore (rewritten=%v, appended=%v)", rewritten, appended)
 	}
 }
 
-func (a *App) getOrInitRepo() (*git.Repository, error) {
-	a.log(logx.Sync).Debugf("Opening repo at %s", a.StorageDir)
+func (svc Service) GetOrInitRepo() (*git.Repository, error) {
+	svc.Log(logx.Sync).Debugf("Opening repo at %s", string(svc.Layout))
 
-	baseFS := osfs.New(a.StorageDir)
-	stableFS := &stableMtimeFS{baseFS}
-	wtFS := &NoLockFS{stableFS}
+	baseFS := osfs.New(string(svc.Layout))
+	wtFS := WorktreeFS(baseFS)
 
 	dotFS, err := wtFS.Chroot(".git")
 	if err != nil {
@@ -212,24 +211,24 @@ func (a *App) getOrInitRepo() (*git.Repository, error) {
 	repo, err := git.Open(storer, wtFS)
 
 	if err != nil {
-		a.log(logx.Sync).Infof("Repo not found, initializing...")
-		if initErr := a.manualGitInit(a.StorageDir); initErr != nil {
+		svc.Log(logx.Sync).Infof("Repo not found, initializing...")
+		if initErr := svc.manualGitInit(string(svc.Layout)); initErr != nil {
 			return nil, fmt.Errorf("manual init failed: %v", initErr)
 		}
 		repo, err = git.Open(storer, wtFS)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open manually created repo: %v", err)
 		}
-		a.ensureGitignore()
-		a.log(logx.Sync).Infof("Repo initialized")
+		svc.EnsureGitignore()
+		svc.Log(logx.Sync).Infof("Repo initialized")
 	} else {
-		a.log(logx.Sync).Debugf("Repo opened successfully")
+		svc.Log(logx.Sync).Debugf("Repo opened successfully")
 		// Add each new pattern at each open. Without this, a commit can take
 		// a file that .gitignore must cover, for example a test image.
-		a.ensureGitignore()
+		svc.EnsureGitignore()
 	}
 
-	// Only a sync needs a remote, thus ensureRemotesAndGetActive sets the
+	// Only a sync needs a remote, thus EnsureRemotesAndGetActive sets the
 	// remotes. A status read touches no remote.
 	return repo, nil
 }
@@ -240,24 +239,24 @@ func (a *App) getOrInitRepo() (*git.Repository, error) {
 // "origin" gets the URL of the active slot one time, and it never changes. A
 // sync uses it only when the active slot has no URL. Each slot with a URL has
 // the remote gitserver<index>. The name does not come from the Name field,
-// because a person can change that field. ensureSlotRemotes adds, changes and
+// because a person can change that field. EnsureSlotRemotes adds, changes and
 // removes these remotes at each sync.
 
-// slotRemoteName answers the remote name of a slot index.
-func slotRemoteName(index int) string {
+// SlotRemoteName answers the remote name of a slot index.
+func SlotRemoteName(index int) string {
 	return fmt.Sprintf("gitserver%d", index)
 }
 
-// ensureOriginRemote makes "origin" from fallbackURL when it is missing. It
+// EnsureOriginRemote makes "origin" from fallbackURL when it is missing. It
 // never changes an existing origin.
-func (a *App) ensureOriginRemote(repo *git.Repository, fallbackURL string) error {
+func (svc Service) EnsureOriginRemote(repo *git.Repository, fallbackURL string) error {
 	if _, err := repo.Remote("origin"); err == nil {
 		return nil // already exists — this remote is never modified again
 	}
 	if fallbackURL == "" {
 		return nil // nothing to seed it with yet; try again on a later sync
 	}
-	a.log(logx.Sync).Infof("Remote origin missing, seeding it once from %s", redactGitURL(fallbackURL))
+	svc.Log(logx.Sync).Infof("Remote origin missing, seeding it once from %s", RedactGitURL(fallbackURL))
 	_, err := repo.CreateRemote(&gitconfig.RemoteConfig{
 		Name: "origin",
 		URLs: []string{fallbackURL},
@@ -265,26 +264,26 @@ func (a *App) ensureOriginRemote(repo *git.Repository, fallbackURL string) error
 	return err
 }
 
-// ensureSlotRemotes makes the remotes match cfg. It answers the remote of the
+// EnsureSlotRemotes makes the remotes match cfg. It answers the remote of the
 // active slot, or "origin" when that slot has no URL.
-func (a *App) ensureSlotRemotes(repo *git.Repository, cfg config.Config) (activeRemoteName string, err error) {
+func (svc Service) EnsureSlotRemotes(repo *git.Repository, cfg config.Config) (activeRemoteName string, err error) {
 	for i, gs := range cfg.GitServers {
-		name := slotRemoteName(i)
+		name := SlotRemoteName(i)
 		url := strings.TrimSpace(gs.URL)
 
 		remote, rErr := repo.Remote(name)
 		if url == "" {
 			if rErr == nil {
-				a.log(logx.Sync).Infof("Removing remote %s (slot %d cleared)", name, i)
+				svc.Log(logx.Sync).Infof("Removing remote %s (slot %d cleared)", name, i)
 				if dErr := repo.DeleteRemote(name); dErr != nil {
-					a.log(logx.Sync).Errf("failed to remove remote %s: %v", name, dErr)
+					svc.Log(logx.Sync).Errf("failed to remove remote %s: %v", name, dErr)
 				}
 			}
 			continue
 		}
 
 		if rErr != nil {
-			a.log(logx.Sync).Infof("Adding remote %s -> %s", name, redactGitURL(url))
+			svc.Log(logx.Sync).Infof("Adding remote %s -> %s", name, RedactGitURL(url))
 			if _, cErr := repo.CreateRemote(&gitconfig.RemoteConfig{Name: name, URLs: []string{url}}); cErr != nil {
 				return "", fmt.Errorf("failed to add remote %s: %v", name, cErr)
 			}
@@ -297,9 +296,9 @@ func (a *App) ensureSlotRemotes(repo *git.Repository, cfg config.Config) (active
 		}
 		old := make([]string, len(existing))
 		for j, u := range existing {
-			old[j] = redactGitURL(u)
+			old[j] = RedactGitURL(u)
 		}
-		a.log(logx.Sync).Infof("Remote %s URL changed (%v -> %s), updating", name, old, redactGitURL(url))
+		svc.Log(logx.Sync).Infof("Remote %s URL changed (%v -> %s), updating", name, old, RedactGitURL(url))
 		if dErr := repo.DeleteRemote(name); dErr != nil {
 			return "", fmt.Errorf("failed to update remote %s: %v", name, dErr)
 		}
@@ -310,30 +309,30 @@ func (a *App) ensureSlotRemotes(repo *git.Repository, cfg config.Config) (active
 
 	if cfg.ActiveGitIndex >= 0 && cfg.ActiveGitIndex < len(cfg.GitServers) {
 		if strings.TrimSpace(cfg.GitServers[cfg.ActiveGitIndex].URL) != "" {
-			return slotRemoteName(cfg.ActiveGitIndex), nil
+			return SlotRemoteName(cfg.ActiveGitIndex), nil
 		}
 	}
-	a.log(logx.Sync).Infof("Active server slot has no URL configured, falling back to origin")
+	svc.Log(logx.Sync).Infof("Active server slot has no URL configured, falling back to origin")
 	return "origin", nil
 }
 
-// ensureRemotesAndGetActive makes each remote match the config. It answers
+// EnsureRemotesAndGetActive makes each remote match the config. It answers
 // the remote for this sync.
-func (a *App) ensureRemotesAndGetActive(repo *git.Repository) (string, error) {
-	cfg := a.config.Get()
+func (svc Service) EnsureRemotesAndGetActive(repo *git.Repository) (string, error) {
+	cfg := svc.Config
 
 	bootstrapURL := ""
 	if cfg.ActiveGitIndex >= 0 && cfg.ActiveGitIndex < len(cfg.GitServers) {
 		bootstrapURL = strings.TrimSpace(cfg.GitServers[cfg.ActiveGitIndex].URL)
 	}
-	if err := a.ensureOriginRemote(repo, bootstrapURL); err != nil {
+	if err := svc.EnsureOriginRemote(repo, bootstrapURL); err != nil {
 		return "", err
 	}
 
-	return a.ensureSlotRemotes(repo, cfg)
+	return svc.EnsureSlotRemotes(repo, cfg)
 }
 
-func (a *App) manualGitInit(dir string) error {
+func (svc Service) manualGitInit(dir string) error {
 	gitDir := filepath.Join(dir, ".git")
 	if err := os.MkdirAll(gitDir, 0755); err != nil {
 		return err
@@ -347,8 +346,8 @@ func (a *App) manualGitInit(dir string) error {
 	if err := os.MkdirAll(filepath.Join(gitDir, "objects"), 0755); err != nil {
 		return err
 	}
-	a.protectGitDirs()
-	a.ensureGitignore()
+	svc.protectGitDirs()
+	svc.EnsureGitignore()
 
 	config := []byte("[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = false\n")
 	if err := os.WriteFile(filepath.Join(gitDir, "config"), config, 0644); err != nil {
@@ -357,16 +356,16 @@ func (a *App) manualGitInit(dir string) error {
 	return nil
 }
 
-// loadGitignoreMatcher answers a matcher for the .gitignore of the worktree
-// and gitignorePatterns. The built-in list comes last, thus it wins. A force
+// LoadGitignoreMatcher answers a matcher for the .gitignore of the worktree
+// and GitignorePatterns. The built-in list comes last, thus it wins. A force
 // pull can write an old or a changed .gitignore from the remote. The list
 // then still protects /db/, each local- file and session_secret.
-func (a *App) loadGitignoreMatcher(wt *git.Worktree) (gitignore.Matcher, error) {
+func (svc Service) LoadGitignoreMatcher(wt *git.Worktree) (gitignore.Matcher, error) {
 	patterns, err := gitignore.ReadPatterns(wt.Filesystem, []string{})
 	if err != nil {
 		return nil, err
 	}
-	for _, p := range gitignorePatterns {
+	for _, p := range GitignorePatterns {
 		patterns = append(patterns, gitignore.ParsePattern(p, nil))
 	}
 	return gitignore.NewMatcher(patterns), nil
@@ -374,8 +373,8 @@ func (a *App) loadGitignoreMatcher(wt *git.Worktree) (gitignore.Matcher, error) 
 
 // manualStageFile writes the file into a new blob and sets its index entry.
 // It does not use Add of go-git.
-func (a *App) manualStageFile(repo *git.Repository, wt *git.Worktree, name string) error {
-	fullPath := a.layout().File(name)
+func (svc Service) manualStageFile(repo *git.Repository, wt *git.Worktree, name string) error {
+	fullPath := svc.Layout.File(name)
 	stat, err := os.Lstat(fullPath)
 	if err != nil {
 		return err
@@ -431,21 +430,21 @@ func (a *App) manualStageFile(repo *git.Repository, wt *git.Worktree, name strin
 	return repo.Storer.SetIndex(idx)
 }
 
-func (a *App) getSSHAuth() (transport.AuthMethod, error) {
+func (svc Service) GetSSHAuth() (transport.AuthMethod, error) {
 	// Read one copy of the config. Two separate reads could mix the fields of
 	// two servers.
-	cfg := a.config.Get()
+	cfg := svc.Config
 	gs := cfg.GitServers[cfg.ActiveGitIndex]
 
 	sshUser := "git"
 	if idx := strings.Index(gs.URL, "@"); idx != -1 {
 		sshUser = gs.URL[:idx]
 	}
-	a.log(logx.Sync).Debugf("SSH user: %s", sshUser)
+	svc.Log(logx.Sync).Debugf("SSH user: %s", sshUser)
 
 	keyData := gs.SSHKeyData
 	if keyData == "" {
-		a.log(logx.Sync).Errf("No SSH key configured")
+		svc.Log(logx.Sync).Errf("No SSH key configured")
 		return nil, fmt.Errorf("no SSH key configured")
 	}
 
@@ -463,15 +462,15 @@ func (a *App) getSSHAuth() (transport.AuthMethod, error) {
 
 	publicKeys := &gitssh.PublicKeys{User: sshUser, Signer: signer}
 	publicKeys.HostKeyCallbackHelper = gitssh.HostKeyCallbackHelper{
-		HostKeyCallback:   a.hostKeyCallback(),
-		HostKeyAlgorithms: a.hostKeyAlgorithms(sshHostOf(gs.URL)),
+		HostKeyCallback:   svc.HostKeyCallback(),
+		HostKeyAlgorithms: svc.HostKeyAlgorithms(SSHHostOf(gs.URL)),
 	}
-	a.log(logx.Sync).Debugf("SSH auth method created using inline key data")
+	svc.Log(logx.Sync).Debugf("SSH auth method created using inline key data")
 	return publicKeys, nil
 }
 
-func (a *App) GetConfigAuthor() string {
-	if author := a.config.Get().Author; author != "" {
+func (svc Service) configAuthor() string {
+	if author := svc.Config.Author; author != "" {
 		return author
 	}
 	return "OMN-Go User"
@@ -479,14 +478,14 @@ func (a *App) GetConfigAuthor() string {
 
 // protectGitDirs keeps the empty .git/objects directory on Android. The media
 // scanner can delete an empty directory.
-func (a *App) protectGitDirs() {
+func (svc Service) protectGitDirs() {
 	if runtime.GOOS != "android" {
 		return
 	}
 	for _, dir := range []string{"objects"} {
-		p := a.layout().Git(dir)
+		p := svc.Layout.Git(dir)
 		if err := os.MkdirAll(p, 0755); err != nil {
-			a.log(logx.Sync).Errf("MkdirAll %s failed: %v", p, err)
+			svc.Log(logx.Sync).Errf("MkdirAll %s failed: %v", p, err)
 			continue
 		}
 		keepFile := filepath.Join(p, ".gitkeep")
@@ -498,11 +497,11 @@ func (a *App) protectGitDirs() {
 	}
 }
 
-// redactGitURL removes the password from a remote URL. The user name stays,
+// RedactGitURL removes the password from a remote URL. The user name stays,
 // because it is part of the address and not a secret. An address that the
 // function cannot parse shows as "(hidden)". Each text that shows a remote
 // URL, except the Config page of the admin, calls it.
-func redactGitURL(raw string) string {
+func RedactGitURL(raw string) string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return ""

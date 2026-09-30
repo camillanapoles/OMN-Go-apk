@@ -189,10 +189,10 @@ fullscreen modes, the intent dispatch and the Termux path each need a
 device or an emulator. An emulator needs a test framework, and a test
 framework is a Gradle dependency.
 
-**The git remote over SSH.** `backend/git_sync_test.go` drives the real
-sync code against a BARE REPOSITORY ON DISK, which needs no server and no
-network. It cannot test the SSH transport, and it cannot test a network
-failure. `getSSHAuth` runs in each of those tests, and the code that
+**The git remote over SSH.** `backend/git_sync_test.go` drives the real sync
+code against a BARE REPOSITORY ON DISK, which needs no server and no network. It
+cannot test the SSH transport, and it cannot test a network failure.
+`gitsync.Service.GetSSHAuth` runs in each of those tests, and the code that
 speaks SSH does not.
 
 **The F-Droid build.** Only F-Droid runs it. The tests in section 3 read

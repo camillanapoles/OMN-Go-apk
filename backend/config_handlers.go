@@ -45,6 +45,7 @@ func (a *App) getConfigPageBody() string {
 		LogInfo:            cfg.LogInfo,
 		LogTags:            config.NormalizeLogTags(cfg.LogTags),
 	}
+	gitFeature := a.gitSync()
 	for i, gs := range cfg.GitServers {
 		view.GitServers = append(view.GitServers, gitServerView{
 			Index:   i,
@@ -52,7 +53,7 @@ func (a *App) getConfigPageBody() string {
 			Active:  cfg.ActiveGitIndex == i,
 			Name:    gs.Name,
 			URL:     gs.URL,
-			HostKey: a.hostKeyText(gs.URL),
+			HostKey: gitFeature.HostKeyText(gs.URL),
 		})
 	}
 

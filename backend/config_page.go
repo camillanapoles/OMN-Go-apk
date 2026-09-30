@@ -25,7 +25,7 @@ type gitServerView struct {
 	Active  bool
 	Name    string
 	URL     string
-	HostKey string // the line of hostKeyText, or ""
+	HostKey string // the line of gitsync.Service.HostKeyText, or ""
 }
 
 type configPageView struct {

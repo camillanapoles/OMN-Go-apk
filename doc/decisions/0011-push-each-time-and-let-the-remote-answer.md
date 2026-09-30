@@ -2,8 +2,8 @@
 
 * Status: accepted
 * Version: 1.8.9, 26.07.52, 26.09.11
-* Code: `syncPush`, `isNonFastForward` and `unpushedState` in
-  `backend/git_push.go`
+* Code: `syncPush`, `gitsync.IsNonFastForward` and `unpushedState` in
+  `backend/internal/gitsync/push.go`
 
 ## Context
 
@@ -35,7 +35,7 @@ then showed a plain alert, and not the dialog that offers a force push.
   the local refs cannot prove that the remote has each local commit, it
   says "maybe" and offers a push. A push that is not necessary costs one round trip. A
   push that the page hides costs the commits of the person.
-* `isNonFastForward` tests the sentinel first, and then the text
+* `gitsync.IsNonFastForward` tests the sentinel first, and then the text
   "non-fast-forward update". A later go-git that wraps the sentinel thus
   matches with no change.
 

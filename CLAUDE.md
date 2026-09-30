@@ -66,12 +66,12 @@ Do not remove a constraint without an instruction from the maintainer.
    `asset_backups/<previous>/`. The app creates `md/Welcome.md`,
    `html/json/bookmarker-tags.json`, `omn-go-custom.css`, and `omn-go-custom.js` when
    they are absent. After that it leaves them alone.
-9. **The `local-` name rule.** A path segment that starts with `local-` stays on the
-   device. Git excludes it. A force pull keeps it. The rule has two implementations
-   on purpose. `storage.IsLocalOnlyPath` covers the index.
-   `gitignoreLocalOnlyPattern` covers new files. A test compares the two. The
-   pattern must stay last in `gitignorePatterns`, because go-git reads patterns
-   from the end.
+9. **The `local-` name rule.** A path segment that starts with `local-` stays on
+   the device. Git excludes it. A force pull keeps it. The rule has two
+   implementations on purpose. `storage.IsLocalOnlyPath` covers the index.
+   `gitsync.GitignoreLocalOnlyPattern` covers new files. A test compares the
+   two. The pattern must stay last in `gitsync.GitignorePatterns`, because
+   go-git reads patterns from the end.
 10. **LAN sharing is off by default.** When `share_lan` is false, the listener binds
     `127.0.0.1`. The socket enforces the limit, not the authentication code. A local
     connection from `127.0.0.1`, `::1`, or `localhost` always counts as admin.
@@ -87,7 +87,7 @@ Do not remove a constraint without an instruction from the maintainer.
 | --- | --- |
 | `main_desktop.go` | The only file in `package main`. It holds the only build tag: `//go:build !android`. |
 | `backend/` | The Go application. `package backend` holds most of the code, and the split into packages is in progress. |
-| `backend/internal/` | The packages of the split. `textmatch` holds the search matcher, and `noteheader` holds the header block. `logx` holds the log tags and the log hub. `config` holds the settings and their store. `storage` holds the storage layout, the application files and the plain files beside the notes. `render` holds the page compile, the page shell, the Tags page and the JSON answer. `db` holds the SQLite databases of the notes and their backups. |
+| `backend/internal/` | The packages of the split. `textmatch` holds the search matcher, and `noteheader` holds the header block. `logx` holds the log tags and the log hub. `config` holds the settings and their store. `storage` holds the storage layout, the application files and the plain files beside the notes. `render` holds the page compile, the page shell, the Tags page and the JSON answer. `db` holds the SQLite databases of the notes and their backups. `gitsync` holds the git sync and the host keys. |
 | `backend/frontend/embed.go` | `package frontend`. It embeds `html/` and `md/` as `frontend.Static`, and `templates/` as `frontend.Templates`. |
 | `backend/frontend/templates/` | Server-side page fragments. Embedded as `frontend.Templates`. Never extracted to disk. |
 | `backend/frontend/html/` | `js/`, `css/`, `css/fonts/`, `json/`, `favicon.ico`. Embedded as `frontend.Static`. Extracted to the storage directory on demand. The user can edit these files with `?edit=true`. |
@@ -134,8 +134,8 @@ update these files.
   gomobile and desktop facade. It then holds no logic, and it exports only
   functions of simple types. Until then, the App side of a package is one file
   of `package backend`, for example `config_app.go`, `storage_app.go`,
-  `render_app.go` and `db_app.go`. Its methods give the values of the App to the
-  package.
+  `render_app.go`, `db_app.go` and `gitsync_app.go`. Its methods give the values
+  of the App to the package.
 * **Until the split ends, keep the groups of `package backend` apart.** Each production
   file there belongs to one group of `fileGroups` in `backend/group_links_test.go`. A
   group uses only the groups of a lower layer. `TestGroupsUseOnlyLowerLayers` holds the
@@ -146,10 +146,9 @@ update these files.
   `SetAndroidPackage` and `SetLANAddresses`. `main_desktop.go` calls `StartServer`,
   `WaitUntilReady` and `GetServerPort`. Write everything else as a lowercase method on
   `*App`.
-* The package also exports the types `App`, `NoLockFS` and `NoLockFile`, and
-  more methods of `App`. No caller outside the
-  package uses them. gomobile still makes a Java binding for each one. Do not add an
-  exported name.
+* The package also exports the type `App` and more methods of `App`. No caller
+  outside the package uses them. gomobile still makes a Java binding for each
+  one. Do not add an exported name.
 * **Names.** Use `handleXxx` for an API endpoint. Use `serveXxx` for a page or an
   asset. Use `renderXxxPage` with an `xxxView` struct. Use `normalizeXxx` for value
   repair. Write a predicate as a question: `storage.IsLocalOnlyPath`,

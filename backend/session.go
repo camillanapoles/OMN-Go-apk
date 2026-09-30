@@ -11,7 +11,7 @@ package backend
 // accepts a cookie only when the key of this install makes the same HMAC. The
 // key is 32 random bytes in <StorageDir>/session_secret. It is not a field of
 // Config, because GET /api/config and the Config page use the whole Config.
-// gitignorePatterns keeps it out of the sync.
+// gitsync.GitignorePatterns keeps it out of the sync.
 //
 // There are two cookies:
 //

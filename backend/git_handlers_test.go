@@ -41,6 +41,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"net.basov.omngo/backend/internal/config"
+	"net.basov.omngo/backend/internal/gitsync"
 	"net.basov.omngo/backend/internal/render"
 )
 
@@ -97,9 +98,9 @@ func ghStatus(t *testing.T, w *httptest.ResponseRecorder) string {
 }
 
 // ghPreviewAnswer decodes the answer of the upload preview.
-func ghPreviewAnswer(t *testing.T, w *httptest.ResponseRecorder) syncPreviewResponse {
+func ghPreviewAnswer(t *testing.T, w *httptest.ResponseRecorder) gitsync.SyncPreviewResponse {
 	t.Helper()
-	var out syncPreviewResponse
+	var out gitsync.SyncPreviewResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
 		t.Fatalf("the preview answer is not JSON: %v\n%s", err, w.Body.String())
 	}
@@ -164,7 +165,7 @@ func TestSyncJSONWriterEscapesTheMessage(t *testing.T) {
 // no way forward.
 func TestSyncConflictWriterAlwaysSendsAnArray(t *testing.T) {
 	w := httptest.NewRecorder()
-	newTestApp(t).writeJSON(w, http.StatusOK, newSyncConflict("diverged", nil))
+	newTestApp(t).writeJSON(w, http.StatusOK, gitsync.NewSyncConflict("diverged", nil))
 
 	if strings.Contains(w.Body.String(), `"files":null`) {
 		t.Errorf("the body carries a null file list: %s", w.Body.String())
@@ -245,7 +246,7 @@ func TestHandleSyncAnswersTheConflictFileList(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "the first text\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 	gsWrite(t, a, "md/One.md", "the text of this device\n")
@@ -274,7 +275,7 @@ func TestHandleSyncAnswersPushConflict(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 	gsSeedRemote(t, remote, "from the other device", map[string]string{"md/Other.md": "other\n"})
@@ -292,7 +293,7 @@ func TestHandleSyncAsksForACommitMessage(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 	before := gsRemoteHead(t, remote)
@@ -348,7 +349,7 @@ func TestHandleSyncTranslatesTheForceCheckbox(t *testing.T) {
 		remote := gsRemote(t)
 		gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "the first text\n"})
 		a := gsApp(t, remote)
-		if err := a.SyncRepo("pull", ""); err != nil {
+		if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 			t.Fatalf("%s: the first pull: %v", c.name, err)
 		}
 		gsWrite(t, a, "md/One.md", "the text of this device\n")
@@ -376,7 +377,7 @@ func TestHandleSyncTranslatesTheForceCheckbox(t *testing.T) {
 		remote := gsRemote(t)
 		gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})
 		a := gsApp(t, remote)
-		if err := a.SyncRepo("pull", ""); err != nil {
+		if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 			t.Fatalf("%s: the first pull: %v", c.name, err)
 		}
 		gsSeedRemote(t, remote, "from the other device",
@@ -408,7 +409,7 @@ func TestHandleSyncForcesOnlyOnTheWordTrue(t *testing.T) {
 		remote := gsRemote(t)
 		gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "the first text\n"})
 		a := gsApp(t, remote)
-		if err := a.SyncRepo("pull", ""); err != nil {
+		if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 			t.Fatalf("the first pull: %v", err)
 		}
 		gsWrite(t, a, "md/One.md", "the text of this device\n")
@@ -470,7 +471,7 @@ func TestSyncPreviewListsTheChangedFiles(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 	gsWrite(t, a, "md/Two.md", "a new note\n")
@@ -495,7 +496,7 @@ func TestSyncPreviewSkipsAnIgnoredFile(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 	gsWrite(t, a, "md/local-Scratch.md", "for this device alone\n")
@@ -510,15 +511,15 @@ func TestSyncPreviewSkipsAnIgnoredFile(t *testing.T) {
 
 // The first preview after a pull lists .gitignore.
 //
-// getOrInitRepo writes .gitignore, and no commit carries it until the
-// first push of this device. The file is therefore a real pending
-// change, and the preview is right to name it. This test records that,
-// so that a reader of a bug report knows it is the design.
+// gitsync.Service.GetOrInitRepo writes .gitignore, and no commit carries it
+// until the first push of this device. The file is therefore a real pending
+// change, and the preview is right to name it. This test records that, so that
+// a reader of a bug report knows it is the design.
 func TestSyncPreviewListsTheGitignoreOfAFreshRepository(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 
@@ -538,11 +539,11 @@ func TestSyncPreviewAnswersAnArrayAndNeverNull(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 	// The push carries .gitignore away. See the test above.
-	if err := a.SyncRepo("push", "the first commit of this device"); err != nil {
+	if err := a.gitSync().SyncRepo("push", "the first commit of this device"); err != nil {
 		t.Fatalf("the push: %v", err)
 	}
 
@@ -566,12 +567,12 @@ func TestSyncPreviewReportsAnUnpushedCommit(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 	// The push makes the tree level, thus the commit below is the only
 	// thing that the remote has not seen.
-	if err := a.SyncRepo("push", "the first commit of this device"); err != nil {
+	if err := a.gitSync().SyncRepo("push", "the first commit of this device"); err != nil {
 		t.Fatalf("the push: %v", err)
 	}
 	ghCommitLocally(t, a, "md/Two.md", "a note of this device\n", "committed and not pushed")
@@ -590,11 +591,11 @@ func TestSyncPreviewReportsALevelTree(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 	gsWrite(t, a, "md/Two.md", "a new note\n")
-	if err := a.SyncRepo("push", "add a note"); err != nil {
+	if err := a.gitSync().SyncRepo("push", "add a note"); err != nil {
 		t.Fatalf("the push: %v", err)
 	}
 
@@ -621,7 +622,7 @@ func TestSyncPreviewNamesAPathThatLeavesTheRepository(t *testing.T) {
 		"html/Note.txt":      "a copy of the file in md/\n",
 	})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 
@@ -649,10 +650,10 @@ func TestSyncPreviewNamesAPathThatLeavesTheRepository(t *testing.T) {
 // tracked local- name that the person edits therefore DOES reach the
 // status, and the matcher keeps it out of the pending list.
 //
-// untrackTrackedPaths then adds the same path back with its reason. The
-// row that the person reads says "git stops to track it", which is what
-// the commit does. Without the matcher the list holds the path twice,
-// and the two rows say different things.
+// gitsync.Service.UntrackTrackedPaths then adds the same path back with its
+// reason. The row that the person reads says "git stops to track it", which is
+// what the commit does. Without the matcher the list holds the path twice, and
+// the two rows say different things.
 func TestSyncPreviewListsATrackedIgnoredPathOneTime(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{
@@ -660,7 +661,7 @@ func TestSyncPreviewListsATrackedIgnoredPathOneTime(t *testing.T) {
 		"md/local-Device.md": "an old commit tracked this\n",
 	})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 	// The person edits the tracked local- file. Git reports it, because
@@ -688,12 +689,12 @@ func TestSyncPreviewListsATrackedIgnoredPathOneTime(t *testing.T) {
 // The file holds each password and each SSH key. A preview that names it
 // says that the upload sends them.
 //
-// WHICH GUARD DOES THE WORK. Two stand in handleSyncPreview: the
-// gitignore matcher, and a check of the name. The matcher is the one
-// that acts. getOrInitRepo backfills each line of gitignorePatterns into
-// .gitignore on EVERY open, thus config.json is always covered by the
-// time loadGitignoreMatcher reads the file. The check by name is
-// unreachable behind it.
+// WHICH GUARD DOES THE WORK. Two stand in handleSyncPreview: the gitignore
+// matcher, and a check of the name. The matcher is the one that acts.
+// gitsync.Service.GetOrInitRepo backfills each line of
+// gitsync.GitignorePatterns into .gitignore on EVERY open, thus config.json is
+// always covered by the time gitsync.Service.LoadGitignoreMatcher reads the
+// file. The check by name is unreachable behind it.
 //
 // This test holds the OUTCOME and not one guard. It also holds the fact
 // that the chain rests on: the backfill puts the line back.
@@ -704,7 +705,7 @@ func TestSyncPreviewNeverListsConfigJSON(t *testing.T) {
 		"config.json": "{\"share_lan\":false}\n",
 	})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 	gsWrite(t, a, "config.json", "{\"share_lan\":true}\n")
@@ -736,10 +737,10 @@ func TestSyncPreviewAnswersWithNoUsableKey(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
-	if err := a.SyncRepo("push", "the first commit of this device"); err != nil {
+	if err := a.gitSync().SyncRepo("push", "the first commit of this device"); err != nil {
 		t.Fatalf("the push: %v", err)
 	}
 	ghCommitLocally(t, a, "md/Two.md", "a note\n", "committed and not pushed")
@@ -772,10 +773,10 @@ func TestSyncPreviewAnswersWhenTheRemoteIsUnreachable(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
-	if err := a.SyncRepo("push", "the first commit of this device"); err != nil {
+	if err := a.gitSync().SyncRepo("push", "the first commit of this device"); err != nil {
 		t.Fatalf("the push: %v", err)
 	}
 	a.config.Update(func(c *config.Config) { c.GitServers[0].URL = "/no/such/path.git" })

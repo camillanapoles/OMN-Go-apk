@@ -37,6 +37,7 @@ import (
 	"time"
 
 	"net.basov.omngo/backend/internal/config"
+	"net.basov.omngo/backend/internal/gitsync"
 	"net.basov.omngo/backend/internal/render"
 	"net.basov.omngo/backend/internal/storage"
 )
@@ -342,7 +343,7 @@ func TestBaseline_RouteSet(t *testing.T) {
 		"/api/sync",
 		"/api/sync/preview",
 		// This route stores a changed git server key. It is admin only.
-		// See host_keys.go.
+		// See internal/gitsync/host_keys.go.
 		"/api/sync/trust-host-key",
 		"/api/upload",
 		"/api/upload_json",
@@ -990,26 +991,26 @@ func TestConfigPost_HostnameClearedFallsBack(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------
-// 7. storage.VersionDependentAssets and gitignorePatterns agree
+// 7. storage.VersionDependentAssets and gitsync.GitignorePatterns agree
 //
 // storage.VersionDependentAssets (internal/storage/assets.go) is the list of
 // files that ship with the build and are refreshed on upgrade.
-// gitignorePatterns (git_repo.go) keeps those same files out of the sync repo
-// of the user. They are two hand-kept lists that must not drift. The search
-// feature also makes the first list the single source of truth for the own code
-// of OMN-Go. Its integrity thus matters more than it did.
-// TestVersionDependentAssetsAllEmbedded covers the embed side. This test is the
-// other half.
+// gitsync.GitignorePatterns (internal/gitsync/repo.go) keeps those same files
+// out of the sync repo of the user. They are two hand-kept lists that must not
+// drift. The search feature also makes the first list the single source of
+// truth for the own code of OMN-Go. Its integrity thus matters more than it
+// did. TestVersionDependentAssetsAllEmbedded covers the embed side. This test
+// is the other half.
 // ---------------------------------------------------------------------
 
 func TestBaseline_VersionDependentAssetsAreGitignored(t *testing.T) {
 	ignored := map[string]bool{}
-	for _, p := range gitignorePatterns {
+	for _, p := range gitsync.GitignorePatterns {
 		ignored[p] = true
 	}
 	for _, rel := range storage.VersionDependentAssets {
 		if !ignored["/"+rel] {
-			t.Errorf("storage.VersionDependentAssets has %q but gitignorePatterns has no %q - "+
+			t.Errorf("storage.VersionDependentAssets has %q but gitsync.GitignorePatterns has no %q - "+
 				"a shipped file that gets committed to the user's repo will "+
 				"conflict on every upgrade", rel, "/"+rel)
 		}

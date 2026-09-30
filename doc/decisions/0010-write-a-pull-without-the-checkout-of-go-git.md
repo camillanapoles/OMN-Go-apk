@@ -2,8 +2,8 @@
 
 * Status: accepted
 * Version: 1.7.3, 1.8.5
-* Code: `writeTreeToWorktree`, `oldTrackedPaths`, `syncPull` and
-  `syncPullForce` in `backend/git_pull.go`
+* Code: `gitsync.Service.WriteTreeToWorktree`, `gitsync.OldTrackedPaths`,
+  `syncPull` and `syncPullForce` in `backend/internal/gitsync/pull.go`
 
 ## Context
 
@@ -27,9 +27,9 @@ that git tracks. Two faults came from this:
 
 A pull does not call the checkout of go-git. It writes the files itself:
 
-* `writeTreeToWorktree` writes each file of the remote tree, and it
-  touches no other file. It also writes a new index.
-* `oldTrackedPaths` gives each path that the old HEAD tracks.
+* `gitsync.Service.WriteTreeToWorktree` writes each file of the remote tree, and
+  it touches no other file. It also writes a new index.
+* `gitsync.OldTrackedPaths` gives each path that the old HEAD tracks.
 * After the write, a pull removes each path that the old HEAD tracked and
   the new tree does not hold. The pull thus deletes a note that another
   device deleted. It never deletes a file that git never tracked.
@@ -43,6 +43,6 @@ A pull does not call the checkout of go-git. It writes the files itself:
 * A change of this code needs care. The tests of `git_sync_test.go` run a
   real sync against a bare repository on disk, and they check each of
   these files.
-* `loadGitignoreMatcher` adds the built-in `gitignorePatterns` to the
-  `.gitignore` of the worktree. A stale `.gitignore` from the remote thus
-  cannot expose a local file to a force pull.
+* `gitsync.Service.LoadGitignoreMatcher` adds the built-in
+  `gitsync.GitignorePatterns` to the `.gitignore` of the worktree. A stale
+  `.gitignore` from the remote thus cannot expose a local file to a force pull.

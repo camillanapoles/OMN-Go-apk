@@ -2,8 +2,9 @@
 
 * Status: accepted
 * Version: 1.6.8
-* Code: `slotRemoteName`, `ensureOriginRemote` and
-  `ensureRemotesAndGetActive` in `backend/git_repo.go`
+* Code: `gitsync.SlotRemoteName`, `gitsync.Service.EnsureOriginRemote` and
+  `gitsync.Service.EnsureRemotesAndGetActive` in
+  `backend/internal/gitsync/repo.go`
 
 ## Context
 

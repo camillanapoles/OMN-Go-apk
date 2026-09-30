@@ -16,6 +16,7 @@ import (
 
 	cryptossh "golang.org/x/crypto/ssh"
 	"net.basov.omngo/backend/internal/config"
+	"net.basov.omngo/backend/internal/gitsync"
 )
 
 // hkKey makes a new ed25519 host key.
@@ -47,13 +48,13 @@ func hkTrust(a *App, host, fingerprint string) *httptest.ResponseRecorder {
 // See doc/decisions/0019-trust-the-host-key-on-first-use.md.
 func TestHostKeyIsTrustedOnFirstUse(t *testing.T) {
 	a := newTestApp(t)
-	cb := a.hostKeyCallback()
+	cb := a.gitSync().HostKeyCallback()
 	first, second := hkKey(t).PublicKey(), hkKey(t).PublicKey()
 
 	if err := cb("git.example:22", nil, first); err != nil {
 		t.Fatalf("the first key was refused: %v", err)
 	}
-	st, err := os.Stat(a.knownHostsPath())
+	st, err := os.Stat(a.gitSync().KnownHostsPath())
 	if err != nil {
 		t.Fatalf("known_hosts was not written: %v", err)
 	}
@@ -65,9 +66,9 @@ func TestHostKeyIsTrustedOnFirstUse(t *testing.T) {
 	}
 
 	err = cb("git.example:22", nil, second)
-	change, ok := hostKeyChangeOf(err)
+	change, ok := gitsync.HostKeyChangeOf(err)
 	if !ok {
-		t.Fatalf("a changed key gave %v, want errHostKeyChanged", err)
+		t.Fatalf("a changed key gave %v, want gitsync.ErrHostKeyChanged", err)
 	}
 	if change.Host != "git.example" || change.Known != cryptossh.FingerprintSHA256(first) ||
 		change.Fingerprint != cryptossh.FingerprintSHA256(second) {
@@ -83,7 +84,7 @@ func TestHostKeyIsTrustedOnFirstUse(t *testing.T) {
 	if err := cb("git.example:22", nil, second); err != nil {
 		t.Errorf("the trusted new key was refused: %v", err)
 	}
-	if _, ok := hostKeyChangeOf(cb("git.example:22", nil, first)); !ok {
+	if _, ok := gitsync.HostKeyChangeOf(cb("git.example:22", nil, first)); !ok {
 		t.Error("the old key still passes after the trust of the new key")
 	}
 	if w := hkTrust(a, "git.example", change.Fingerprint); w.Code != http.StatusConflict {
@@ -94,8 +95,8 @@ func TestHostKeyIsTrustedOnFirstUse(t *testing.T) {
 // The known_hosts file must stay out of the sync. A pull must not change
 // the keys that this device trusts.
 func TestKnownHostsStaysOutOfGit(t *testing.T) {
-	if !slices.Contains(gitignorePatterns, knownHostsFilename) {
-		t.Errorf("gitignorePatterns has no line for %s", knownHostsFilename)
+	if !slices.Contains(gitsync.GitignorePatterns, gitsync.KnownHostsFilename) {
+		t.Errorf("gitsync.GitignorePatterns has no line for %s", gitsync.KnownHostsFilename)
 	}
 }
 
@@ -116,8 +117,8 @@ func TestSSHHostOf(t *testing.T) {
 		`C:\repos\notes.git`:                     "",
 		"":                                       "",
 	} {
-		if got := sshHostOf(raw); got != want {
-			t.Errorf("sshHostOf(%q) = %q, want %q", raw, got, want)
+		if got := gitsync.SSHHostOf(raw); got != want {
+			t.Errorf("gitsync.SSHHostOf(%q) = %q, want %q", raw, got, want)
 		}
 	}
 }
@@ -126,7 +127,7 @@ func TestSSHHostOf(t *testing.T) {
 // algorithms, or the handshake fails with a stored RSA key.
 func TestHostKeyAlgorithmsFollowTheStoredKeys(t *testing.T) {
 	a := newTestApp(t)
-	if got := a.hostKeyAlgorithms("git.example"); len(got) != 0 {
+	if got := a.gitSync().HostKeyAlgorithms("git.example"); len(got) != 0 {
 		t.Errorf("an unknown host gave %v, want no list", got)
 	}
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -137,10 +138,10 @@ func TestHostKeyAlgorithmsFollowTheStoredKeys(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := a.hostKeyCallback()("git.example:22", nil, pub); err != nil {
+	if err := a.gitSync().HostKeyCallback()("git.example:22", nil, pub); err != nil {
 		t.Fatal(err)
 	}
-	got := a.hostKeyAlgorithms("git.example")
+	got := a.gitSync().HostKeyAlgorithms("git.example")
 	for _, want := range []string{cryptossh.KeyAlgoRSASHA512, cryptossh.KeyAlgoRSASHA256, cryptossh.KeyAlgoRSA} {
 		if !slices.Contains(got, want) {
 			t.Errorf("the list %v has no %s", got, want)
@@ -193,8 +194,8 @@ func TestSyncAnswersAChangedHostKey(t *testing.T) {
 	if strings.Contains(w.Body.String(), "host_key_changed") {
 		t.Fatalf("the first connection gave %s", w.Body.String())
 	}
-	host := sshHostOf("ssh://git@" + addr + "/notes.git")
-	if !strings.Contains(a.hostKeyText("ssh://git@"+addr+"/notes.git"), cryptossh.FingerprintSHA256(first.PublicKey())) {
+	host := gitsync.SSHHostOf("ssh://git@" + addr + "/notes.git")
+	if !strings.Contains(a.gitSync().HostKeyText("ssh://git@"+addr+"/notes.git"), cryptossh.FingerprintSHA256(first.PublicKey())) {
 		t.Fatalf("the first connection stored no key for %s", host)
 	}
 
@@ -202,12 +203,10 @@ func TestSyncAnswersAChangedHostKey(t *testing.T) {
 	a.config.Update(func(c *config.Config) { c.GitServers[0].URL = "ssh://git@" + hkServer(t, second) + "/notes.git" })
 	// The new server listens on another port. The test gives it the host
 	// entry of the first server, thus the key looks changed.
-	a.hostKeys.mu.Lock()
-	newHost := sshHostOf(a.config.Get().GitServers[0].URL)
-	if err := a.writeHostKey(newHost, first.PublicKey()); err != nil {
+	newHost := gitsync.SSHHostOf(a.config.Get().GitServers[0].URL)
+	if err := a.gitSync().WriteHostKey(newHost, first.PublicKey()); err != nil {
 		t.Fatal(err)
 	}
-	a.hostKeys.mu.Unlock()
 
 	w = ghSync(t, a, url.Values{"action": {"pull"}})
 	var body struct {

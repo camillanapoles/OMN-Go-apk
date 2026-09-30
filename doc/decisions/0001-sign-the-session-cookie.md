@@ -31,7 +31,7 @@ The server signs the role.
 * The key is 32 random bytes in `<StorageDir>/session_secret`, mode 0600.
   The key is not a field of `Config`. `GET /api/config` and the Config
   page both use the whole `Config` struct, and a secret there reaches both.
-* `gitignorePatterns` holds `session_secret`. A sync thus does not copy
+* `gitsync.GitignorePatterns` holds `session_secret`. A sync thus does not copy
   the key of one device to another.
 * `session_role` is `HttpOnly`. A note can hold a script, because goldmark
   runs with `html.WithUnsafe()`. A script that can read the cookie can

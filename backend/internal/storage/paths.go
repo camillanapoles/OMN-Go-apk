@@ -87,14 +87,14 @@ func (l Layout) PageHTML(name string) string {
 //
 // The match is on a whole path segment, and it is case-sensitive, thus
 // "mylocal-data.json" is a normal file. A commit does not take a local-only
-// file. A force pull keeps it, because cleanUntrackedFiles in
-// backend/git_sync.go keeps an ignored file.
+// file. A force pull keeps it, because gitsync.Service.CleanUntrackedFiles in
+// backend/internal/gitsync/sync.go keeps an ignored file.
 const LocalOnlyPrefix = "local-"
 
 // IsLocalOnlyPath tells if the name of the file, or of a directory above it,
 // starts with "local-". It is the rule for the index.
-// gitignoreLocalOnlyPattern in backend/git_repo.go is the rule for a new file.
-// TestGitignoreMatchesEachLocalOnlyPath compares the two.
+// gitsync.GitignoreLocalOnlyPattern in backend/internal/gitsync/repo.go is the
+// rule for a new file. TestGitignoreMatchesEachLocalOnlyPath compares the two.
 func IsLocalOnlyPath(name string) bool {
 	for _, segment := range strings.Split(filepath.ToSlash(name), "/") {
 		if strings.HasPrefix(segment, LocalOnlyPrefix) {

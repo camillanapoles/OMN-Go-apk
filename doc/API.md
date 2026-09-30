@@ -197,10 +197,10 @@ A route with `none` answers a remote caller with no login. The login box of a
 page decides only what the page shows. A program that asks `/api/note` or
 `/api/search` reads each note with no password.
 
-**Remote URLs.** A git server URL can hold a password. `redactGitURL`
-(`backend/git_repo.go`) removes it and keeps the user name. The Status
-answer and each log line that names a remote use it. Only the Config page,
-which is admin-only, shows the full URL, because the admin edits it there.
+**Remote URLs.** A git server URL can hold a password. `gitsync.RedactGitURL`
+(`backend/internal/gitsync/repo.go`) removes it and keeps the user name. The
+Status answer and each log line that names a remote use it. Only the Config
+page, which is admin-only, shows the full URL, because the admin edits it there.
 
 **Git server keys.** The sync over SSH trusts the key of a server at the
 first connection, and it stops when the key changes. See
@@ -1632,7 +1632,7 @@ backup. The state dot on the page therefore reads `insync` at once.
 #### `POST /api/sync`
 
 Run one git action against the active remote (`git_servers[active_git_index]`).
-`GitMutex` serializes every change to the repository.
+The lock of `gitsync.State` serializes every change to the repository.
 
 **Parameters** — the endpoint reads them with `r.FormValue`, so a POST body
 **or** a query string works. The frontend uses both.
@@ -1684,14 +1684,14 @@ directory above it. The `.gitignore` pattern is the single line
 first match, thus a local-only name wins over a `!` negation, for example
 `html/images/local-map.svg`.
 
-The rule started as `/html/db_backup/local-*/`, which kept the backups of
-a `local-` database out of git. `ensureGitignore` deletes that older line
-from an existing install and writes the general one.
+The rule started as `/html/db_backup/local-*/`, which kept the backups of a
+`local-` database out of git. `gitsync.Service.EnsureGitignore` deletes that
+older line from an existing install and writes the general one.
 
 A `.gitignore` pattern does not remove a file from the git index. A file
 that git tracked before it got the name would thus keep its old behavior.
 A commit takes no new content, and a force pull writes the copy of the
-repository over the local file. `commitLocalChanges` thus reads
+repository over the local file. `gitsync.Service.CommitLocalChanges` thus reads
 the index before it reads the status, and it removes each local-only path
 from the index. The result is one commit that says "stop to track this".
 The file stays on the device. A pull on another device deletes the copy

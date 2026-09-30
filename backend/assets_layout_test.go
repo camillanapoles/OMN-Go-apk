@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/gitsync"
 	"net.basov.omngo/backend/internal/render"
 	"net.basov.omngo/backend/internal/storage"
 )
@@ -25,8 +26,8 @@ import (
 //  1. Each app asset is under OMN-Go/, and each user file is not.
 //  2. A request for an old URL answers with the file of the new place.
 //  3. An upgrade deletes the old copy on disk. A copy that stays would
-//     become a tracked file at the next commit, because gitignorePatterns
-//     does not name it.
+//     become a tracked file at the next commit, because
+//     gitsync.GitignorePatterns does not name it.
 
 // The rule of the directory, written as a test. A new asset that lands
 // beside the user files breaks this and not something far away.
@@ -97,7 +98,7 @@ func TestLegacyAssetURLServesTheNewFile(t *testing.T) {
 	}
 }
 
-// The alias must never write a file at the old place. gitignorePatterns
+// The alias must never write a file at the old place. gitsync.GitignorePatterns
 // no longer names those paths, thus a file there reaches git and then
 // each other device.
 func TestLegacyAssetURLWritesNoOldFile(t *testing.T) {
@@ -238,9 +239,9 @@ func TestRetiredAssetIsNotShipped(t *testing.T) {
 		if shipped[rel] {
 			t.Errorf("%s is retired and version-dependent at the same time", rel)
 		}
-		for _, pattern := range gitignorePatterns {
+		for _, pattern := range gitsync.GitignorePatterns {
 			if pattern == "/"+rel {
-				t.Errorf("%s is retired and still in gitignorePatterns", rel)
+				t.Errorf("%s is retired and still in gitsync.GitignorePatterns", rel)
 			}
 		}
 	}

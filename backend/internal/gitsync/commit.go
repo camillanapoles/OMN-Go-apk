@@ -1,4 +1,4 @@
-package backend
+package gitsync
 
 import (
 	"fmt"
@@ -16,10 +16,10 @@ import (
 	"net.basov.omngo/backend/internal/storage"
 )
 
-// isDerivedTextPath reports whether a path is the html/ copy of a text file
+// IsDerivedTextPath reports whether a path is the html/ copy of a text file
 // that lives in md/. See internal/storage/note_files.go. Only the md/ file
 // belongs in git. A device that pulls it makes its own html/ copy.
-func isDerivedTextPath(name string) bool {
+func IsDerivedTextPath(name string) bool {
 	name = filepath.ToSlash(name)
 	return strings.HasPrefix(name, "html/") && storage.IsSyncedNoteFile(name)
 }
@@ -30,9 +30,9 @@ func isDerivedTextPath(name string) bool {
 func untrackReason(name string) string {
 	switch {
 	case storage.IsLocalOnlyPath(name):
-		return localOnlyPreviewNote
-	case isDerivedTextPath(name):
-		return derivedTextPreviewNote
+		return LocalOnlyPreviewNote
+	case IsDerivedTextPath(name):
+		return DerivedTextPreviewNote
 	}
 	return ""
 }
@@ -46,10 +46,10 @@ func untrackReason(name string) string {
 // Only these two rules remove a path. An old repository can track
 // md/UserManual.md or a compiled page. A removal of each such file would
 // delete many files on the other devices.
-func (a *App) untrackLocalOnlyPaths(repo *git.Repository) int {
+func (svc Service) untrackLocalOnlyPaths(repo *git.Repository) int {
 	idx, err := repo.Storer.Index()
 	if err != nil {
-		a.log(logx.Sync).Errf("cannot read the index to find the files to untrack: %v", err)
+		svc.Log(logx.Sync).Errf("cannot read the index to find the files to untrack: %v", err)
 		return 0
 	}
 
@@ -57,7 +57,7 @@ func (a *App) untrackLocalOnlyPaths(repo *git.Repository) int {
 	removed := 0
 	for _, entry := range idx.Entries {
 		if why := untrackReason(entry.Name); why != "" {
-			a.log(logx.Sync).Debugf("%s%s", entry.Name, why)
+			svc.Log(logx.Sync).Debugf("%s%s", entry.Name, why)
 			removed++
 			continue
 		}
@@ -69,26 +69,26 @@ func (a *App) untrackLocalOnlyPaths(repo *git.Repository) int {
 
 	idx.Entries = kept
 	if err := repo.Storer.SetIndex(idx); err != nil {
-		a.log(logx.Sync).Errf("cannot write the index after the removal of %d file(s): %v", removed, err)
+		svc.Log(logx.Sync).Errf("cannot write the index after the removal of %d file(s): %v", removed, err)
 		return 0
 	}
 	return removed
 }
 
-// localOnlyPreviewNote follows a path in the upload preview. The commit
+// LocalOnlyPreviewNote follows a path in the upload preview. The commit
 // deletes the file from the repository, and not from this device.
-const localOnlyPreviewNote = " (local-only: git stops to track it)"
+const LocalOnlyPreviewNote = " (local-only: git stops to track it)"
 
-// derivedTextPreviewNote is the same note for a .txt under html/.
-const derivedTextPreviewNote = " (a copy of the file in md/: git stops to track it)"
+// DerivedTextPreviewNote is the same note for a .txt under html/.
+const DerivedTextPreviewNote = " (a copy of the file in md/: git stops to track it)"
 
-// untrackTrackedPaths answers each path that untrackLocalOnlyPaths would
+// UntrackTrackedPaths answers each path that untrackLocalOnlyPaths would
 // remove, with the reason, in sorted order. It changes nothing. The upload
 // preview reads it.
-func (a *App) untrackTrackedPaths(repo *git.Repository) []string {
+func (svc Service) UntrackTrackedPaths(repo *git.Repository) []string {
 	idx, err := repo.Storer.Index()
 	if err != nil {
-		a.log(logx.Sync).Errf("cannot read the index to find the files to untrack: %v", err)
+		svc.Log(logx.Sync).Errf("cannot read the index to find the files to untrack: %v", err)
 		return nil
 	}
 	var out []string
@@ -101,10 +101,10 @@ func (a *App) untrackTrackedPaths(repo *git.Repository) []string {
 	return out
 }
 
-func (a *App) commitLocalChanges(repo *git.Repository, wTree *git.Worktree, message string) (bool, error) {
-	matcher, err := a.loadGitignoreMatcher(wTree)
+func (svc Service) CommitLocalChanges(repo *git.Repository, wTree *git.Worktree, message string) (bool, error) {
+	matcher, err := svc.LoadGitignoreMatcher(wTree)
 	if err != nil {
-		a.log(logx.Sync).Errf("could not load .gitignore: %v", err)
+		svc.Log(logx.Sync).Errf("could not load .gitignore: %v", err)
 		matcher = gitignore.NewMatcher(nil) // no ignore
 	}
 
@@ -112,16 +112,16 @@ func (a *App) commitLocalChanges(repo *git.Repository, wTree *git.Worktree, mess
 	// before the file got its name. A .gitignore pattern does not remove a
 	// tracked file. Remove it before the status test, because an unchanged
 	// tracked file gives no status entry.
-	unstaged := a.untrackLocalOnlyPaths(repo)
+	unstaged := svc.untrackLocalOnlyPaths(repo)
 
-	a.log(logx.Sync).Debugf("Checking worktree status")
+	svc.Log(logx.Sync).Debugf("Checking worktree status")
 	status, err := wTree.Status()
 	if err != nil {
 		return false, fmt.Errorf("status check error: %v", err)
 	}
-	_, mergePending := a.loadMergeParent()
+	_, mergePending := svc.LoadMergeParent()
 	if status.IsClean() && !mergePending && unstaged == 0 {
-		a.log(logx.Sync).Infof("Nothing to commit")
+		svc.Log(logx.Sync).Infof("Nothing to commit")
 		return false, nil
 	}
 
@@ -129,42 +129,42 @@ func (a *App) commitLocalChanges(repo *git.Repository, wTree *git.Worktree, mess
 	for name, fileStat := range status {
 
 		if matcher != nil && matcher.Match(strings.Split(name, string(filepath.Separator)), false) {
-			a.log(logx.Sync).Debugf("Ignoring %s (matches .gitignore)", name)
+			svc.Log(logx.Sync).Debugf("Ignoring %s (matches .gitignore)", name)
 			continue
 		}
 
-		// config.json stays on this device. See cleanUntrackedFiles.
+		// config.json stays on this device. See CleanUntrackedFiles.
 		if name == "config.json" {
-			a.log(logx.Sync).Debugf("Ignoring root config.json (preserve locally)")
+			svc.Log(logx.Sync).Debugf("Ignoring root config.json (preserve locally)")
 			continue
 		}
 
 		if fileStat.Worktree == git.Deleted {
-			a.log(logx.Sync).Debugf("Staging deletion: %s", name)
+			svc.Log(logx.Sync).Debugf("Staging deletion: %s", name)
 			_, err := wTree.Remove(name)
 			if err != nil {
-				a.log(logx.Sync).Errf("failed to remove %s: %v", name, err)
+				svc.Log(logx.Sync).Errf("failed to remove %s: %v", name, err)
 			} else {
 				hasRealChanges = true
 			}
 		} else if fileStat.Worktree != git.Unmodified || fileStat.Staging != git.Unmodified {
-			a.log(logx.Sync).Debugf("Staging file: %s", name)
-			if err := a.manualStageFile(repo, wTree, name); err != nil {
-				a.log(logx.Sync).Errf("manual staging failed for %s: %v", name, err)
+			svc.Log(logx.Sync).Debugf("Staging file: %s", name)
+			if err := svc.manualStageFile(repo, wTree, name); err != nil {
+				svc.Log(logx.Sync).Errf("manual staging failed for %s: %v", name, err)
 			} else {
-				a.log(logx.Sync).Debugf("Staged %s successfully", name)
+				svc.Log(logx.Sync).Debugf("Staged %s successfully", name)
 				hasRealChanges = true
 			}
 		}
 	}
 
 	if !hasRealChanges && !mergePending {
-		a.log(logx.Sync).Infof("No real changes could be staged (FUSE false-dirty or ignored)")
+		svc.Log(logx.Sync).Infof("No real changes could be staged (FUSE false-dirty or ignored)")
 		return false, nil
 	}
 
-	a.log(logx.Sync).Debugf("Committing staged changes")
-	authorName := a.GetConfigAuthor()
+	svc.Log(logx.Sync).Debugf("Committing staged changes")
+	authorName := svc.configAuthor()
 	authorEmail := strings.ReplaceAll(strings.ToLower(authorName), " ", ".") + "@omn-go.local"
 	sig := &object.Signature{
 		Name:  authorName,
@@ -182,7 +182,7 @@ func (a *App) commitLocalChanges(repo *git.Repository, wTree *git.Worktree, mess
 	// is empty, thus the code names HEAD here.
 	var pendingMergeParent plumbing.Hash
 	hasPendingMerge := false
-	if h, ok := a.loadMergeParent(); ok {
+	if h, ok := svc.LoadMergeParent(); ok {
 		headRef, hErr := repo.Head()
 		if hErr != nil {
 			return false, fmt.Errorf("could not resolve HEAD for pending merge commit: %v", hErr)
@@ -197,17 +197,17 @@ func (a *App) commitLocalChanges(repo *git.Repository, wTree *git.Worktree, mess
 
 	commitHash, err := wTree.Commit(message, commitOpts)
 	if err == git.ErrEmptyCommit {
-		a.log(logx.Sync).Infof("Commit aborted: git.ErrEmptyCommit")
+		svc.Log(logx.Sync).Infof("Commit aborted: git.ErrEmptyCommit")
 		return false, nil
 	} else if err != nil {
 		return false, fmt.Errorf("commit error: %v", err)
 	}
 
 	if hasPendingMerge {
-		a.clearMergeParent()
-		a.log(logx.Sync).Infof("Committed merge with hash: %s (parents: HEAD, %s)", commitHash.String(), pendingMergeParent.String())
+		svc.ClearMergeParent()
+		svc.Log(logx.Sync).Infof("Committed merge with hash: %s (parents: HEAD, %s)", commitHash.String(), pendingMergeParent.String())
 	} else {
-		a.log(logx.Sync).Infof("Committed with hash: %s", commitHash.String())
+		svc.Log(logx.Sync).Infof("Committed with hash: %s", commitHash.String())
 	}
 	return true, nil
 }

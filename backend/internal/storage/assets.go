@@ -87,9 +87,9 @@ var VersionDependentAssets = []string{
 // html/css/markdown.css, which no page loaded. THE LIST ONLY GROWS, because
 // an install can skip versions.
 //
-// removeRetiredAssets deletes each copy on disk. gitignorePatterns in
-// backend/git_repo.go does not name these paths, thus a copy that stays would
-// become a TRACKED file at the next commit.
+// removeRetiredAssets deletes each copy on disk. gitsync.GitignorePatterns in
+// backend/internal/gitsync/repo.go does not name these paths, thus a copy that
+// stays would become a TRACKED file at the next commit.
 var RetiredAssets = []string{
 	"html/js/omn-go-compat.js",
 	"html/js/omn-go-core.js",

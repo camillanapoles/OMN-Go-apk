@@ -11,6 +11,7 @@ import (
 
 	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/db"
+	"net.basov.omngo/backend/internal/gitsync"
 	"net.basov.omngo/backend/internal/logx"
 	"net.basov.omngo/backend/internal/render"
 )
@@ -23,11 +24,10 @@ type App struct {
 	// an 8-byte boundary, and a 32-bit build (armeabi-v7a, x86) does not give
 	// one here. Each request then panics. See TestNoBare64BitAtomics.
 	ActiveConns atomic.Int64
-	GitMutex    sync.Mutex // serializes all on-disk git repo operations
-	hostKeys    hostKeyState
 	Router      *http.ServeMux
 
-	dbs db.Store // the open user databases (see db_app.go)
+	dbs db.Store      // the open user databases (see db_app.go)
+	git gitsync.State // the lock of the repository and the host keys (see gitsync_app.go)
 
 	// search is the global index (search_index.go). It is empty until global
 	// search is on.

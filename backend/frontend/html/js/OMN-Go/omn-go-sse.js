@@ -156,7 +156,7 @@ if (window.location.protocol !== 'file:') {
         ['Pushing to',              'Uploading to remote…'],
         ['push:',                   'Finishing upload…'],
         // go-git sideband text relayed from the remote (see
-        // syncProgressWriter in git_sync.go).
+        // syncProgressWriter in internal/gitsync/sync.go).
         ['remote:',                 'Transferring…'],
         ['Counting objects',        'Transferring…'],
         ['Compressing objects',     'Transferring…'],

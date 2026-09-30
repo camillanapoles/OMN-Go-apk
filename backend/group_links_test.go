@@ -29,11 +29,8 @@ var fileGroups = map[string]string{
 	"search_http.go": "search", "search_index.go": "search",
 	"search_index_build.go": "search", "search_page.go": "search",
 	"search_score.go": "search", "search_sections.go": "search",
-	"git_commit.go": "gitsync", "git_fs.go": "gitsync",
-	"git_handlers.go": "gitsync", "git_pull.go": "gitsync",
-	"git_push.go": "gitsync", "git_repo.go": "gitsync",
-	"git_sync.go": "gitsync", "host_keys.go": "gitsync",
-	"db_app.go": "db",
+	"gitsync_app.go": "gitsync",
+	"db_app.go":      "db",
 
 	"server.go": "app", "middleware.go": "app", "session.go": "app",
 	"request_guard.go": "app", "handlers.go": "app", "page_access.go": "app",

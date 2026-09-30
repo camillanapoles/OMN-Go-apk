@@ -1,4 +1,4 @@
-package backend
+package gitsync
 
 import (
 	"fmt"
@@ -19,9 +19,9 @@ import (
 // syncPull fast-forwards the local branch to the remote tip. It returns a
 // conflict for a diverged history or for a tracked change that is not
 // committed. The page then offers pull_abort and pull_mark.
-func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport.AuthMethod, remoteName string) error {
-	a.log(logx.Sync).Infof("Pull: fetching %s", remoteName)
-	err := repo.Fetch(&git.FetchOptions{RemoteName: remoteName, Auth: auth, Progress: &syncProgressWriter{app: a}})
+func (svc Service) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport.AuthMethod, remoteName string) error {
+	svc.Log(logx.Sync).Infof("Pull: fetching %s", remoteName)
+	err := repo.Fetch(&git.FetchOptions{RemoteName: remoteName, Auth: auth, Progress: &syncProgressWriter{log: svc.Log(logx.Sync)}})
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		return fmt.Errorf("fetch failed: %w", err)
 	}
@@ -33,18 +33,18 @@ func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport
 
 	localHead, headErr := repo.Head()
 	if headErr == nil && localHead.Hash() == remoteRef.Hash() {
-		a.log(logx.Sync).Infof("Pull: already up to date")
+		svc.Log(logx.Sync).Infof("Pull: already up to date")
 		return nil
 	}
 
-	// Refuse when a tracked file has a change. See trackedWorktreeIsDirty.
-	dirty, dErr := trackedWorktreeIsDirty(wTree)
+	// Refuse when a tracked file has a change. See TrackedWorktreeIsDirty.
+	dirty, dErr := TrackedWorktreeIsDirty(wTree)
 	if dErr != nil {
 		return fmt.Errorf("status check failed: %v", dErr)
 	}
 	if dirty {
-		a.log(logx.Sync).Infof("Pull: local tracked changes present, cannot fast-forward")
-		return a.newSyncConflict(repo, wTree, remoteRef)
+		svc.Log(logx.Sync).Infof("Pull: local tracked changes present, cannot fast-forward")
+		return svc.newSyncConflict(repo, wTree, remoteRef)
 	}
 
 	// Allow only a fast-forward. A HEAD that is not an ancestor of the remote
@@ -64,15 +64,15 @@ func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport
 			return fmt.Errorf("ancestry check failed: %v", aErr)
 		}
 		if !isAncestor {
-			a.log(logx.Sync).Infof("Pull: fast-forward not possible (local has unpushed commits)")
-			return a.newSyncConflict(repo, wTree, remoteRef)
+			svc.Log(logx.Sync).Infof("Pull: fast-forward not possible (local has unpushed commits)")
+			return svc.newSyncConflict(repo, wTree, remoteRef)
 		}
 	}
 
 	// Read the paths that HEAD tracks. A pull removes a path that the remote
 	// deleted. It never removes a path that git never tracked, for example
 	// config.json or a database file.
-	oldPaths, err := oldTrackedPaths(repo)
+	oldPaths, err := OldTrackedPaths(repo)
 	if err != nil {
 		return fmt.Errorf("failed to read current tracked tree: %v", err)
 	}
@@ -86,9 +86,9 @@ func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport
 		return fmt.Errorf("remote tree lookup failed: %v", err)
 	}
 
-	// writeTreeToWorktree writes only the paths of the remote tree. See
+	// WriteTreeToWorktree writes only the paths of the remote tree. See
 	// doc/decisions/0010-write-a-pull-without-the-checkout-of-go-git.md.
-	newPaths, err := a.writeTreeToWorktree(repo, wTree, remoteTree)
+	newPaths, err := svc.WriteTreeToWorktree(repo, wTree, remoteTree)
 	if err != nil {
 		return fmt.Errorf("failed to write remote tree: %v", err)
 	}
@@ -99,11 +99,11 @@ func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport
 		if newPaths[p] {
 			continue
 		}
-		full := a.layout().File(p)
+		full := svc.Layout.File(p)
 		if err := os.Remove(full); err != nil && !os.IsNotExist(err) {
-			a.log(logx.Sync).Errf("pull: failed to remove file no longer tracked upstream (%s): %v", p, err)
+			svc.Log(logx.Sync).Errf("pull: failed to remove file no longer tracked upstream (%s): %v", p, err)
 		} else {
-			a.log(logx.Sync).Debugf("pull: removed file no longer tracked upstream: %s", p)
+			svc.Log(logx.Sync).Debugf("pull: removed file no longer tracked upstream: %s", p)
 		}
 	}
 
@@ -112,16 +112,16 @@ func (a *App) syncPull(repo *git.Repository, wTree *git.Worktree, auth transport
 		return fmt.Errorf("failed to move local branch: %v", err)
 	}
 
-	a.log(logx.Sync).Infof("Pull: fast-forward complete")
+	svc.Log(logx.Sync).Infof("Pull: fast-forward complete")
 	return nil
 }
 
 // syncPullMerge is the action pull_mark. It writes diff3 conflict markers
-// into each file of conflictingPaths, with a BASE part from the merge base.
+// into each file of ConflictingPaths, with a BASE part from the merge base.
 // HEAD does not move, and the next commit becomes a merge commit. See
 // OMNGO_MERGE_PARENT.
-func (a *App) syncPullMerge(repo *git.Repository, wTree *git.Worktree, auth transport.AuthMethod, remoteName string) error {
-	err := repo.Fetch(&git.FetchOptions{RemoteName: remoteName, Auth: auth, Progress: &syncProgressWriter{app: a}})
+func (svc Service) syncPullMerge(repo *git.Repository, wTree *git.Worktree, auth transport.AuthMethod, remoteName string) error {
+	err := repo.Fetch(&git.FetchOptions{RemoteName: remoteName, Auth: auth, Progress: &syncProgressWriter{log: svc.Log(logx.Sync)}})
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		return fmt.Errorf("fetch failed: %w", err)
 	}
@@ -135,7 +135,7 @@ func (a *App) syncPullMerge(repo *git.Repository, wTree *git.Worktree, auth tran
 	if err != nil {
 		return fmt.Errorf("local HEAD not found: %v", err)
 	}
-	a.savePremergeHead(localHead.Hash())
+	svc.SavePremergeHead(localHead.Hash())
 
 	remoteCommit, err := repo.CommitObject(remoteRef.Hash())
 	if err != nil {
@@ -153,8 +153,8 @@ func (a *App) syncPullMerge(repo *git.Repository, wTree *git.Worktree, auth tran
 		}
 	}
 
-	// conflictingPaths gives the same list that the conflict dialog showed.
-	paths, err := conflictingPaths(wTree, remoteTree)
+	// ConflictingPaths gives the same list that the conflict dialog showed.
+	paths, err := ConflictingPaths(wTree, remoteTree)
 	if err != nil {
 		return fmt.Errorf("status error: %v", err)
 	}
@@ -194,33 +194,33 @@ func (a *App) syncPullMerge(repo *git.Repository, wTree *git.Worktree, auth tran
 	// Record the remote tip as the second parent of the next commit. Do not
 	// move HEAD onto it. That makes no merge commit, and the local commit
 	// becomes unreachable.
-	a.saveMergeParent(remoteRef.Hash())
-	a.log(logx.Sync).Infof("Pull: 3-way conflict markers written, awaiting manual resolution")
+	svc.SaveMergeParent(remoteRef.Hash())
+	svc.Log(logx.Sync).Infof("Pull: 3-way conflict markers written, awaiting manual resolution")
 	return nil
 }
 
 // syncPullAbort resets the branch and the working tree to the HEAD from
 // before pull_mark. With no saved HEAD, it does nothing.
-func (a *App) syncPullAbort(wTree *git.Worktree) error {
-	hash, ok := a.loadPremergeHead()
+func (svc Service) syncPullAbort(wTree *git.Worktree) error {
+	hash, ok := svc.LoadPremergeHead()
 	if !ok {
-		a.log(logx.Sync).Infof("pull_abort: nothing to abort")
+		svc.Log(logx.Sync).Infof("pull_abort: nothing to abort")
 		return nil
 	}
 	if err := wTree.Reset(&git.ResetOptions{Commit: hash, Mode: git.HardReset}); err != nil {
 		return fmt.Errorf("abort reset failed: %v", err)
 	}
-	a.clearPremergeHead()
-	a.clearMergeParent()
-	a.log(logx.Sync).Infof("pull_abort: restored local state to %s", hash.String())
+	svc.ClearPremergeHead()
+	svc.ClearMergeParent()
+	svc.Log(logx.Sync).Infof("pull_abort: restored local state to %s", hash.String())
 	return nil
 }
 
-// writeTreeToWorktree writes each blob of tree into the worktree, and it
+// WriteTreeToWorktree writes each blob of tree into the worktree, and it
 // answers the paths that it wrote. It touches nothing else. Checkout and
 // Reset of go-git can delete each file outside the tree, also config.json.
 // See doc/decisions/0010-write-a-pull-without-the-checkout-of-go-git.md.
-func (a *App) writeTreeToWorktree(repo *git.Repository, wTree *git.Worktree, tree *object.Tree) (map[string]bool, error) {
+func (svc Service) WriteTreeToWorktree(repo *git.Repository, wTree *git.Worktree, tree *object.Tree) (map[string]bool, error) {
 	newIndex := &index.Index{Version: 2}
 	written := map[string]bool{}
 
@@ -279,9 +279,9 @@ func (a *App) writeTreeToWorktree(repo *git.Repository, wTree *git.Worktree, tre
 	return written, nil
 }
 
-// oldTrackedPaths answers each path that HEAD tracks. An unborn branch gives
+// OldTrackedPaths answers each path that HEAD tracks. An unborn branch gives
 // an empty set.
-func oldTrackedPaths(repo *git.Repository) (map[string]bool, error) {
+func OldTrackedPaths(repo *git.Repository) (map[string]bool, error) {
 	paths := map[string]bool{}
 	head, err := repo.Head()
 	if err != nil {
@@ -307,17 +307,17 @@ func oldTrackedPaths(repo *git.Repository) (map[string]bool, error) {
 // syncPullForce makes the local branch match the remote tip. It then deletes
 // each file that git does not track and that .gitignore does not cover. Only
 // a force pull may delete such a file.
-func (a *App) syncPullForce(repo *git.Repository, wTree *git.Worktree, auth transport.AuthMethod, remoteName string) error {
-	a.log(logx.Sync).Infof("Force pull: fetching %s", remoteName)
+func (svc Service) syncPullForce(repo *git.Repository, wTree *git.Worktree, auth transport.AuthMethod, remoteName string) error {
+	svc.Log(logx.Sync).Infof("Force pull: fetching %s", remoteName)
 
 	if runtime.GOOS == "android" {
-		tmpDir := a.layout().Git("tmp")
+		tmpDir := svc.Layout.Git("tmp")
 		os.MkdirAll(tmpDir, 0755)
 		os.Setenv("TMPDIR", tmpDir)
-		a.ensureGitignore()
+		svc.EnsureGitignore()
 	}
 
-	err := repo.Fetch(&git.FetchOptions{RemoteName: remoteName, Auth: auth, Progress: &syncProgressWriter{app: a}})
+	err := repo.Fetch(&git.FetchOptions{RemoteName: remoteName, Auth: auth, Progress: &syncProgressWriter{log: svc.Log(logx.Sync)}})
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		return fmt.Errorf("fetch failed: %w", err)
 	}
@@ -328,7 +328,7 @@ func (a *App) syncPullForce(repo *git.Repository, wTree *git.Worktree, auth tran
 	}
 
 	// Read the paths that HEAD tracks. See syncPull.
-	oldPaths, err := oldTrackedPaths(repo)
+	oldPaths, err := OldTrackedPaths(repo)
 	if err != nil {
 		return fmt.Errorf("failed to read current tracked tree: %v", err)
 	}
@@ -342,7 +342,7 @@ func (a *App) syncPullForce(repo *git.Repository, wTree *git.Worktree, auth tran
 		return fmt.Errorf("remote tree lookup failed: %v", err)
 	}
 
-	newPaths, err := a.writeTreeToWorktree(repo, wTree, remoteTree)
+	newPaths, err := svc.WriteTreeToWorktree(repo, wTree, remoteTree)
 	if err != nil {
 		return fmt.Errorf("failed to write remote tree: %v", err)
 	}
@@ -352,11 +352,11 @@ func (a *App) syncPullForce(repo *git.Repository, wTree *git.Worktree, auth tran
 		if newPaths[p] {
 			continue
 		}
-		full := a.layout().File(p)
+		full := svc.Layout.File(p)
 		if err := os.Remove(full); err != nil && !os.IsNotExist(err) {
-			a.log(logx.Sync).Errf("force pull: failed to remove file no longer tracked upstream (%s): %v", p, err)
+			svc.Log(logx.Sync).Errf("force pull: failed to remove file no longer tracked upstream (%s): %v", p, err)
 		} else {
-			a.log(logx.Sync).Debugf("force pull: removed file no longer tracked upstream: %s", p)
+			svc.Log(logx.Sync).Debugf("force pull: removed file no longer tracked upstream: %s", p)
 		}
 	}
 
@@ -365,15 +365,15 @@ func (a *App) syncPullForce(repo *git.Repository, wTree *git.Worktree, auth tran
 		return fmt.Errorf("failed to move local branch: %v", err)
 	}
 
-	matcher, mErr := a.loadGitignoreMatcher(wTree)
+	matcher, mErr := svc.LoadGitignoreMatcher(wTree)
 	if mErr != nil {
-		a.log(logx.Sync).Errf("force pull: could not load .gitignore, skipping untracked cleanup: %v", mErr)
+		svc.Log(logx.Sync).Errf("force pull: could not load .gitignore, skipping untracked cleanup: %v", mErr)
 	} else {
-		a.cleanUntrackedFiles(wTree, matcher)
+		svc.CleanUntrackedFiles(wTree, matcher)
 	}
 
-	a.clearPremergeHead() // any pending 3-way merge is now moot
-	a.clearMergeParent()
-	a.log(logx.Sync).Infof("Force pull complete")
+	svc.ClearPremergeHead() // any pending 3-way merge is now moot
+	svc.ClearMergeParent()
+	svc.Log(logx.Sync).Infof("Force pull complete")
 	return nil
 }

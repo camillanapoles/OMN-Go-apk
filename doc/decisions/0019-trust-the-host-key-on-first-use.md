@@ -2,9 +2,10 @@
 
 * Status: accepted
 * Version: 26.09.109
-* Code: `hostKeyCallback`, `writeHostKey` and `handleTrustHostKey` in
-  `backend/host_keys.go`, `getSSHAuth` in `backend/git_repo.go`,
-  `trustHostKey` in `omn-go-sync.js`
+* Code: `gitsync.Service.HostKeyCallback`, `writeHostKey` and
+  `gitsync.Service.HandleTrustHostKey` in
+  `backend/internal/gitsync/host_keys.go`, `gitsync.Service.GetSSHAuth` in
+  `backend/internal/gitsync/repo.go`, `trustHostKey` in `omn-go-sync.js`
 
 ## Context
 
@@ -22,8 +23,8 @@ stops the sync on the phone.
 * The first connection to a server stores its key in
   `<StorageDir>/known_hosts`, in the OpenSSH format, with mode 0600. The log
   names the fingerprint.
-* Each later connection must show a stored key. `getSSHAuth` asks the server
-  for the key types that the file holds.
+* Each later connection must show a stored key. `gitsync.Service.GetSSHAuth`
+  asks the server for the key types that the file holds.
 * A changed key stops the sync. `/api/sync` answers the status word
   `host_key_changed` with the host and both fingerprints.
 * The page shows the two fingerprints. OK sends
@@ -31,7 +32,7 @@ stops the sync on the phone.
   server stores the key only when both name the key that waits. The page
   then runs the same action again.
 * The Config page shows the stored fingerprint below each git server slot.
-* `gitignorePatterns` keeps `known_hosts` out of the sync. Each device
+* `gitsync.GitignorePatterns` stops the sync of `known_hosts`. Each device
   decides for itself, and a pull cannot change the keys that it trusts.
 
 ## Rejected alternatives

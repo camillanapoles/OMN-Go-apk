@@ -1,4 +1,4 @@
-package backend
+package gitsync
 
 import (
 	"bytes"
@@ -26,9 +26,9 @@ import (
 // A changed key stops the sync, and the person decides with the fingerprint.
 // See doc/decisions/0019-trust-the-host-key-on-first-use.md.
 
-// knownHostsFilename is in StorageDir, and NOT under html/, where the server
-// would serve it. gitignorePatterns keeps it out of the sync.
-const knownHostsFilename = "known_hosts"
+// KnownHostsFilename is in StorageDir, and NOT under html/, where the server
+// would serve it. GitignorePatterns keeps it out of the sync.
+const KnownHostsFilename = "known_hosts"
 
 // hostKeyState holds the one changed key that waits for the decision of the
 // person. mu also guards each read and write of the file.
@@ -46,22 +46,22 @@ type hostKeyChange struct {
 	key         cryptossh.PublicKey
 }
 
-// errHostKeyChanged is the error of a connection to a server with a changed
+// ErrHostKeyChanged is the error of a connection to a server with a changed
 // key. The sync answers it with the status word "host_key_changed".
-type errHostKeyChanged struct{ change hostKeyChange }
+type ErrHostKeyChanged struct{ change hostKeyChange }
 
-func (e *errHostKeyChanged) Error() string {
+func (e *ErrHostKeyChanged) Error() string {
 	return fmt.Sprintf("the host key of %s changed: this device knows %s, the server shows %s",
 		e.change.Host, e.change.Known, e.change.Fingerprint)
 }
 
-func (a *App) knownHostsPath() string {
-	return a.layout().File(knownHostsFilename)
+func (svc Service) KnownHostsPath() string {
+	return svc.Layout.File(KnownHostsFilename)
 }
 
 // knownHostKeys answers the stored keys of host. The caller holds mu.
-func (a *App) knownHostKeys(host string) []cryptossh.PublicKey {
-	data, err := os.ReadFile(a.knownHostsPath())
+func (svc Service) knownHostKeys(host string) []cryptossh.PublicKey {
+	data, err := os.ReadFile(svc.KnownHostsPath())
 	if err != nil {
 		return nil
 	}
@@ -81,15 +81,15 @@ func (a *App) knownHostKeys(host string) []cryptossh.PublicKey {
 	return keys
 }
 
-// hostKeyCallback trusts the key of a new server and stores it. For a known
+// HostKeyCallback trusts the key of a new server and stores it. For a known
 // server it accepts only a stored key.
-func (a *App) hostKeyCallback() cryptossh.HostKeyCallback {
+func (svc Service) HostKeyCallback() cryptossh.HostKeyCallback {
 	return func(hostname string, _ net.Addr, key cryptossh.PublicKey) error {
 		host := knownhosts.Normalize(hostname)
-		a.hostKeys.mu.Lock()
-		defer a.hostKeys.mu.Unlock()
+		svc.State.hostKeys.mu.Lock()
+		defer svc.State.hostKeys.mu.Unlock()
 
-		known := a.knownHostKeys(host)
+		known := svc.knownHostKeys(host)
 		for _, k := range known {
 			if bytes.Equal(k.Marshal(), key.Marshal()) {
 				return nil
@@ -97,24 +97,24 @@ func (a *App) hostKeyCallback() cryptossh.HostKeyCallback {
 		}
 		fingerprint := cryptossh.FingerprintSHA256(key)
 		if len(known) == 0 {
-			if err := a.writeHostKey(host, key); err != nil {
+			if err := svc.writeHostKey(host, key); err != nil {
 				return fmt.Errorf("store the host key of %s: %w", host, err)
 			}
-			a.log(logx.Sync).Infof("trusted the host key of %s at the first connection: %s", host, fingerprint)
+			svc.Log(logx.Sync).Infof("trusted the host key of %s at the first connection: %s", host, fingerprint)
 			return nil
 		}
 		change := hostKeyChange{Host: host, Known: cryptossh.FingerprintSHA256(known[0]),
 			Fingerprint: fingerprint, key: key}
-		a.hostKeys.pending = &change
-		a.log(logx.Sync).Errf("refused %s: the host key changed from %s to %s", host, change.Known, fingerprint)
-		return &errHostKeyChanged{change: change}
+		svc.State.hostKeys.pending = &change
+		svc.Log(logx.Sync).Errf("refused %s: the host key changed from %s to %s", host, change.Known, fingerprint)
+		return &ErrHostKeyChanged{change: change}
 	}
 }
 
 // writeHostKey replaces each stored key of host with key. The caller holds
 // mu.
-func (a *App) writeHostKey(host string, key cryptossh.PublicKey) error {
-	data, err := os.ReadFile(a.knownHostsPath())
+func (svc Service) writeHostKey(host string, key cryptossh.PublicKey) error {
+	data, err := os.ReadFile(svc.KnownHostsPath())
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -130,17 +130,17 @@ func (a *App) writeHostKey(host string, key cryptossh.PublicKey) error {
 		out.WriteString("\n")
 	}
 	out.WriteString(knownhosts.Line([]string{host}, key) + "\n")
-	return os.WriteFile(a.knownHostsPath(), out.Bytes(), 0600)
+	return os.WriteFile(svc.KnownHostsPath(), out.Bytes(), 0600)
 }
 
-// hostKeyAlgorithms answers the key algorithms of the stored keys of host.
+// HostKeyAlgorithms answers the key algorithms of the stored keys of host.
 // The server must then show a key of a stored type. A server with more than
 // one key thus does not look like a changed key.
-func (a *App) hostKeyAlgorithms(host string) []string {
-	a.hostKeys.mu.Lock()
-	defer a.hostKeys.mu.Unlock()
+func (svc Service) HostKeyAlgorithms(host string) []string {
+	svc.State.hostKeys.mu.Lock()
+	defer svc.State.hostKeys.mu.Unlock()
 	var algos []string
-	for _, k := range a.knownHostKeys(host) {
+	for _, k := range svc.knownHostKeys(host) {
 		if k.Type() == cryptossh.KeyAlgoRSA {
 			algos = append(algos, cryptossh.KeyAlgoRSASHA512, cryptossh.KeyAlgoRSASHA256)
 		}
@@ -149,9 +149,9 @@ func (a *App) hostKeyAlgorithms(host string) []string {
 	return algos
 }
 
-// sshHostOf answers the host of a git URL in the form of the known_hosts
+// SSHHostOf answers the host of a git URL in the form of the known_hosts
 // file, or "" for a URL that does not use SSH.
-func sshHostOf(raw string) string {
+func SSHHostOf(raw string) string {
 	raw = strings.TrimSpace(raw)
 	if strings.Contains(raw, "://") {
 		u, err := url.Parse(raw)
@@ -174,41 +174,41 @@ func sshHostOf(raw string) string {
 	return knownhosts.Normalize(rest[:colon])
 }
 
-// hostKeyText is the line of the Config page for one git URL.
-func (a *App) hostKeyText(rawURL string) string {
-	host := sshHostOf(rawURL)
+// HostKeyText is the line of the Config page for one git URL.
+func (svc Service) HostKeyText(rawURL string) string {
+	host := SSHHostOf(rawURL)
 	if host == "" {
 		return ""
 	}
-	a.hostKeys.mu.Lock()
-	defer a.hostKeys.mu.Unlock()
-	keys := a.knownHostKeys(host)
+	svc.State.hostKeys.mu.Lock()
+	defer svc.State.hostKeys.mu.Unlock()
+	keys := svc.knownHostKeys(host)
 	if len(keys) == 0 {
 		return "Server key: not known yet. The first sync stores it."
 	}
 	return "Server key: " + cryptossh.FingerprintSHA256(keys[0])
 }
 
-// handleTrustHostKey answers POST /api/sync/trust-host-key. It stores the
+// HandleTrustHostKey answers POST /api/sync/trust-host-key. It stores the
 // changed key that waits, when host and fingerprint name that key. The page
 // sends the fingerprint that the person saw, thus a key that changed again
 // in the meantime is not stored.
-func (a *App) handleTrustHostKey(w http.ResponseWriter, r *http.Request) {
+func (svc Service) HandleTrustHostKey(w http.ResponseWriter, r *http.Request) {
 	host, fingerprint := r.FormValue("host"), r.FormValue("fingerprint")
-	a.hostKeys.mu.Lock()
-	defer a.hostKeys.mu.Unlock()
-	p := a.hostKeys.pending
+	svc.State.hostKeys.mu.Lock()
+	defer svc.State.hostKeys.mu.Unlock()
+	p := svc.State.hostKeys.pending
 	if p == nil || p.Host != host || p.Fingerprint != fingerprint {
-		a.writeJSONError(w, http.StatusConflict, "no changed key of this server waits for a decision")
+		svc.writeJSONError(w, http.StatusConflict, "no changed key of this server waits for a decision")
 		return
 	}
-	if err := a.writeHostKey(p.Host, p.key); err != nil {
-		a.writeJSONError(w, http.StatusInternalServerError, err.Error())
+	if err := svc.writeHostKey(p.Host, p.key); err != nil {
+		svc.writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	a.hostKeys.pending = nil
-	a.log(logx.Sync).Infof("trusted the new host key of %s: %s", host, fingerprint)
-	a.writeJSON(w, http.StatusOK, render.JSONStatus{Status: "success"})
+	svc.State.hostKeys.pending = nil
+	svc.Log(logx.Sync).Infof("trusted the new host key of %s: %s", host, fingerprint)
+	svc.writeJSON(w, http.StatusOK, render.JSONStatus{Status: "success"})
 }
 
 // hostKeyAnswer is the answer of /api/sync for a changed host key.
@@ -218,11 +218,19 @@ type hostKeyAnswer struct {
 	hostKeyChange
 }
 
-// hostKeyChangeOf finds a changed host key in the chain of err.
-func hostKeyChangeOf(err error) (hostKeyChange, bool) {
-	var hk *errHostKeyChanged
+// HostKeyChangeOf finds a changed host key in the chain of err.
+func HostKeyChangeOf(err error) (hostKeyChange, bool) {
+	var hk *ErrHostKeyChanged
 	if errors.As(err, &hk) {
 		return hk.change, true
 	}
 	return hostKeyChange{}, false
+}
+
+// WriteHostKey trusts key for host. It holds the lock of the known_hosts file
+// for the write. See writeHostKey.
+func (svc Service) WriteHostKey(host string, key cryptossh.PublicKey) error {
+	svc.State.hostKeys.mu.Lock()
+	defer svc.State.hostKeys.mu.Unlock()
+	return svc.writeHostKey(host, key)
 }

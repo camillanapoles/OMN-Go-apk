@@ -31,7 +31,8 @@ import (
 // progress bar for the slow request.
 //
 // Nothing here opens a network connection or writes a file. The git section
-// opens the repository read-only, because getOrInitRepo would CREATE one.
+// opens the repository read-only, because gitsync.Service.GetOrInitRepo would
+// CREATE one.
 
 // statusCheapSections is the default answer. A caller must name each of
 // statusSlowSections in "sections", or ask for "all".

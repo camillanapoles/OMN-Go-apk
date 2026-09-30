@@ -1,4 +1,4 @@
-package backend
+package gitsync
 
 import (
 	"errors"
@@ -20,8 +20,8 @@ import (
 // doc/decisions/0011-push-each-time-and-let-the-remote-answer.md. A change to
 // commit needs a message, and so does a force push. A refused push without
 // force returns ErrPushConflict and does nothing more.
-func (a *App) syncPush(repo *git.Repository, wTree *git.Worktree, auth transport.AuthMethod, remoteName, message string, force bool) error {
-	matcher, mErr := a.loadGitignoreMatcher(wTree)
+func (svc Service) syncPush(repo *git.Repository, wTree *git.Worktree, auth transport.AuthMethod, remoteName, message string, force bool) error {
+	matcher, mErr := svc.LoadGitignoreMatcher(wTree)
 	if mErr != nil {
 		matcher = gitignore.NewMatcher(nil)
 	}
@@ -46,7 +46,7 @@ func (a *App) syncPush(repo *git.Repository, wTree *git.Worktree, auth transport
 
 	// A pending pull_mark merge must end in a commit, also when the
 	// resolution equals HEAD and the status is clean.
-	if _, mergePending := a.loadMergeParent(); mergePending {
+	if _, mergePending := svc.LoadMergeParent(); mergePending {
 		hasRelevantChanges = true
 	}
 
@@ -56,26 +56,26 @@ func (a *App) syncPush(repo *git.Repository, wTree *git.Worktree, auth transport
 	}
 
 	if hasRelevantChanges {
-		if _, cErr := a.commitLocalChanges(repo, wTree, message); cErr != nil {
+		if _, cErr := svc.CommitLocalChanges(repo, wTree, message); cErr != nil {
 			return fmt.Errorf("commit failed: %v", cErr)
 		}
 	}
 
-	a.log(logx.Sync).Infof("Pushing to %s master (force=%v)", remoteName, force)
+	svc.Log(logx.Sync).Infof("Pushing to %s master (force=%v)", remoteName, force)
 	err = repo.Push(&git.PushOptions{
 		RemoteName: remoteName,
 		Auth:       auth,
 		RefSpecs:   []gitconfig.RefSpec{"refs/heads/master:refs/heads/master"},
 		Force:      force,
-		Progress:   &syncProgressWriter{app: a},
+		Progress:   &syncProgressWriter{log: svc.Log(logx.Sync)},
 	})
 	if err == git.NoErrAlreadyUpToDate {
-		a.log(logx.Sync).Infof("push: remote %s already up to date", remoteName)
+		svc.Log(logx.Sync).Infof("push: remote %s already up to date", remoteName)
 		return nil
 	}
 	if err != nil {
-		if !force && isNonFastForward(err) {
-			a.log(logx.Sync).Errf("push: rejected as non-fast-forward, leaving local state untouched")
+		if !force && IsNonFastForward(err) {
+			svc.Log(logx.Sync).Errf("push: rejected as non-fast-forward, leaving local state untouched")
 			return ErrPushConflict
 		}
 		return fmt.Errorf("push failed: %w", err)
@@ -84,15 +84,15 @@ func (a *App) syncPush(repo *git.Repository, wTree *git.Worktree, auth transport
 }
 
 // nonFastForwardText is the message that go-git writes when a remote
-// refuses a push. See isNonFastForward.
+// refuses a push. See IsNonFastForward.
 const nonFastForwardText = "non-fast-forward update"
 
-// isNonFastForward tells whether the remote refused a push because it holds a
+// IsNonFastForward tells whether the remote refused a push because it holds a
 // commit that this device does not have. go-git makes this error with
 // fmt.Errorf and no sentinel, thus the test reads the text.
 // TestIsNonFastForward holds the known text. The value test stays first, for
 // a later go-git.
-func isNonFastForward(err error) bool {
+func IsNonFastForward(err error) bool {
 	if err == nil {
 		return false
 	}
@@ -117,10 +117,10 @@ type unpushedState struct {
 	Error    string
 }
 
-// syncPreviewResponse is the body of GET /api/sync/preview?action=upload. An
+// SyncPreviewResponse is the body of GET /api/sync/preview?action=upload. An
 // empty Files list does not mean "nothing to do". The three fields after it
 // tell whether a commit waits for its push.
-type syncPreviewResponse struct {
+type SyncPreviewResponse struct {
 	Files       []string `json:"files"`
 	Unpushed    bool     `json:"unpushed"`
 	Remote      string   `json:"remote,omitempty"`
@@ -128,27 +128,27 @@ type syncPreviewResponse struct {
 	RemoteError string   `json:"remote_error,omitempty"`
 }
 
-// aheadOfRemote compares the local HEAD with the active remote. It reads the
+// AheadOfRemote compares the local HEAD with the active remote. It reads the
 // local tracking ref first, and a slot with no ref reads as "maybe ahead".
 // Only the answer "level" goes to the network, as a list of refs.
-func (a *App) aheadOfRemote(repo *git.Repository, remoteName string, auth transport.AuthMethod) unpushedState {
+func (svc Service) AheadOfRemote(repo *git.Repository, remoteName string, auth transport.AuthMethod) unpushedState {
 	out := unpushedState{Remote: remoteName}
 
 	head, err := repo.Head()
 	if err != nil {
 		// With no commit, nothing waits for a push.
-		a.log(logx.Sync).Debugf("preview: no local HEAD (%v)", err)
+		svc.Log(logx.Sync).Debugf("preview: no local HEAD (%v)", err)
 		return out
 	}
 
 	trackRef, tErr := repo.Reference(plumbing.NewRemoteReferenceName(remoteName, "master"), true)
 	if tErr != nil {
-		a.log(logx.Sync).Debugf("preview: %s has no known master yet - treating local HEAD as unpushed", remoteName)
+		svc.Log(logx.Sync).Debugf("preview: %s has no known master yet - treating local HEAD as unpushed", remoteName)
 		out.Unpushed = true
 		return out
 	}
 	if trackRef.Hash() != head.Hash() {
-		a.log(logx.Sync).Debugf("preview: local HEAD %s differs from %s/master %s",
+		svc.Log(logx.Sync).Debugf("preview: local HEAD %s differs from %s/master %s",
 			head.Hash().String()[:7], remoteName, trackRef.Hash().String()[:7])
 		out.Unpushed = true
 		return out
@@ -165,7 +165,7 @@ func (a *App) aheadOfRemote(repo *git.Repository, remoteName string, auth transp
 	if lErr != nil {
 		// The remote cannot answer. Report that, and claim no check. A push
 		// would fail with the same error.
-		a.log(logx.Sync).Errf("preview: could not list %s: %v", remoteName, lErr)
+		svc.Log(logx.Sync).Errf("preview: could not list %s: %v", remoteName, lErr)
 		out.Error = lErr.Error()
 		return out
 	}
@@ -175,14 +175,14 @@ func (a *App) aheadOfRemote(repo *git.Repository, remoteName string, auth transp
 		if ref.Name() == plumbing.Master {
 			out.Unpushed = ref.Hash() != head.Hash()
 			if out.Unpushed {
-				a.log(logx.Sync).Debugf("preview: %s/master is at %s, local HEAD is %s",
+				svc.Log(logx.Sync).Debugf("preview: %s/master is at %s, local HEAD is %s",
 					remoteName, ref.Hash().String()[:7], head.Hash().String()[:7])
 			}
 			return out
 		}
 	}
 	// The remote has no master branch. The first push makes it.
-	a.log(logx.Sync).Debugf("preview: %s has no master branch yet", remoteName)
+	svc.Log(logx.Sync).Debugf("preview: %s has no master branch yet", remoteName)
 	out.Unpushed = true
 	return out
 }

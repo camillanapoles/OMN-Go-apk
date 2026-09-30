@@ -4,7 +4,8 @@
 * Version: 26.09.12
 * Code: `storage.VersionDependentAssets`, `storage.RetiredAssets` and
   `removeRetiredAssets` in `backend/internal/storage/assets.go`,
-  `legacyAssetURL` in `backend/serving.go`, `gitignorePatterns` in `backend/git_repo.go`
+  `legacyAssetURL` in `backend/serving.go`, `gitsync.GitignorePatterns` in
+  `backend/internal/gitsync/repo.go`
 
 ## Context
 
@@ -31,7 +32,7 @@ directory could not tell which file belongs to whom.
 
 ## Consequences
 
-* `gitignorePatterns` names the new paths only. An old copy that stays
+* `gitsync.GitignorePatterns` names the new paths only. An old copy that stays
   on disk would become a tracked file at the next commit, and the sync
   would copy it to each device. That is why `removeRetiredAssets` must
   delete it.

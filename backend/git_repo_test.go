@@ -12,14 +12,15 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"net.basov.omngo/backend/internal/config"
+	"net.basov.omngo/backend/internal/gitsync"
 	"net.basov.omngo/backend/internal/storage"
 )
 
-// Tests for git_repo.go and git_commit.go: the ignore rules, the staging,
-// and the commit.
+// Tests for internal/gitsync/repo.go and internal/gitsync/commit.go: the ignore
+// rules, the staging, and the commit.
 //
 // git_sync_test.go holds the tests of the sync code. See the banner of
-// git_repo.go for what each git file holds.
+// internal/gitsync/repo.go for what each git file holds.
 //
 // THE SHARED HELPERS LIVE HERE. newTestRepo, testCommit, writeAndAdd,
 // headTree, mustRead and overwrite build a real repository on disk, and
@@ -102,12 +103,13 @@ func gitignoreLines(t *testing.T, a *App) map[string]int {
 	return counts
 }
 
-// A fresh install writes the .gitignore straight from gitignorePatterns.
-// This pins the exact bytes, thus an accidental edit to gitignorePatterns
-// is caught. A reorder counts, and so does a dropped or an added entry.
+// A fresh install writes the .gitignore straight from
+// gitsync.GitignorePatterns. This pins the exact bytes, thus an accidental edit
+// to gitsync.GitignorePatterns is caught. A reorder counts, and so does a
+// dropped or an added entry.
 func TestEnsureGitignoreFreshInstall(t *testing.T) {
 	a := &App{StorageDir: t.TempDir()}
-	a.ensureGitignore()
+	a.gitSync().EnsureGitignore()
 
 	want := "# OMN-Go sync ignore\n" +
 		"config.json\n" +
@@ -164,7 +166,7 @@ func TestEnsureGitignoreFreshInstall(t *testing.T) {
 	}
 }
 
-// The backfill must add every gitignorePatterns entry that an existing
+// The backfill must add every gitsync.GitignorePatterns entry that an existing
 // install misses. It matches a whole line, and not a substring.
 //
 // The regression that it guards. "*.woff" is a substring of "*.woff2",
@@ -182,7 +184,7 @@ func TestEnsureGitignoreBackfillLineExact(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	a.ensureGitignore()
+	a.gitSync().EnsureGitignore()
 
 	counts := gitignoreLines(t, a)
 	// The substring case: *.woff must be added even though *.woff2 is present.
@@ -197,7 +199,7 @@ func TestEnsureGitignoreBackfillLineExact(t *testing.T) {
 		t.Errorf("config.json appears %d time(s), want exactly 1", counts["config.json"])
 	}
 	// Every pattern from the single source ends up present exactly once.
-	for _, patt := range gitignorePatterns {
+	for _, patt := range gitsync.GitignorePatterns {
 		if counts[patt] != 1 {
 			t.Errorf("pattern %q appears %d time(s), want exactly 1", patt, counts[patt])
 		}
@@ -209,25 +211,25 @@ func TestEnsureGitignoreBackfillLineExact(t *testing.T) {
 // all it must not append a duplicate trailing block.
 func TestEnsureGitignoreNoRewriteWhenComplete(t *testing.T) {
 	a := &App{StorageDir: t.TempDir()}
-	a.ensureGitignore() // write the canonical file
+	a.gitSync().EnsureGitignore() // write the canonical file
 	before, err := os.ReadFile(filepath.Join(a.StorageDir, ".gitignore"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	a.ensureGitignore() // second pass must be a no-op
+	a.gitSync().EnsureGitignore() // second pass must be a no-op
 	after, err := os.ReadFile(filepath.Join(a.StorageDir, ".gitignore"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(before) != string(after) {
-		t.Errorf("second ensureGitignore rewrote a complete file:\nbefore %q\nafter  %q", before, after)
+		t.Errorf("second gitsync.Service.EnsureGitignore rewrote a complete file:\nbefore %q\nafter  %q", before, after)
 	}
 }
 
 // The general "local-*" rule replaced "/html/db_backup/local-*/". An
 // install that still has the old line must lose it, and it must get the
 // new one. The old line is not harmful, but two rules for one job drift
-// apart, and the file must stay equal to gitignorePatterns.
+// apart, and the file must stay equal to gitsync.GitignorePatterns.
 func TestEnsureGitignoreDropsTheObsoleteLocalDatabaseRule(t *testing.T) {
 	a := &App{StorageDir: t.TempDir()}
 	existing := "# OMN-Go sync ignore\nconfig.json\n*.html\n/db/\n/html/db_backup/local-*/\n"
@@ -235,14 +237,14 @@ func TestEnsureGitignoreDropsTheObsoleteLocalDatabaseRule(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	a.ensureGitignore()
+	a.gitSync().EnsureGitignore()
 
 	counts := gitignoreLines(t, a)
 	if counts["/html/db_backup/local-*/"] != 0 {
 		t.Errorf("the obsolete database rule is still in the file %d time(s)", counts["/html/db_backup/local-*/"])
 	}
-	if counts[gitignoreLocalOnlyPattern] != 1 {
-		t.Errorf("%q appears %d time(s), want exactly 1", gitignoreLocalOnlyPattern, counts[gitignoreLocalOnlyPattern])
+	if counts[gitsync.GitignoreLocalOnlyPattern] != 1 {
+		t.Errorf("%q appears %d time(s), want exactly 1", gitsync.GitignoreLocalOnlyPattern, counts[gitsync.GitignoreLocalOnlyPattern])
 	}
 	// The two buggy negations must still go away.
 	if counts["!/html/images/"] != 0 || counts["!/html/images/icons/"] != 0 {
@@ -257,8 +259,8 @@ func TestEnsureGitignoreDropsTheObsoleteLocalDatabaseRule(t *testing.T) {
 // position of "local-*" at the end. go-git reads the patterns from the
 // end and stops at the first match.
 func TestGitignoreMatchesEachLocalOnlyPath(t *testing.T) {
-	patterns := make([]gitignore.Pattern, 0, len(gitignorePatterns))
-	for _, p := range gitignorePatterns {
+	patterns := make([]gitignore.Pattern, 0, len(gitsync.GitignorePatterns))
+	for _, p := range gitsync.GitignorePatterns {
 		patterns = append(patterns, gitignore.ParsePattern(p, nil))
 	}
 	matcher := gitignore.NewMatcher(patterns)
@@ -296,7 +298,7 @@ func TestGitignoreMatchesEachLocalOnlyPath(t *testing.T) {
 // The preview must name it before that commit.
 func TestCommitLocalChangesUntracksALocalOnlyFile(t *testing.T) {
 	a, repo, wt := newTestRepo(t)
-	a.ensureGitignore()
+	a.gitSync().EnsureGitignore()
 
 	const localRel = "html/user_json/local-data.json"
 	const keepRel = "md/Notes.md"
@@ -306,14 +308,14 @@ func TestCommitLocalChangesUntracksALocalOnlyFile(t *testing.T) {
 	testCommit(t, wt, "before the rule")
 
 	// The preview must announce the removal, although no content changed.
-	pending := a.untrackTrackedPaths(repo)
-	if len(pending) != 1 || pending[0] != localRel+localOnlyPreviewNote {
-		t.Errorf("untrackTrackedPaths = %v, want [%s]", pending, localRel+localOnlyPreviewNote)
+	pending := a.gitSync().UntrackTrackedPaths(repo)
+	if len(pending) != 1 || pending[0] != localRel+gitsync.LocalOnlyPreviewNote {
+		t.Errorf("gitsync.Service.UntrackTrackedPaths = %v, want [%s]", pending, localRel+gitsync.LocalOnlyPreviewNote)
 	}
 
-	committed, err := a.commitLocalChanges(repo, wt, "stop to track the local-only files")
+	committed, err := a.gitSync().CommitLocalChanges(repo, wt, "stop to track the local-only files")
 	if err != nil {
-		t.Fatalf("commitLocalChanges: %v", err)
+		t.Fatalf("gitsync.Service.CommitLocalChanges: %v", err)
 	}
 	if !committed {
 		t.Fatal("no commit was made, want the removal of the local-only file")
@@ -333,7 +335,7 @@ func TestCommitLocalChangesUntracksALocalOnlyFile(t *testing.T) {
 	}
 
 	// A second run finds nothing more to do.
-	if left := a.untrackTrackedPaths(repo); len(left) != 0 {
+	if left := a.gitSync().UntrackTrackedPaths(repo); len(left) != 0 {
 		t.Errorf("the index still holds %v", left)
 	}
 }
@@ -349,7 +351,7 @@ func mustRead(t *testing.T, path string) []byte {
 }
 
 // overwrite writes a file WITHOUT staging it, so it shows up as a worktree
-// modification (git.Modified) - the state conflictingPaths keys on.
+// modification (git.Modified) - the state gitsync.ConflictingPaths keys on.
 func overwrite(t *testing.T, a *App, rel, content string) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(a.StorageDir, rel), []byte(content), 0644); err != nil {
@@ -361,8 +363,8 @@ func overwrite(t *testing.T, a *App, rel, content string) {
 // its URL resolves (internal/storage/note_files.go). Only the md/ original
 // belongs in git.
 func TestGitignoreExcludesDerivedTextCopies(t *testing.T) {
-	patterns := make([]gitignore.Pattern, 0, len(gitignorePatterns))
-	for _, p := range gitignorePatterns {
+	patterns := make([]gitignore.Pattern, 0, len(gitsync.GitignorePatterns))
+	for _, p := range gitsync.GitignorePatterns {
 		patterns = append(patterns, gitignore.ParsePattern(p, nil))
 	}
 	matcher := gitignore.NewMatcher(patterns)
@@ -388,8 +390,8 @@ func TestGitignoreExcludesDerivedTextCopies(t *testing.T) {
 		}
 		// The matcher and the untrack rule have to agree, or a file is
 		// ignored for new commits and kept in the index for ever.
-		if got := isDerivedTextPath(full); got != c.want {
-			t.Errorf("isDerivedTextPath(%q) = %v, want %v (%s)", full, got, c.want, c.why)
+		if got := gitsync.IsDerivedTextPath(full); got != c.want {
+			t.Errorf("gitsync.IsDerivedTextPath(%q) = %v, want %v (%s)", full, got, c.want, c.why)
 		}
 	}
 }
@@ -399,7 +401,7 @@ func TestGitignoreExcludesDerivedTextCopies(t *testing.T) {
 // other device rebuilds its own copy from the md/ original it already has.
 func TestCommitLocalChangesUntracksADerivedTextCopy(t *testing.T) {
 	a, repo, wt := newTestRepo(t)
-	a.ensureGitignore()
+	a.gitSync().EnsureGitignore()
 
 	const copyRel = "html/project/log.txt"
 	const srcRel = "md/project/log.txt"
@@ -408,14 +410,14 @@ func TestCommitLocalChangesUntracksADerivedTextCopy(t *testing.T) {
 	writeAndAdd(t, a, wt, ".gitignore", string(mustRead(t, filepath.Join(a.StorageDir, ".gitignore"))))
 	testCommit(t, wt, "before the rule")
 
-	pending := a.untrackTrackedPaths(repo)
-	if len(pending) != 1 || pending[0] != copyRel+derivedTextPreviewNote {
-		t.Errorf("untrackTrackedPaths = %v, want [%s]", pending, copyRel+derivedTextPreviewNote)
+	pending := a.gitSync().UntrackTrackedPaths(repo)
+	if len(pending) != 1 || pending[0] != copyRel+gitsync.DerivedTextPreviewNote {
+		t.Errorf("gitsync.Service.UntrackTrackedPaths = %v, want [%s]", pending, copyRel+gitsync.DerivedTextPreviewNote)
 	}
 
-	committed, err := a.commitLocalChanges(repo, wt, "stop to track the copies under html/")
+	committed, err := a.gitSync().CommitLocalChanges(repo, wt, "stop to track the copies under html/")
 	if err != nil {
-		t.Fatalf("commitLocalChanges: %v", err)
+		t.Fatalf("gitsync.Service.CommitLocalChanges: %v", err)
 	}
 	if !committed {
 		t.Fatal("no commit was made, want the removal of the copy")
@@ -434,29 +436,29 @@ func TestCommitLocalChangesUntracksADerivedTextCopy(t *testing.T) {
 		t.Errorf("the html/ copy left the disk: %v", err)
 	}
 
-	if left := a.untrackTrackedPaths(repo); len(left) != 0 {
+	if left := a.gitSync().UntrackTrackedPaths(repo); len(left) != 0 {
 		t.Errorf("the index still holds %v", left)
 	}
 }
 
 // A remote URL can hold a password. Each log line that names a remote shows
-// the URL through redactGitURL, thus the log holds no password.
+// the URL through gitsync.RedactGitURL, thus the log holds no password.
 func TestRemoteLogLinesHideThePassword(t *testing.T) {
 	a := newTestApp(t)
-	repo, err := a.getOrInitRepo()
+	repo, err := a.gitSync().GetOrInitRepo()
 	if err != nil {
 		t.Fatal(err)
 	}
 	cfg := a.config.Get()
 	cfg.GitServers = []config.GitServer{{Name: "home", URL: "https://ann:FIRST-SECRET@example.com/n.git"}}
-	if _, err := a.ensureSlotRemotes(repo, cfg); err != nil {
+	if _, err := a.gitSync().EnsureSlotRemotes(repo, cfg); err != nil {
 		t.Fatal(err)
 	}
 	cfg.GitServers[0].URL = "https://ann:SECOND-SECRET@example.com/n.git"
-	if _, err := a.ensureSlotRemotes(repo, cfg); err != nil {
+	if _, err := a.gitSync().EnsureSlotRemotes(repo, cfg); err != nil {
 		t.Fatal(err)
 	}
-	if err := a.ensureOriginRemote(repo, "https://ann:THIRD-SECRET@example.com/n.git"); err != nil {
+	if err := a.gitSync().EnsureOriginRemote(repo, "https://ann:THIRD-SECRET@example.com/n.git"); err != nil {
 		t.Fatal(err)
 	}
 	lines := strings.Join(a.logs.Snapshot(), "\n")

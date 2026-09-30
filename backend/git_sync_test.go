@@ -4,9 +4,9 @@ package backend
 // The sync test harness
 // ----------------------------------------------------------------------
 //
-// syncPull, syncPullMerge, syncPullForce, syncPullAbort, syncPush,
-// SyncRepo, getOrInitRepo, manualStageFile and getSSHAuth are the code
-// that can destroy the notes of a user. See
+// syncPull, syncPullMerge, syncPullForce, syncPullAbort, syncPush, SyncRepo,
+// gitsync.Service.GetOrInitRepo, manualStageFile and gitsync.Service.GetSSHAuth
+// are the code that can destroy the notes of a user. See
 // doc/decisions/0010-write-a-pull-without-the-checkout-of-go-git.md.
 //
 // The reason for the gap was the belief that a sync needs a git server.
@@ -14,16 +14,15 @@ package backend
 // binary, no network and no SSH daemon. gsRemote makes one in t.TempDir()
 // and the tests drive the real sync code against it.
 //
-// THE ONE THING THAT NEEDS CARE IS THE AUTHENTICATION. getSSHAuth reads
-// the active slot and refuses an empty SSHKeyData, thus SyncRepo stops
-// before it reaches a sync path. A test that wants SyncRepo must give the
-// slot a key that parses.
+// THE ONE THING THAT NEEDS CARE IS THE AUTHENTICATION.
+// gitsync.Service.GetSSHAuth reads the active slot and refuses an empty
+// SSHKeyData, thus SyncRepo stops before it reaches a sync path. A test that
+// wants SyncRepo must give the slot a key that parses.
 //
-// gsSSHKey makes such a key. The key is real, and the local transport of
-// go-git ignores it. A fetch from a path on disk gives the same answer
-// with the key and with no auth at all. The production code is therefore
-// unchanged. Each test still goes through getSSHAuth the way the
-// application does.
+// gsSSHKey makes such a key. The key is real, and the local transport of go-git
+// ignores it. A fetch from a path on disk gives the same answer with the key
+// and with no auth at all. The production code is therefore unchanged. Each
+// test still calls gitsync.Service.GetSSHAuth the way the application does.
 //
 // WHAT THIS HARNESS DOES NOT COVER. It cannot test the SSH transport
 // itself, which needs a server. It cannot test a network failure. Each
@@ -49,6 +48,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	cryptossh "golang.org/x/crypto/ssh"
 	"net.basov.omngo/backend/internal/config"
+	"net.basov.omngo/backend/internal/gitsync"
 )
 
 // gsSignature is the author of each commit that the harness makes. A
@@ -58,7 +58,7 @@ func gsSignature() *object.Signature {
 }
 
 // gsSSHKey returns a private key in the OpenSSH PEM form that
-// getSSHAuth parses. See the banner for why a test needs one.
+// gitsync.Service.GetSSHAuth parses. See the banner for why a test needs one.
 func gsSSHKey(t *testing.T) string {
 	t.Helper()
 	_, priv, err := ed25519.GenerateKey(rand.Reader)
@@ -252,19 +252,19 @@ func TestSyncHarnessBuildsAReadableRemote(t *testing.T) {
 	}
 }
 
-// getSSHAuth refuses an empty key and stops SyncRepo before any sync
-// path. The harness therefore plants a key that parses. This test holds
-// that rule: a change of the key format in getSSHAuth breaks here, and
-// not in six tests at once.
+// gitsync.Service.GetSSHAuth refuses an empty key and stops SyncRepo before any
+// sync path. The harness therefore plants a key that parses. This test holds
+// that rule: a change of the key format in gitsync.Service.GetSSHAuth breaks
+// here, and not in six tests at once.
 func TestSyncHarnessGivesAnAuthThatParses(t *testing.T) {
 	a := gsApp(t, gsRemote(t))
 
-	auth, err := a.getSSHAuth()
+	auth, err := a.gitSync().GetSSHAuth()
 	if err != nil {
-		t.Fatalf("getSSHAuth with the harness key: %v", err)
+		t.Fatalf("gitsync.Service.GetSSHAuth with the harness key: %v", err)
 	}
 	if auth == nil {
-		t.Fatal("getSSHAuth gave no auth method and no error")
+		t.Fatal("gitsync.Service.GetSSHAuth gave no auth method and no error")
 	}
 
 	// The same call with no key must still fail. A test that forgets the
@@ -275,53 +275,53 @@ func TestSyncHarnessGivesAnAuthThatParses(t *testing.T) {
 		c.GitServers[0].URL = "git@example.invalid:notes.git"
 		c.ActiveGitIndex = 0
 	})
-	if _, err := b.getSSHAuth(); err == nil {
-		t.Error("getSSHAuth accepted an empty SSH key")
+	if _, err := b.gitSync().GetSSHAuth(); err == nil {
+		t.Error("gitsync.Service.GetSSHAuth accepted an empty SSH key")
 	}
 }
 
-// getOrInitRepo makes the repository on the first call and opens it on
-// each call after that. It also writes .gitignore. This is the entry
-// point of each sync, thus a fault here stops everything below it.
+// gitsync.Service.GetOrInitRepo makes the repository on the first call and
+// opens it on each call after that. It also writes .gitignore. This is the
+// entry point of each sync, thus a fault here stops everything below it.
 func TestSyncHarnessInitializesTheStorageRepo(t *testing.T) {
 	a := gsApp(t, gsRemote(t))
 
-	repo, err := a.getOrInitRepo()
+	repo, err := a.gitSync().GetOrInitRepo()
 	if err != nil {
-		t.Fatalf("getOrInitRepo: %v", err)
+		t.Fatalf("gitsync.Service.GetOrInitRepo: %v", err)
 	}
 	if repo == nil {
-		t.Fatal("getOrInitRepo gave no repository and no error")
+		t.Fatal("gitsync.Service.GetOrInitRepo gave no repository and no error")
 	}
 	if !gsExists(a, ".git") {
-		t.Error("getOrInitRepo wrote no .git directory")
+		t.Error("gitsync.Service.GetOrInitRepo wrote no .git directory")
 	}
 	if !gsExists(a, ".gitignore") {
-		t.Error("getOrInitRepo wrote no .gitignore")
+		t.Error("gitsync.Service.GetOrInitRepo wrote no .gitignore")
 	}
 
 	// The second call opens the same repository and makes no second one.
-	if _, err := a.getOrInitRepo(); err != nil {
-		t.Fatalf("the second getOrInitRepo: %v", err)
+	if _, err := a.gitSync().GetOrInitRepo(); err != nil {
+		t.Fatalf("the second gitsync.Service.GetOrInitRepo: %v", err)
 	}
 }
 
-// ensureRemotesAndGetActive names the remote of the active slot. Each
-// sync path takes that name, thus a wrong name reaches every path.
+// gitsync.Service.EnsureRemotesAndGetActive names the remote of the active
+// slot. Each sync path takes that name, thus a wrong name reaches every path.
 func TestSyncHarnessResolvesTheActiveRemote(t *testing.T) {
 	remote := gsRemote(t)
 	a := gsApp(t, remote)
 
-	repo, err := a.getOrInitRepo()
+	repo, err := a.gitSync().GetOrInitRepo()
 	if err != nil {
-		t.Fatalf("getOrInitRepo: %v", err)
+		t.Fatalf("gitsync.Service.GetOrInitRepo: %v", err)
 	}
-	name, err := a.ensureRemotesAndGetActive(repo)
+	name, err := a.gitSync().EnsureRemotesAndGetActive(repo)
 	if err != nil {
-		t.Fatalf("ensureRemotesAndGetActive: %v", err)
+		t.Fatalf("gitsync.Service.EnsureRemotesAndGetActive: %v", err)
 	}
-	if name != slotRemoteName(0) {
-		t.Fatalf("the active remote is %q, want %q", name, slotRemoteName(0))
+	if name != gitsync.SlotRemoteName(0) {
+		t.Fatalf("the active remote is %q, want %q", name, gitsync.SlotRemoteName(0))
 	}
 
 	r, err := repo.Remote(name)
@@ -341,9 +341,10 @@ func TestSyncHarnessResolvesTheActiveRemote(t *testing.T) {
 // file of the remote. This is the path that a new device takes. It is
 // also the proof that the harness drives the real code and not a copy.
 //
-// The call goes through SyncRepo, thus it covers getOrInitRepo,
-// ensureRemotesAndGetActive, getSSHAuth, the action switch and syncPull
-// together. B2 adds one test for each of the other five paths.
+// The call runs SyncRepo, thus it covers gitsync.Service.GetOrInitRepo,
+// gitsync.Service.EnsureRemotesAndGetActive, gitsync.Service.GetSSHAuth, the
+// action switch and syncPull together. B2 adds one test for each of the other
+// five paths.
 func TestSyncPullFastForward(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{
@@ -353,7 +354,7 @@ func TestSyncPullFastForward(t *testing.T) {
 	})
 	a := gsApp(t, remote)
 
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("SyncRepo(pull): %v", err)
 	}
 
@@ -369,12 +370,12 @@ func TestSyncPullFastForward(t *testing.T) {
 
 	// A second pull with nothing new must answer without a fault. The
 	// application calls this path at each start of a sync.
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the second SyncRepo(pull): %v", err)
 	}
 }
 
-// trackedWorktreeIsDirty is the guard that stops a pull over a local
+// gitsync.TrackedWorktreeIsDirty is the guard that stops a pull over a local
 // change. Each pull path asks it, thus a wrong answer either loses the
 // work of the reader or refuses a pull that is safe.
 //
@@ -384,31 +385,31 @@ func TestSyncHarnessSeesALocalChange(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("SyncRepo(pull): %v", err)
 	}
 
-	repo, err := a.getOrInitRepo()
+	repo, err := a.gitSync().GetOrInitRepo()
 	if err != nil {
-		t.Fatalf("getOrInitRepo: %v", err)
+		t.Fatalf("gitsync.Service.GetOrInitRepo: %v", err)
 	}
 	wt, err := repo.Worktree()
 	if err != nil {
 		t.Fatalf("worktree: %v", err)
 	}
 
-	dirty, err := trackedWorktreeIsDirty(wt)
+	dirty, err := gitsync.TrackedWorktreeIsDirty(wt)
 	if err != nil {
-		t.Fatalf("trackedWorktreeIsDirty after a clean pull: %v", err)
+		t.Fatalf("gitsync.TrackedWorktreeIsDirty after a clean pull: %v", err)
 	}
 	if dirty {
 		t.Error("the work tree reads as dirty after a pull that changed nothing")
 	}
 
 	gsWrite(t, a, "md/One.md", "one, and a local change\n")
-	dirty, err = trackedWorktreeIsDirty(wt)
+	dirty, err = gitsync.TrackedWorktreeIsDirty(wt)
 	if err != nil {
-		t.Fatalf("trackedWorktreeIsDirty after a local change: %v", err)
+		t.Fatalf("gitsync.TrackedWorktreeIsDirty after a local change: %v", err)
 	}
 	if !dirty {
 		t.Error("a changed tracked file does not read as dirty, thus a pull would write over it")
@@ -417,9 +418,9 @@ func TestSyncHarnessSeesALocalChange(t *testing.T) {
 	// An untracked file is not a local change. .gitignore covers most of
 	// them, and a pull must not refuse over a file that git never held.
 	gsWrite(t, a, "html/Scratch.html", "not tracked\n")
-	dirty, err = trackedWorktreeIsDirty(wt)
+	dirty, err = gitsync.TrackedWorktreeIsDirty(wt)
 	if err != nil {
-		t.Fatalf("trackedWorktreeIsDirty with an untracked file: %v", err)
+		t.Fatalf("gitsync.TrackedWorktreeIsDirty with an untracked file: %v", err)
 	}
 	if !dirty {
 		t.Error("the tracked change of the step above was lost")
@@ -430,10 +431,10 @@ func TestSyncHarnessSeesALocalChange(t *testing.T) {
 // The six sync paths
 // ----------------------------------------------------------------------
 //
-// One test for each action of the SyncRepo switch. Two more tests hold a
-// rule that a banner of git_sync.go names and that no test held. A pull
-// must not touch a database file. A pull must also remake the html/ copy
-// of a text file that lives beside a note.
+// One test for each action of the SyncRepo switch. Two more tests hold a rule
+// that a banner of internal/gitsync/sync.go names and that no test held. A pull
+// must not touch a database file. A pull must also remake the html/ copy of a
+// text file that lives beside a note.
 
 // A note that another device deleted must go away here as well. The rule
 // is narrow on purpose. syncPull removes a path that WAS tracked and is
@@ -446,7 +447,7 @@ func TestSyncPullRemovesAFileTheRemoteDropped(t *testing.T) {
 		"md/Drop.md": "drop me\n",
 	})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 	if !gsExists(a, "md/Drop.md") {
@@ -457,7 +458,7 @@ func TestSyncPullRemovesAFileTheRemoteDropped(t *testing.T) {
 	gsWrite(t, a, "html/user_json/local-notes.json", "{}\n")
 
 	gsSeedRemote(t, remote, "drop one note", map[string]string{"md/Drop.md": ""})
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the second pull: %v", err)
 	}
 
@@ -480,15 +481,15 @@ func TestSyncPullRefusesOverALocalChange(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "the first text\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 
 	gsWrite(t, a, "md/One.md", "the text of this device\n")
 	gsSeedRemote(t, remote, "second", map[string]string{"md/One.md": "the text of the other device\n"})
 
-	err := a.SyncRepo("pull", "")
-	if !errors.Is(err, ErrSyncConflict) {
+	err := a.gitSync().SyncRepo("pull", "")
+	if !errors.Is(err, gitsync.ErrSyncConflict) {
 		t.Fatalf("the pull answered %v, want ErrSyncConflict", err)
 	}
 	if got := gsRead(t, a, "md/One.md"); got != "the text of this device\n" {
@@ -497,7 +498,7 @@ func TestSyncPullRefusesOverALocalChange(t *testing.T) {
 
 	// The conflict carries the files in contention, and the modal lists
 	// them. A conflict with no list leaves the reader with no information.
-	var conflict *syncConflictError
+	var conflict *gitsync.SyncConflictError
 	if errors.As(err, &conflict) {
 		if len(conflict.Files) != 1 || conflict.Files[0] != "md/One.md" {
 			t.Errorf("the conflict names %v, want md/One.md alone", conflict.Files)
@@ -515,7 +516,7 @@ func TestSyncPullMergeWritesMarkers(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "the first text\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 	base := gsLocalHead(t, a)
@@ -523,7 +524,7 @@ func TestSyncPullMergeWritesMarkers(t *testing.T) {
 	gsWrite(t, a, "md/One.md", "the text of this device\n")
 	gsSeedRemote(t, remote, "second", map[string]string{"md/One.md": "the text of the other device\n"})
 
-	if err := a.SyncRepo("pull_mark", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull_mark", ""); err != nil {
 		t.Fatalf("SyncRepo(pull_mark): %v", err)
 	}
 
@@ -545,10 +546,10 @@ func TestSyncPullMergeWritesMarkers(t *testing.T) {
 	if head := gsLocalHead(t, a); head != base {
 		t.Errorf("pull_mark moved the local branch to %s, want %s", head, base)
 	}
-	if _, ok := a.loadMergeParent(); !ok {
+	if _, ok := a.gitSync().LoadMergeParent(); !ok {
 		t.Error("pull_mark saved no merge parent, thus the next commit is not a merge")
 	}
-	if _, ok := a.loadPremergeHead(); !ok {
+	if _, ok := a.gitSync().LoadPremergeHead(); !ok {
 		t.Error("pull_mark saved no pre-merge head, thus pull_abort has nothing to restore")
 	}
 }
@@ -560,18 +561,18 @@ func TestSyncPullAbortRestoresTheHead(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "the first text\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 	base := gsLocalHead(t, a)
 
 	gsWrite(t, a, "md/One.md", "the text of this device\n")
 	gsSeedRemote(t, remote, "second", map[string]string{"md/One.md": "the text of the other device\n"})
-	if err := a.SyncRepo("pull_mark", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull_mark", ""); err != nil {
 		t.Fatalf("SyncRepo(pull_mark): %v", err)
 	}
 
-	if err := a.SyncRepo("pull_abort", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull_abort", ""); err != nil {
 		t.Fatalf("SyncRepo(pull_abort): %v", err)
 	}
 
@@ -581,15 +582,15 @@ func TestSyncPullAbortRestoresTheHead(t *testing.T) {
 	if head := gsLocalHead(t, a); head != base {
 		t.Errorf("the head is %s after the abort, want %s", head, base)
 	}
-	if _, ok := a.loadPremergeHead(); ok {
+	if _, ok := a.gitSync().LoadPremergeHead(); ok {
 		t.Error("the abort left the pre-merge head on disk")
 	}
-	if _, ok := a.loadMergeParent(); ok {
+	if _, ok := a.gitSync().LoadMergeParent(); ok {
 		t.Error("the abort left the merge parent on disk")
 	}
 
 	// A second abort has nothing to undo and must answer without a fault.
-	if err := a.SyncRepo("pull_abort", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull_abort", ""); err != nil {
 		t.Errorf("the second abort: %v", err)
 	}
 }
@@ -601,13 +602,13 @@ func TestSyncPush(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "the first text\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 	before := gsRemoteHead(t, remote)
 
 	gsWrite(t, a, "md/Two.md", "a note of this device\n")
-	if err := a.SyncRepo("push", "add a note"); err != nil {
+	if err := a.gitSync().SyncRepo("push", "add a note"); err != nil {
 		t.Fatalf("SyncRepo(push): %v", err)
 	}
 
@@ -641,13 +642,13 @@ func TestSyncPushNeedsAMessage(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 	before := gsRemoteHead(t, remote)
 
 	gsWrite(t, a, "md/Two.md", "a new note\n")
-	if err := a.SyncRepo("push", "   "); !errors.Is(err, ErrCommitMessageRequired) {
+	if err := a.gitSync().SyncRepo("push", "   "); !errors.Is(err, gitsync.ErrCommitMessageRequired) {
 		t.Fatalf("the push answered %v, want ErrCommitMessageRequired", err)
 	}
 	if got := gsRemoteHead(t, remote); got != before {
@@ -662,7 +663,7 @@ func TestSyncPushRefusesANonFastForward(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 
@@ -671,8 +672,8 @@ func TestSyncPushRefusesANonFastForward(t *testing.T) {
 	remoteHead := gsRemoteHead(t, remote)
 
 	gsWrite(t, a, "md/Two.md", "a note of this device\n")
-	err := a.SyncRepo("push", "add a note")
-	if !errors.Is(err, ErrPushConflict) {
+	err := a.gitSync().SyncRepo("push", "add a note")
+	if !errors.Is(err, gitsync.ErrPushConflict) {
 		t.Fatalf("the push answered %v, want ErrPushConflict", err)
 	}
 	if got := gsRemoteHead(t, remote); got != remoteHead {
@@ -689,13 +690,13 @@ func TestSyncPushForceOverwritesTheRemote(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 	gsSeedRemote(t, remote, "from the other device", map[string]string{"md/Other.md": "other\n"})
 
 	gsWrite(t, a, "md/Two.md", "a note of this device\n")
-	if err := a.SyncRepo("push_force", "take my copy"); err != nil {
+	if err := a.gitSync().SyncRepo("push_force", "take my copy"); err != nil {
 		t.Fatalf("SyncRepo(push_force): %v", err)
 	}
 
@@ -724,7 +725,7 @@ func TestSyncPullKeepsTheDatabaseFile(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 
@@ -736,7 +737,7 @@ func TestSyncPullKeepsTheDatabaseFile(t *testing.T) {
 
 	gsSeedRemote(t, remote, "second", map[string]string{"md/Two.md": "two\n"})
 	for _, action := range []string{"pull", "pull_force"} {
-		if err := a.SyncRepo(action, ""); err != nil {
+		if err := a.gitSync().SyncRepo(action, ""); err != nil {
 			t.Fatalf("SyncRepo(%s): %v", action, err)
 		}
 		after, err := os.Stat(filepath.Join(a.StorageDir, "db", "notes.sqlite"))
@@ -760,7 +761,7 @@ func TestSyncPullBringsTheHTMLCopyOfANoteFile(t *testing.T) {
 		"md/log.txt": "the first line\n",
 	})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("SyncRepo(pull): %v", err)
 	}
 
@@ -779,14 +780,14 @@ func TestSyncPullForceDiscardsALocalChange(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "the first text\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 
 	gsWrite(t, a, "md/One.md", "the text of this device\n")
 	gsSeedRemote(t, remote, "second", map[string]string{"md/One.md": "the text of the other device\n"})
 
-	if err := a.SyncRepo("pull_force", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull_force", ""); err != nil {
 		t.Fatalf("SyncRepo(pull_force): %v", err)
 	}
 	if got := gsRead(t, a, "md/One.md"); got != "the text of the other device\n" {
@@ -804,12 +805,12 @@ func TestSyncRepoRefusesAnUnknownAction(t *testing.T) {
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})
 	a := gsApp(t, remote)
 
-	if err := a.SyncRepo("pulll", ""); err == nil {
+	if err := a.gitSync().SyncRepo("pulll", ""); err == nil {
 		t.Error("SyncRepo accepted an action that does not exist")
 	}
 }
 
-// isNonFastForward reads the MESSAGE of the answer of go-git, because
+// gitsync.IsNonFastForward reads the MESSAGE of the answer of go-git, because
 // go-git wraps no sentinel there. A string test is easy to break, thus it
 // has a test of its own.
 //
@@ -830,27 +831,27 @@ func TestIsNonFastForward(t *testing.T) {
 		{"no fault", nil, false},
 	}
 	for _, c := range cases {
-		if got := isNonFastForward(c.err); got != c.want {
-			t.Errorf("%s: isNonFastForward(%v) = %v, want %v", c.name, c.err, got, c.want)
+		if got := gitsync.IsNonFastForward(c.err); got != c.want {
+			t.Errorf("%s: gitsync.IsNonFastForward(%v) = %v, want %v", c.name, c.err, got, c.want)
 		}
 	}
 }
 
 // The whole chain must end at the word that the frontend reads. syncPush
-// answers ErrPushConflict, syncErrorStatus turns that into
+// answers ErrPushConflict, gitsync.SyncErrorStatus turns that into
 // "push_conflict", and omn-go-sse.js opens the modal on that word.
 func TestNonFastForwardReachesThePushConflictStatus(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 	gsSeedRemote(t, remote, "from the other device", map[string]string{"md/Other.md": "other\n"})
 	gsWrite(t, a, "md/Two.md", "a note of this device\n")
 
-	err := a.SyncRepo("push", "add a note")
-	status, message, ok := syncErrorStatus(err)
+	err := a.gitSync().SyncRepo("push", "add a note")
+	status, message, ok := gitsync.SyncErrorStatus(err)
 	if !ok || status != "push_conflict" {
 		t.Errorf("the status is %q (known=%v), want push_conflict. The reader then "+
 			"gets a plain alert and never sees the force-push control.", status, ok)
@@ -871,12 +872,12 @@ func TestNonFastForwardReachesThePushConflictStatus(t *testing.T) {
 // repository on disk. The helpers of this file carry the gs prefix, thus
 // the two sets never collide.
 
-// A local-only file that git never tracked must not make a commit, and a
-// force pull must keep it. cleanUntrackedFiles deletes an untracked file
-// only when no .gitignore pattern matches it.
+// A local-only file that git never tracked must not make a commit, and a force
+// pull must keep it. gitsync.Service.CleanUntrackedFiles deletes an untracked
+// file only when no .gitignore pattern matches it.
 func TestForcePullKeepsALocalOnlyFile(t *testing.T) {
 	a, repo, wt := newTestRepo(t)
-	a.ensureGitignore()
+	a.gitSync().EnsureGitignore()
 	writeAndAdd(t, a, wt, ".gitignore", string(mustRead(t, filepath.Join(a.StorageDir, ".gitignore"))))
 	writeAndAdd(t, a, wt, "md/Notes.md", "# Notes\n")
 	testCommit(t, wt, "first")
@@ -890,19 +891,19 @@ func TestForcePullKeepsALocalOnlyFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	matcher, err := a.loadGitignoreMatcher(wt)
+	matcher, err := a.gitSync().LoadGitignoreMatcher(wt)
 	if err != nil {
-		t.Fatalf("loadGitignoreMatcher: %v", err)
+		t.Fatalf("gitsync.Service.LoadGitignoreMatcher: %v", err)
 	}
-	a.cleanUntrackedFiles(wt, matcher)
+	a.gitSync().CleanUntrackedFiles(wt, matcher)
 
 	if _, err := os.Stat(full); err != nil {
 		t.Errorf("force pull deleted the local-only file: %v", err)
 	}
 
-	committed, err := a.commitLocalChanges(repo, wt, "nothing to say")
+	committed, err := a.gitSync().CommitLocalChanges(repo, wt, "nothing to say")
 	if err != nil {
-		t.Fatalf("commitLocalChanges: %v", err)
+		t.Fatalf("gitsync.Service.CommitLocalChanges: %v", err)
 	}
 	if committed {
 		t.Error("a commit was made, but the only new file is local-only")
@@ -951,12 +952,12 @@ func buildFlatTree(t *testing.T, repo *git.Repository, files map[string]string) 
 	return got
 }
 
-// conflictingPaths is the one authority for the file list of the conflict
-// modal, and for the marker-writing loop of syncPullMerge. Its selection
-// must be exactly one thing. That thing is a tracked file with an
+// gitsync.ConflictingPaths is the one authority for the file list of the
+// conflict modal, and for the marker-writing loop of syncPullMerge. Its
+// selection must be exactly one thing. That thing is a tracked file with an
 // uncommitted local modification whose content also differs from the remote
-// copy. Everything else must be excluded. That covers an edit identical to
-// the remote, a file that the remote lacks, and an unmodified file.
+// copy. Everything else must be excluded. That covers an edit identical to the
+// remote, a file that the remote lacks, and an unmodified file.
 func TestConflictingPaths(t *testing.T) {
 	a, repo, wt := newTestRepo(t)
 	writeAndAdd(t, a, wt, "A.md", "base A")
@@ -985,27 +986,27 @@ func TestConflictingPaths(t *testing.T) {
 	overwrite(t, a, "C.md", "local C")
 	overwrite(t, a, "D.md", "local D")
 
-	got, err := conflictingPaths(wt, remoteTree)
+	got, err := gitsync.ConflictingPaths(wt, remoteTree)
 	if err != nil {
-		t.Fatalf("conflictingPaths: %v", err)
+		t.Fatalf("gitsync.ConflictingPaths: %v", err)
 	}
 	want := []string{"A.md", "C.md"} // sorted
 	if len(got) != len(want) {
-		t.Fatalf("conflictingPaths = %v, want %v", got, want)
+		t.Fatalf("gitsync.ConflictingPaths = %v, want %v", got, want)
 	}
 	for i := range want {
 		if got[i] != want[i] {
-			t.Fatalf("conflictingPaths = %v, want %v", got, want)
+			t.Fatalf("gitsync.ConflictingPaths = %v, want %v", got, want)
 		}
 	}
 }
 
-// Fresh install: no commit exists yet. oldTrackedPaths must report an
+// Fresh install: no commit exists yet. gitsync.OldTrackedPaths must report an
 // empty set (not an error). In this state, Checkout(Force:true) of go-git
 // deletes config.json.
 func TestOldTrackedPathsUnbornRepo(t *testing.T) {
 	_, repo, _ := newTestRepo(t)
-	paths, err := oldTrackedPaths(repo)
+	paths, err := gitsync.OldTrackedPaths(repo)
 	if err != nil {
 		t.Fatalf("unexpected error on unborn repo: %v", err)
 	}
@@ -1020,9 +1021,9 @@ func TestOldTrackedPathsAfterCommit(t *testing.T) {
 	writeAndAdd(t, a, wt, "html/Note.html", "<html></html>")
 	testCommit(t, wt, "initial")
 
-	paths, err := oldTrackedPaths(repo)
+	paths, err := gitsync.OldTrackedPaths(repo)
 	if err != nil {
-		t.Fatalf("oldTrackedPaths: %v", err)
+		t.Fatalf("gitsync.OldTrackedPaths: %v", err)
 	}
 	for _, want := range []string{"md/Note.md", "html/Note.html"} {
 		if !paths[want] {
@@ -1034,9 +1035,9 @@ func TestOldTrackedPathsAfterCommit(t *testing.T) {
 	}
 }
 
-// The core force-pull regression test. writeTreeToWorktree must restore or
-// overwrite exactly the files of the given tree. It must never touch a file
-// outside that tree, whatever state the worktree is in.
+// The core force-pull regression test. gitsync.Service.WriteTreeToWorktree must
+// restore or overwrite exactly the files of the given tree. It must never touch
+// a file outside that tree, whatever state the worktree is in.
 func TestWriteTreeToWorktreeRestoresTrackedOnly(t *testing.T) {
 	a, repo, wt := newTestRepo(t)
 
@@ -1061,9 +1062,9 @@ func TestWriteTreeToWorktreeRestoresTrackedOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	written, err := a.writeTreeToWorktree(repo, wt, headTree(t, repo))
+	written, err := a.gitSync().WriteTreeToWorktree(repo, wt, headTree(t, repo))
 	if err != nil {
-		t.Fatalf("writeTreeToWorktree: %v", err)
+		t.Fatalf("gitsync.Service.WriteTreeToWorktree: %v", err)
 	}
 
 	// Both tracked files back to tree content.
@@ -1150,8 +1151,8 @@ func TestWriteTreeToWorktreeCreatesNestedDirs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := a.writeTreeToWorktree(repo, wt, headTree(t, repo)); err != nil {
-		t.Fatalf("writeTreeToWorktree: %v", err)
+	if _, err := a.gitSync().WriteTreeToWorktree(repo, wt, headTree(t, repo)); err != nil {
+		t.Fatalf("gitsync.Service.WriteTreeToWorktree: %v", err)
 	}
 	got, err := os.ReadFile(filepath.Join(a.StorageDir, "md", "deep", "nested", "New.md"))
 	if err != nil {
@@ -1169,13 +1170,13 @@ func TestPremergeHeadRoundTrip(t *testing.T) {
 	}
 
 	// Nothing saved yet.
-	if _, ok := a.loadPremergeHead(); ok {
-		t.Error("loadPremergeHead reported a hash before any save")
+	if _, ok := a.gitSync().LoadPremergeHead(); ok {
+		t.Error("gitsync.Service.LoadPremergeHead reported a hash before any save")
 	}
 
 	h := plumbing.NewHash("0123456789abcdef0123456789abcdef01234567")
-	a.savePremergeHead(h)
-	got, ok := a.loadPremergeHead()
+	a.gitSync().SavePremergeHead(h)
+	got, ok := a.gitSync().LoadPremergeHead()
 	if !ok {
 		t.Fatal("saved pre-merge head not loadable")
 	}
@@ -1183,8 +1184,8 @@ func TestPremergeHeadRoundTrip(t *testing.T) {
 		t.Errorf("loaded %s, want %s", got, h)
 	}
 
-	a.clearPremergeHead()
-	if _, ok := a.loadPremergeHead(); ok {
+	a.gitSync().ClearPremergeHead()
+	if _, ok := a.gitSync().LoadPremergeHead(); ok {
 		t.Error("pre-merge head still loadable after clear")
 	}
 }
@@ -1196,19 +1197,19 @@ func TestMergeParentRoundTrip(t *testing.T) {
 	}
 
 	h := plumbing.NewHash("89abcdef0123456789abcdef0123456789abcdef")
-	a.saveMergeParent(h)
-	got, ok := a.loadMergeParent()
+	a.gitSync().SaveMergeParent(h)
+	got, ok := a.gitSync().LoadMergeParent()
 	if !ok || got != h {
 		t.Fatalf("merge parent round trip failed: got %s ok=%v", got, ok)
 	}
-	a.clearMergeParent()
-	if _, ok := a.loadMergeParent(); ok {
+	a.gitSync().ClearMergeParent()
+	if _, ok := a.gitSync().LoadMergeParent(); ok {
 		t.Error("merge parent still loadable after clear")
 	}
 }
 
 // ---------------------------------------------------------------
-// aheadOfRemote: "is there anything to push?"
+// gitsync.Service.AheadOfRemote: "is there anything to push?"
 // ---------------------------------------------------------------
 //
 // A clean worktree is not the same thing as nothing to upload. To read them
@@ -1243,7 +1244,7 @@ func TestAheadOfRemoteAfterAFailedPush(t *testing.T) {
 	writeAndAdd(t, a, wt, "md/Note.md", "Title: Note\n\nbody\n")
 	testCommit(t, wt, "committed but not pushed")
 
-	got := a.aheadOfRemote(repo, "slot0", nil)
+	got := a.gitSync().AheadOfRemote(repo, "slot0", nil)
 	if !got.Unpushed {
 		t.Error("a commit the remote has not seen was reported as nothing to push")
 	}
@@ -1263,7 +1264,7 @@ func TestAheadOfRemoteAfterAProfileSwitch(t *testing.T) {
 	setTrackingRef(t, repo, "slot0", h)
 
 	// slot1 has never been contacted.
-	got := a.aheadOfRemote(repo, "slot1", nil)
+	got := a.gitSync().AheadOfRemote(repo, "slot1", nil)
 	if !got.Unpushed {
 		t.Error("a remote that has never seen this branch was reported as up to date")
 	}
@@ -1279,7 +1280,7 @@ func TestAheadOfRemoteReportsWhenItCouldNotAsk(t *testing.T) {
 	h := testCommit(t, wt, "level with the remote")
 	setTrackingRef(t, repo, "slot0", h)
 
-	got := a.aheadOfRemote(repo, "slot0", nil) // no such remote configured
+	got := a.gitSync().AheadOfRemote(repo, "slot0", nil) // no such remote configured
 	if got.Verified {
 		t.Error("Verified set although no remote could be listed")
 	}
@@ -1292,7 +1293,7 @@ func TestAheadOfRemoteReportsWhenItCouldNotAsk(t *testing.T) {
 func TestAheadOfRemoteWithNoCommits(t *testing.T) {
 	a, repo, _ := newTestRepo(t)
 
-	if got := a.aheadOfRemote(repo, "slot0", nil); got.Unpushed {
+	if got := a.gitSync().AheadOfRemote(repo, "slot0", nil); got.Unpushed {
 		t.Error("an unborn branch was reported as having something to push")
 	}
 }
@@ -1321,13 +1322,13 @@ func TestSyncNoteFilesToHTMLRebuildsAfterAPull(t *testing.T) {
 	}
 }
 
-// A force pull writes the .gitignore of the remote into the storage
-// directory. That file can come from an older version and lack the
-// patterns of this version. The cleanup of the force pull must still keep
-// each file that the built-in list protects. Before loadGitignoreMatcher
-// added that list, this force pull deleted the database file, the
-// local- file and session_secret. An untracked note that no pattern
-// covers must still go, because that is the job of a force pull.
+// A force pull writes the .gitignore of the remote into the storage directory.
+// That file can come from an older version and lack the patterns of this
+// version. The cleanup of the force pull must still keep each file that the
+// built-in list protects. Before gitsync.Service.LoadGitignoreMatcher added
+// that list, this force pull deleted the database file, the local- file and
+// session_secret. An untracked note that no pattern covers must still go,
+// because that is the job of a force pull.
 func TestSyncPullForceKeepsAppFilesWithAnOldGitignore(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{
@@ -1335,7 +1336,7 @@ func TestSyncPullForceKeepsAppFilesWithAnOldGitignore(t *testing.T) {
 		".gitignore": "# a list from an older version\n*.tmp\n",
 	})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 	keep := []string{
@@ -1348,7 +1349,7 @@ func TestSyncPullForceKeepsAppFilesWithAnOldGitignore(t *testing.T) {
 		gsWrite(t, a, rel, "x")
 	}
 
-	if err := a.SyncRepo("pull_force", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull_force", ""); err != nil {
 		t.Fatalf("SyncRepo(pull_force): %v", err)
 	}
 	for _, rel := range append(keep, "config.json") {
@@ -1371,13 +1372,13 @@ func TestSyncPullForceRemovesDroppedAndUntrackedNotes(t *testing.T) {
 		"md/Drop.md": "drop\n",
 	})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 	gsWrite(t, a, "md/Stray.md", "a note that no commit carries\n")
 	gsSeedRemote(t, remote, "drop one note", map[string]string{"md/Drop.md": ""})
 
-	if err := a.SyncRepo("pull_force", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull_force", ""); err != nil {
 		t.Fatalf("SyncRepo(pull_force): %v", err)
 	}
 	if !gsExists(a, "md/Keep.md") {
@@ -1396,7 +1397,7 @@ func TestSyncPullForceChangesNothingWhenTheFetchFails(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})
 	a := gsApp(t, remote)
-	if err := a.SyncRepo("pull", ""); err != nil {
+	if err := a.gitSync().SyncRepo("pull", ""); err != nil {
 		t.Fatalf("the first pull: %v", err)
 	}
 	gsWrite(t, a, "md/One.md", "the text of this device\n")
@@ -1405,7 +1406,7 @@ func TestSyncPullForceChangesNothingWhenTheFetchFails(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := a.SyncRepo("pull_force", ""); err == nil {
+	if err := a.gitSync().SyncRepo("pull_force", ""); err == nil {
 		t.Fatal("the force pull gave no error with no remote")
 	}
 	if got := gsRead(t, a, "md/One.md"); got != "the text of this device\n" {

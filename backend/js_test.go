@@ -244,20 +244,20 @@ func jsSyncLines(t *testing.T) []string {
 
 	// A first pull, a push, a push that the remote refuses, a conflict,
 	// a marked merge, an abort, a force pull and a force push.
-	_ = a.SyncRepo("pull", "")
+	_ = a.gitSync().SyncRepo("pull", "")
 	gsWrite(t, a, "md/Two.md", "two\n")
-	_ = a.SyncRepo("push", "add a note")
+	_ = a.gitSync().SyncRepo("push", "add a note")
 	gsSeedRemote(t, remote, "other", map[string]string{"md/Other.md": "other\n"})
 	gsWrite(t, a, "md/Three.md", "three\n")
-	_ = a.SyncRepo("push", "refused")
-	_ = a.SyncRepo("pull", "")
+	_ = a.gitSync().SyncRepo("push", "refused")
+	_ = a.gitSync().SyncRepo("pull", "")
 	gsWrite(t, a, "md/One.md", "changed here\n")
 	gsSeedRemote(t, remote, "third", map[string]string{"md/One.md": "changed there\n"})
-	_ = a.SyncRepo("pull", "")
-	_ = a.SyncRepo("pull_mark", "")
-	_ = a.SyncRepo("pull_abort", "")
-	_ = a.SyncRepo("pull_force", "")
-	_ = a.SyncRepo("push_force", "take mine")
+	_ = a.gitSync().SyncRepo("pull", "")
+	_ = a.gitSync().SyncRepo("pull_mark", "")
+	_ = a.gitSync().SyncRepo("pull_abort", "")
+	_ = a.gitSync().SyncRepo("pull_force", "")
+	_ = a.gitSync().SyncRepo("push_force", "take mine")
 
 	var out []string
 	for _, line := range a.logs.Snapshot() {

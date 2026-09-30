@@ -1,4 +1,4 @@
-package backend
+package gitsync
 
 import (
 	"os"
@@ -11,7 +11,7 @@ import (
 // Filesystem workarounds for Android
 // ----------------------------------------------------------------------
 //
-// See the banner of git_repo.go for what each git file holds.
+// See the banner of repo.go for what each git file holds.
 //
 // go-git speaks to the worktree and to the object store through a
 // go-billy filesystem. The two wrappers below change what that
@@ -20,56 +20,62 @@ import (
 // Android filesystem workarounds
 // ----------------------------------------------------------------------
 
-type NoLockFS struct {
+// WorktreeFS wraps baseFS with both workarounds of this file. The sync and
+// the Status page use it, thus both see one worktree.
+func WorktreeFS(baseFS billy.Filesystem) billy.Filesystem {
+	return &noLockFS{&stableMtimeFS{baseFS}}
+}
+
+type noLockFS struct {
 	billy.Filesystem
 }
 
-func (fs *NoLockFS) Create(filename string) (billy.File, error) {
+func (fs *noLockFS) Create(filename string) (billy.File, error) {
 	f, err := fs.Filesystem.Create(filename)
 	if err != nil {
 		return nil, err
 	}
-	return &NoLockFile{f}, nil
+	return &noLockFile{f}, nil
 }
 
-func (fs *NoLockFS) Open(filename string) (billy.File, error) {
+func (fs *noLockFS) Open(filename string) (billy.File, error) {
 	f, err := fs.Filesystem.Open(filename)
 	if err != nil {
 		return nil, err
 	}
-	return &NoLockFile{f}, nil
+	return &noLockFile{f}, nil
 }
 
-func (fs *NoLockFS) OpenFile(filename string, flag int, perm os.FileMode) (billy.File, error) {
+func (fs *noLockFS) OpenFile(filename string, flag int, perm os.FileMode) (billy.File, error) {
 	f, err := fs.Filesystem.OpenFile(filename, flag, perm)
 	if err != nil {
 		return nil, err
 	}
-	return &NoLockFile{f}, nil
+	return &noLockFile{f}, nil
 }
 
-func (fs *NoLockFS) TempFile(dir, prefix string) (billy.File, error) {
+func (fs *noLockFS) TempFile(dir, prefix string) (billy.File, error) {
 	f, err := fs.Filesystem.TempFile(dir, prefix)
 	if err != nil {
 		return nil, err
 	}
-	return &NoLockFile{f}, nil
+	return &noLockFile{f}, nil
 }
 
-func (fs *NoLockFS) Chroot(path string) (billy.Filesystem, error) {
+func (fs *noLockFS) Chroot(path string) (billy.Filesystem, error) {
 	c, err := fs.Filesystem.Chroot(path)
 	if err != nil {
 		return nil, err
 	}
-	return &NoLockFS{c}, nil
+	return &noLockFS{c}, nil
 }
 
-type NoLockFile struct {
+type noLockFile struct {
 	billy.File
 }
 
-func (f *NoLockFile) Lock() error   { return nil }
-func (f *NoLockFile) Unlock() error { return nil }
+func (f *noLockFile) Lock() error   { return nil }
+func (f *noLockFile) Unlock() error { return nil }
 
 // ---------------------------------------------------------------
 // Stable mtime wrapper (forces content‑hash based status check)
