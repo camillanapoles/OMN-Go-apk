@@ -13,6 +13,7 @@ import (
 
 	cryptossh "golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
+	"net.basov.omngo/backend/internal/logx"
 )
 
 // ----------------------------------------------------------------------
@@ -98,13 +99,13 @@ func (a *App) hostKeyCallback() cryptossh.HostKeyCallback {
 			if err := a.writeHostKey(host, key); err != nil {
 				return fmt.Errorf("store the host key of %s: %w", host, err)
 			}
-			a.log(logSync).infof("trusted the host key of %s at the first connection: %s", host, fingerprint)
+			a.log(logx.Sync).Infof("trusted the host key of %s at the first connection: %s", host, fingerprint)
 			return nil
 		}
 		change := hostKeyChange{Host: host, Known: cryptossh.FingerprintSHA256(known[0]),
 			Fingerprint: fingerprint, key: key}
 		a.hostKeys.pending = &change
-		a.log(logSync).errf("refused %s: the host key changed from %s to %s", host, change.Known, fingerprint)
+		a.log(logx.Sync).Errf("refused %s: the host key changed from %s to %s", host, change.Known, fingerprint)
 		return &errHostKeyChanged{change: change}
 	}
 }
@@ -205,7 +206,7 @@ func (a *App) handleTrustHostKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.hostKeys.pending = nil
-	a.log(logSync).infof("trusted the new host key of %s: %s", host, fingerprint)
+	a.log(logx.Sync).Infof("trusted the new host key of %s: %s", host, fingerprint)
 	a.writeJSON(w, http.StatusOK, jsonStatus{Status: "success"})
 }
 

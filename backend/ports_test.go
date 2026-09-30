@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/logx"
 	"net.basov.omngo/backend/internal/noteheader"
 )
 
@@ -215,7 +216,7 @@ var jsLevelStripRe = regexp.MustCompile(`replace\(/\^\\\(([^)]+)\\\)\\s\*/, ''\)
 // "[sync]" tag, removes the level word, and matches the rest against a
 // table of stages.
 //
-// Three things must therefore agree with logger.go. Those are the
+// Three things must therefore agree with internal/logx/hub.go. Those are the
 // brackets of the tag, the parentheses of the level, and the letters that
 // a level name can hold. A change of the emitted shape leaves the overlay
 // with no stage and no detail, and nothing else reports that.
@@ -223,8 +224,8 @@ func TestSyncLogShapeHasAFrontendCopy(t *testing.T) {
 	js := portsJS(t, "omn-go-sse.js")
 
 	if !strings.Contains(js, "'[sync]'") {
-		t.Errorf("omn-go-sse.js no longer looks for '[sync]'. logger.emit writes "+
-			"[%s], thus the progress overlay finds no line.", logSync)
+		t.Errorf("omn-go-sse.js no longer looks for '[sync]'. logx.Logger.emit writes "+
+			"[%s], thus the progress overlay finds no line.", logx.Sync)
 	}
 
 	m := jsLevelStripRe.FindStringSubmatch(js)
@@ -238,17 +239,17 @@ func TestSyncLogShapeHasAFrontendCopy(t *testing.T) {
 	if cErr != nil {
 		t.Fatalf("the level pattern %q of applySyncLogLine does not compile: %v", m[1], cErr)
 	}
-	for _, lvl := range []logLevel{levelDebug, levelInfo, levelError} {
+	for _, lvl := range []logx.Level{logx.LevelDebug, logx.LevelInfo, logx.LevelError} {
 		if !levelClass.MatchString(string(lvl)) {
 			t.Errorf("the level %q does not match %q, which applySyncLogLine strips. "+
 				"The overlay then keeps the level word and matches no stage.", lvl, m[1])
 		}
 	}
 
-	// The whole shape, end to end. A line that logger.emit writes must reduce
+	// The whole shape, end to end. A line that logx.Logger.emit writes must reduce
 	// to its message after the two steps that applySyncLogLine takes.
-	for _, lvl := range []logLevel{levelDebug, levelInfo, levelError} {
-		line := "[" + string(logSync) + "] (" + string(lvl) + ") Opening repo at /x"
+	for _, lvl := range []logx.Level{logx.LevelDebug, logx.LevelInfo, logx.LevelError} {
+		line := "[" + string(logx.Sync) + "] (" + string(lvl) + ") Opening repo at /x"
 		at := strings.Index(line, "[sync]")
 		if at == -1 {
 			t.Fatalf("the emitted line %q carries no [sync] tag", line)

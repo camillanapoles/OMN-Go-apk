@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"net.basov.omngo/backend/internal/logx"
 )
 
 // ----------------------------------------------------------------------
@@ -104,9 +106,9 @@ func (a *App) handleImportNote(w http.ResponseWriter, r *http.Request) {
 		// report would make the user send the note again, and a second copy
 		// repairs nothing.
 		out["warning"] = err.Error()
-		a.log(logExchange).errf("%v", err)
+		a.log(logx.Exchange).Errf("%v", err)
 	}
-	a.log(logExchange).infof("imported %s", res.Name)
+	a.log(logx.Exchange).Infof("imported %s", res.Name)
 	a.writeJSON(w, http.StatusOK, out)
 }
 

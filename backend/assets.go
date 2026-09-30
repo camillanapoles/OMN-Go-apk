@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/logx"
 )
 
 // ----------------------------------------------------------------------
@@ -163,29 +164,29 @@ func (a *App) removeRetiredAssets(backupDir string) int {
 			backupPath := filepath.Join(backupDir, filepath.FromSlash(rel))
 			if err := os.MkdirAll(filepath.Dir(backupPath), 0755); err == nil {
 				if err := os.WriteFile(backupPath, diskData, 0644); err == nil {
-					a.log(logAssets).infof("kept your copy of %s at %s", rel, backupPath)
+					a.log(logx.Assets).Infof("kept your copy of %s at %s", rel, backupPath)
 				} else {
-					a.log(logAssets).errf("cannot back up %s: %v", rel, err)
+					a.log(logx.Assets).Errf("cannot back up %s: %v", rel, err)
 					continue // do not delete work that has no copy
 				}
 			} else {
-				a.log(logAssets).errf("cannot make the backup directory for %s: %v", rel, err)
+				a.log(logx.Assets).Errf("cannot make the backup directory for %s: %v", rel, err)
 				continue
 			}
 		}
 
 		if err := os.Remove(diskPath); err != nil {
-			a.log(logAssets).errf("cannot remove the old %s: %v", rel, err)
+			a.log(logx.Assets).Errf("cannot remove the old %s: %v", rel, err)
 			continue
 		}
-		a.log(logAssets).infof("removed the old %s", rel)
+		a.log(logx.Assets).Infof("removed the old %s", rel)
 		removed++
 	}
 
 	for _, rel := range retiredAssetDirs {
 		dirPath := a.layout().file(filepath.FromSlash(rel))
 		if err := os.Remove(dirPath); err == nil {
-			a.log(logAssets).infof("removed the empty directory %s", rel)
+			a.log(logx.Assets).Infof("removed the empty directory %s", rel)
 		}
 	}
 	return removed
@@ -231,7 +232,7 @@ func (a *App) refreshEmbeddedAssets() {
 		embedData, eerr := frontend.Static.ReadFile(rel)
 		if eerr != nil {
 			// The list names the file, but this build does not embed it.
-			a.log(logAssets).errf("%s not embedded in this build: %v", rel, eerr)
+			a.log(logx.Assets).Errf("%s not embedded in this build: %v", rel, eerr)
 			continue
 		}
 		diskPath := a.layout().file(filepath.FromSlash(rel))
@@ -241,12 +242,12 @@ func (a *App) refreshEmbeddedAssets() {
 			continue // already current - nothing to do
 		}
 		if rerr != nil && !os.IsNotExist(rerr) {
-			a.log(logAssets).errf("cannot read %s: %v", diskPath, rerr)
+			a.log(logx.Assets).Errf("cannot read %s: %v", diskPath, rerr)
 			continue
 		}
 
 		if err := os.MkdirAll(filepath.Dir(diskPath), 0755); err != nil {
-			a.log(logAssets).errf("skip %s: cannot create dir: %v", rel, err)
+			a.log(logx.Assets).Errf("skip %s: cannot create dir: %v", rel, err)
 			continue
 		}
 
@@ -257,24 +258,24 @@ func (a *App) refreshEmbeddedAssets() {
 		if existed {
 			bakPath := filepath.Join(backupDir, filepath.FromSlash(rel))
 			if err := os.MkdirAll(filepath.Dir(bakPath), 0755); err != nil {
-				a.log(logAssets).errf("skip %s: cannot create backup dir: %v", rel, err)
+				a.log(logx.Assets).Errf("skip %s: cannot create backup dir: %v", rel, err)
 				continue
 			}
 			if err := os.WriteFile(bakPath, diskData, 0644); err != nil {
-				a.log(logAssets).errf("skip %s: backup failed: %v", rel, err)
+				a.log(logx.Assets).Errf("skip %s: backup failed: %v", rel, err)
 				continue
 			}
 		}
 
 		if err := os.WriteFile(diskPath, embedData, 0644); err != nil {
-			a.log(logAssets).errf("write of %s failed: %v", rel, err)
+			a.log(logx.Assets).Errf("write of %s failed: %v", rel, err)
 			continue
 		}
 		refreshed++
 		if existed {
-			a.log(logAssets).infof("refreshed %s (previous copy saved to asset_backups/%s/%s)", rel, prevLabel, rel)
+			a.log(logx.Assets).Infof("refreshed %s (previous copy saved to asset_backups/%s/%s)", rel, prevLabel, rel)
 		} else {
-			a.log(logAssets).infof("installed %s from this build", rel)
+			a.log(logx.Assets).Infof("installed %s from this build", rel)
 		}
 	}
 
@@ -282,12 +283,12 @@ func (a *App) refreshEmbeddedAssets() {
 	// refresh, the next start runs it again, and the loop skips an equal
 	// file.
 	if err := os.WriteFile(verFile, []byte(APP_VERSION+"\n"), 0644); err != nil {
-		a.log(logAssets).errf("cannot write version stamp %s: %v", verFile, err)
+		a.log(logx.Assets).Errf("cannot write version stamp %s: %v", verFile, err)
 	}
 	if refreshed > 0 {
 		// AssetsRefreshed tells the Android layer to clear the WebView cache
 		// one time.
 		assetsRefreshed.Store(true)
-		a.log(logAssets).infof("%d embedded asset(s) refreshed for v%s (previous: %s)", refreshed, APP_VERSION, prevLabel)
+		a.log(logx.Assets).Infof("%d embedded asset(s) refreshed for v%s (previous: %s)", refreshed, APP_VERSION, prevLabel)
 	}
 }

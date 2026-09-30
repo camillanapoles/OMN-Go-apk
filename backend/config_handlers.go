@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"net.basov.omngo/backend/internal/logx"
 )
 
 func (a *App) getConfigPageBody() string {
@@ -129,12 +131,12 @@ func (a *App) handleConfigPost(w http.ResponseWriter, r *http.Request) {
 func (a *App) persistConfig(cfg Config) error {
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
-		a.log(logConfig).errf("persistConfig: failed to marshal the configuration: %v", err)
+		a.log(logx.Config).Errf("persistConfig: failed to marshal the configuration: %v", err)
 		return err
 	}
 	configPath := a.layout().config()
 	if err := os.WriteFile(configPath, data, 0644); err != nil {
-		a.log(logConfig).errf("persistConfig: failed to write %s: %v", configPath, err)
+		a.log(logx.Config).Errf("persistConfig: failed to write %s: %v", configPath, err)
 		return err
 	}
 	return nil
@@ -177,7 +179,7 @@ func searchIndexNeedsRebuild(prev, next Config) bool {
 // On the desktop, it starts a new copy with OMN_GO_RESTARTED=1, thus no
 // second browser tab opens.
 func (a *App) handleRestart(w http.ResponseWriter, r *http.Request) {
-	a.log(logRestart).infof("restart requested via /api/restart")
+	a.log(logx.Restart).Infof("restart requested via /api/restart")
 	w.Write([]byte("Restarting"))
 
 	go func() {
@@ -198,7 +200,7 @@ func (a *App) restartProcess() {
 
 	exe, err := os.Executable()
 	if err != nil {
-		a.log(logRestart).errf("cannot locate own executable, not restarting: %v", err)
+		a.log(logx.Restart).Errf("cannot locate own executable, not restarting: %v", err)
 		return
 	}
 	cmd := exec.Command(exe, os.Args[1:]...)
@@ -207,10 +209,10 @@ func (a *App) restartProcess() {
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
 		// A working old instance is better than none.
-		a.log(logRestart).errf("failed to start replacement process, keeping current one: %v", err)
+		a.log(logx.Restart).Errf("failed to start replacement process, keeping current one: %v", err)
 		return
 	}
-	a.log(logRestart).infof("replacement process started (pid %d), exiting", cmd.Process.Pid)
+	a.log(logx.Restart).Infof("replacement process started (pid %d), exiting", cmd.Process.Pid)
 	os.Exit(0)
 }
 

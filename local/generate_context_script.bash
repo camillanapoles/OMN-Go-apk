@@ -38,7 +38,7 @@ FILES=(
     "backend/storage.go"
     "backend/version.go"
     "backend/git_helper.go"
-    "backend/logger.go"
+    "backend/internal/logx/hub.go"
     "backend/frontend/index.html"
     "backend/frontend/html/css/omn-go-core.css"
     "backend/frontend/html/js/omn-go-core.js"

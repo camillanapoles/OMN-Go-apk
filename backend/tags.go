@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode"
 
+	"net.basov.omngo/backend/internal/logx"
 	"net.basov.omngo/backend/internal/noteheader"
 )
 
@@ -201,12 +202,12 @@ func (a *App) generateTagsPage() error {
 	// UI of the page can run. The two log lines show the wait on /api/logs.
 	// The reader sees the ProgressBar of MainActivity and the delayed overlay
 	// of omn-go-core.js.
-	a.log(logTags).debugf("Rebuilding tags index")
+	a.log(logx.Tags).Debugf("Rebuilding tags index")
 	started := time.Now()
 	index := a.buildTagIndex()
 	content := renderTagsMarkdown(index)
 	defer func() {
-		a.log(logTags).infof("Tags index rebuilt: %d tags in %s",
+		a.log(logx.Tags).Infof("Tags index rebuilt: %d tags in %s",
 			len(index), time.Since(started).Round(time.Millisecond))
 	}()
 
@@ -283,7 +284,7 @@ func (a *App) serveTagsPage(w http.ResponseWriter, r *http.Request) {
 	forceRefresh := r.URL.Query().Get("refresh") == "1" || r.URL.Query().Get("refresh") == "true"
 	if a.tagsPageStale(forceRefresh) {
 		if err := a.generateTagsPage(); err != nil {
-			a.log(logTags).errf("serveTagsPage: %v", err)
+			a.log(logx.Tags).Errf("serveTagsPage: %v", err)
 		}
 	}
 	htmlPath := a.pageHTMLPath("OMNGoTags")

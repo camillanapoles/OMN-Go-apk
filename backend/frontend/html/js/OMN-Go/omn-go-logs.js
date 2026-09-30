@@ -21,7 +21,7 @@
 // WHY THE FILTER IS IN THE PAGE AND NOT ON THE SERVER. The ring holds every
 // line, whatever the switches of the Config page say. A reader who looks
 // for one fault narrows the view here, and stdout keeps what it had. See
-// the banner of logger.go.
+// the banner of backend/internal/logx/hub.go.
 //
 // A line reads "<stamp> [tag] (level) message". window.omnParseLogLine in
 // omn-go-sse.js splits it, and that function is the one authority for the
@@ -31,8 +31,8 @@
 
 (function () {
 
-    // The three levels of log_levels.go. A level that this list omits can
-    // never be hidden, which is the safe direction.
+    // The three levels of backend/internal/logx/levels.go. A level that this
+    // list omits can never be hidden, which is the safe direction.
     var LOG_LEVELS = ['error', 'info', 'debug'];
 
     // The lines that the page holds, in arrival order. The filter reads

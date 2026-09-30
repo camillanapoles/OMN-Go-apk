@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"net.basov.omngo/backend/internal/logx"
 )
 
 // maxGitServers is the fixed number of git server slots. The loader,
@@ -108,19 +110,19 @@ func normalizeSearchKinds(kinds []string) []string {
 	return out
 }
 
-// logTagsDefault holds each tag of allLogTags in log_levels.go. A fresh
-// install checks each tag, because the two level switches are the control
+// logTagsDefault holds each tag of logx.AllTags. A fresh install checks each
+// tag, because the two level switches are the control
 // that a reader finds first. The tag list narrows a level that is on.
 var logTagsDefault = func() []string {
-	out := make([]string, 0, len(allLogTags))
-	for _, t := range allLogTags {
+	out := make([]string, 0, len(logx.AllTags))
+	for _, t := range logx.AllTags {
 		out = append(out, string(t))
 	}
 	return out
 }()
 
 // normalizeLogTags keeps only known tags, with no duplicate, in the order of
-// allLogTags. As in normalizeSearchKinds, nil gets each tag, and an empty
+// logx.AllTags. As in normalizeSearchKinds, nil gets each tag, and an empty
 // list means "no debug or info line".
 func normalizeLogTags(tags []string) []string {
 	if tags == nil {
@@ -185,7 +187,7 @@ var legacyMimeSeeds = []map[string]string{
 // and it reports whether it changed something. The caller then writes
 // config.json. A nil map is the state of a fresh install, thus the function
 // answers false.
-func dropLegacyMimeSeed(log logger, c *Config) bool {
+func dropLegacyMimeSeed(log logx.Logger, c *Config) bool {
 	if c.MimeTypes == nil {
 		return false
 	}
@@ -194,7 +196,7 @@ func dropLegacyMimeSeed(log logger, c *Config) bool {
 			continue
 		}
 		c.MimeTypes = nil
-		log.infof("removed the mime_types map that an older version wrote, " +
+		log.Infof("removed the mime_types map that an older version wrote, " +
 			"thus the content types of this build answer again")
 		return true
 	}
@@ -286,7 +288,7 @@ type Config struct {
 	// LogDebug and LogInfo turn on the two quiet log levels. Both are false
 	// on a fresh install, because each open page copies the log into the
 	// browser console. The error level has no switch: a person who asks for
-	// less noise never asks for fewer faults. See log_levels.go.
+	// less noise never asks for fewer faults. See internal/logx/levels.go.
 	LogDebug bool `json:"log_debug"`
 	LogInfo  bool `json:"log_info"`
 	// LogTags is the second axis. A debug or info line prints when its level
@@ -341,9 +343,9 @@ func (a *App) loadConfigLocked(c *Config, configPath string) {
 		}
 		data, err := json.MarshalIndent(*c, "", "  ")
 		if err != nil {
-			a.log(logConfig).errf("loadConfig: failed to marshal default config: %v", err)
+			a.log(logx.Config).Errf("loadConfig: failed to marshal default config: %v", err)
 		} else if err := os.WriteFile(configPath, data, 0644); err != nil {
-			a.log(logConfig).errf("loadConfig: failed to write default config.json: %v", err)
+			a.log(logx.Config).Errf("loadConfig: failed to write default config.json: %v", err)
 		}
 	} else {
 		data, readErr := os.ReadFile(configPath)
@@ -351,12 +353,12 @@ func (a *App) loadConfigLocked(c *Config, configPath string) {
 			// The loader cannot read an existing config.json. Leave c
 			// at its zero value, and write an error line. Do not run with an
 			// empty config in silence.
-			a.log(logConfig).errf("loadConfig: failed to read %s: %v", configPath, readErr)
+			a.log(logx.Config).Errf("loadConfig: failed to read %s: %v", configPath, readErr)
 		} else if err := json.Unmarshal(data, c); err != nil {
 			// A config.json that does not parse leaves c partly zero.
 			// The error line explains why the passwords and settings seem to
 			// reset.
-			a.log(logConfig).errf("loadConfig: failed to parse %s (using defaults for any unparsed fields): %v", configPath, err)
+			a.log(logx.Config).Errf("loadConfig: failed to parse %s (using defaults for any unparsed fields): %v", configPath, err)
 		}
 	}
 	// A config.json with no server_port, or a value below 1, gets the
@@ -377,12 +379,12 @@ func (a *App) loadConfigLocked(c *Config, configPath string) {
 
 	// Remove a map that an older version wrote, thus the table of the build
 	// answers again. See dropLegacyMimeSeed.
-	if dropLegacyMimeSeed(a.log(logConfig), c) {
+	if dropLegacyMimeSeed(a.log(logx.Config), c) {
 		data, err := json.MarshalIndent(*c, "", "  ")
 		if err != nil {
-			a.log(logConfig).errf("loadConfig: failed to marshal config after the mime-type repair: %v", err)
+			a.log(logx.Config).Errf("loadConfig: failed to marshal config after the mime-type repair: %v", err)
 		} else if err := os.WriteFile(configPath, data, 0644); err != nil {
-			a.log(logConfig).errf("loadConfig: failed to write config.json after the mime-type repair: %v", err)
+			a.log(logx.Config).Errf("loadConfig: failed to write config.json after the mime-type repair: %v", err)
 		}
 	}
 
@@ -409,13 +411,13 @@ func (a *App) fallbackPort() int {
 // config from emit would thus deadlock the start. An atomic value costs
 // one load for each line. loadConfig and handleConfigPost refresh the cache.
 func (a *App) applyLogFilter(c Config) {
-	f := logFilter{
-		debug: c.LogDebug,
-		info:  c.LogInfo,
-		tags:  make(map[logTag]bool, len(allLogTags)),
+	f := logx.Filter{
+		Debug: c.LogDebug,
+		Info:  c.LogInfo,
+		Tags:  make(map[logx.Tag]bool, len(logx.AllTags)),
 	}
 	for _, t := range normalizeLogTags(c.LogTags) {
-		f.tags[logTag(t)] = true
+		f.Tags[logx.Tag(t)] = true
 	}
 	a.logFilter.Store(f)
 }

@@ -138,8 +138,8 @@ update these files.
   `SetAndroidPackage` and `SetLANAddresses`. `main_desktop.go` calls `StartServer`,
   `WaitUntilReady` and `GetServerPort`. Write everything else as a lowercase method on
   `*App`.
-* The package also exports the types `App`, `Config`, `GitServerConfig`, `NoLockFS`,
-  `NoLockFile` and `JSLogger`, and more methods of `App`. No caller outside the
+* The package also exports the types `App`, `Config`, `GitServerConfig`, `NoLockFS`
+  and `NoLockFile`, and more methods of `App`. No caller outside the
   package uses them. gomobile still makes a Java binding for each one. Do not add an
   exported name.
 * **Names.** Use `handleXxx` for an API endpoint. Use `serveXxx` for a page or an
@@ -155,13 +155,13 @@ update these files.
   the response shapes. A response is plain-text status words, or JSON with
   `"status":"success"` or `"status":"error"`, or `text/event-stream` for `/api/logs`.
 * **Logging.** Do not call `log.Printf`. Write a step with
-  `a.log(tag).debugf(format, ...)`, an outcome with `a.log(tag).infof(format, ...)`
-  and a fault with `a.log(tag).errf(format, ...)`. Give a function that has no
-  `*App` a `logger` value. `TestNoDirectLogPrintf` enforces
+  `a.log(tag).Debugf(format, ...)`, an outcome with `a.log(tag).Infof(format, ...)`
+  and a fault with `a.log(tag).Errf(format, ...)`. Give a function that has no
+  `*App` a `logx.Logger` value. `TestNoDirectLogPrintf` enforces
   this.
-  * `tag` is a typed constant from `backend/log_levels.go`, for example `logSync`
-    or `logAssets`. That file is the only authority for the tag set. Add a new tag
-    to the constant block and to `allLogTags` together. The helper writes the
+  * `tag` is a typed constant from `backend/internal/logx/levels.go`, for example
+    `logx.Sync` or `logx.Assets`. That file is the only authority for the tag set. Add a new tag
+    to the constant block and to `logx.AllTags` together. The helper writes the
     brackets and the parentheses, thus a format string never carries them.
   * The emitted text is `[tag] (level) message`. Do not write `Error:`,
     `Warning:` or `FATAL:` in the message. The level word says it.
@@ -171,8 +171,8 @@ update these files.
     off asks for less noise, and never for fewer faults.
   * There are three levels and no more. The project has no leveled logger
     library and no structured logger.
-  * `backend/logger.go` sends each line to stdout and to the SSE subscribers on
-    `/api/logs`. **The SSE stream always carries every line.** The switches
+  * `backend/internal/logx/hub.go` sends each line to stdout and to the SSE
+    subscribers on `/api/logs`. **The SSE stream always carries every line.** The switches
     control stdout, and they control what `omn-go-sse.js` mirrors into the
     browser console. The sync progress overlay reads `[sync] (debug)` lines off
     the raw stream, and it must work when debug is off.
@@ -185,7 +185,7 @@ update these files.
     `omn-go-sync.js` is the only caller and it is a separate file.
     `TestEverySyncLineReachesTheOverlay` runs a whole sync and sends each
     line that it wrote through the real JavaScript.
-  * `logLinePrints` in `omn-go-sse.js` and `logLineEnabled` in `logger.go`
+  * `logLinePrints` in `omn-go-sse.js` and `logLineEnabled` in `log_app.go`
     are two implementations of one decision. The page needs the answer
     without the server, thus rule 7 of section 1 allows the pair with a test.
     `TestLogFilterPortAgreesWithTheRealJavaScript` compares them.

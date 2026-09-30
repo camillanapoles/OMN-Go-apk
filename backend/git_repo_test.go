@@ -456,7 +456,7 @@ func TestRemoteLogLinesHideThePassword(t *testing.T) {
 	if err := a.ensureOriginRemote(repo, "https://ann:THIRD-SECRET@example.com/n.git"); err != nil {
 		t.Fatal(err)
 	}
-	lines := strings.Join(a.logs.snapshot(), "\n")
+	lines := strings.Join(a.logs.Snapshot(), "\n")
 	if !strings.Contains(lines, "ann@example.com") {
 		t.Fatalf("the log names no remote:\n%s", lines)
 	}

@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"net.basov.omngo/backend/internal/logx"
 )
 
 // ----------------------------------------------------------------------
@@ -239,7 +241,7 @@ func (a *App) restoreDBFromBackup(name, fileName string) error {
 			if _, err := tx.Exec(`INSERT INTO sqlite_sequence(name, seq) VALUES (?, ?)`, s.Table, s.Value); err != nil {
 				// With no AUTOINCREMENT table, the saved counter has no row.
 				// Skip it, and do not fail.
-				a.log(logDBRestore).errf("%s: sequence for %s not restorable: %v", name, s.Table, err)
+				a.log(logx.DBRestore).Errf("%s: sequence for %s not restorable: %v", name, s.Table, err)
 			}
 		}
 	}
@@ -272,7 +274,7 @@ func (a *App) restoreDBFromBackup(name, fileName string) error {
 		os.Chtimes(finalPath, info.ModTime(), info.ModTime())
 	}
 
-	a.log(logDBRestore).infof("%s: restored from %s (%d objects, %d rows)",
+	a.log(logx.DBRestore).Infof("%s: restored from %s (%d objects, %d rows)",
 		name, fileName, header.Objects, header.Rows)
 	return nil
 }
@@ -293,7 +295,7 @@ func (a *App) bootstrapIfMissing(name string) (*sql.DB, error) {
 	if err != nil || len(files) == 0 {
 		return nil, err
 	}
-	a.log(logDBBootstrap).infof("%s: no database file yet, restoring newest backup %s", name, files[0])
+	a.log(logx.DBBootstrap).Infof("%s: no database file yet, restoring newest backup %s", name, files[0])
 	if err := a.restoreDBFromBackup(name, files[0]); err != nil {
 		return nil, err
 	}

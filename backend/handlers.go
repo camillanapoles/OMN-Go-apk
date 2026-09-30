@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/logx"
 )
 
 func (a *App) serveFrontend(w http.ResponseWriter, r *http.Request) {
@@ -83,7 +84,7 @@ func (a *App) recompileMarkdownPage(name, mdPath string, errMd error) {
 		// thus it must not rewrite the .md. ensureHeaderModified belongs to
 		// handleSaveNote alone.
 		if _, err := a.renderAndCache(name, mdContent); err != nil {
-			a.log(logPrecompile).errf("recompileMarkdownPage: %v", err)
+			a.log(logx.Precompile).Errf("recompileMarkdownPage: %v", err)
 		}
 	}
 }

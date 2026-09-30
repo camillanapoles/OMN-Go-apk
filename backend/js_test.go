@@ -36,6 +36,7 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/logx"
 	"net.basov.omngo/backend/internal/noteheader"
 )
 
@@ -258,7 +259,7 @@ func jsSyncLines(t *testing.T) []string {
 	_ = a.SyncRepo("push_force", "take mine")
 
 	var out []string
-	for _, line := range a.logs.snapshot() {
+	for _, line := range a.logs.Snapshot() {
 		if strings.Contains(line, "[sync]") {
 			out = append(out, strings.TrimRight(line, "\n"))
 		}
@@ -344,7 +345,7 @@ process.stdout.write(JSON.stringify({ quiet: quiet, stages: stages }));
 // The log filter, on both sides
 // ----------------------------------------------------------------------
 //
-// One decision has two implementations. logLineEnabled in logger.go says
+// One decision has two implementations. logLineEnabled in log_app.go says
 // whether a line reaches stdout. logLinePrints in omn-go-sse.js says
 // whether the same line reaches the browser console.
 //
@@ -355,8 +356,8 @@ process.stdout.write(JSON.stringify({ quiet: quiet, stages: stages }));
 //
 // THE TWO DO NOT TAKE THE SAME INPUT. The Go side takes a level and a
 // tag. The JavaScript side takes the whole line and reads both out of it
-// with LOG_LINE_RE. The line that it reads is the one that logger.emit
-// writes, thus the test builds the line the same way logger.emit does.
+// with LOG_LINE_RE. The line that it reads is the one that logx.Logger.emit
+// writes, thus the test builds the line the same way logx.Logger.emit does.
 //
 // A DIFFERENCE IS NOT COSMETIC. A person turns a level off, sees a quiet
 // stdout and a loud console, and cannot tell which one lies.
@@ -377,8 +378,8 @@ func TestLogFilterPortAgreesWithTheRealJavaScript(t *testing.T) {
 		t.Skip("no node on this machine. The build image has one and runs this test.")
 	}
 
-	levels := []logLevel{levelDebug, levelInfo, levelError}
-	tags := []logTag{logSync, logAssets}
+	levels := []logx.Level{logx.LevelDebug, logx.LevelInfo, logx.LevelError}
+	tags := []logx.Tag{logx.Sync, logx.Assets}
 
 	// THE FOUR STATES OF Config.LogTags, and each one is reachable.
 	//
@@ -415,7 +416,7 @@ func TestLogFilterPortAgreesWithTheRealJavaScript(t *testing.T) {
 							// way compares the two sides against a state
 							// that no browser ever holds.
 							Tags: strings.Join(normalizeLogTags(cfg.LogTags), ","),
-							// The shape that logger.emit writes. See logger.go.
+							// The shape that logx.Logger.emit writes. See internal/logx/hub.go.
 							Line: "2026/09/06 12:00:00 [" + string(tag) + "] (" +
 								string(lvl) + ") a message",
 						})
@@ -479,7 +480,7 @@ process.stdout.write(JSON.stringify({ got: out }));
 			continue
 		}
 		t.Errorf("the two sides disagree for level %q, tag %q, debug=%v, info=%v, tags=%q.\n"+
-			"  logLineEnabled in logger.go says %v\n"+
+			"  logLineEnabled in log_app.go says %v\n"+
 			"  logLinePrints in omn-go-sse.js says %v\n"+
 			"  A person then sees a quiet stdout and a loud console, or the reverse.",
 			c.Level, c.Tag, c.Debug, c.Info, c.Tags, want[i], answer.Got[i])

@@ -30,6 +30,7 @@ import (
 	"sync"
 	"time"
 
+	"net.basov.omngo/backend/internal/logx"
 	"net.basov.omngo/backend/internal/textmatch"
 )
 
@@ -238,7 +239,7 @@ func (a *App) dropSearchIndex() {
 	a.search.built = time.Time{}
 	a.search.mu.Unlock()
 	if had > 0 {
-		a.log(logSearch).infof("index dropped (%d documents released)", had)
+		a.log(logx.Search).Infof("index dropped (%d documents released)", had)
 	}
 }
 
@@ -320,7 +321,7 @@ func (a *App) reloadDocument(d *indexedDoc) *searchDocument {
 	data, truncated, err := readCapped(a.storagePath(d.Path), maxIndexFileBytes)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			a.log(logSearch).errf("%s: %v", d.Path, err)
+			a.log(logx.Search).Errf("%s: %v", d.Path, err)
 		}
 		return nil
 	}

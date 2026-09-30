@@ -15,7 +15,7 @@ import (
 // fileGroups puts each production file in one group. A later split makes
 // each group a package, and the compiler then holds the layers.
 var fileGroups = map[string]string{
-	"log_levels.go": "logx", "logger.go": "logx",
+	"log_app.go": "logx",
 
 	"config.go": "config", "config_fields.go": "config",
 	"config_store.go": "config", "hostname.go": "config", "version.go": "config",

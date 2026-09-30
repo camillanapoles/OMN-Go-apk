@@ -57,7 +57,7 @@ func TestConnectionMiddlewareUsesNoStoreForAPage(t *testing.T) {
 	}
 }
 
-// The handler still wins. logger.go writes its own Cache-Control for the
+// The handler still wins. HandleLogsSSE writes its own Cache-Control for the
 // log stream, and the page rule must not take that decision back.
 func TestConnectionMiddlewareKeepsTheWordsOfTheHandler(t *testing.T) {
 	a := &App{}
@@ -75,7 +75,7 @@ func TestConnectionMiddlewareKeepsTheWordsOfTheHandler(t *testing.T) {
 	}
 }
 
-// The log stream sends one line at a time. logger.go asks the writer for
+// The log stream sends one line at a time. HandleLogsSSE asks the writer for
 // http.Flusher, thus the wrapper of connectionMiddleware must answer that
 // question. Without this the lines wait until the response ends.
 func TestConnectionMiddlewareWriterIsAFlusher(t *testing.T) {

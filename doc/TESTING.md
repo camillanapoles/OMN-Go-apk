@@ -111,7 +111,7 @@ real `applySyncLogLine`. A line that moves no stage is the failure. The
 overlay fails quietly, thus nothing else would report it.
 
 `TestLogFilterPortAgreesWithTheRealJavaScript` compares `logLineEnabled`
-in `backend/logger.go` with `logLinePrints` in `omn-go-sse.js` over 120
+in `backend/internal/logx/hub.go` with `logLinePrints` in `omn-go-sse.js` over 120
 states. It builds the value of `OMN_LOG_TAGS` the way `injectRuntimeVars`
 does, because a test that builds it another way compares a state that no
 page ever holds.

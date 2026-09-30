@@ -1322,7 +1322,7 @@ Connection: keep-alive
 
 **Event format** — unnamed events, one `data:` field per log write. A line
 is `<stamp> [tag] (level) message`. `tag` is the subsystem, from the
-constant block in `backend/log_levels.go`. `level` is `debug`, `info` or
+constant block in `backend/internal/logx/levels.go`. `level` is `debug`, `info` or
 `error`.
 
 ```
@@ -1354,7 +1354,7 @@ es.onmessage = e => console.log(e.data);
 The last 500 log lines, oldest first. **Admin only.**
 
 The stream above is a live sample. A page that opens after an event never
-sees the lines of it. This endpoint answers a ring that `logHub.broadcast`
+sees the lines of it. This endpoint answers a ring that `logx.Hub.Broadcast`
 fills, so a person can read what happened before the page was open.
 
 **It carries every line**, the same as the stream. The `log_debug`,

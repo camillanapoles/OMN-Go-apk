@@ -3,6 +3,8 @@ package backend
 import (
 	"encoding/json"
 	"net/http"
+
+	"net.basov.omngo/backend/internal/logx"
 )
 
 // jsonStatus is the answer {"status", "message"}. Message has no omitempty,
@@ -20,7 +22,7 @@ func (a *App) writeJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	if err := json.NewEncoder(w).Encode(v); err != nil {
-		a.log(logServer).errf("encode the JSON answer: %v", err)
+		a.log(logx.Server).Errf("encode the JSON answer: %v", err)
 	}
 }
 

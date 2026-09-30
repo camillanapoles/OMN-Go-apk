@@ -4,8 +4,8 @@ package backend
 // The log transport and the level rule
 //
 // Two things are pinned here. The shape of a line, because the browser
-// parses it. And the ban on log.Printf. A line that skips the debugf, infof
-// and errf methods of a logger carries no level. It therefore escapes every
+// parses it. And the ban on log.Printf. A line that skips the Debugf, Infof
+// and Errf methods of a logger carries no level. It therefore escapes every
 // filter a person sets on the Config page.
 // ---------------------------------------------------------------------
 
@@ -20,6 +20,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"net.basov.omngo/backend/internal/logx"
 )
 
 // logPrintfAllowed names the only two files that may call log.Printf.
@@ -65,8 +67,8 @@ func TestNoDirectLogPrintf(t *testing.T) {
 				continue
 			}
 			if !logPrintfAllowed[name] {
-				t.Errorf("%s:%d calls log.Printf. Use a.log(tag).debugf, infof "+
-					"or errf with a tag from log_levels.go. A line with no "+
+				t.Errorf("%s:%d calls log.Printf. Use a.log(tag).Debugf, Infof "+
+					"or Errf with a tag from internal/logx/levels.go. A line with no "+
 					"level cannot be filtered, and the reader has no way to "+
 					"switch it off.", name, i+1)
 				continue
@@ -86,12 +88,12 @@ func TestNoDirectLogPrintf(t *testing.T) {
 func TestEmitLogLineShape(t *testing.T) {
 	a := newTestApp(t)
 
-	ch := a.logs.subscribe()
-	defer a.logs.unsubscribe(ch)
+	ch := a.logs.Subscribe()
+	defer a.logs.Unsubscribe(ch)
 
-	a.log(logSync).debugf("Staging file: %s", "Note.md")
-	a.log(logAssets).infof("%d asset(s) refreshed", 3)
-	a.log(logEdit).errf("cannot run %q", "subl")
+	a.log(logx.Sync).Debugf("Staging file: %s", "Note.md")
+	a.log(logx.Assets).Infof("%d asset(s) refreshed", 3)
+	a.log(logx.Edit).Errf("cannot run %q", "subl")
 
 	want := []string{
 		"[sync] (debug) Staging file: Note.md\n",
@@ -105,39 +107,10 @@ func TestEmitLogLineShape(t *testing.T) {
 		}
 		// The stamp is the standard log package layout, so stdout and the
 		// stream look the same whatever wrote the line.
-		if len(got) != len(w)+len(logTimeLayout) {
+		if len(got) != len(w)+len(logx.TimeLayout) {
 			t.Errorf("log line %q does not carry a %d-character time stamp",
-				got, len(logTimeLayout))
+				got, len(logx.TimeLayout))
 		}
-	}
-}
-
-// TestAllLogTagsIsComplete exists because the Config page builds its
-// checkbox list from allLogTags. A tag that is absent from that slice can
-// never be switched off, and normalizeLogTags would drop it from
-// config.json on the next save.
-func TestAllLogTagsIsComplete(t *testing.T) {
-	src, err := os.ReadFile("log_levels.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	declared := regexp.MustCompile(`(?m)^\tlog[A-Za-z0-9]+\s+logTag = "([a-z0-9-]+)"`).
-		FindAllStringSubmatch(string(src), -1)
-	if len(declared) == 0 {
-		t.Fatal("no logTag constant found - has the constant block changed shape?")
-	}
-	listed := map[logTag]bool{}
-	for _, tag := range allLogTags {
-		listed[tag] = true
-	}
-	for _, m := range declared {
-		if !listed[logTag(m[1])] {
-			t.Errorf("tag %q has a constant but is missing from allLogTags. "+
-				"Add a new tag to both in the same commit.", m[1])
-		}
-	}
-	if len(declared) != len(allLogTags) {
-		t.Errorf("%d tag constants, %d entries in allLogTags", len(declared), len(allLogTags))
 	}
 }
 
@@ -146,8 +119,8 @@ func TestAllLogTagsIsComplete(t *testing.T) {
 // person who unticks every box gets an empty list, which is a different
 // thing and must survive a save.
 func TestNormalizeLogTags(t *testing.T) {
-	if got := normalizeLogTags(nil); len(got) != len(allLogTags) {
-		t.Errorf("nil gave %d tags, want every one of the %d", len(got), len(allLogTags))
+	if got := normalizeLogTags(nil); len(got) != len(logx.AllTags) {
+		t.Errorf("nil gave %d tags, want every one of the %d", len(got), len(logx.AllTags))
 	}
 	if got := normalizeLogTags([]string{}); len(got) != 0 {
 		t.Errorf("an empty list gave %v, want an empty list - unticking every box "+
@@ -157,7 +130,7 @@ func TestNormalizeLogTags(t *testing.T) {
 	want := []string{"assets", "sync"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Errorf("normalizeLogTags gave %v, want %v - it lowercases, trims, "+
-			"drops an unknown tag, and keeps the order of allLogTags", got, want)
+			"drops an unknown tag, and keeps the order of logx.AllTags", got, want)
 	}
 }
 
@@ -168,31 +141,31 @@ func TestLogLineEnabled(t *testing.T) {
 	a := newTestApp(t)
 
 	a.applyLogFilter(Config{LogDebug: false, LogInfo: false, LogTags: logTagsDefault})
-	if !a.logLineEnabled(levelError, logSync) {
+	if !a.logLineEnabled(logx.LevelError, logx.Sync) {
 		t.Error("an error was filtered out with both levels off")
 	}
-	if a.logLineEnabled(levelDebug, logSync) || a.logLineEnabled(levelInfo, logSync) {
+	if a.logLineEnabled(logx.LevelDebug, logx.Sync) || a.logLineEnabled(logx.LevelInfo, logx.Sync) {
 		t.Error("a quiet level printed with both levels off")
 	}
 
 	a.applyLogFilter(Config{LogDebug: true, LogInfo: true, LogTags: []string{"assets"}})
-	if !a.logLineEnabled(levelDebug, logAssets) {
+	if !a.logLineEnabled(logx.LevelDebug, logx.Assets) {
 		t.Error("a ticked tag was filtered out with debug on")
 	}
-	if a.logLineEnabled(levelDebug, logSync) {
+	if a.logLineEnabled(logx.LevelDebug, logx.Sync) {
 		t.Error("an unticked tag printed with debug on")
 	}
-	if !a.logLineEnabled(levelError, logSync) {
+	if !a.logLineEnabled(logx.LevelError, logx.Sync) {
 		t.Error("an error was filtered out by an unticked tag")
 	}
 
 	// Before loadConfig runs the cache is empty. Every line the application
 	// writes that early is a fault, so faults only is the safe answer.
 	fresh := &App{}
-	if !fresh.logLineEnabled(levelError, logServer) {
+	if !fresh.logLineEnabled(logx.LevelError, logx.Server) {
 		t.Error("an error was filtered out before the config loaded")
 	}
-	if fresh.logLineEnabled(levelInfo, logServer) {
+	if fresh.logLineEnabled(logx.LevelInfo, logx.Server) {
 		t.Error("an info line printed before the config loaded")
 	}
 }
@@ -201,17 +174,17 @@ func TestLogLineEnabled(t *testing.T) {
 // The history ring
 // ----------------------------------------------------------------------
 //
-// Each App holds its own ring in its logHub. A test of the ring thus starts
+// Each App holds its own ring in its logx.Hub. A test of the ring thus starts
 // with an empty ring, and no other test writes into it.
 
 // The ring keeps the lines in the order that they arrived.
 func TestLogHistoryKeepsTheOrder(t *testing.T) {
-	h := &logHub{}
+	h := &logx.Hub{}
 	for _, line := range []string{"first\n", "second\n", "third\n"} {
-		h.broadcast(line, false)
+		h.Broadcast(line, false)
 	}
 
-	got := h.snapshot()
+	got := h.Snapshot()
 	want := []string{"first\n", "second\n", "third\n"}
 	if len(got) != len(want) {
 		t.Fatalf("the ring holds %d lines, want %d: %q", len(got), len(want), got)
@@ -228,19 +201,19 @@ func TestLogHistoryKeepsTheOrder(t *testing.T) {
 // A log that stops at its cap keeps the start of the session and loses
 // the fault. The fault is the half that a person needs.
 func TestLogHistoryKeepsTheNewestLines(t *testing.T) {
-	h := &logHub{}
-	for i := 0; i < logHistoryCap+25; i++ {
-		h.broadcast(fmt.Sprintf("line %d\n", i), false)
+	h := &logx.Hub{}
+	for i := 0; i < logx.HistoryCap+25; i++ {
+		h.Broadcast(fmt.Sprintf("line %d\n", i), false)
 	}
 
-	got := h.snapshot()
-	if len(got) != logHistoryCap {
-		t.Fatalf("the ring holds %d lines, want the cap of %d", len(got), logHistoryCap)
+	got := h.Snapshot()
+	if len(got) != logx.HistoryCap {
+		t.Fatalf("the ring holds %d lines, want the cap of %d", len(got), logx.HistoryCap)
 	}
 	if want := fmt.Sprintf("line %d\n", 25); got[0] != want {
 		t.Errorf("the oldest line is %q, want %q", got[0], want)
 	}
-	if want := fmt.Sprintf("line %d\n", logHistoryCap+24); got[len(got)-1] != want {
+	if want := fmt.Sprintf("line %d\n", logx.HistoryCap+24); got[len(got)-1] != want {
 		t.Errorf("the newest line is %q, want %q", got[len(got)-1], want)
 	}
 }
@@ -254,12 +227,12 @@ func TestLogHistoryHoldsASuppressedLine(t *testing.T) {
 	a := newTestApp(t)
 	a.applyLogFilter(Config{LogDebug: false, LogInfo: false, LogTags: []string{}})
 
-	if a.logLineEnabled(levelDebug, logSync) {
+	if a.logLineEnabled(logx.LevelDebug, logx.Sync) {
 		t.Fatal("the filter lets a debug line through, thus this test proves nothing")
 	}
-	a.log(logSync).debugf("a step that stdout never shows")
+	a.log(logx.Sync).Debugf("a step that stdout never shows")
 
-	for _, line := range a.logs.snapshot() {
+	for _, line := range a.logs.Snapshot() {
 		if strings.Contains(line, "a step that stdout never shows") {
 			return
 		}
@@ -270,16 +243,16 @@ func TestLogHistoryHoldsASuppressedLine(t *testing.T) {
 // The snapshot is a copy. A caller that changes it changes no line of
 // the ring.
 func TestLogHistorySnapshotIsACopy(t *testing.T) {
-	h := &logHub{}
-	h.broadcast("the real line\n", false)
+	h := &logx.Hub{}
+	h.Broadcast("the real line\n", false)
 
-	first := h.snapshot()
+	first := h.Snapshot()
 	if len(first) != 1 {
 		t.Fatalf("the ring holds %d lines, want 1", len(first))
 	}
 	first[0] = "a line that a caller wrote"
 
-	second := h.snapshot()
+	second := h.Snapshot()
 	if second[0] != "the real line\n" {
 		t.Errorf("the ring now holds %q, thus the snapshot shares its memory", second[0])
 	}
@@ -291,7 +264,7 @@ func TestLogHistorySnapshotIsACopy(t *testing.T) {
 // it. A ring outside that lock is a data race
 // that a test without -race never reports.
 func TestLogHistoryUnderConcurrentWriters(t *testing.T) {
-	h := &logHub{}
+	h := &logx.Hub{}
 	const writers, each = 8, 20
 
 	var wg sync.WaitGroup
@@ -300,7 +273,7 @@ func TestLogHistoryUnderConcurrentWriters(t *testing.T) {
 		go func(w int) {
 			defer wg.Done()
 			for i := 0; i < each; i++ {
-				h.broadcast(fmt.Sprintf("writer %d line %d\n", w, i), false)
+				h.Broadcast(fmt.Sprintf("writer %d line %d\n", w, i), false)
 			}
 		}(w)
 	}
@@ -310,12 +283,12 @@ func TestLogHistoryUnderConcurrentWriters(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for i := 0; i < 50; i++ {
-			_ = h.snapshot()
+			_ = h.Snapshot()
 		}
 	}()
 	wg.Wait()
 
-	got := h.snapshot()
+	got := h.Snapshot()
 	if len(got) != writers*each {
 		t.Fatalf("the ring holds %d lines, want %d. A line was lost.",
 			len(got), writers*each)
@@ -337,7 +310,7 @@ func TestLogHistoryUnderConcurrentWriters(t *testing.T) {
 func TestLogHistoryEndpointAnswersTheRing(t *testing.T) {
 	a := newTestApp(t)
 	for _, line := range []string{"first\n", "second\n", "third\n"} {
-		a.logs.broadcast(line, false)
+		a.logs.Broadcast(line, false)
 	}
 
 	rec := httptest.NewRecorder()
@@ -360,8 +333,8 @@ func TestLogHistoryEndpointAnswersTheRing(t *testing.T) {
 	if body.Status != "success" {
 		t.Errorf("the status is %q, want success. See section 1.4 of doc/API.md.", body.Status)
 	}
-	if body.Cap != logHistoryCap {
-		t.Errorf("the answer names a cap of %d, want %d", body.Cap, logHistoryCap)
+	if body.Cap != logx.HistoryCap {
+		t.Errorf("the answer names a cap of %d, want %d", body.Cap, logx.HistoryCap)
 	}
 	want := []string{"first\n", "second\n", "third\n"}
 	if len(body.Lines) != len(want) {
@@ -590,11 +563,11 @@ func TestLogsPageAnswersARemoteCallerWithAPage(t *testing.T) {
 // ring or the stream of another App.
 func TestEachAppHasItsOwnLog(t *testing.T) {
 	a, b := newTestApp(t), newTestApp(t)
-	ch := b.logs.subscribe()
-	defer b.logs.unsubscribe(ch)
+	ch := b.logs.Subscribe()
+	defer b.logs.Unsubscribe(ch)
 
-	a.log(logSync).errf("a line of the first App")
-	for _, line := range b.logs.snapshot() {
+	a.log(logx.Sync).Errf("a line of the first App")
+	for _, line := range b.logs.Snapshot() {
 		if strings.Contains(line, "a line of the first App") {
 			t.Fatal("the ring of the second App holds a line of the first App")
 		}

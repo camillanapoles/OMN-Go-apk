@@ -62,10 +62,11 @@ if (window.location.protocol !== 'file:') {
     // Decides whether one server log line reaches the browser console.
     //
     // The server sends EVERY line over /api/logs, whatever the Config page
-    // says (see logger.go). Two things need that. The sync progress overlay
-    // below is fed by "[sync]" lines, most of which are (debug). And a
-    // change on the Config page then applies to the next line, with no
-    // server restart and no page reload of the writer's side.
+    // says (see backend/internal/logx/hub.go). Two things need that. The
+    // sync progress overlay below reads the "[sync]" lines, and most of them
+    // are (debug). Also, a change on the Config page then applies to the
+    // next line, with no server restart and no page reload of the writer's
+    // side.
     //
     // So the filter lives here. OMN_LOG_DEBUG, OMN_LOG_INFO and
     // OMN_LOG_TAGS arrive with the runtime variables the server injects
@@ -106,8 +107,8 @@ if (window.location.protocol !== 'file:') {
     // Exposed so a test can run it, and harmless in a browser. The same
     // shape as OMN_expandEmmet in omn-go-editor.js.
     //
-    // logLinePrints and logLineEnabled in backend/logger.go are the two
-    // implementations of ONE decision, which rule 7 of CLAUDE.md section
+    // logLinePrints and Logger.Enabled in backend/internal/logx/hub.go are
+    // the two implementations of ONE decision, which rule 7 of CLAUDE.md section
     // 1 allows only with a test that compares them.
     // TestLogFilterPortAgreesWithTheRealJavaScript is that test, and it
     // needs a name to call.
@@ -172,7 +173,7 @@ if (window.location.protocol !== 'file:') {
     // sits between the tag and the message. It is stripped here before any
     // SYNC_STAGES prefix is tried, or every prefix below stops matching. Sync progress is mostly (debug), and this overlay keeps
     // working with (debug) switched off because the SSE stream always
-    // carries every line (see logger.go).
+    // carries every line (see backend/internal/logx/hub.go).
     function applySyncLogLine(msg) {
         const at = msg.indexOf('[sync]');
         if (at === -1) return;
@@ -552,8 +553,8 @@ if (window.location.protocol !== 'file:') {
     // GoOMN Log Interceptor - Bridges Go background logs to JS UI
     //
     // Every log line that the backend writes reaches this stream, see
-    // logger.go. That is why the sync progress overlay needs no transport of
-    // its own. The "[sync] ..." lines of the sync code are the progress feed.
+    // backend/internal/logx/hub.go. That is why the sync progress overlay
+    // needs no transport of its own. The "[sync] ..." lines of the sync code are the progress feed.
     // A subscriber registered through window.omnGoOnServerLog gets each
     // line, beside the console mirroring that has always happened here.
     //
@@ -562,8 +563,8 @@ if (window.location.protocol !== 'file:') {
     // subscriber is never filtered, because the overlay is built on the
     // (debug) lines a reader normally does not want to see.
     //
-    // A caveat worth knowing. JSLogger drops a message rather than block,
-    // when the 10-slot channel of a client is full. This stream is thus a
+    // Hub.Broadcast drops a message and does not wait when the 10-slot
+    // channel of a client is full. This stream is thus a
     // live sample, and not a guaranteed-complete transcript.
     //
     // That is fine for a progress display, which only ever shows the newest

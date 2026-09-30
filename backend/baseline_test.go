@@ -1192,7 +1192,7 @@ func TestBaseline_CompiledHTMLShapeAcrossWritePaths(t *testing.T) {
 // ---------------------------------------------------------------------
 
 func countLogClients(a *App) int {
-	return a.logs.clientCount()
+	return a.logs.ClientCount()
 }
 
 func waitFor(cond func() bool, timeout time.Duration) bool {

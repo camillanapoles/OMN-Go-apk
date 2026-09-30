@@ -4,6 +4,8 @@ import (
 	"net"
 	"net/http"
 	"strings"
+
+	"net.basov.omngo/backend/internal/logx"
 )
 
 func (a *App) isLocalConnection(r *http.Request) bool {
@@ -20,7 +22,7 @@ func (a *App) connectionMiddleware(next http.Handler) http.Handler {
 		defer a.ActiveConns.Add(-1)
 
 		if reason := a.foreignRequest(r); reason != "" {
-			a.log(logServer).errf("refused %s %s from %s, Host %q: %s",
+			a.log(logx.Server).Errf("refused %s %s from %s, Host %q: %s",
 				r.Method, r.URL.Path, r.RemoteAddr, r.Host, reason)
 			http.Error(w, "Forbidden: "+reason, http.StatusForbidden)
 			return

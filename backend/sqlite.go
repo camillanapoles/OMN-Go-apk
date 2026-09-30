@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	_ "modernc.org/sqlite" // pure-Go driver, works with CGO_ENABLED=0 on all targets
+	"net.basov.omngo/backend/internal/logx"
 )
 
 // ----------------------------------------------------------------------
@@ -67,7 +68,7 @@ func (a *App) openUserDB(name string) (*sql.DB, error) {
 	if reopened, err := a.bootstrapIfMissing(name); err != nil {
 		// A failed bootstrap must not stop the database. The note script then
 		// sees an empty database. The backup file stays for a manual restore.
-		a.log(logDBBootstrap).errf("%s: %v", name, err)
+		a.log(logx.DBBootstrap).Errf("%s: %v", name, err)
 	} else if reopened != nil {
 		// The bootstrap replaced the file and evicted the handle above. Give
 		// out the new handle.
@@ -171,7 +172,7 @@ func (a *App) evictUserDB(name string) {
 	a.sqlMu.Unlock()
 	if ok {
 		if err := db.Close(); err != nil {
-			a.log(logDB).errf("close evicted handle for %q: %v", name, err)
+			a.log(logx.DB).Errf("close evicted handle for %q: %v", name, err)
 		}
 	}
 }
@@ -206,7 +207,7 @@ func (a *App) runSQLBatchWithRetry(dbName string, statements []sqlStatement) ([]
 		tx, err := db.Begin()
 		if err != nil {
 			if attempt == 1 && isStaleDBHandleError(err) {
-				a.log(logDB).infof("%s: stale handle on begin, reopening and retrying: %v", dbName, err)
+				a.log(logx.DB).Infof("%s: stale handle on begin, reopening and retrying: %v", dbName, err)
 				a.evictUserDB(dbName)
 				lastErr = err
 				continue
@@ -231,7 +232,7 @@ func (a *App) runSQLBatchWithRetry(dbName string, statements []sqlStatement) ([]
 		if stmtErr != nil {
 			tx.Rollback()
 			if attempt == 1 && isStaleDBHandleError(stmtErr) {
-				a.log(logDB).infof("%s: stale handle on statement #%d, reopening and retrying: %v", dbName, *failedIdx, stmtErr)
+				a.log(logx.DB).Infof("%s: stale handle on statement #%d, reopening and retrying: %v", dbName, *failedIdx, stmtErr)
 				a.evictUserDB(dbName)
 				lastErr = stmtErr
 				continue
@@ -241,7 +242,7 @@ func (a *App) runSQLBatchWithRetry(dbName string, statements []sqlStatement) ([]
 
 		if err := tx.Commit(); err != nil {
 			if attempt == 1 && isStaleDBHandleError(err) {
-				a.log(logDB).infof("%s: stale handle on commit, reopening and retrying: %v", dbName, err)
+				a.log(logx.DB).Infof("%s: stale handle on commit, reopening and retrying: %v", dbName, err)
 				a.evictUserDB(dbName)
 				lastErr = err
 				continue

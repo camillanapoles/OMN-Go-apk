@@ -3,6 +3,8 @@ package backend
 import (
 	"fmt"
 	"net/http"
+
+	"net.basov.omngo/backend/internal/logx"
 )
 
 func (a *App) HandleLogsSSE(w http.ResponseWriter, r *http.Request) {
@@ -10,8 +12,8 @@ func (a *App) HandleLogsSSE(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	ch := a.logs.subscribe()
-	defer a.logs.unsubscribe(ch)
+	ch := a.logs.Subscribe()
+	defer a.logs.Unsubscribe(ch)
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -41,18 +43,18 @@ func (a *App) serveLogsPage(w http.ResponseWriter, r *http.Request) {
 	a.renderPage(w, http.StatusOK, "Log", pageHeader("Log", "System"), logsPageTmpl)
 }
 
-// handleLogHistory answers the ring of the last logHistoryCap lines, oldest
+// handleLogHistory answers the ring of the last logx.HistoryCap lines, oldest
 // first. It is a separate endpoint, because a replay on /api/logs breaks the
-// sync overlay. See the ring banner in logger.go.
+// sync overlay. See the ring banner in internal/logx/hub.go.
 //
 // IT IS ADMIN ONLY, and so is /api/logs. A remote caller reads no log line. See
 // doc/decisions/0013-send-each-log-line-to-three-places-and-to-the-admin-only.md.
 // The answer follows section 1.4 of doc/API.md: JSON with a status word.
 func (a *App) handleLogHistory(w http.ResponseWriter, r *http.Request) {
-	lines := a.logs.snapshot()
+	lines := a.logs.Snapshot()
 	a.writeJSON(w, http.StatusOK, map[string]any{
 		"status": "success",
-		"cap":    logHistoryCap,
+		"cap":    logx.HistoryCap,
 		"lines":  lines,
 	})
 }

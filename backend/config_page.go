@@ -3,6 +3,8 @@ package backend
 import (
 	"fmt"
 	"strings"
+
+	"net.basov.omngo/backend/internal/logx"
 )
 
 // --- The Config page ---
@@ -49,37 +51,37 @@ type configPageView struct {
 }
 
 // logTagLabels gives the text beside each log tag checkbox. A tag with no
-// entry shows its own name. allLogTags is the authority for the tag set.
-var logTagLabels = map[logTag]string{
-	log404:         "Requests for a page that does not exist",
-	logAssets:      "Bundled asset refresh at startup",
-	logConfig:      "Reading and writing config.json",
-	logDB:          "SQLite handles behind /api/sql",
-	logDBBackup:    "Database backup and pruning",
-	logDBBootstrap: "First-run restore on a new device",
-	logDBRestore:   "Database restore from a backup",
-	logEdit:        "The external editor",
-	logExchange:    "Note import and export",
-	logNoteFiles:   "Files carried between md/ and html/",
-	logPage:        "Reading and writing a note",
-	logPrecompile:  "Compiling notes to HTML",
-	logRestart:     "Restarting the server process",
-	logSearch:      "The global search index",
-	logServer:      "Startup, the listener and crashes",
-	logSession:     "The login and the session key",
-	logStatus:      "The Status page",
-	logStorage:     "The storage directory",
-	logSync:        "Git sync, the loudest subsystem",
-	logTags:        "The tags index",
-	logTemplates:   "The embedded page templates",
-	logUpload:      "File uploads",
+// entry shows its own name. logx.AllTags is the authority for the tag set.
+var logTagLabels = map[logx.Tag]string{
+	logx.NotFound:    "Requests for a page that does not exist",
+	logx.Assets:      "Bundled asset refresh at startup",
+	logx.Config:      "Reading and writing config.json",
+	logx.DB:          "SQLite handles behind /api/sql",
+	logx.DBBackup:    "Database backup and pruning",
+	logx.DBBootstrap: "First-run restore on a new device",
+	logx.DBRestore:   "Database restore from a backup",
+	logx.Edit:        "The external editor",
+	logx.Exchange:    "Note import and export",
+	logx.NoteFiles:   "Files carried between md/ and html/",
+	logx.Page:        "Reading and writing a note",
+	logx.Precompile:  "Compiling notes to HTML",
+	logx.Restart:     "Restarting the server process",
+	logx.Search:      "The global search index",
+	logx.Server:      "Startup, the listener and crashes",
+	logx.Session:     "The login and the session key",
+	logx.Status:      "The Status page",
+	logx.Storage:     "The storage directory",
+	logx.Sync:        "Git sync, the loudest subsystem",
+	logx.Tags:        "The tags index",
+	logx.Templates:   "The embedded page templates",
+	logx.Upload:      "File uploads",
 }
 
-// renderLogTagBoxes makes one checkbox for each tag in allLogTags. A new tag
-// thus needs one line in log_levels.go and nothing else.
+// renderLogTagBoxes makes one checkbox for each tag in logx.AllTags. A new tag
+// thus needs one line in internal/logx/levels.go and nothing else.
 func renderLogTagBoxes(checked map[string]string) string {
 	var b strings.Builder
-	for _, tag := range allLogTags {
+	for _, tag := range logx.AllTags {
 		label, ok := logTagLabels[tag]
 		if !ok {
 			label = string(tag)

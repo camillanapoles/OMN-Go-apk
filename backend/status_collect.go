@@ -17,6 +17,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/cache"
 	"github.com/go-git/go-git/v5/storage/filesystem"
+	"net.basov.omngo/backend/internal/logx"
 )
 
 // ----------------------------------------------------------------------
@@ -177,7 +178,7 @@ func (a *App) statusGitDirtySection() (*statusGitDirty, error) {
 		return nil, fmt.Errorf("open worktree: %v", err)
 	}
 
-	a.log(logStatus).debugf("Reading the git worktree state")
+	a.log(logx.Status).Debugf("Reading the git worktree state")
 	started := time.Now()
 	st, err := wTree.Status()
 	if err != nil {
@@ -195,7 +196,7 @@ func (a *App) statusGitDirtySection() (*statusGitDirty, error) {
 		}
 	}
 	out.Dirty = out.Changed > 0
-	a.log(logStatus).infof("Worktree read in %s: %d changed, %d untracked",
+	a.log(logx.Status).Infof("Worktree read in %s: %d changed, %d untracked",
 		time.Since(started).Round(time.Millisecond), out.Changed, out.Untracked)
 	return out, nil
 }

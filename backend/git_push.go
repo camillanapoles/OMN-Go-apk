@@ -11,6 +11,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"github.com/go-git/go-git/v5/plumbing/transport"
+	"net.basov.omngo/backend/internal/logx"
 )
 
 // syncPush is the action push, or push_force when force is true. It always
@@ -60,7 +61,7 @@ func (a *App) syncPush(repo *git.Repository, wTree *git.Worktree, auth transport
 		}
 	}
 
-	a.log(logSync).infof("Pushing to %s master (force=%v)", remoteName, force)
+	a.log(logx.Sync).Infof("Pushing to %s master (force=%v)", remoteName, force)
 	err = repo.Push(&git.PushOptions{
 		RemoteName: remoteName,
 		Auth:       auth,
@@ -69,12 +70,12 @@ func (a *App) syncPush(repo *git.Repository, wTree *git.Worktree, auth transport
 		Progress:   &syncProgressWriter{app: a},
 	})
 	if err == git.NoErrAlreadyUpToDate {
-		a.log(logSync).infof("push: remote %s already up to date", remoteName)
+		a.log(logx.Sync).Infof("push: remote %s already up to date", remoteName)
 		return nil
 	}
 	if err != nil {
 		if !force && isNonFastForward(err) {
-			a.log(logSync).errf("push: rejected as non-fast-forward, leaving local state untouched")
+			a.log(logx.Sync).Errf("push: rejected as non-fast-forward, leaving local state untouched")
 			return ErrPushConflict
 		}
 		return fmt.Errorf("push failed: %w", err)
@@ -136,18 +137,18 @@ func (a *App) aheadOfRemote(repo *git.Repository, remoteName string, auth transp
 	head, err := repo.Head()
 	if err != nil {
 		// With no commit, nothing waits for a push.
-		a.log(logSync).debugf("preview: no local HEAD (%v)", err)
+		a.log(logx.Sync).Debugf("preview: no local HEAD (%v)", err)
 		return out
 	}
 
 	trackRef, tErr := repo.Reference(plumbing.NewRemoteReferenceName(remoteName, "master"), true)
 	if tErr != nil {
-		a.log(logSync).debugf("preview: %s has no known master yet - treating local HEAD as unpushed", remoteName)
+		a.log(logx.Sync).Debugf("preview: %s has no known master yet - treating local HEAD as unpushed", remoteName)
 		out.Unpushed = true
 		return out
 	}
 	if trackRef.Hash() != head.Hash() {
-		a.log(logSync).debugf("preview: local HEAD %s differs from %s/master %s",
+		a.log(logx.Sync).Debugf("preview: local HEAD %s differs from %s/master %s",
 			head.Hash().String()[:7], remoteName, trackRef.Hash().String()[:7])
 		out.Unpushed = true
 		return out
@@ -164,7 +165,7 @@ func (a *App) aheadOfRemote(repo *git.Repository, remoteName string, auth transp
 	if lErr != nil {
 		// The remote cannot answer. Report that, and claim no check. A push
 		// would fail with the same error.
-		a.log(logSync).errf("preview: could not list %s: %v", remoteName, lErr)
+		a.log(logx.Sync).Errf("preview: could not list %s: %v", remoteName, lErr)
 		out.Error = lErr.Error()
 		return out
 	}
@@ -174,14 +175,14 @@ func (a *App) aheadOfRemote(repo *git.Repository, remoteName string, auth transp
 		if ref.Name() == plumbing.Master {
 			out.Unpushed = ref.Hash() != head.Hash()
 			if out.Unpushed {
-				a.log(logSync).debugf("preview: %s/master is at %s, local HEAD is %s",
+				a.log(logx.Sync).Debugf("preview: %s/master is at %s, local HEAD is %s",
 					remoteName, ref.Hash().String()[:7], head.Hash().String()[:7])
 			}
 			return out
 		}
 	}
 	// The remote has no master branch. The first push makes it.
-	a.log(logSync).debugf("preview: %s has no master branch yet", remoteName)
+	a.log(logx.Sync).Debugf("preview: %s has no master branch yet", remoteName)
 	out.Unpushed = true
 	return out
 }
