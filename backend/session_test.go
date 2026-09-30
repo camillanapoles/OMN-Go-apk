@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"net.basov.omngo/backend/internal/config"
 )
 
 // sessionReq builds a request that arrives from the network and not from
@@ -260,7 +262,7 @@ func TestCookieSurvivesARestart(t *testing.T) {
 // wrong one.
 func TestLoginWritesTheTwoCookies(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) {
+	a.config.Update(func(c *config.Config) {
 		c.AdminPassword = "the-admin-password"
 	})
 
@@ -317,7 +319,7 @@ func TestLoginWritesTheTwoCookies(t *testing.T) {
 // value as a match for an empty submission.
 func TestEmptyPasswordGrantsNothing(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) {
+	a.config.Update(func(c *config.Config) {
 		c.AdminPassword = ""
 	})
 	for _, password := range []string{"", "anything"} {

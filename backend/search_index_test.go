@@ -21,6 +21,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"net.basov.omngo/backend/internal/config"
 )
 
 func enabledSearchApp(t *testing.T, kinds ...string) *App {
@@ -28,9 +30,9 @@ func enabledSearchApp(t *testing.T, kinds ...string) *App {
 	a := newTestApp(t)
 	a.search = &searchIndex{}
 	if len(kinds) == 0 {
-		kinds = []string{SearchKindMD, SearchKindBookmarks}
+		kinds = []string{config.SearchKindMD, config.SearchKindBookmarks}
 	}
-	a.config.update(func(c *Config) {
+	a.config.Update(func(c *config.Config) {
 		c.SearchEnabled = true
 		c.SearchKinds = kinds
 	})
@@ -65,7 +67,7 @@ func TestIndexRespectsConfiguredKinds(t *testing.T) {
 	}
 
 	// Opting scripts in brings them, and nothing else.
-	a.config.update(func(c *Config) { c.SearchKinds = []string{SearchKindMD, SearchKindJS} })
+	a.config.Update(func(c *config.Config) { c.SearchKinds = []string{config.SearchKindMD, config.SearchKindJS} })
 	a.rebuildSearchIndex()
 	got := indexedPaths(a)
 	if len(got) != 2 || !containsPath(got, "html/js/mine.js") {
@@ -73,8 +75,8 @@ func TestIndexRespectsConfiguredKinds(t *testing.T) {
 	}
 
 	// Unticking everything indexes nothing - and must not fall back to the
-	// default (see normalizeSearchKinds).
-	a.config.update(func(c *Config) { c.SearchKinds = []string{} })
+	// default (see config.NormalizeSearchKinds).
+	a.config.Update(func(c *config.Config) { c.SearchKinds = []string{} })
 	a.rebuildSearchIndex()
 	if got := indexedPaths(a); len(got) != 0 {
 		t.Errorf("no kinds selected, but indexed %v", got)
@@ -82,7 +84,7 @@ func TestIndexRespectsConfiguredKinds(t *testing.T) {
 }
 
 func TestIndexExclusions(t *testing.T) {
-	a := enabledSearchApp(t, SearchKindMD, SearchKindJS)
+	a := enabledSearchApp(t, config.SearchKindMD, config.SearchKindJS)
 	writeSearchNote(t, a, "Keep.md", "Title: Keep\n\nkeep me\n")
 	writeSearchNote(t, a, "OMNGoTags.md", "Title: Tags\n\ngenerated from the notes\n")
 	writeSearchNote(t, a, "local/Scratch.md", "Title: Scratch\n\ngitignored scratch\n")
@@ -110,7 +112,7 @@ func TestIndexExclusions(t *testing.T) {
 	}
 
 	// The opt-in brings the app's own code, which is the whole point of it.
-	a.config.update(func(c *Config) { c.SearchBundled = true })
+	a.config.Update(func(c *config.Config) { c.SearchBundled = true })
 	a.rebuildSearchIndex()
 	if got := indexedPaths(a); !containsPath(got, "html/js/OMN-Go/omn-go-core.js") {
 		t.Errorf("SearchBundled did not include the shipped scripts: %v", got)
@@ -127,15 +129,15 @@ func TestIndexBookmarksAreTheirOwnKind(t *testing.T) {
 	for _, d := range a.snapshotDocs() {
 		kinds[d.Path] = d.Kind
 	}
-	if kinds["md/Bookmarks.md"] != SearchKindBookmarks {
+	if kinds["md/Bookmarks.md"] != config.SearchKindBookmarks {
 		t.Errorf("Bookmarks.md indexed as %q, want the bookmarks kind", kinds["md/Bookmarks.md"])
 	}
-	if kinds["md/Note.md"] != SearchKindMD {
+	if kinds["md/Note.md"] != config.SearchKindMD {
 		t.Errorf("a note indexed as %q", kinds["md/Note.md"])
 	}
 
 	// Turning notes off leaves bookmarks, and vice versa.
-	a.config.update(func(c *Config) { c.SearchKinds = []string{SearchKindBookmarks} })
+	a.config.Update(func(c *config.Config) { c.SearchKinds = []string{config.SearchKindBookmarks} })
 	a.rebuildSearchIndex()
 	if got := indexedPaths(a); strings.Join(got, ",") != "md/Bookmarks.md" {
 		t.Errorf("bookmarks only: %v", got)
@@ -480,7 +482,7 @@ func TestIndexRebuildsWhenSettingsChange(t *testing.T) {
 
 	// Changing WHAT is covered is not a staleness question - no file changed,
 	// but the answer must change anyway.
-	a.config.update(func(c *Config) { c.SearchKinds = []string{SearchKindMD, SearchKindJS} })
+	a.config.Update(func(c *config.Config) { c.SearchKinds = []string{config.SearchKindMD, config.SearchKindJS} })
 	if _, resp := searchReq(t, a, url.Values{"q": {"needle"}, "scope": {"all"}}); resp.Total != 2 {
 		t.Errorf("after enabling scripts: total %d, want 2", resp.Total)
 	}
@@ -492,7 +494,7 @@ func TestIndexRebuildsWhenSettingsChange(t *testing.T) {
 
 func TestSearchToggleReleasesAndRebuilds(t *testing.T) {
 	a := enabledSearchApp(t)
-	a.config.update(func(c *Config) { c.GitServers = make([]GitServerConfig, maxGitServers) })
+	a.config.Update(func(c *config.Config) { c.GitServers = make([]config.GitServer, config.MaxGitServers) })
 	writeSearchNote(t, a, "Note.md", "Title: A Note\n\nneedle\n")
 	a.rebuildSearchIndex()
 
@@ -530,7 +532,7 @@ func TestSearchIndexStatusLine(t *testing.T) {
 		t.Errorf("status with search off = %q", got)
 	}
 
-	a.config.update(func(c *Config) { c.SearchEnabled = true; c.SearchKinds = []string{SearchKindMD} })
+	a.config.Update(func(c *config.Config) { c.SearchEnabled = true; c.SearchKinds = []string{config.SearchKindMD} })
 	if got := a.searchIndexStatus(); !strings.Contains(got, "Not built") {
 		t.Errorf("status before the first build = %q", got)
 	}

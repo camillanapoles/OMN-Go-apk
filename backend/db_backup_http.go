@@ -116,7 +116,7 @@ func (a *App) handleDBBackupList(w http.ResponseWriter, r *http.Request) {
 	}
 	sort.Strings(sorted)
 
-	depth := a.config.get().BackupPruneDepth
+	depth := a.config.Get().BackupPruneDepth
 	if depth <= 0 {
 		depth = 3
 	}
@@ -193,7 +193,7 @@ func (a *App) handleDBBackupList(w http.ResponseWriter, r *http.Request) {
 
 	a.writeJSON(w, http.StatusOK, map[string]interface{}{
 		"status":      "success",
-		"hostname":    a.config.get().Hostname,
+		"hostname":    a.config.Get().Hostname,
 		"prune_depth": depth,
 		"databases":   dbs,
 	})

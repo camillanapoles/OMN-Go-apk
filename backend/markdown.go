@@ -197,9 +197,9 @@ func (a *App) rewriteInternalLink(href string) string {
 		return href
 	}
 
-	// hasKnownAssetExtension in content_types.go is the one authority here. It
-	// reads the LAST extension, thus "Report.2026" becomes "Report.2026.html"
-	// and "draft.txt" stays.
+	// config.HasKnownAssetExtension in internal/config/content_types.go is the one
+	// authority here. It reads the LAST extension, thus "Report.2026" becomes
+	// "Report.2026.html" and "draft.txt" stays.
 	switch {
 	case strings.HasSuffix(base, ".md"):
 		base = strings.TrimSuffix(base, ".md") + ".html"
@@ -330,7 +330,7 @@ func (a *App) ensureHeaderModified(content string, defaultTitle string) string {
 	}
 
 	authorLine := ""
-	if author := a.config.get().Author; author != "" {
+	if author := a.config.Get().Author; author != "" {
 		authorLine = fmt.Sprintf("\nAuthor: %s", author)
 	}
 	return fmt.Sprintf("Title: %s\nDate: %s\nModified: %s%s\n\n%s", defaultTitle, now, now, authorLine, content)

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/noteheader"
 	"net.basov.omngo/backend/internal/textmatch"
 )
@@ -85,7 +86,7 @@ func (a *App) loadPageDocument(name string) (*searchDocument, error) {
 func newMarkdownDocument(baseName, content string, truncated bool) *searchDocument {
 	doc := &searchDocument{
 		Path:      "md/" + baseName + ".md",
-		Kind:      SearchKindMD,
+		Kind:      config.SearchKindMD,
 		Name:      baseName,
 		URL:       "/" + baseName + ".html",
 		truncated: truncated,
@@ -93,7 +94,7 @@ func newMarkdownDocument(baseName, content string, truncated bool) *searchDocume
 	// Page search and the index must agree that Bookmarks.html is a bookmarks
 	// document, thus the decision is here.
 	if baseName == bookmarksNote {
-		doc.Kind = SearchKindBookmarks
+		doc.Kind = config.SearchKindBookmarks
 	}
 	doc.parseMarkdown(content)
 	return doc
@@ -152,7 +153,7 @@ func (d *searchDocument) parseMarkdown(content string) {
 	// The body line numbers continue after the header.
 	firstBodyLine := 1 + strings.Count(content[:hb.BodyOffset], "\n")
 
-	if d.Kind == SearchKindBookmarks {
+	if d.Kind == config.SearchKindBookmarks {
 		d.addBookmarks(hb.Body, firstBodyLine)
 		return
 	}

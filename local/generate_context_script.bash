@@ -31,7 +31,7 @@ FILES=(
     "go.mod"
     "main_desktop.go"
     "backend/server.go"
-    "backend/config.go"
+    "backend/internal/config/config.go"
     "backend/handlers.go"
     "backend/markdown.go"
     "backend/middleware.go"

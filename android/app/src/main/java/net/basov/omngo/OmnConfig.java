@@ -37,17 +37,17 @@ import java.util.Map;
 // damaged file and a value of the wrong type each give the default. The
 // Android layer has no place to show a fault about the configuration, and
 // a default that matches the Go side is the right answer. Each default
-// below names the line of backend/config.go that it mirrors.
+// below names the line of backend/internal/config/config.go that it mirrors.
 final class OmnConfig {
 
     // The three fullscreen modes. They mirror the constants of
-    // normalizeFullscreen in backend/config.go.
+    // config.NormalizeFullscreen in backend/internal/config/config.go.
     static final String FULLSCREEN_OFF = "off";
     static final String FULLSCREEN_ON = "fullscreen";
     static final String FULLSCREEN_IMMERSIVE = "immersive";
 
-    // The default upload cap. It mirrors defaultMaxUploadSizeMB in
-    // backend/config.go. TestUploadLimitHasAJavaCopy in
+    // The default upload cap. It mirrors config.DefaultMaxUploadSizeMB in
+    // backend/internal/config/config.go. TestUploadLimitHasAJavaCopy in
     // backend/ports_test.go compares the two.
     static final int DEFAULT_MAX_UPLOAD_MB = 3;
 
@@ -105,11 +105,11 @@ final class OmnConfig {
 
     // fullscreenMode answers one of the three modes above.
     //
-    // A value that this build does not know becomes FULLSCREEN_ON. That
-    // mirrors normalizeFullscreen in backend/config.go, and it keeps the
-    // behavior that each install had before the setting existed. A change
-    // of this default without the same change there makes the Config page
-    // disagree with the window.
+    // A value that this build does not know becomes FULLSCREEN_ON. That mirrors
+    // config.NormalizeFullscreen in backend/internal/config/config.go, and it
+    // keeps the behavior that each install had before the setting existed. A
+    // change of this default without the same change there makes the Config
+    // page disagree with the window.
     static String fullscreenMode(String storageDir) {
         String mode = string(storageDir, "android_fullscreen");
         if (FULLSCREEN_OFF.equals(mode) || FULLSCREEN_IMMERSIVE.equals(mode)) {

@@ -11,6 +11,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"net.basov.omngo/backend/internal/config"
 )
 
 // Tests for git_repo.go and git_commit.go: the ignore rules, the staging,
@@ -444,8 +445,8 @@ func TestRemoteLogLinesHideThePassword(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg := a.config.get()
-	cfg.GitServers = []GitServerConfig{{Name: "home", URL: "https://ann:FIRST-SECRET@example.com/n.git"}}
+	cfg := a.config.Get()
+	cfg.GitServers = []config.GitServer{{Name: "home", URL: "https://ann:FIRST-SECRET@example.com/n.git"}}
 	if _, err := a.ensureSlotRemotes(repo, cfg); err != nil {
 		t.Fatal(err)
 	}

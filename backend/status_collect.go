@@ -17,6 +17,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/cache"
 	"github.com/go-git/go-git/v5/storage/filesystem"
+	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
 )
 
@@ -24,7 +25,7 @@ import (
 // The sections
 // ----------------------------------------------------------------------
 
-func (a *App) statusServerSection(cfg Config) *statusServer {
+func (a *App) statusServerSection(cfg config.Config) *statusServer {
 	_, portStr, addr := a.boundAddress()
 	port, _ := strconv.Atoi(portStr)
 	if addr == "" {
@@ -32,9 +33,9 @@ func (a *App) statusServerSection(cfg Config) *statusServer {
 		port = cfg.ServerPort
 	}
 
-	hostname := sanitizeHostname(cfg.Hostname)
+	hostname := config.SanitizeHostname(cfg.Hostname)
 	if hostname == "" {
-		hostname = defaultHostname()
+		hostname = config.DefaultHostname()
 	}
 
 	s := &statusServer{
@@ -55,7 +56,7 @@ func (a *App) statusServerSection(cfg Config) *statusServer {
 	return s
 }
 
-func statusConfigSection(cfg Config) *statusConfig {
+func statusConfigSection(cfg config.Config) *statusConfig {
 	kinds := cfg.SearchKinds
 	if kinds == nil {
 		kinds = []string{}
@@ -76,13 +77,13 @@ func statusConfigSection(cfg Config) *statusConfig {
 		Author:            cfg.Author,
 		LogDebug:          cfg.LogDebug,
 		LogInfo:           cfg.LogInfo,
-		LogTags:           normalizeLogTags(cfg.LogTags),
+		LogTags:           config.NormalizeLogTags(cfg.LogTags),
 	}
 }
 
 // statusGitSection reads HEAD and changes nothing. An install that never
 // synced has no .git, and that is an answer, not an error.
-func (a *App) statusGitSection(cfg Config) (*statusGit, error) {
+func (a *App) statusGitSection(cfg config.Config) (*statusGit, error) {
 	out := &statusGit{}
 
 	if idx := cfg.ActiveGitIndex; idx >= 0 && idx < len(cfg.GitServers) {
@@ -133,7 +134,7 @@ func (a *App) statusGitSection(cfg Config) (*statusGit, error) {
 // "gitserver0". "origin" is the fallback remote. See
 // doc/decisions/0012-keep-one-remote-for-each-git-server-slot.md. A detached
 // HEAD has no branch, and no remote-tracking ref.
-func remoteRefCandidates(cfg Config, branch string) []string {
+func remoteRefCandidates(cfg config.Config, branch string) []string {
 	if branch == "" {
 		return nil
 	}
@@ -201,7 +202,7 @@ func (a *App) statusGitDirtySection() (*statusGitDirty, error) {
 	return out, nil
 }
 
-func (a *App) statusSearchSection(cfg Config) *statusSearch {
+func (a *App) statusSearchSection(cfg config.Config) *statusSearch {
 	out := &statusSearch{
 		Enabled: cfg.SearchEnabled,
 		Scope:   cfg.SearchScope,

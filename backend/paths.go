@@ -34,9 +34,9 @@ func containedName(name string) string {
 // or ".txt", is a file under html/. isPage is then false, and mdPath is
 // empty.
 //
-// hasKnownAssetExtension in content_types.go is the one authority for that
-// test: the LAST extension decides, and an unknown extension is a page. Keep the
-// decision here, and do not copy it.
+// config.HasKnownAssetExtension in internal/config/content_types.go is the one
+// authority for that test: the LAST extension decides, and an unknown extension
+// is a page. Keep the decision here, and do not copy it.
 func (a *App) resolvePageName(name string) (mdPath, htmlPath, baseName string, isPage bool) {
 	switch {
 	case strings.HasSuffix(name, ".md"):

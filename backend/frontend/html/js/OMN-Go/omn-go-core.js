@@ -1243,10 +1243,10 @@ document.addEventListener("DOMContentLoaded", () => {
 // that the server resolves with no guess.
 //
 // The server reads the LAST extension of a name (hasKnownAssetExtension in
-// content_types.go). A bare base name is thus ambiguous when it ends in a real
-// file extension. A note named "Draft.txt" sent as "Draft.txt" reads as the
-// file html/Draft.txt, and a save then writes to the wrong tree. The same
-// name sent as "Draft.txt.md" reads as the note, always.
+// internal/config/content_types.go). A bare base name is thus ambiguous when it
+// ends in a real file extension. A note named "Draft.txt" sent as "Draft.txt"
+// reads as the file html/Draft.txt, and a save then writes to the wrong tree.
+// The same name sent as "Draft.txt.md" reads as the note, always.
 //
 // PageName carries the extension already when the page is a file, thus this
 // function adds ".md" only for a markdown page.

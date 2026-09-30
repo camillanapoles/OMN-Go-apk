@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/config"
 )
 
 func TestEscapeHTML(t *testing.T) {
@@ -301,7 +302,7 @@ func TestRenderExternalEditPage(t *testing.T) {
 
 func TestInjectRuntimeVars(t *testing.T) {
 	a := &App{}
-	a.config.update(func(c *Config) { c.UseInternalEd = true })
+	a.config.Update(func(c *config.Config) { c.UseInternalEd = true })
 
 	page := []byte("<head>" + runtimeVarsMarker + "</head>")
 	out := string(a.injectRuntimeVars(page))
@@ -410,19 +411,19 @@ func TestRenderConfigPageFullscreenSelection(t *testing.T) {
 
 func TestNormalizeFullscreen(t *testing.T) {
 	cases := map[string]string{
-		"off":        FullscreenOff,
-		"fullscreen": FullscreenOn,
-		"immersive":  FullscreenImmersive,
+		"off":        config.FullscreenOff,
+		"fullscreen": config.FullscreenOn,
+		"immersive":  config.FullscreenImmersive,
 		// Empty is the important one: it is what a config.json with no
 		// android_fullscreen key gives.
-		"":          FullscreenOn,
-		"sideways":  FullscreenOn,
-		"OFF":       FullscreenOn, // case-sensitive whitelist, as normalizeTheme
-		"Immersive": FullscreenOn,
+		"":          config.FullscreenOn,
+		"sideways":  config.FullscreenOn,
+		"OFF":       config.FullscreenOn, // case-sensitive whitelist, as config.NormalizeTheme
+		"Immersive": config.FullscreenOn,
 	}
 	for in, want := range cases {
-		if got := normalizeFullscreen(in); got != want {
-			t.Errorf("normalizeFullscreen(%q) = %q, want %q", in, got, want)
+		if got := config.NormalizeFullscreen(in); got != want {
+			t.Errorf("config.NormalizeFullscreen(%q) = %q, want %q", in, got, want)
 		}
 	}
 }
@@ -433,7 +434,7 @@ func TestInjectRuntimeVarsTheme(t *testing.T) {
 	// Explicit theme delivered verbatim, and applied to <html> from the
 	// injected head script (before first paint).
 	a := &App{}
-	a.config.update(func(c *Config) { c.Theme = ThemeDark })
+	a.config.Update(func(c *config.Config) { c.Theme = config.ThemeDark })
 	out := string(a.injectRuntimeVars(page))
 	if !strings.Contains(out, `var OMN_THEME = "dark";`) {
 		t.Error("dark theme not injected")
@@ -446,7 +447,7 @@ func TestInjectRuntimeVarsTheme(t *testing.T) {
 	// (belt and braces on top of loadConfig's normalization).
 	for _, raw := range []string{"", "purple"} {
 		b := &App{}
-		b.config.update(func(c *Config) { c.Theme = raw })
+		b.config.Update(func(c *config.Config) { c.Theme = raw })
 		got := string(b.injectRuntimeVars(page))
 		if !strings.Contains(got, `var OMN_THEME = "auto";`) {
 			t.Errorf("theme=%q: expected auto in injection, got:\n%s", raw, got)
@@ -456,16 +457,16 @@ func TestInjectRuntimeVarsTheme(t *testing.T) {
 
 func TestNormalizeTheme(t *testing.T) {
 	cases := map[string]string{
-		"auto":   ThemeAuto,
-		"light":  ThemeLight,
-		"dark":   ThemeDark,
-		"":       ThemeAuto,
-		"purple": ThemeAuto,
-		"DARK":   ThemeAuto, // case-sensitive whitelist by design
+		"auto":   config.ThemeAuto,
+		"light":  config.ThemeLight,
+		"dark":   config.ThemeDark,
+		"":       config.ThemeAuto,
+		"purple": config.ThemeAuto,
+		"DARK":   config.ThemeAuto, // case-sensitive whitelist by design
 	}
 	for in, want := range cases {
-		if got := normalizeTheme(in); got != want {
-			t.Errorf("normalizeTheme(%q) = %q, want %q", in, got, want)
+		if got := config.NormalizeTheme(in); got != want {
+			t.Errorf("config.NormalizeTheme(%q) = %q, want %q", in, got, want)
 		}
 	}
 }

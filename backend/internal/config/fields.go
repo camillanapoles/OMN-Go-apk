@@ -1,4 +1,4 @@
-package backend
+package config
 
 import (
 	"fmt"
@@ -16,25 +16,25 @@ import (
 // setting. Each row tells how a request writes the field, and how the loader
 // repairs an old value.
 //
-// The table drives applyConfigForm (the POST handler), configCheckboxFields
+// The table drives ApplyForm (the POST handler), CheckboxFields
 // (the hidden config_fields input) and normalizeConfig (loadConfig). The page
 // view and the Status page keep their own typed structs, because a reader can
 // follow a struct to the markup or to doc/API.md.
 //
 // The git server slots and active_git_index stay outside the table. They are
 // an array of structs, and 21 rows would read worse than the loop of
-// applyGitServerForm. TestEveryConfigFieldIsInTheTable fails for a Config
+// ApplyGitServerForm. TestEveryConfigFieldIsInTheTable fails for a Config
 // field that has no place.
 
 // configFieldKind tells how a request writes one field. An enumeration is a
 // cfString row with a Normalize function that allows only known values, for
-// example normalizeTheme.
+// example NormalizeTheme.
 type configFieldKind int
 
 const (
 	// cfBool is a checkbox. "true" is on, and each other value is off. A
 	// browser sends nothing for a clear box, thus such a row must be in
-	// configCheckboxFields.
+	// CheckboxFields.
 	cfBool configFieldKind = iota
 
 	// cfInt writes the value only when it parses to a positive number. An
@@ -76,7 +76,7 @@ type configField struct {
 }
 
 // configFields is the table, in the order of the Config page.
-// configCheckboxFields uses that order.
+// CheckboxFields uses that order.
 var configFields = []configField{
 	{
 		Key: "server_port", Kind: cfInt,
@@ -101,11 +101,11 @@ var configFields = []configField{
 		String: func(c *Config) *string { return &c.DesktopExtCmd },
 	},
 	{
-		// This is an enumeration. normalizeTheme changes each value other
+		// This is an enumeration. NormalizeTheme changes each value other
 		// than light or dark to auto.
 		Key: "theme", Kind: cfString,
 		String:    func(c *Config) *string { return &c.Theme },
-		Normalize: func(c *Config) { c.Theme = normalizeTheme(c.Theme) },
+		Normalize: func(c *Config) { c.Theme = NormalizeTheme(c.Theme) },
 	},
 	{
 		// The socket binds one time at the start, thus a change applies at
@@ -117,22 +117,22 @@ var configFields = []configField{
 	{
 		// This is the device label in the name of a database backup file. A
 		// clear box gives the label of the operating system again. See
-		// normalizeHostname.
+		// NormalizeHostname.
 		Key: "hostname", Kind: cfString,
 		String:    func(c *Config) *string { return &c.Hostname },
-		Normalize: func(c *Config) { c.Hostname = normalizeHostname(c.Hostname) },
+		Normalize: func(c *Config) { c.Hostname = NormalizeHostname(c.Hostname) },
 	},
 	{
 		Key: "backup_prune_depth", Kind: cfInt,
 		Int:       func(c *Config) *int { return &c.BackupPruneDepth },
-		Normalize: func(c *Config) { c.BackupPruneDepth = normalizePruneDepth(c.BackupPruneDepth) },
+		Normalize: func(c *Config) { c.BackupPruneDepth = NormalizePruneDepth(c.BackupPruneDepth) },
 	},
 	{
 		Key: "max_upload_size_mb", Kind: cfInt,
 		Int: func(c *Config) *int { return &c.MaxUploadSizeMB },
 		Normalize: func(c *Config) {
 			if c.MaxUploadSizeMB <= 0 {
-				c.MaxUploadSizeMB = defaultMaxUploadSizeMB
+				c.MaxUploadSizeMB = DefaultMaxUploadSizeMB
 			}
 		},
 	},
@@ -151,7 +151,7 @@ var configFields = []configField{
 		// FullscreenOn.
 		Key: "android_fullscreen", Kind: cfString,
 		String:    func(c *Config) *string { return &c.AndroidFullscreen },
-		Normalize: func(c *Config) { c.AndroidFullscreen = normalizeFullscreen(c.AndroidFullscreen) },
+		Normalize: func(c *Config) { c.AndroidFullscreen = NormalizeFullscreen(c.AndroidFullscreen) },
 	},
 	{
 		Key: "search_enabled", Kind: cfBool,
@@ -163,18 +163,18 @@ var configFields = []configField{
 	},
 	{
 		// This is a set of checkboxes. An empty set means "index nothing",
-		// and nil means "no answer recorded". normalizeSearchKinds keeps the
+		// and nil means "no answer recorded". NormalizeSearchKinds keeps the
 		// two apart.
 		Key: "search_kinds", Kind: cfList,
 		List:      func(c *Config) *[]string { return &c.SearchKinds },
-		Normalize: func(c *Config) { c.SearchKinds = normalizeSearchKinds(c.SearchKinds) },
+		Normalize: func(c *Config) { c.SearchKinds = NormalizeSearchKinds(c.SearchKinds) },
 	},
 	{
 		// This is a pair of radio buttons. A browser always sends one of
 		// them, thus this key is not a checkbox key.
 		Key: "search_scope", Kind: cfString,
 		String:    func(c *Config) *string { return &c.SearchScope },
-		Normalize: func(c *Config) { c.SearchScope = normalizeSearchScope(c.SearchScope) },
+		Normalize: func(c *Config) { c.SearchScope = NormalizeSearchScope(c.SearchScope) },
 	},
 	{
 		Key: "log_debug", Kind: cfBool,
@@ -189,17 +189,17 @@ var configFields = []configField{
 		// means "no debug or info line".
 		Key: "log_tags", Kind: cfList,
 		List:      func(c *Config) *[]string { return &c.LogTags },
-		Normalize: func(c *Config) { c.LogTags = normalizeLogTags(c.LogTags) },
+		Normalize: func(c *Config) { c.LogTags = NormalizeLogTags(c.LogTags) },
 	},
 }
 
-// configCheckboxFields answers the keys that the Config page names in its
+// CheckboxFields answers the keys that the Config page names in its
 // hidden config_fields input, joined by commas. A browser sends nothing for a
 // clear checkbox, thus "clear" and "not this form" look the same. The form
 // declares its fields, and each name in the list counts as sent. See
 // configFieldSent in config_handlers.go. The table writes the list, thus a
 // new row needs no change of the markup.
-func configCheckboxFields() string {
+func CheckboxFields() string {
 	var keys []string
 	for _, f := range configFields {
 		if f.Kind == cfBool || f.Kind == cfList {
@@ -219,7 +219,7 @@ func normalizeConfig(c *Config) {
 	}
 }
 
-// applyConfigForm writes each field that the request carries into c. THE
+// ApplyForm writes each field that the request carries into c. THE
 // RULE: a field that the request does not carry stays as it is. sent tells
 // whether the request carries a field, and a name in config_fields counts.
 // See configFieldSent.
@@ -227,7 +227,7 @@ func normalizeConfig(c *Config) {
 // A cfInt row needs no sent test, because a missing or an empty field does
 // not parse to a positive number. Normalize runs after the write, thus a
 // request cannot store a value that loadConfig would refuse.
-func applyConfigForm(c *Config, r *http.Request, sent func(string) bool) {
+func ApplyForm(c *Config, r *http.Request, sent func(string) bool) {
 	for _, f := range configFields {
 		if !applyConfigField(f, c, r, sent) {
 			continue
@@ -278,7 +278,7 @@ func applyConfigField(f configField, c *Config, r *http.Request, sent func(strin
 	return false
 }
 
-// applyGitServerForm writes the git server slots and the active slot. Each
+// ApplyGitServerForm writes the git server slots and the active slot. Each
 // slot is a struct of four fields with an index in its form names, thus the
 // slots stay outside the table.
 //
@@ -286,7 +286,7 @@ func applyConfigField(f configField, c *Config, r *http.Request, sent func(strin
 // carry the SSH key or the key password. A save that changes only the name
 // must thus not replace the real key with an empty one. See
 // doc/decisions/0005-keep-each-secret-out-of-the-config-page.md.
-func applyGitServerForm(c *Config, r *http.Request, sent func(string) bool) {
+func ApplyGitServerForm(c *Config, r *http.Request, sent func(string) bool) {
 	// The active slot is an index, and zero is valid, thus it cannot be a
 	// cfInt row.
 	if idxStr := r.FormValue("active_git_index"); idxStr != "" {
@@ -296,7 +296,7 @@ func applyGitServerForm(c *Config, r *http.Request, sent func(string) bool) {
 			c.ActiveGitIndex = idx
 		}
 	}
-	for i := 0; i < maxGitServers && i < len(c.GitServers); i++ {
+	for i := 0; i < MaxGitServers && i < len(c.GitServers); i++ {
 		if f := fmt.Sprintf("git_name_%d", i); sent(f) {
 			c.GitServers[i].Name = r.FormValue(f)
 		}

@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/config"
 )
 
 // ----------------------------------------------------------------------
@@ -36,9 +37,9 @@ var secretValues = map[string]string{
 func secretsApp(t *testing.T) *App {
 	t.Helper()
 	a := newTestApp(t)
-	a.config.update(func(c *Config) {
+	a.config.Update(func(c *config.Config) {
 		c.AdminPassword = secretValues["admin"]
-		c.GitServers = make([]GitServerConfig, maxGitServers)
+		c.GitServers = make([]config.GitServer, config.MaxGitServers)
 		c.GitServers[0].Name = "primary"
 		c.GitServers[0].URL = "git@host:notes.git"
 		c.GitServers[0].SSHKeyData = secretValues["sshKey"]
@@ -77,7 +78,7 @@ func TestEverySecretBoxIsMarked(t *testing.T) {
 	page := a.getConfigPageBody()
 
 	want := []string{"admin_password"}
-	for i := 0; i < maxGitServers; i++ {
+	for i := 0; i < config.MaxGitServers; i++ {
 		want = append(want, "git_key_"+itoa(i), "git_pass_"+itoa(i))
 	}
 	for _, name := range want {
@@ -107,7 +108,7 @@ func TestConfigPostKeepsAnUnsentGitSecret(t *testing.T) {
 	}
 	postForm(t, a.handleConfigPost, "/api/config", form)
 
-	cfg := a.config.get()
+	cfg := a.config.Get()
 	if cfg.GitServers[0].Name != "renamed" {
 		t.Errorf("the name is %q, want renamed", cfg.GitServers[0].Name)
 	}
@@ -129,7 +130,7 @@ func TestConfigPostClearsASentGitSecret(t *testing.T) {
 		"git_pass_0": {""},
 	})
 
-	cfg := a.config.get()
+	cfg := a.config.Get()
 	if cfg.GitServers[0].SSHKeyData != "" {
 		t.Errorf("a sent and empty git_key_0 did not clear the key: %q", cfg.GitServers[0].SSHKeyData)
 	}
@@ -145,13 +146,13 @@ func TestConfigPostClearsASentGitSecret(t *testing.T) {
 // A new key reaches the slot, and it reaches that slot alone.
 func TestConfigPostWritesANewGitKey(t *testing.T) {
 	a := secretsApp(t)
-	a.config.update(func(c *Config) { c.GitServers[1].SSHKeyData = "SLOT-ONE-KEY" })
+	a.config.Update(func(c *config.Config) { c.GitServers[1].SSHKeyData = "SLOT-ONE-KEY" })
 
 	postForm(t, a.handleConfigPost, "/api/config", url.Values{
 		"git_key_0": {"A-NEW-KEY"},
 	})
 
-	cfg := a.config.get()
+	cfg := a.config.Get()
 	if cfg.GitServers[0].SSHKeyData != "A-NEW-KEY" {
 		t.Errorf("slot 0 holds %q, want the new key", cfg.GitServers[0].SSHKeyData)
 	}
@@ -166,12 +167,12 @@ func TestConfigPostWritesANewGitKey(t *testing.T) {
 func TestConfigPostPasswordFollowsTheSentRule(t *testing.T) {
 	a := secretsApp(t)
 	postForm(t, a.handleConfigPost, "/api/config", url.Values{"author": {"Ann"}})
-	if got := a.config.get().AdminPassword; got != secretValues["admin"] {
+	if got := a.config.Get().AdminPassword; got != secretValues["admin"] {
 		t.Errorf("an omitted admin_password changed to %q", got)
 	}
 
 	postForm(t, a.handleConfigPost, "/api/config", url.Values{"admin_password": {""}})
-	if got := a.config.get().AdminPassword; got != "" {
+	if got := a.config.Get().AdminPassword; got != "" {
 		t.Errorf("a sent and empty admin_password did not clear it: %q", got)
 	}
 }
@@ -235,10 +236,10 @@ func TestOldGuestPasswordIsDropped(t *testing.T) {
 		t.Fatal(err)
 	}
 	a.loadConfig(a.layout().config())
-	if got := a.config.get().AdminPassword; got != "adminpw" {
+	if got := a.config.Get().AdminPassword; got != "adminpw" {
 		t.Fatalf("the admin password is %q after the load, want adminpw", got)
 	}
-	if err := a.persistConfig(a.config.get()); err != nil {
+	if err := a.persistConfig(a.config.Get()); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(path)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
 )
 
@@ -160,38 +161,38 @@ func renderConfigPage(v configPageView) string {
 	}
 
 	searchScopeAllSel, searchScopePageSel := "checked", ""
-	if normalizeSearchScope(v.SearchScope) == SearchScopePage {
+	if config.NormalizeSearchScope(v.SearchScope) == config.SearchScopePage {
 		searchScopeAllSel, searchScopePageSel = "", "checked"
 	}
 
-	// Mark exactly one option as selected. normalizeTheme answers one of the
-	// three values, and auto for an unknown one.
+	// Mark exactly one option as selected. config.NormalizeTheme answers one of
+	// the three values, and auto for an unknown one.
 	themeSel := map[string]string{
 		"THEME_AUTO_SEL":  "",
 		"THEME_LIGHT_SEL": "",
 		"THEME_DARK_SEL":  "",
 	}
-	switch normalizeTheme(v.Theme) {
-	case ThemeLight:
+	switch config.NormalizeTheme(v.Theme) {
+	case config.ThemeLight:
 		themeSel["THEME_LIGHT_SEL"] = "selected"
-	case ThemeDark:
+	case config.ThemeDark:
 		themeSel["THEME_DARK_SEL"] = "selected"
 	default:
 		themeSel["THEME_AUTO_SEL"] = "selected"
 	}
 
-	// Mark exactly one option as selected. normalizeFullscreen answers one of
-	// the three values, and FullscreenOn for an unknown one. config.go tells
-	// why on is the default.
+	// Mark exactly one option as selected. config.NormalizeFullscreen answers one
+	// of the three values, and FullscreenOn for an unknown one.
+	// internal/config/config.go tells why on is the default.
 	fsSel := map[string]string{
 		"FS_OFF_SEL":       "",
 		"FS_ON_SEL":        "",
 		"FS_IMMERSIVE_SEL": "",
 	}
-	switch normalizeFullscreen(v.AndroidFullscreen) {
-	case FullscreenOff:
+	switch config.NormalizeFullscreen(v.AndroidFullscreen) {
+	case config.FullscreenOff:
 		fsSel["FS_OFF_SEL"] = "selected"
-	case FullscreenImmersive:
+	case config.FullscreenImmersive:
 		fsSel["FS_IMMERSIVE_SEL"] = "selected"
 	default:
 		fsSel["FS_ON_SEL"] = "selected"
@@ -200,8 +201,8 @@ func renderConfigPage(v configPageView) string {
 	// Put no ADMIN_PWD here. See gitServerView.
 	return fill(configPageTmpl, map[string]string{
 		// Give the names of the checkboxes of this page, from the table in
-		// config_fields.go. See configCheckboxFields.
-		"CONFIG_FIELDS":          configCheckboxFields(),
+		// internal/config/fields.go. See config.CheckboxFields.
+		"CONFIG_FIELDS":          config.CheckboxFields(),
 		"SERVER_PORT":            fmt.Sprintf("%d", v.ServerPort),
 		"AUTHOR":                 escapeHTML(v.Author),
 		"INTERNAL_ED_CHECKED":    internalEdChecked,
@@ -209,8 +210,8 @@ func renderConfigPage(v configPageView) string {
 		"INTENT_URI_CHECKED":     intentUriChecked,
 		"TERMUX_INTENT_CHECKED":  termuxIntentChecked,
 		"DESKTOP_EXT_CMD":        escapeHTML(v.DesktopExtCmd),
-		"HOSTNAME":               escapeHTML(normalizeHostname(v.Hostname)),
-		"BACKUP_PRUNE_DEPTH":     fmt.Sprintf("%d", normalizePruneDepth(v.PruneDepth)),
+		"HOSTNAME":               escapeHTML(config.NormalizeHostname(v.Hostname)),
+		"BACKUP_PRUNE_DEPTH":     fmt.Sprintf("%d", config.NormalizePruneDepth(v.PruneDepth)),
 		"THEME_AUTO_SEL":         themeSel["THEME_AUTO_SEL"],
 		"THEME_LIGHT_SEL":        themeSel["THEME_LIGHT_SEL"],
 		"THEME_DARK_SEL":         themeSel["THEME_DARK_SEL"],
@@ -220,11 +221,11 @@ func renderConfigPage(v configPageView) string {
 		"FS_IMMERSIVE_SEL":       fsSel["FS_IMMERSIVE_SEL"],
 		"SEARCH_ENABLED_CHECKED": searchEnabledChecked,
 		"SEARCH_BUNDLED_CHECKED": searchBundledChecked,
-		"SEARCH_KIND_MD":         kindChecked[SearchKindMD],
-		"SEARCH_KIND_BOOKMARKS":  kindChecked[SearchKindBookmarks],
-		"SEARCH_KIND_JS":         kindChecked[SearchKindJS],
-		"SEARCH_KIND_JSON":       kindChecked[SearchKindJSON],
-		"SEARCH_KIND_USER_JSON":  kindChecked[SearchKindUserJSON],
+		"SEARCH_KIND_MD":         kindChecked[config.SearchKindMD],
+		"SEARCH_KIND_BOOKMARKS":  kindChecked[config.SearchKindBookmarks],
+		"SEARCH_KIND_JS":         kindChecked[config.SearchKindJS],
+		"SEARCH_KIND_JSON":       kindChecked[config.SearchKindJSON],
+		"SEARCH_KIND_USER_JSON":  kindChecked[config.SearchKindUserJSON],
 		"SEARCH_SCOPE_ALL_SEL":   searchScopeAllSel,
 		"SEARCH_SCOPE_PAGE_SEL":  searchScopePageSel,
 		"SEARCH_INDEX_STATUS":    escapeHTML(v.SearchIndexStatus),

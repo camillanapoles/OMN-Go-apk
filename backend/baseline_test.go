@@ -35,6 +35,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"net.basov.omngo/backend/internal/config"
 )
 
 // ---------------------------------------------------------------------
@@ -148,8 +150,8 @@ func TestBaseline_ServeHTMLPageDispatch(t *testing.T) {
 			t.Error("a request for the search page created an md/ source")
 		}
 
-		a.config.update(func(c *Config) { c.SearchEnabled = true })
-		defer a.config.update(func(c *Config) { c.SearchEnabled = false })
+		a.config.Update(func(c *config.Config) { c.SearchEnabled = true })
+		defer a.config.Update(func(c *config.Config) { c.SearchEnabled = false })
 		if a.search == nil {
 			a.search = &searchIndex{}
 		}
@@ -216,8 +218,8 @@ func TestBaseline_ServeHTMLPageDispatch(t *testing.T) {
 		//
 		// loadConfig sets UseInternalEd to true on a fresh install, thus
 		// the subtest sets false itself and then sets the default again.
-		a.config.update(func(c *Config) { c.UseInternalEd = false })
-		defer a.config.update(func(c *Config) { c.UseInternalEd = true })
+		a.config.Update(func(c *config.Config) { c.UseInternalEd = false })
+		defer a.config.Update(func(c *config.Config) { c.UseInternalEd = true })
 
 		rec := getPage(t, a, "/Note.html?edit=true")
 		if rec.Code != http.StatusSeeOther {
@@ -232,8 +234,8 @@ func TestBaseline_ServeHTMLPageDispatch(t *testing.T) {
 		// The value that loadConfig writes on a fresh install. The set
 		// call stays, because a subtest must not depend on the order of
 		// the subtests above it.
-		a.config.update(func(c *Config) { c.UseInternalEd = true })
-		defer a.config.update(func(c *Config) { c.UseInternalEd = true })
+		a.config.Update(func(c *config.Config) { c.UseInternalEd = true })
+		defer a.config.Update(func(c *config.Config) { c.UseInternalEd = true })
 
 		rec := getPage(t, a, "/Note.html?edit=true")
 		if rec.Code != http.StatusOK {
@@ -688,22 +690,22 @@ func TestBaseline_ViewDoesNotRewriteSource(t *testing.T) {
 // configFormFields is what the Config page's hidden config_fields input
 // carries. A test posts the same declaration that the real form sends.
 //
-// It is not a copy. configCheckboxFields reads the table in
-// config_fields.go, and the page fills the input from the same call. A test
-// therefore cannot drift from the page.
-var configFormFields = configCheckboxFields()
+// It is not a copy. config.CheckboxFields reads the table in
+// internal/config/fields.go, and the page fills the input from the same call. A
+// test therefore cannot drift from the page.
+var configFormFields = config.CheckboxFields()
 
 // assertConfigOnDisk decodes config.json and hands it to check. It is separate
 // from the in-memory assertions, because "saved" in this app means both. A
 // half-applied save is exactly the kind of fault that shows up only on the
 // next restart.
-func assertConfigOnDisk(t *testing.T, a *App, check func(Config)) {
+func assertConfigOnDisk(t *testing.T, a *App, check func(config.Config)) {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join(a.StorageDir, "config.json"))
 	if err != nil {
 		t.Fatalf("config.json not written: %v", err)
 	}
-	var onDisk Config
+	var onDisk config.Config
 	if err := json.Unmarshal(data, &onDisk); err != nil {
 		t.Fatalf("config.json is not valid JSON: %v", err)
 	}
@@ -712,13 +714,13 @@ func assertConfigOnDisk(t *testing.T, a *App, check func(Config)) {
 
 func TestBaseline_ConfigPostSemantics(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) {
+	a.config.Update(func(c *config.Config) {
 		c.Author = "Ann"
 		c.UseInternalEd = true
-		c.Theme = ThemeDark
+		c.Theme = config.ThemeDark
 		c.ServerPort = 9999
 		c.MaxUploadSizeMB = 7
-		c.GitServers = make([]GitServerConfig, maxGitServers)
+		c.GitServers = make([]config.GitServer, config.MaxGitServers)
 	})
 
 	// A form carrying only "theme" changes only the theme.
@@ -726,8 +728,8 @@ func TestBaseline_ConfigPostSemantics(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d, body %s", rec.Code, rec.Body.String())
 	}
-	cfg := a.config.get()
-	if cfg.Theme != ThemeLight {
+	cfg := a.config.Get()
+	if cfg.Theme != config.ThemeLight {
 		t.Errorf("theme = %q, want light", cfg.Theme)
 	}
 	if cfg.Author != "Ann" {
@@ -749,8 +751,8 @@ func TestBaseline_ConfigPostSemantics(t *testing.T) {
 	// Every save lands in config.json too. That is the file that the Android
 	// layer reads natively (MainActivity, ServerService). Memory and disk must
 	// agree at every step, and not eventually.
-	assertConfigOnDisk(t, a, func(onDisk Config) {
-		if onDisk.Theme != ThemeLight {
+	assertConfigOnDisk(t, a, func(onDisk config.Config) {
+		if onDisk.Theme != config.ThemeLight {
 			t.Errorf("config.json theme = %q, want light", onDisk.Theme)
 		}
 		if onDisk.ServerPort != 9999 {
@@ -766,12 +768,12 @@ func TestBaseline_ConfigPostSemantics(t *testing.T) {
 		"server_port":        {"0"},
 		"max_upload_size_mb": {"not-a-number"},
 	})
-	cfg = a.config.get()
+	cfg = a.config.Get()
 	if cfg.ServerPort != 9999 || cfg.MaxUploadSizeMB != 7 {
 		t.Errorf("invalid numerics overwrote good values: port=%d mb=%d", cfg.ServerPort, cfg.MaxUploadSizeMB)
 	}
 	// ... and that POST, carrying no theme, left the theme alone.
-	if got := a.config.get().Theme; got != ThemeLight {
+	if got := a.config.Get().Theme; got != config.ThemeLight {
 		t.Errorf("theme after a POST that omitted it = %q, want light kept", got)
 	}
 
@@ -779,7 +781,7 @@ func TestBaseline_ConfigPostSemantics(t *testing.T) {
 	// page clears a text box when it sends that box empty. That must keep
 	// working now that absence means something else.
 	postForm(t, a.handleConfigPost, "/api/config", url.Values{"author": {""}})
-	if got := a.config.get().Author; got != "" {
+	if got := a.config.Get().Author; got != "" {
 		t.Errorf("a sent-but-empty field did not clear: author = %q", got)
 	}
 
@@ -804,7 +806,7 @@ func TestBaseline_ConfigPostSemantics(t *testing.T) {
 // That default then renamed every database backup that the device wrote next.
 func TestConfigPost_PartialRequestKeepsTheRest(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) {
+	a.config.Update(func(c *config.Config) {
 		c.Author = "Ann"
 		c.AdminPassword = "adminpw"
 		c.DesktopExtCmd = "vim %s"
@@ -814,12 +816,12 @@ func TestConfigPost_PartialRequestKeepsTheRest(t *testing.T) {
 		c.EnableTermuxIntent = true
 		c.SearchEnabled = true
 		c.SearchBundled = true
-		c.SearchScope = SearchScopeAll
-		c.SearchKinds = []string{SearchKindMD, SearchKindJS}
-		c.AndroidFullscreen = FullscreenImmersive
+		c.SearchScope = config.SearchScopeAll
+		c.SearchKinds = []string{config.SearchKindMD, config.SearchKindJS}
+		c.AndroidFullscreen = config.FullscreenImmersive
 		c.Hostname = "pixel7"
 		c.BackupPruneDepth = 5
-		c.GitServers = make([]GitServerConfig, maxGitServers)
+		c.GitServers = make([]config.GitServer, config.MaxGitServers)
 	})
 
 	// Exactly what the Theme Customizer note sends.
@@ -829,13 +831,13 @@ func TestConfigPost_PartialRequestKeepsTheRest(t *testing.T) {
 		"custom_theme_accent": {"#4488ff"},
 	})
 
-	cfg := a.config.get()
+	cfg := a.config.Get()
 	for _, f := range []struct{ name, got, want string }{
 		{"author", cfg.Author, "Ann"},
 		{"admin_password", cfg.AdminPassword, "adminpw"},
 		{"desktop_ext_cmd", cfg.DesktopExtCmd, "vim %s"},
-		{"android_fullscreen", cfg.AndroidFullscreen, FullscreenImmersive},
-		{"search_scope", cfg.SearchScope, SearchScopeAll},
+		{"android_fullscreen", cfg.AndroidFullscreen, config.FullscreenImmersive},
+		{"search_scope", cfg.SearchScope, config.SearchScopeAll},
 		{"hostname", cfg.Hostname, "pixel7"},
 	} {
 		if f.got != f.want {
@@ -865,7 +867,7 @@ func TestConfigPost_PartialRequestKeepsTheRest(t *testing.T) {
 	}
 	// "custom" is not a theme this build knows, so it lands on auto. A
 	// coercion, and no longer a loss.
-	if cfg.Theme != ThemeAuto {
+	if cfg.Theme != config.ThemeAuto {
 		t.Errorf("theme = %q, want auto", cfg.Theme)
 	}
 }
@@ -875,15 +877,15 @@ func TestConfigPost_PartialRequestKeepsTheRest(t *testing.T) {
 // server cannot tell "unticked" from "not mine to touch".
 func TestConfigPost_DeclaredCheckboxesStillClear(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) {
+	a.config.Update(func(c *config.Config) {
 		c.UseInternalEd = true
 		c.ShareLAN = true
 		c.EnableIntentURI = true
 		c.EnableTermuxIntent = true
 		c.SearchEnabled = true
 		c.SearchBundled = true
-		c.SearchKinds = []string{SearchKindMD}
-		c.GitServers = make([]GitServerConfig, maxGitServers)
+		c.SearchKinds = []string{config.SearchKindMD}
+		c.GitServers = make([]config.GitServer, config.MaxGitServers)
 	})
 
 	postForm(t, a.handleConfigPost, "/api/config", url.Values{
@@ -891,7 +893,7 @@ func TestConfigPost_DeclaredCheckboxesStillClear(t *testing.T) {
 		"theme":         {"light"},
 	})
 
-	cfg := a.config.get()
+	cfg := a.config.Get()
 	if cfg.UseInternalEd || cfg.ShareLAN || cfg.EnableIntentURI ||
 		cfg.EnableTermuxIntent || cfg.SearchEnabled || cfg.SearchBundled {
 		t.Errorf("a declared but unticked checkbox did not clear: %+v", cfg)
@@ -905,9 +907,9 @@ func TestConfigPost_DeclaredCheckboxesStillClear(t *testing.T) {
 
 	// A caller with no form behind it can do the same thing one field at a
 	// time, by value, without declaring anything.
-	a.config.update(func(c *Config) { c.SearchEnabled = true; c.ShareLAN = true })
+	a.config.Update(func(c *config.Config) { c.SearchEnabled = true; c.ShareLAN = true })
 	postForm(t, a.handleConfigPost, "/api/config", url.Values{"search_enabled": {"false"}})
-	cfg = a.config.get()
+	cfg = a.config.Get()
 	if cfg.SearchEnabled {
 		t.Error("search_enabled=false did not clear it")
 	}
@@ -922,7 +924,7 @@ func TestConfigPost_DeclaredCheckboxesStillClear(t *testing.T) {
 // absence as "not my business" and keeps the old value.
 //
 // THE TEST READS THE RENDERED PAGE. The page fills the attribute from
-// configCheckboxFields. This test therefore proves the whole path. It
+// config.CheckboxFields. This test therefore proves the whole path. It
 // reads the table, the fill, and the markup that the browser gets.
 func TestConfigPost_EveryCheckboxIsDeclared(t *testing.T) {
 	// The template must hold the placeholder and no list of its own. A
@@ -975,12 +977,12 @@ func TestConfigPost_EveryCheckboxIsDeclared(t *testing.T) {
 // from the absent field of the test above.
 func TestConfigPost_HostnameClearedFallsBack(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) {
+	a.config.Update(func(c *config.Config) {
 		c.Hostname = "pixel7"
-		c.GitServers = make([]GitServerConfig, maxGitServers)
+		c.GitServers = make([]config.GitServer, config.MaxGitServers)
 	})
 	postForm(t, a.handleConfigPost, "/api/config", url.Values{"hostname": {""}})
-	if got := a.config.get().Hostname; got == "" || got == "pixel7" {
+	if got := a.config.Get().Hostname; got == "" || got == "pixel7" {
 		t.Errorf("hostname = %q, want the OS-derived default", got)
 	}
 }

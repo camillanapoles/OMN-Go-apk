@@ -25,6 +25,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"net.basov.omngo/backend/internal/config"
 )
 
 // forceAnchors pins the renderer self-check for one test.
@@ -320,8 +322,8 @@ func TestBookmarkWithEscapedPunctuationIsFindable(t *testing.T) {
 	}
 
 	doc := loadDoc(t, a, "Bookmarks")
-	if doc.Kind != SearchKindBookmarks {
-		t.Errorf("kind %q, want %q", doc.Kind, SearchKindBookmarks)
+	if doc.Kind != config.SearchKindBookmarks {
+		t.Errorf("kind %q, want %q", doc.Kind, config.SearchKindBookmarks)
 	}
 	for _, want := range []string{"Cats & Dogs", "the sequel", "a > b", "example.org/cats", "Pets"} {
 		if !docContains(doc, want) {

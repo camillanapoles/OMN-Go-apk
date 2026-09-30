@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"net.basov.omngo/backend/internal/config"
 )
 
 func TestResolvePageName(t *testing.T) {
@@ -122,7 +124,7 @@ func TestHasKnownAssetExtension(t *testing.T) {
 	// A per-install override in config.json counts, because that install
 	// really does serve the extension.
 	b := &App{StorageDir: "/store"}
-	b.config.update(func(c *Config) { c.MimeTypes = map[string]string{".2026": "text/plain"} })
+	b.config.Update(func(c *config.Config) { c.MimeTypes = map[string]string{".2026": "text/plain"} })
 	if !b.hasKnownAssetExtension("Report.2026") {
 		t.Error("a mime_types override in config.json did not count")
 	}

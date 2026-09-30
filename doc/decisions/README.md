@@ -73,10 +73,10 @@ the status of the old record to `replaced by NNNN`.
 | Number | Decision | Code |
 | --- | --- | --- |
 | [0001](0001-sign-the-session-cookie.md) | Sign the session cookie. | `session.go`, `middleware.go` |
-| [0002](0002-bind-the-loopback-address-when-lan-sharing-is-off.md) | Bind the loopback address when LAN sharing is off. | `server.go`, `config.go` |
-| [0003](0003-use-one-table-for-each-content-type.md) | Use one table for each content type. | `content_types.go`, `pages.go`, `config.go` |
+| [0002](0002-bind-the-loopback-address-when-lan-sharing-is-off.md) | Bind the loopback address when LAN sharing is off. | `server.go`, `internal/config/config.go` |
+| [0003](0003-use-one-table-for-each-content-type.md) | Use one table for each content type. | `internal/config/content_types.go`, `pages.go`, `internal/config/config.go` |
 | [0004](0004-tell-the-browser-to-ask-before-it-uses-a-copy.md) | Tell the browser to ask before it uses a copy. | `middleware.go` |
-| [0005](0005-keep-each-secret-out-of-the-config-page.md) | Keep each secret out of the Config page. | `config_fields.go`, `config_page.go`, `omn-go-config.js` |
+| [0005](0005-keep-each-secret-out-of-the-config-page.md) | Keep each secret out of the Config page. | `internal/config/fields.go`, `config_page.go`, `omn-go-config.js` |
 | [0006](0006-replace-the-application-files-at-each-new-version.md) | Replace the application files at each new version. | `assets.go`, `MainActivity.java` |
 | [0007](0007-keep-the-application-files-in-omn-go-directories.md) | Keep the application files in OMN-Go directories. | `assets.go`, `serving.go`, `git_repo.go` |
 | [0008](0008-render-the-pages-without-html-template.md) | Render the pages without html/template. | `templates.go` |
@@ -85,7 +85,7 @@ the status of the old record to `replaced by NNNN`.
 | [0011](0011-push-each-time-and-let-the-remote-answer.md) | Push each time, and let the remote answer. | `git_push.go` |
 | [0012](0012-keep-one-remote-for-each-git-server-slot.md) | Keep one remote for each git server slot. | `git_repo.go` |
 | [0013](0013-send-each-log-line-to-three-places-and-to-the-admin-only.md) | Send each log line to three places, and to the admin only. | `internal/logx/levels.go`, `internal/logx/hub.go`, `log_handlers.go` |
-| [0014](0014-change-only-the-settings-that-a-request-names.md) | Change only the settings that a request names. | `config_handlers.go`, `config_fields.go` |
+| [0014](0014-change-only-the-settings-that-a-request-names.md) | Change only the settings that a request names. | `config_handlers.go`, `internal/config/fields.go` |
 | [0015](0015-load-the-click-driven-scripts-on-demand.md) | Load the click-driven scripts on demand. | `omn-go-sse.js`, `omn-go-sync.js`, `omn-go-bookmark.js`, `omn-go-search.js` |
 | [0016](0016-give-each-route-one-method.md) | Give each route one method. | `server.go` |
 | [0017](0017-refuse-a-request-that-another-site-sends.md) | Refuse a request that another site sends. | `request_guard.go`, `middleware.go` |

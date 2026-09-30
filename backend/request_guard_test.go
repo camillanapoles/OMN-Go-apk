@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"os"
 	"testing"
+
+	"net.basov.omngo/backend/internal/config"
 )
 
 // guardReq sends one request from the device itself through the whole
@@ -76,7 +78,7 @@ func TestAReboundNameCannotReadTheConfig(t *testing.T) {
 
 func TestIsKnownHost(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) { c.Hostname = "Pixel7" })
+	a.config.Update(func(c *config.Config) { c.Hostname = "Pixel7" })
 	for host, want := range map[string]bool{
 		"":                      true,
 		"localhost":             true,

@@ -26,6 +26,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"net.basov.omngo/backend/internal/config"
 )
 
 // uplApp makes a test application with the real route table.
@@ -179,7 +181,7 @@ func TestUploadImageRejectsAnUnknownType(t *testing.T) {
 // not from a constant. A file over the limit gives 400 and writes nothing.
 func TestUploadImageUsesTheConfiguredSizeLimit(t *testing.T) {
 	a := uplApp(t)
-	a.config.update(func(c *Config) { c.MaxUploadSizeMB = 1 })
+	a.config.Update(func(c *config.Config) { c.MaxUploadSizeMB = 1 })
 	before := uplFiles(t, a)
 
 	rec := uplPost(t, a, "/api/upload", "image", "big.png", make([]byte, 1<<20+1))

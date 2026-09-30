@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"net.basov.omngo/backend/internal/config"
 )
 
 // TestResolveContentType pins the builtin table of the one MIME resolver.
@@ -44,7 +46,7 @@ func TestResolveContentType(t *testing.T) {
 // the config does not list still fall through to builtin.
 func TestResolveContentTypeConfigOverride(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) { c.MimeTypes = map[string]string{".js": "application/javascript"} })
+	a.config.Update(func(c *config.Config) { c.MimeTypes = map[string]string{".js": "application/javascript"} })
 
 	if got := a.resolveContentType("/app.js"); got != "application/javascript" {
 		t.Errorf("Config override not honored: got %q, want application/javascript", got)

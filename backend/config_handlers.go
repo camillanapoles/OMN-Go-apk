@@ -10,14 +10,15 @@ import (
 	"strings"
 	"time"
 
+	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
 )
 
 func (a *App) getConfigPageBody() string {
-	cfg := a.config.get() // snapshot under RLock; render against the copy
+	cfg := a.config.Get() // snapshot under RLock; render against the copy
 
-	for len(cfg.GitServers) < maxGitServers {
-		cfg.GitServers = append(cfg.GitServers, GitServerConfig{Name: fmt.Sprintf("Server %d", len(cfg.GitServers)+1)})
+	for len(cfg.GitServers) < config.MaxGitServers {
+		cfg.GitServers = append(cfg.GitServers, config.GitServer{Name: fmt.Sprintf("Server %d", len(cfg.GitServers)+1)})
 	}
 
 	// The view carries no secret. See gitServerView in config_page.go.
@@ -35,13 +36,13 @@ func (a *App) getConfigPageBody() string {
 		EnableTermuxIntent: cfg.EnableTermuxIntent,
 		AndroidFullscreen:  cfg.AndroidFullscreen,
 		SearchEnabled:      cfg.SearchEnabled,
-		SearchKinds:        normalizeSearchKinds(cfg.SearchKinds),
+		SearchKinds:        config.NormalizeSearchKinds(cfg.SearchKinds),
 		SearchBundled:      cfg.SearchBundled,
 		SearchScope:        cfg.SearchScope,
 		SearchIndexStatus:  a.searchIndexStatus(),
 		LogDebug:           cfg.LogDebug,
 		LogInfo:            cfg.LogInfo,
-		LogTags:            normalizeLogTags(cfg.LogTags),
+		LogTags:            config.NormalizeLogTags(cfg.LogTags),
 	}
 	for i, gs := range cfg.GitServers {
 		view.GitServers = append(view.GitServers, gitServerView{
@@ -94,19 +95,19 @@ func configFieldSent(r *http.Request) func(field string) bool {
 // handleConfigGet answers GET /api/config with the whole Config and each
 // password, for "Show passwords". It is admin only.
 func (a *App) handleConfigGet(w http.ResponseWriter, r *http.Request) {
-	a.writeJSON(w, http.StatusOK, a.config.get())
+	a.writeJSON(w, http.StatusOK, a.config.Get())
 }
 
 // handleConfigPost answers POST /api/config. It saves the fields of the form.
 func (a *App) handleConfigPost(w http.ResponseWriter, r *http.Request) {
-	prev := a.config.get()
+	prev := a.config.Get()
 
 	sent := configFieldSent(r)
 
-	var next Config
-	a.config.update(func(c *Config) {
-		applyConfigForm(c, r, sent)
-		applyGitServerForm(c, r, sent)
+	var next config.Config
+	a.config.Update(func(c *config.Config) {
+		config.ApplyForm(c, r, sent)
+		config.ApplyGitServerForm(c, r, sent)
 		next = *c
 	})
 
@@ -128,7 +129,7 @@ func (a *App) handleConfigPost(w http.ResponseWriter, r *http.Request) {
 // persistConfig writes one configuration to config.json. It runs OUTSIDE the
 // configuration lock, thus a file write does not stop a reader. The caller
 // passes the snapshot that it took inside the lock.
-func (a *App) persistConfig(cfg Config) error {
+func (a *App) persistConfig(cfg config.Config) error {
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		a.log(logx.Config).Errf("persistConfig: failed to marshal the configuration: %v", err)
@@ -145,7 +146,7 @@ func (a *App) persistConfig(cfg Config) error {
 // applyConfigChange starts the work that a saved change needs. Each change
 // applies at once, except share_lan, because the socket binds one time at the
 // start.
-func (a *App) applyConfigChange(prev, next Config) {
+func (a *App) applyConfigChange(prev, next config.Config) {
 	a.applyLogFilter(next)
 
 	if !next.SearchEnabled {
@@ -160,7 +161,7 @@ func (a *App) applyConfigChange(prev, next Config) {
 // searchIndexNeedsRebuild reports whether a saved change makes the global
 // index wrong: search was off before, or the kinds that the index covers
 // changed. A rebuild reads each note. The caller tests SearchEnabled first.
-func searchIndexNeedsRebuild(prev, next Config) bool {
+func searchIndexNeedsRebuild(prev, next config.Config) bool {
 	if !prev.SearchEnabled {
 		return true
 	}
@@ -169,8 +170,8 @@ func searchIndexNeedsRebuild(prev, next Config) bool {
 	}
 	// Compare after normalization. A nil list and the default list are the
 	// same set.
-	return strings.Join(normalizeSearchKinds(prev.SearchKinds), ",") !=
-		strings.Join(normalizeSearchKinds(next.SearchKinds), ",")
+	return strings.Join(config.NormalizeSearchKinds(prev.SearchKinds), ",") !=
+		strings.Join(config.NormalizeSearchKinds(next.SearchKinds), ",")
 }
 
 // handleRestart restarts the process, thus the start-time values come from

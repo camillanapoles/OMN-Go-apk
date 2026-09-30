@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
 	"net.basov.omngo/backend/internal/noteheader"
 )
@@ -269,8 +270,8 @@ func TestSyncLogShapeHasAFrontendCopy(t *testing.T) {
 var javaFullscreenConstRe = regexp.MustCompile(`FULLSCREEN_(OFF|ON|IMMERSIVE)\s*=\s*"([^"]*)"`)
 
 // MainActivity reads android_fullscreen out of config.json itself, and it
-// applies its own default. normalizeFullscreen in config.go applies the
-// default of the server.
+// applies its own default. config.NormalizeFullscreen in
+// internal/config/config.go applies the default of the server.
 //
 // The two must agree, or the Config page shows one mode and the window
 // uses another. The default is the half that matters most: it decides
@@ -283,9 +284,9 @@ func TestFullscreenModeHasAJavaCopy(t *testing.T) {
 		found[m[1]] = m[2]
 	}
 	want := map[string]string{
-		"OFF":       FullscreenOff,
-		"ON":        FullscreenOn,
-		"IMMERSIVE": FullscreenImmersive,
+		"OFF":       config.FullscreenOff,
+		"ON":        config.FullscreenOn,
+		"IMMERSIVE": config.FullscreenImmersive,
 	}
 	for name, value := range want {
 		got, ok := found[name]
@@ -300,18 +301,18 @@ func TestFullscreenModeHasAJavaCopy(t *testing.T) {
 	}
 
 	// The default of readFullscreenMode. The Java falls through to
-	// FULLSCREEN_ON, and normalizeFullscreen answers the same for an
+	// FULLSCREEN_ON, and config.NormalizeFullscreen answers the same for an
 	// empty value and for a value it does not know.
 	if !strings.Contains(java, "return FULLSCREEN_ON;") {
 		t.Error("OmnConfig.fullscreenMode no longer falls back to FULLSCREEN_ON. " +
 			"Each install that predates android_fullscreen then changes how it looks.")
 	}
-	if got := normalizeFullscreen(""); got != FullscreenOn {
-		t.Errorf("normalizeFullscreen(\"\") = %q, want %q, which is what the Java "+
-			"answers", got, FullscreenOn)
+	if got := config.NormalizeFullscreen(""); got != config.FullscreenOn {
+		t.Errorf("config.NormalizeFullscreen(\"\") = %q, want %q, which is what the Java "+
+			"answers", got, config.FullscreenOn)
 	}
-	if got := normalizeFullscreen("nonsense"); got != FullscreenOn {
-		t.Errorf("normalizeFullscreen(\"nonsense\") = %q, want %q", got, FullscreenOn)
+	if got := config.NormalizeFullscreen("nonsense"); got != config.FullscreenOn {
+		t.Errorf("config.NormalizeFullscreen(\"nonsense\") = %q, want %q", got, config.FullscreenOn)
 	}
 }
 
@@ -337,7 +338,7 @@ func TestUploadLimitHasAJavaCopy(t *testing.T) {
 	if m == nil {
 		t.Fatal("OmnConfig.java no longer declares DEFAULT_MAX_UPLOAD_MB")
 	}
-	want := fmt.Sprint(defaultMaxUploadSizeMB)
+	want := fmt.Sprint(config.DefaultMaxUploadSizeMB)
 	if m[1] != want {
 		t.Errorf("the upload default is %s MB in Java and %s MB in Go. The two "+
 			"paths then accept different files.", m[1], want)

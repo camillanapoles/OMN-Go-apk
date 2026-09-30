@@ -3,7 +3,7 @@
 * Status: accepted
 * Version: 1.7.10
 * Code: `StartServer` in `backend/server.go`, `ShareLAN` in
-  `backend/config.go`
+  `backend/internal/config/config.go`
 
 ## Context
 

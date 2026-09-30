@@ -83,7 +83,7 @@ Do not remove a constraint without an instruction from the maintainer.
 | --- | --- |
 | `main_desktop.go` | The only file in `package main`. It holds the only build tag: `//go:build !android`. |
 | `backend/` | The Go application. `package backend` holds most of the code, and the split into packages is in progress. |
-| `backend/internal/` | The packages of the split: `textmatch` (the search matcher) and `noteheader` (the header block). |
+| `backend/internal/` | The packages of the split. `textmatch` holds the search matcher, and `noteheader` holds the header block. `logx` holds the log tags and the log hub. `config` holds the settings and their store. |
 | `backend/frontend/embed.go` | `package frontend`. It embeds `html/` and `md/` as `frontend.Static`, and `templates/` as `frontend.Templates`. |
 | `backend/frontend/templates/` | Server-side page fragments. Embedded as `frontend.Templates`. Never extracted to disk. |
 | `backend/frontend/html/` | `js/`, `css/`, `css/fonts/`, `json/`, `favicon.ico`. Embedded as `frontend.Static`. Extracted to the storage directory on demand. The user can edit these files with `?edit=true`. |
@@ -138,8 +138,8 @@ update these files.
   `SetAndroidPackage` and `SetLANAddresses`. `main_desktop.go` calls `StartServer`,
   `WaitUntilReady` and `GetServerPort`. Write everything else as a lowercase method on
   `*App`.
-* The package also exports the types `App`, `Config`, `GitServerConfig`, `NoLockFS`
-  and `NoLockFile`, and more methods of `App`. No caller outside the
+* The package also exports the types `App`, `NoLockFS` and `NoLockFile`, and
+  more methods of `App`. No caller outside the
   package uses them. gomobile still makes a Java binding for each one. Do not add an
   exported name.
 * **Names.** Use `handleXxx` for an API endpoint. Use `serveXxx` for a page or an
@@ -196,11 +196,12 @@ update these files.
     `loadTemplate` in `templates.go` runs at package init, and
     `search_sections.go` logs from a `sync.Once` and from a method on
     `searchDocument`. Both files write `[tag] (error) ` into the text by hand.
-* **Configuration.** Read the configuration with `a.config.get()`. It returns a copy
-  under `RLock`. Change the configuration with `a.config.update(func(c *Config){...})`.
-  It reads and writes under `Lock`. Give a function that has no `*App` the
-  `*configStore`. `configStore` in `config_store.go` is the only holder of `Config`. The
-  `normalizeXxx` functions repair an unknown enum value. The loader, the POST
+* **Configuration.** Read the configuration with `a.config.Get()`. It returns a
+  copy under `RLock`. Change the configuration with
+  `a.config.Update(func(c *config.Config){...})`. It reads and writes under
+  `Lock`. Give a function that has no `*App` the `*config.Store`. `config.Store`
+  in `backend/internal/config/store.go` is the only holder of `config.Config`.
+  The `config.NormalizeXxx` functions repair an unknown enum value. The loader, the POST
   handler, and the renderer then always agree. A request that omits a field leaves
   that field alone. See `configFieldSent` in `config_handlers.go`.
 * **Routes.** Register every route in `registerRoutes` in `backend/server.go`.
@@ -319,8 +320,9 @@ update these files.
 * Call the metadata a **header block**. Do not call it front matter. See
   `doc/TERMINOLOGY.md`.
 * **A name is a note or a file, and the LAST extension decides.**
-  `hasKnownAssetExtension` in `backend/content_types.go` is the only authority
-  for that question. It reads `Config.MimeTypes` and then `builtinMIME`. It must
+  `config.HasKnownAssetExtension` in `backend/internal/config/content_types.go`
+  is the only authority for that question. It reads `Config.MimeTypes` and then
+  `config.BuiltinMIME`. It must
   never call `mime.TypeByExtension`. The stdlib reads `/etc/mime.types`, thus
   the same name would mean one thing on a desktop and another on Android.
   * `.md` is the source of a note. `.html` is a compiled note, and an

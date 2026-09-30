@@ -20,7 +20,7 @@ import (
 
 func (a *App) getExternalEditPageBody(fileName string, viewURL string) string {
 	view := externalEditView{
-		Cmd:      a.config.get().DesktopExtCmd,
+		Cmd:      a.config.Get().DesktopExtCmd,
 		FileName: fileName,
 		ViewURL:  viewURL,
 	}
@@ -69,7 +69,7 @@ func (a *App) handleEditExternal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var cmd *exec.Cmd
-	cmdStr := strings.TrimSpace(a.config.get().DesktopExtCmd)
+	cmdStr := strings.TrimSpace(a.config.Get().DesktopExtCmd)
 
 	if cmdStr == "" {
 		switch runtime.GOOS {
@@ -271,8 +271,8 @@ func (a *App) handleGetNote(w http.ResponseWriter, r *http.Request) {
 	} else {
 		timestamp := time.Now().Format("2006-01-02 15:04:05")
 		authorLine := ""
-		if a.config.get().Author != "" {
-			authorLine = fmt.Sprintf("\nAuthor: %s", a.config.get().Author)
+		if a.config.Get().Author != "" {
+			authorLine = fmt.Sprintf("\nAuthor: %s", a.config.Get().Author)
 		}
 		data = []byte(fmt.Sprintf("Title: %s\nDate: %s\nCategory: Notes%s\n\n", baseName, timestamp, authorLine))
 	}
@@ -309,8 +309,8 @@ func (a *App) handleNewPage(w http.ResponseWriter, r *http.Request) {
 	targetMdPath := a.layout().md(target + ".md")
 	if _, err := os.Stat(targetMdPath); os.IsNotExist(err) {
 		authorLine := ""
-		if a.config.get().Author != "" {
-			authorLine = fmt.Sprintf("\nAuthor: %s", a.config.get().Author)
+		if a.config.Get().Author != "" {
+			authorLine = fmt.Sprintf("\nAuthor: %s", a.config.Get().Author)
 		}
 		defaultContent := fmt.Sprintf("Title: %s\nDate: %s\nModified: %s\nCategory: Notes%s\n\n", title, now, now, authorLine)
 		os.MkdirAll(filepath.Dir(targetMdPath), 0755)

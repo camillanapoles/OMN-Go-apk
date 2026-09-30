@@ -7,8 +7,8 @@ import (
 )
 
 // The Config page makes its checkboxes from AllTags. A tag that is not in
-// AllTags cannot be switched off, and normalizeLogTags of package backend
-// drops it from config.json at the next save.
+// AllTags cannot be switched off, and config.NormalizeLogTags of package
+// backend drops it from config.json at the next save.
 func TestAllTagsIsComplete(t *testing.T) {
 	src, err := os.ReadFile("levels.go")
 	if err != nil {

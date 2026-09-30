@@ -258,7 +258,7 @@ func (a *App) searchIndexBuilt() bool {
 // searchIndexStatus is the line on the Config page. A person must see how
 // much memory the index uses before the person turns it off.
 func (a *App) searchIndexStatus() string {
-	cfg := a.config.get()
+	cfg := a.config.Get()
 	if !cfg.SearchEnabled {
 		return "Off - page search still works, and costs nothing."
 	}

@@ -13,12 +13,13 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/config"
 )
 
 // newUnconfiguredApp returns an App rooted in a fresh temp dir with the
 // md/ and html/ layout that initStorage makes. It does not run
 // initStorage, thus it extracts no embedded file. It loads NO
-// configuration, thus the configStore keeps each zero value.
+// configuration, thus the config.Store keeps each zero value.
 //
 // Use it for a test of loadConfig itself, and for a test that asks what
 // the application does with no configuration. Each other test wants
@@ -36,7 +37,7 @@ func newUnconfiguredApp(t *testing.T) *App {
 }
 
 // newTestApp returns the App of a fresh install. It makes the storage
-// layout and then loads the configuration, thus the configStore holds the
+// layout and then loads the configuration, thus the config.Store holds the
 // defaults that loadConfig writes and config.json exists on disk.
 //
 // WHY IT LOADS THE CONFIGURATION. No user ever runs an App with a zero
@@ -63,7 +64,7 @@ func newTestApp(t *testing.T) *App {
 // default.
 func TestTestAppHoldsTheFreshInstallDefaults(t *testing.T) {
 	a := newTestApp(t)
-	cfg := a.config.get()
+	cfg := a.config.Get()
 
 	if !cfg.UseInternalEd {
 		t.Error("UseInternalEd is false, but a fresh install turns the internal editor on")
@@ -71,14 +72,14 @@ func TestTestAppHoldsTheFreshInstallDefaults(t *testing.T) {
 	if cfg.ServerPort != 8080 {
 		t.Errorf("ServerPort is %d, want 8080", cfg.ServerPort)
 	}
-	if cfg.Theme != ThemeAuto {
-		t.Errorf("Theme is %q, want %q", cfg.Theme, ThemeAuto)
+	if cfg.Theme != config.ThemeAuto {
+		t.Errorf("Theme is %q, want %q", cfg.Theme, config.ThemeAuto)
 	}
 	if cfg.SearchEnabled {
 		t.Error("SearchEnabled is true, but global search is off on a fresh install")
 	}
-	if len(cfg.GitServers) != maxGitServers {
-		t.Errorf("GitServers holds %d slots, want %d", len(cfg.GitServers), maxGitServers)
+	if len(cfg.GitServers) != config.MaxGitServers {
+		t.Errorf("GitServers holds %d slots, want %d", len(cfg.GitServers), config.MaxGitServers)
 	}
 	if len(cfg.LogTags) == 0 {
 		t.Error("LogTags is empty, but a fresh install ticks each tag")
@@ -96,7 +97,7 @@ func TestTestAppHoldsTheFreshInstallDefaults(t *testing.T) {
 func TestUnconfiguredAppLoadsNoConfig(t *testing.T) {
 	a := newUnconfiguredApp(t)
 
-	if cfg := a.config.get(); cfg.ServerPort != 0 || cfg.UseInternalEd {
+	if cfg := a.config.Get(); cfg.ServerPort != 0 || cfg.UseInternalEd {
 		t.Errorf("newUnconfiguredApp loaded a configuration: %+v", cfg)
 	}
 	if _, err := os.Stat(filepath.Join(a.StorageDir, "config.json")); err == nil {
@@ -154,7 +155,7 @@ func TestHandleGetNoteExisting(t *testing.T) {
 
 func TestHandleGetNoteMissingSynthesizesAndPersists(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) { c.Author = "Tester" })
+	a.config.Update(func(c *config.Config) { c.Author = "Tester" })
 
 	req := httptest.NewRequest(http.MethodGet, "/api/note?name=Fresh", nil)
 	rec := httptest.NewRecorder()
@@ -222,7 +223,7 @@ func TestServeEditorMaterializesEmbeddedAsset(t *testing.T) {
 	}
 
 	a := newTestApp(t)
-	a.config.update(func(c *Config) { c.UseInternalEd = true })
+	a.config.Update(func(c *config.Config) { c.UseInternalEd = true })
 	req := httptest.NewRequest(http.MethodGet, "/"+rel+"?edit=true", nil)
 	rec := httptest.NewRecorder()
 	a.serveEditor(rec, req, "/"+rel)
@@ -244,7 +245,7 @@ func TestServeEditorMaterializesEmbeddedAsset(t *testing.T) {
 // with the editor, which is what the User Manual documents.
 func TestServeStorageSubdirHonorsEditIntent(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) { c.UseInternalEd = true })
+	a.config.Update(func(c *config.Config) { c.UseInternalEd = true })
 
 	dir := filepath.Join(a.StorageDir, "html", "user_json")
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -281,7 +282,7 @@ func TestServeStorageSubdirHonorsEditIntent(t *testing.T) {
 // refuses it BEFORE it writes the file to disk.
 func TestEditorRoutesRefuseBinaryFiles(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) { c.UseInternalEd = true })
+	a.config.Update(func(c *config.Config) { c.UseInternalEd = true })
 
 	imgDir := filepath.Join(a.StorageDir, "html", "images")
 	if err := os.MkdirAll(imgDir, 0755); err != nil {
@@ -348,7 +349,7 @@ func TestEditorRoutesRefuseBinaryFiles(t *testing.T) {
 // a text asset must still open.
 func TestEditorRoutesStillOpenTextFiles(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) { c.UseInternalEd = true })
+	a.config.Update(func(c *config.Config) { c.UseInternalEd = true })
 
 	if err := os.WriteFile(filepath.Join(a.StorageDir, "md", "Welcome.md"),
 		[]byte("Title: Welcome\n\nbody"), 0644); err != nil {
@@ -561,7 +562,7 @@ func TestHandleConfigSavesTheme(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d, body %s", rec.Code, rec.Body.String())
 	}
-	if got := a.config.get().Theme; got != ThemeDark {
+	if got := a.config.Get().Theme; got != config.ThemeDark {
 		t.Errorf("in-memory theme = %q, want dark", got)
 	}
 	// Must survive a restart: persisted to config.json.
@@ -576,7 +577,7 @@ func TestHandleConfigSavesTheme(t *testing.T) {
 
 func TestHandleConfigRejectsInvalidTheme(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) { c.Theme = ThemeDark }) // pre-existing valid value
+	a.config.Update(func(c *config.Config) { c.Theme = config.ThemeDark }) // pre-existing valid value
 
 	rec := postConfig(t, a, url.Values{"theme": {"purple; drop table"}})
 	if rec.Code != http.StatusOK {
@@ -584,7 +585,7 @@ func TestHandleConfigRejectsInvalidTheme(t *testing.T) {
 	}
 	// Whitelist: garbage never lands in config, not even transiently -
 	// it normalizes to auto.
-	if got := a.config.get().Theme; got != ThemeAuto {
+	if got := a.config.Get().Theme; got != config.ThemeAuto {
 		t.Errorf("invalid theme stored as %q, want auto", got)
 	}
 }
@@ -597,7 +598,7 @@ func TestHandleConfigSavesShareLAN(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d", rec.Code)
 	}
-	if !a.config.get().ShareLAN {
+	if !a.config.Get().ShareLAN {
 		t.Error("share_lan=true not stored")
 	}
 	data, err := os.ReadFile(filepath.Join(a.StorageDir, "config.json"))
@@ -615,20 +616,20 @@ func TestHandleConfigSavesShareLAN(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d", rec.Code)
 	}
-	if a.config.get().ShareLAN {
+	if a.config.Get().ShareLAN {
 		t.Error("absent share_lan field did not clear the option")
 	}
 }
 
 func TestHandleConfigSavesMaxUploadSizeMB(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) { c.MaxUploadSizeMB = defaultMaxUploadSizeMB })
+	a.config.Update(func(c *config.Config) { c.MaxUploadSizeMB = config.DefaultMaxUploadSizeMB })
 
 	rec := postConfig(t, a, url.Values{"max_upload_size_mb": {"10"}})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d, body %s", rec.Code, rec.Body.String())
 	}
-	if got := a.config.get().MaxUploadSizeMB; got != 10 {
+	if got := a.config.Get().MaxUploadSizeMB; got != 10 {
 		t.Errorf("MaxUploadSizeMB = %d, want 10", got)
 	}
 	data, err := os.ReadFile(filepath.Join(a.StorageDir, "config.json"))
@@ -646,7 +647,7 @@ func TestHandleConfigSavesMaxUploadSizeMB(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d", rec.Code)
 	}
-	if got := a.config.get().MaxUploadSizeMB; got != 10 {
+	if got := a.config.Get().MaxUploadSizeMB; got != 10 {
 		t.Errorf("MaxUploadSizeMB changed to %d on a zero submission, want unchanged 10", got)
 	}
 }
@@ -664,10 +665,10 @@ func TestHandleConfigSavesAndroidIntentToggles(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d, body %s", rec.Code, rec.Body.String())
 	}
-	if !a.config.get().EnableIntentURI {
+	if !a.config.Get().EnableIntentURI {
 		t.Error("enable_intent_uri=true not stored")
 	}
-	if !a.config.get().EnableTermuxIntent {
+	if !a.config.Get().EnableTermuxIntent {
 		t.Error("enable_termux_intent=true not stored")
 	}
 	data, err := os.ReadFile(filepath.Join(a.StorageDir, "config.json"))
@@ -686,10 +687,10 @@ func TestHandleConfigSavesAndroidIntentToggles(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d", rec.Code)
 	}
-	if a.config.get().EnableIntentURI {
+	if a.config.Get().EnableIntentURI {
 		t.Error("absent enable_intent_uri field did not clear the option")
 	}
-	if a.config.get().EnableTermuxIntent {
+	if a.config.Get().EnableTermuxIntent {
 		t.Error("absent enable_termux_intent field did not clear the option")
 	}
 }

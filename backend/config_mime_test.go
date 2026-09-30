@@ -6,14 +6,17 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"net.basov.omngo/backend/internal/config"
 )
 
 // ----------------------------------------------------------------------
 // The content type of an install
 // ----------------------------------------------------------------------
 //
-// builtinMIME in content_types.go is the one authority for a content type, and
-// Config.MimeTypes is an override that resolveContentType reads first.
+// config.BuiltinMIME in internal/config/content_types.go is the one authority
+// for a content type, and Config.MimeTypes is an override that
+// config.ResolveContentType reads first.
 //
 // A fresh install must write no override. Each row of an override hides
 // the table. newTestApp builds a Config with an empty map, thus it cannot
@@ -52,7 +55,7 @@ func TestFreshInstallWritesNoMimeSeed(t *testing.T) {
 	}
 	if m, isMap := seed.(map[string]any); isMap && len(m) > 0 {
 		t.Errorf("the fresh install seeded mime_types with %d rows. Each row "+
-			"shadows builtinMIME, and the seed carried no charset.", len(m))
+			"shadows config.BuiltinMIME, and the seed carried no charset.", len(m))
 	}
 }
 
@@ -90,7 +93,7 @@ func TestFreshInstallServesTheCharset(t *testing.T) {
 // An install that ran an older version holds the seed. The repair drops
 // it, and the table answers again.
 func TestLegacyMimeSeedIsDropped(t *testing.T) {
-	for i, seed := range legacyMimeSeeds {
+	for i, seed := range config.LegacyMimeSeeds {
 		dir := t.TempDir()
 		path := filepath.Join(dir, "config.json")
 		writeConfigWithMime(t, path, seed)
@@ -98,7 +101,7 @@ func TestLegacyMimeSeedIsDropped(t *testing.T) {
 		a := &App{StorageDir: dir}
 		a.loadConfig(a.layout().config())
 
-		if got := a.config.get().MimeTypes; got != nil {
+		if got := a.config.Get().MimeTypes; got != nil {
 			t.Errorf("seed %d survived the load as %v", i, got)
 		}
 		if got := a.resolveContentType("x.css"); got != "text/css; charset=utf-8" {
@@ -124,7 +127,7 @@ func TestHandWrittenMimeMapSurvives(t *testing.T) {
 	// a time would take the other nine and leave a map that the person
 	// never wrote.
 	mine := map[string]string{}
-	for k, v := range legacyMimeSeeds[0] {
+	for k, v := range config.LegacyMimeSeeds[0] {
 		mine[k] = v
 	}
 	mine[".css"] = "text/css; charset=windows-1251"
@@ -135,7 +138,7 @@ func TestHandWrittenMimeMapSurvives(t *testing.T) {
 	a := &App{StorageDir: dir}
 	a.loadConfig(a.layout().config())
 
-	got := a.config.get().MimeTypes
+	got := a.config.Get().MimeTypes
 	if len(got) != len(mine) {
 		t.Fatalf("the map holds %d rows after the load, want %d", len(got), len(mine))
 	}
@@ -171,13 +174,13 @@ func TestSmallMimeMapSurvives(t *testing.T) {
 // whether a name is a note or a file. The removal of the seed must NOT
 // change that answer for any name, or a note of a person becomes a file.
 //
-// Each row of each seed is a row of builtinMIME as well, thus the union
+// Each row of each seed is a row of config.BuiltinMIME as well, thus the union
 // does not change. This test holds that fact.
 func TestDroppingTheSeedChangesNoNoteName(t *testing.T) {
-	for i, seed := range legacyMimeSeeds {
+	for i, seed := range config.LegacyMimeSeeds {
 		for ext := range seed {
-			if _, ok := builtinMIME[ext]; !ok {
-				t.Errorf("seed %d names %s and builtinMIME does not. A name that "+
+			if _, ok := config.BuiltinMIME[ext]; !ok {
+				t.Errorf("seed %d names %s and config.BuiltinMIME does not. A name that "+
 					"ends in %s was a file before the repair and is a note after it.",
 					i, ext, ext)
 			}
@@ -185,7 +188,7 @@ func TestDroppingTheSeedChangesNoNoteName(t *testing.T) {
 	}
 
 	withSeed := &App{}
-	withSeed.config.update(func(c *Config) { c.MimeTypes = legacyMimeSeeds[0] })
+	withSeed.config.Update(func(c *config.Config) { c.MimeTypes = config.LegacyMimeSeeds[0] })
 	clean := &App{}
 
 	for _, name := range []string{
@@ -202,7 +205,7 @@ func TestDroppingTheSeedChangesNoNoteName(t *testing.T) {
 // map and nothing else that matters.
 func writeConfigWithMime(t *testing.T, path string, mime map[string]string) {
 	t.Helper()
-	cfg := Config{
+	cfg := config.Config{
 		ServerPort:    8080,
 		AdminPassword: "x",
 		MimeTypes:     mime,

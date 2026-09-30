@@ -17,9 +17,7 @@ import (
 var fileGroups = map[string]string{
 	"log_app.go": "logx",
 
-	"config.go": "config", "config_fields.go": "config",
-	"config_store.go": "config", "hostname.go": "config", "version.go": "config",
-	"content_types.go": "config",
+	"config_app.go": "config", "version.go": "config",
 
 	"markdown.go": "render", "templates.go": "render", "pages.go": "render",
 	"render_cache.go": "render", "tags.go": "render",

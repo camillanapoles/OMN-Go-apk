@@ -21,6 +21,7 @@ import (
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/go-git/go-git/v5/storage/filesystem"
 	cryptossh "golang.org/x/crypto/ssh"
+	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
 )
 
@@ -265,7 +266,7 @@ func (a *App) ensureOriginRemote(repo *git.Repository, fallbackURL string) error
 
 // ensureSlotRemotes makes the remotes match cfg. It answers the remote of the
 // active slot, or "origin" when that slot has no URL.
-func (a *App) ensureSlotRemotes(repo *git.Repository, cfg Config) (activeRemoteName string, err error) {
+func (a *App) ensureSlotRemotes(repo *git.Repository, cfg config.Config) (activeRemoteName string, err error) {
 	for i, gs := range cfg.GitServers {
 		name := slotRemoteName(i)
 		url := strings.TrimSpace(gs.URL)
@@ -318,7 +319,7 @@ func (a *App) ensureSlotRemotes(repo *git.Repository, cfg Config) (activeRemoteN
 // ensureRemotesAndGetActive makes each remote match the config. It answers
 // the remote for this sync.
 func (a *App) ensureRemotesAndGetActive(repo *git.Repository) (string, error) {
-	cfg := a.config.get()
+	cfg := a.config.Get()
 
 	bootstrapURL := ""
 	if cfg.ActiveGitIndex >= 0 && cfg.ActiveGitIndex < len(cfg.GitServers) {
@@ -432,7 +433,7 @@ func (a *App) manualStageFile(repo *git.Repository, wt *git.Worktree, name strin
 func (a *App) getSSHAuth() (transport.AuthMethod, error) {
 	// Read one copy of the config. Two separate reads could mix the fields of
 	// two servers.
-	cfg := a.config.get()
+	cfg := a.config.Get()
 	gs := cfg.GitServers[cfg.ActiveGitIndex]
 
 	sshUser := "git"
@@ -469,7 +470,7 @@ func (a *App) getSSHAuth() (transport.AuthMethod, error) {
 }
 
 func (a *App) GetConfigAuthor() string {
-	if author := a.config.get().Author; author != "" {
+	if author := a.config.Get().Author; author != "" {
 		return author
 	}
 	return "OMN-Go User"

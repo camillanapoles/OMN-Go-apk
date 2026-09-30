@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/noteheader"
 )
 
@@ -583,7 +584,7 @@ func TestHandleImportNoteRefusals(t *testing.T) {
 	}
 	// Larger than the upload limit: refused whole rather than imported
 	// truncated.
-	a.config.update(func(c *Config) { c.MaxUploadSizeMB = 1 })
+	a.config.Update(func(c *config.Config) { c.MaxUploadSizeMB = 1 })
 	big := strings.Repeat("x", 2*1024*1024)
 	rec := exchangeReq(t, a.handleImportNote, http.MethodPost, "/api/import/note",
 		strings.NewReader(big), "text/markdown")

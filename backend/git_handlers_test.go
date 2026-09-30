@@ -40,6 +40,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"net.basov.omngo/backend/internal/config"
 )
 
 // ghSync posts a form to handleSync and answers the recorder.
@@ -744,7 +745,7 @@ func TestSyncPreviewAnswersWithNoUsableKey(t *testing.T) {
 
 	// The key goes away after the repository exists, thus the remote is
 	// configured and the authentication is not.
-	a.config.update(func(c *Config) { c.GitServers[0].SSHKeyData = "" })
+	a.config.Update(func(c *config.Config) { c.GitServers[0].SSHKeyData = "" })
 
 	w := ghPreview(t, a, "GET", "action=upload")
 	if w.Code != http.StatusOK {
@@ -776,7 +777,7 @@ func TestSyncPreviewAnswersWhenTheRemoteIsUnreachable(t *testing.T) {
 	if err := a.SyncRepo("push", "the first commit of this device"); err != nil {
 		t.Fatalf("the push: %v", err)
 	}
-	a.config.update(func(c *Config) { c.GitServers[0].URL = "/no/such/path.git" })
+	a.config.Update(func(c *config.Config) { c.GitServers[0].URL = "/no/such/path.git" })
 
 	w := ghPreview(t, a, "GET", "action=upload")
 	if w.Code != http.StatusOK {

@@ -10,12 +10,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
 )
 
 // App encapsulates the global state for the backend
 type App struct {
-	config     configStore
+	config     config.Store
 	StorageDir string
 	// ActiveConns is an atomic.Int64, and not an int64. A 64-bit atomic needs
 	// an 8-byte boundary, and a 32-bit build (armeabi-v7a, x86) does not give
@@ -172,12 +173,12 @@ func StartServer(storageDir string, defaultPort int) *App {
 		a.registerRoutes(a.Router)
 
 		// loadConfig already set the port, thus this test is a guard only.
-		a.config.update(func(c *Config) {
+		a.config.Update(func(c *config.Config) {
 			if c.ServerPort <= 0 {
 				c.ServerPort = a.fallbackPort()
 			}
 		})
-		cfg := a.config.get()
+		cfg := a.config.Get()
 
 		// The socket decides who can connect. With "Share on LAN" off, the
 		// listener binds the loopback address alone. See
@@ -225,7 +226,7 @@ func StartServer(storageDir string, defaultPort int) *App {
 
 // GetServerPort answers the configured port, for main_desktop.go.
 func (a *App) GetServerPort() int {
-	return a.config.get().ServerPort
+	return a.config.Get().ServerPort
 }
 
 // registerRoutes writes each route of the application into mux. Section 3 of

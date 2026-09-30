@@ -17,16 +17,18 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"net.basov.omngo/backend/internal/config"
 )
 
 func TestNormalizeSearchKinds(t *testing.T) {
 	// Absent (nil) and empty are NOT the same thing. The difference is what
 	// stands between "this config predates the feature" and "the user
 	// unticked everything on purpose".
-	if got := normalizeSearchKinds(nil); strings.Join(got, ",") != "md,bookmarks" {
+	if got := config.NormalizeSearchKinds(nil); strings.Join(got, ",") != "md,bookmarks" {
 		t.Errorf("nil -> %v, want the default md,bookmarks", got)
 	}
-	if got := normalizeSearchKinds([]string{}); len(got) != 0 {
+	if got := config.NormalizeSearchKinds([]string{}); len(got) != 0 {
 		t.Errorf("explicitly empty -> %v, want it to stay empty", got)
 	}
 
@@ -42,22 +44,22 @@ func TestNormalizeSearchKinds(t *testing.T) {
 		{[]string{"user_json", "bookmarks"}, "user_json,bookmarks"}, // order kept
 	}
 	for _, c := range cases {
-		if got := strings.Join(normalizeSearchKinds(c.in), ","); got != c.want {
-			t.Errorf("normalizeSearchKinds(%v) = %q, want %q", c.in, got, c.want)
+		if got := strings.Join(config.NormalizeSearchKinds(c.in), ","); got != c.want {
+			t.Errorf("config.NormalizeSearchKinds(%v) = %q, want %q", c.in, got, c.want)
 		}
 	}
 }
 
 func TestNormalizeSearchScope(t *testing.T) {
 	for in, want := range map[string]string{
-		"page": SearchScopePage,
-		"PAGE": SearchScopePage,
-		"all":  SearchScopeAll,
-		"":     SearchScopeAll, // every config written before this field
-		"junk": SearchScopeAll,
+		"page": config.SearchScopePage,
+		"PAGE": config.SearchScopePage,
+		"all":  config.SearchScopeAll,
+		"":     config.SearchScopeAll, // every config written before this field
+		"junk": config.SearchScopeAll,
 	} {
-		if got := normalizeSearchScope(in); got != want {
-			t.Errorf("normalizeSearchScope(%q) = %q, want %q", in, got, want)
+		if got := config.NormalizeSearchScope(in); got != want {
+			t.Errorf("config.NormalizeSearchScope(%q) = %q, want %q", in, got, want)
 		}
 	}
 }
@@ -73,7 +75,7 @@ func TestLoadConfig_PreSearchConfigFile(t *testing.T) {
 	}
 
 	a.loadConfig(a.layout().config())
-	cfg := a.config.get()
+	cfg := a.config.Get()
 
 	if cfg.SearchEnabled {
 		t.Error("global search enabled itself on an upgrade; it must be opt-in")
@@ -81,10 +83,10 @@ func TestLoadConfig_PreSearchConfigFile(t *testing.T) {
 	if got := strings.Join(cfg.SearchKinds, ","); got != "md,bookmarks" {
 		t.Errorf("SearchKinds = %q, want the default md,bookmarks", got)
 	}
-	if cfg.SearchScope != SearchScopeAll {
+	if cfg.SearchScope != config.SearchScopeAll {
 		t.Errorf("SearchScope = %q, want all", cfg.SearchScope)
 	}
-	if cfg.Author != "Ann" || cfg.Theme != ThemeDark {
+	if cfg.Author != "Ann" || cfg.Theme != config.ThemeDark {
 		t.Errorf("existing settings were disturbed: %+v", cfg)
 	}
 }
@@ -93,7 +95,7 @@ func TestLoadConfig_FreshInstallDefaults(t *testing.T) {
 	a := &App{StorageDir: t.TempDir()}
 	a.loadConfig(a.layout().config())
 
-	cfg := a.config.get()
+	cfg := a.config.Get()
 	if cfg.SearchEnabled {
 		t.Error("a fresh install must not enable the index")
 	}
@@ -106,7 +108,7 @@ func TestLoadConfig_FreshInstallDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var onDisk Config
+	var onDisk config.Config
 	if err := json.Unmarshal(data, &onDisk); err != nil {
 		t.Fatal(err)
 	}
@@ -121,9 +123,9 @@ func TestLoadConfig_FreshInstallDefaults(t *testing.T) {
 // that the user removed.
 func TestConfigPost_SearchKinds(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) {
-		c.GitServers = make([]GitServerConfig, maxGitServers)
-		c.SearchKinds = []string{SearchKindMD, SearchKindBookmarks}
+	a.config.Update(func(c *config.Config) {
+		c.GitServers = make([]config.GitServer, config.MaxGitServers)
+		c.SearchKinds = []string{config.SearchKindMD, config.SearchKindBookmarks}
 	})
 
 	postForm(t, a.handleConfigPost, "/api/config", url.Values{
@@ -131,14 +133,14 @@ func TestConfigPost_SearchKinds(t *testing.T) {
 		"search_kinds":   {"md", "js"},
 		"search_scope":   {"page"},
 	})
-	cfg := a.config.get()
+	cfg := a.config.Get()
 	if !cfg.SearchEnabled {
 		t.Error("search_enabled did not stick")
 	}
 	if got := strings.Join(cfg.SearchKinds, ","); got != "md,js" {
 		t.Errorf("SearchKinds = %q, want md,js", got)
 	}
-	if cfg.SearchScope != SearchScopePage {
+	if cfg.SearchScope != config.SearchScopePage {
 		t.Errorf("SearchScope = %q", cfg.SearchScope)
 	}
 
@@ -149,10 +151,10 @@ func TestConfigPost_SearchKinds(t *testing.T) {
 		"config_fields":  {configFormFields},
 		"search_enabled": {"true"},
 	})
-	if got := a.config.get().SearchKinds; len(got) != 0 {
+	if got := a.config.Get().SearchKinds; len(got) != 0 {
 		t.Errorf("SearchKinds = %v, want empty after unticking every box", got)
 	}
-	if a.config.get().SearchEnabled != true {
+	if a.config.Get().SearchEnabled != true {
 		t.Error("search_enabled was cleared by a form that set it")
 	}
 
@@ -160,7 +162,7 @@ func TestConfigPost_SearchKinds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var onDisk Config
+	var onDisk config.Config
 	if err := json.Unmarshal(data, &onDisk); err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +177,7 @@ func TestConfigPost_SearchKinds(t *testing.T) {
 	// what unticking it on the Config page does. An undeclared one is left
 	// alone - see TestBaseline_ConfigPostSemantics.
 	postForm(t, a.handleConfigPost, "/api/config", url.Values{"config_fields": {configFormFields}})
-	if a.config.get().SearchEnabled {
+	if a.config.Get().SearchEnabled {
 		t.Error("a declared, unticked search_enabled did not clear")
 	}
 }
@@ -198,7 +200,7 @@ func TestSearchGating_GlobalScope(t *testing.T) {
 
 	// Turned on, but there is still no index: a different answer, because
 	// there is nothing for the user to do about this one.
-	a.config.update(func(c *Config) { c.SearchEnabled = true })
+	a.config.Update(func(c *config.Config) { c.SearchEnabled = true })
 	rec, resp = searchReq(t, a, url.Values{"q": {"x"}, "scope": {"all"}})
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status %d, want 503", rec.Code)
@@ -216,17 +218,17 @@ func TestSearchGating_PageScopeIgnoresConfig(t *testing.T) {
 
 	states := []struct {
 		name string
-		set  func(c *Config)
+		set  func(c *config.Config)
 	}{
-		{"all defaults", func(c *Config) {}},
-		{"global search off", func(c *Config) { c.SearchEnabled = false }},
-		{"global search on", func(c *Config) { c.SearchEnabled = true }},
-		{"no kinds indexed", func(c *Config) { c.SearchKinds = []string{} }},
-		{"notes excluded from the index", func(c *Config) { c.SearchKinds = []string{SearchKindJS} }},
-		{"scope defaults to all", func(c *Config) { c.SearchScope = SearchScopeAll }},
+		{"all defaults", func(c *config.Config) {}},
+		{"global search off", func(c *config.Config) { c.SearchEnabled = false }},
+		{"global search on", func(c *config.Config) { c.SearchEnabled = true }},
+		{"no kinds indexed", func(c *config.Config) { c.SearchKinds = []string{} }},
+		{"notes excluded from the index", func(c *config.Config) { c.SearchKinds = []string{config.SearchKindJS} }},
+		{"scope defaults to all", func(c *config.Config) { c.SearchScope = config.SearchScopeAll }},
 	}
 	for _, st := range states {
-		a.config.update(st.set)
+		a.config.Update(st.set)
 		_, resp := searchReq(t, a, url.Values{
 			"q": {"needle"}, "scope": {"page"}, "on": {"Note"},
 		})
@@ -245,12 +247,12 @@ func TestDefaultSearchScope(t *testing.T) {
 	// Config says "all", but global search cannot answer. An unscoped query
 	// thus falls back to the page. It does not answer 503 to a caller who
 	// expressed no preference.
-	a.config.update(func(c *Config) { c.SearchScope = SearchScopeAll; c.SearchEnabled = true })
+	a.config.Update(func(c *config.Config) { c.SearchScope = config.SearchScopeAll; c.SearchEnabled = true })
 	rec, resp := searchReq(t, a, url.Values{"q": {"needle"}, "on": {"Note"}})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d, want 200", rec.Code)
 	}
-	if resp.Scope != SearchScopePage {
+	if resp.Scope != config.SearchScopePage {
 		t.Errorf("scope = %q, want page while global search is unavailable", resp.Scope)
 	}
 	if len(resp.Results) != 1 {
@@ -274,7 +276,7 @@ func TestGlobalSearchAvailableRuntimeVar(t *testing.T) {
 	if a.globalSearchAvailable() {
 		t.Error("available with search off")
 	}
-	a.config.update(func(c *Config) { c.SearchEnabled = true })
+	a.config.Update(func(c *config.Config) { c.SearchEnabled = true })
 	if a.globalSearchAvailable() {
 		t.Error("available with the setting on but no index built")
 	}
@@ -287,10 +289,10 @@ func TestGlobalSearchAvailableRuntimeVar(t *testing.T) {
 
 func TestConfigPageSearchScreen(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) {
+	a.config.Update(func(c *config.Config) {
 		c.SearchEnabled = true
-		c.SearchKinds = []string{SearchKindMD, SearchKindJS}
-		c.SearchScope = SearchScopePage
+		c.SearchKinds = []string{config.SearchKindMD, config.SearchKindJS}
+		c.SearchScope = config.SearchScopePage
 	})
 
 	body := a.getConfigPageBody()

@@ -14,6 +14,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"net.basov.omngo/backend/internal/config"
 )
 
 // getStatus runs the handler and returns the decoded document.
@@ -90,7 +91,7 @@ func TestStatusHasNoBindAddress(t *testing.T) {
 // network, which is why the test asserts the shape and not the count.
 func TestStatusLANURLShape(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) { c.ShareLAN = true })
+	a.config.Update(func(c *config.Config) { c.ShareLAN = true })
 
 	res, _ := getStatus(t, a, "sections=server")
 	seen := map[string]bool{}
@@ -112,7 +113,7 @@ func TestStatusLANURLShape(t *testing.T) {
 
 	// Sharing off: the list stays empty, because no other device can
 	// reach this server.
-	a.config.update(func(c *Config) { c.ShareLAN = false })
+	a.config.Update(func(c *config.Config) { c.ShareLAN = false })
 	res, _ = getStatus(t, a, "sections=server")
 	if len(res.Server.LANURLs) != 0 {
 		t.Errorf("lan_urls = %v with sharing off, want none", res.Server.LANURLs)
@@ -124,7 +125,7 @@ func TestStatusLANURLShape(t *testing.T) {
 // address that the probe already found.
 func TestStatusLANAddressesFromAndroid(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) { c.ShareLAN = true })
+	a.config.Update(func(c *config.Config) { c.ShareLAN = true })
 
 	stRunning(t, a)
 	SetLANAddresses(" 192.168.5.5 , 10.0.0.7 ,, 192.168.5.5 ")
@@ -147,7 +148,7 @@ func TestStatusLANAddressesFromAndroid(t *testing.T) {
 	}
 
 	// Sharing off answers with no address, whatever Android sent.
-	a.config.update(func(c *Config) { c.ShareLAN = false })
+	a.config.Update(func(c *config.Config) { c.ShareLAN = false })
 	res, _ = getStatus(t, a, "sections=server")
 	if len(res.Server.LANURLs) != 0 {
 		t.Errorf("lan_urls = %v with sharing off, want none", res.Server.LANURLs)
@@ -329,9 +330,9 @@ func TestStatusRemoteHeadFromLocalRefs(t *testing.T) {
 // The remote to look in: the remote of the active server slot first, then
 // the bootstrap remote of an older installation.
 func TestRemoteRefCandidates(t *testing.T) {
-	cfg := Config{
+	cfg := config.Config{
 		ActiveGitIndex: 1,
-		GitServers: []GitServerConfig{
+		GitServers: []config.GitServer{
 			{Name: "first", URL: "https://example.com/a.git"},
 			{Name: "second", URL: "https://example.com/b.git"},
 		},
@@ -357,8 +358,8 @@ func TestRemoteRefCandidates(t *testing.T) {
 // The remote URL is reported without its password.
 func TestStatusRedactsGitPassword(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) {
-		c.GitServers = []GitServerConfig{{
+	a.config.Update(func(c *config.Config) {
+		c.GitServers = []config.GitServer{{
 			Name: "home",
 			URL:  "https://user:secret@example.com/notes.git",
 		}}
@@ -381,9 +382,9 @@ func TestStatusRedactsGitPassword(t *testing.T) {
 // format.
 func TestStatusNeverCarriesSecrets(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) {
+	a.config.Update(func(c *config.Config) {
 		c.AdminPassword = "admin_secret_value"
-		c.GitServers = []GitServerConfig{{
+		c.GitServers = []config.GitServer{{
 			Name: "home", URL: "https://u:pw_secret_value@example.com/n.git",
 			SSHKeyData: "PRIVATE_KEY_VALUE", Password: "slot_secret_value",
 		}}
@@ -443,7 +444,7 @@ func TestStatusAndroidPackage(t *testing.T) {
 // The estimate counts what the index holds, and it grows with the index.
 func TestStatusSearchEstimate(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) { c.SearchEnabled = true })
+	a.config.Update(func(c *config.Config) { c.SearchEnabled = true })
 	a.search = &searchIndex{
 		docs: map[string]*indexedDoc{
 			"md/One.md": {
@@ -527,7 +528,7 @@ func TestStatusPageIsAReaderOfTheEndpoint(t *testing.T) {
 // writes. This is the rule the file index follows.
 func TestStatusPageAnswersARemoteCallerWithAPage(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) { c.ShareLAN = true })
+	a.config.Update(func(c *config.Config) { c.ShareLAN = true })
 
 	req := httptest.NewRequest(http.MethodGet, "/OMNGoStatus.html", nil)
 	req.RemoteAddr = "192.168.1.44:51000" // another machine on the network

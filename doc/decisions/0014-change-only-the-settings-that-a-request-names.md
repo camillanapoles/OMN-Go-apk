@@ -2,9 +2,9 @@
 
 * Status: accepted
 * Version: 26.08.43
-* Code: `configFieldSent` in `backend/config_handlers.go`, `applyConfigForm` and
-  `applyGitServerForm` in `backend/config_fields.go`,
-  `configCheckboxFields` and the Config page template
+* Code: `configFieldSent` in `backend/config_handlers.go`, `config.ApplyForm` and
+  `config.ApplyGitServerForm` in `backend/internal/config/fields.go`,
+  `config.CheckboxFields` and the Config page template
 
 ## Context
 
@@ -29,8 +29,8 @@ and "not part of this request" thus look the same to the server.
   ticked means.
 * A caller with no `config_fields` changes only what it names. A note or
   a script gets that safe default.
-* `configCheckboxFields` writes the list from the table in
-  `config_fields.go`. A new checkbox thus needs no edit of the markup.
+* `config.CheckboxFields` writes the list from the table in
+  `internal/config/fields.go`. A new checkbox thus needs no edit of the markup.
 
 ## Consequences
 

@@ -34,6 +34,7 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/config"
 )
 
 // benchCopies is the number of copies of the bundled notes in the search
@@ -105,9 +106,9 @@ func benchSearchApp(tb testing.TB) *App {
 	a := benchApp(tb)
 	benchCorpus(tb, a)
 	a.search = &searchIndex{}
-	a.config.update(func(c *Config) {
+	a.config.Update(func(c *config.Config) {
 		c.SearchEnabled = true
-		c.SearchKinds = []string{SearchKindMD, SearchKindBookmarks}
+		c.SearchKinds = []string{config.SearchKindMD, config.SearchKindBookmarks}
 	})
 	a.rebuildSearchIndex()
 	return a

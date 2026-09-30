@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	cryptossh "golang.org/x/crypto/ssh"
+	"net.basov.omngo/backend/internal/config"
 )
 
 // hkKey makes a new ed25519 host key.
@@ -198,11 +199,11 @@ func TestSyncAnswersAChangedHostKey(t *testing.T) {
 	}
 
 	second := hkKey(t)
-	a.config.update(func(c *Config) { c.GitServers[0].URL = "ssh://git@" + hkServer(t, second) + "/notes.git" })
+	a.config.Update(func(c *config.Config) { c.GitServers[0].URL = "ssh://git@" + hkServer(t, second) + "/notes.git" })
 	// The new server listens on another port. The test gives it the host
 	// entry of the first server, thus the key looks changed.
 	a.hostKeys.mu.Lock()
-	newHost := sshHostOf(a.config.get().GitServers[0].URL)
+	newHost := sshHostOf(a.config.Get().GitServers[0].URL)
 	if err := a.writeHostKey(newHost, first.PublicKey()); err != nil {
 		t.Fatal(err)
 	}

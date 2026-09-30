@@ -2,7 +2,7 @@
 
 * Status: accepted
 * Version: 26.09.7
-* Code: `applyGitServerForm` in `backend/config_fields.go`,
+* Code: `config.ApplyGitServerForm` in `backend/internal/config/fields.go`,
   `gitServerView` and `configPageView` in `backend/config_page.go`,
   `backend/frontend/html/js/OMN-Go/omn-go-config.js`
 

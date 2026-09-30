@@ -69,8 +69,8 @@ func (a *App) recompileMarkdownPage(name, mdPath string, errMd error) {
 		} else {
 			timestamp := time.Now().Format("2006-01-02 15:04:05")
 			authorLine := ""
-			if a.config.get().Author != "" {
-				authorLine = fmt.Sprintf("\nAuthor: %s", a.config.get().Author)
+			if a.config.Get().Author != "" {
+				authorLine = fmt.Sprintf("\nAuthor: %s", a.config.Get().Author)
 			}
 			defaultContent := fmt.Sprintf("Title: %s\nDate: %s\nCategory: Notes%s\n\n", name, timestamp, authorLine)
 			os.MkdirAll(filepath.Dir(mdPath), 0755)
@@ -108,7 +108,7 @@ func (a *App) serveEditor(w http.ResponseWriter, r *http.Request, path string) {
 		a.materializeAsset("/" + filepath.ToSlash(relPath))
 	}
 
-	if !a.config.get().UseInternalEd {
+	if !a.config.Get().UseInternalEd {
 		http.Redirect(w, r, "/api/edit-external?name="+url.QueryEscape(relPath), http.StatusSeeOther)
 		return
 	}

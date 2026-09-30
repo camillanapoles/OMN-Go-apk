@@ -243,7 +243,7 @@ func (a *App) handleStatus(w http.ResponseWriter, r *http.Request) {
 
 	if strings.EqualFold(r.URL.Query().Get("format"), "md") {
 		// Answer text/plain and not text/markdown, because the Android
-		// WebView shows only text/plain. For the same reason, builtinMIME
+		// WebView shows only text/plain. For the same reason, config.BuiltinMIME
 		// serves .jsonl as text/plain.
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Write([]byte(renderStatusMarkdown(res)))
@@ -295,7 +295,7 @@ func parseStatusSections(raw string) (want map[string]bool, unknown []string) {
 }
 
 func (a *App) buildStatus(want map[string]bool) *statusResponse {
-	cfg := a.config.get()
+	cfg := a.config.Get()
 	res := &statusResponse{Generated: statusTime(time.Now())}
 	fail := func(section string, err error) {
 		if res.Errors == nil {

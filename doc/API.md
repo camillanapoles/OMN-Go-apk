@@ -1172,8 +1172,8 @@ config_fields=use_internal_editor,share_lan,enable_intent_uri,enable_termux_inte
 ```
 
 Since 26.09.19 the Config page fills that value from the table of settings
-in `backend/config_fields.go`, so it names every checkbox of the page and
-nothing else. The list above is what that table gives today.
+in `backend/internal/config/fields.go`, so it names every checkbox of the
+page and nothing else. The list above is what that table gives today.
 
 A name in that list counts as carried even when the request holds no value
 for it, which is what an unticked box means. A caller that sends no
@@ -1192,18 +1192,18 @@ setting off and touches nothing else.
 | `use_internal_editor` | `"true"` | carried | Any other value → `false` |
 | `desktop_ext_cmd` | string | carried | |
 | `max_upload_size_mb` | int | non-empty and `> 0` | |
-| `theme` | string | carried | Through `normalizeTheme`; unknown → `auto` |
+| `theme` | string | carried | Through `config.NormalizeTheme`. An unknown value gives `auto` |
 | `share_lan` | `"true"` | carried | **Flipping this changes the response body** |
 | `enable_intent_uri` | `"true"` | carried | |
 | `enable_termux_intent` | `"true"` | carried | |
-| `android_fullscreen` | string | carried | Through `normalizeFullscreen`; unknown → `fullscreen` |
+| `android_fullscreen` | string | carried | Through `config.NormalizeFullscreen`. An unknown value gives `fullscreen` |
 | `search_enabled` | `"true"` | carried | |
 | `search_bundled` | `"true"` | carried | |
-| `search_scope` | string | carried | Through `normalizeSearchScope` |
+| `search_scope` | string | carried | Through `config.NormalizeSearchScope` |
 | `search_kinds` | string | carried | Repeated field. Every value carried is the whole new set |
 | `log_debug` | `"true"` | carried | Any other value → `false` |
 | `log_info` | `"true"` | carried | Any other value → `false` |
-| `log_tags` | string | carried | Repeated field. Every value carried is the whole new set. Through `normalizeLogTags`. An unknown tag goes away |
+| `log_tags` | string | carried | Repeated field. Every value carried is the whole new set. Through `config.NormalizeLogTags`. The server drops an unknown tag |
 | `hostname` | string | carried | Sanitized; carried-but-empty resets to the OS-derived default |
 | `backup_prune_depth` | int | parses `> 0` | |
 | `active_git_index` | int | in range `[0, len(git_servers))` | |

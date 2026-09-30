@@ -3,6 +3,8 @@ package backend
 import (
 	"strings"
 	"testing"
+
+	"net.basov.omngo/backend/internal/config"
 )
 
 func TestRewriteInternalLink(t *testing.T) {
@@ -424,7 +426,7 @@ func TestEnsureHeaderModifiedAddsMissingModified(t *testing.T) {
 
 func TestEnsureHeaderModifiedSynthesizesHeader(t *testing.T) {
 	a := &App{}
-	a.config.update(func(c *Config) { c.Author = "Tester" })
+	a.config.Update(func(c *config.Config) { c.Author = "Tester" })
 	out := a.ensureHeaderModified("Just body text", "NewPage")
 
 	for _, want := range []string{"Title: NewPage", "Date: ", "Modified: ", "Author: Tester"} {

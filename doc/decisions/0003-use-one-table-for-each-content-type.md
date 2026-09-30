@@ -2,9 +2,10 @@
 
 * Status: accepted
 * Version: 1.10.14, 26.08.76, 26.09.16, 26.09.17
-* Code: `builtinMIME`, `resolveContentType` and `hasKnownAssetExtension` in
-  `backend/content_types.go`, `writeHTMLHeader` in `backend/pages.go`,
-  `legacyMimeSeeds` in `backend/config.go`
+* Code: `config.BuiltinMIME`, `config.ResolveContentType` and
+  `config.HasKnownAssetExtension` in `backend/internal/config/content_types.go`,
+  `writeHTMLHeader` in `backend/pages.go`, `config.LegacyMimeSeeds` in
+  `backend/internal/config/config.go`
 
 ## Context
 
@@ -32,16 +33,17 @@ Four faults came from this:
 
 ## Decision
 
-* `builtinMIME` is the one table of content types. `resolveContentType`
-  reads `mime_types` first, then `builtinMIME`, then the standard library.
+* `config.BuiltinMIME` is the one table of content types.
+  `config.ResolveContentType` reads `mime_types` first, then
+  `config.BuiltinMIME`, then the standard library.
 * A new install writes no `mime_types` map. At the load of an older
   `config.json`, the server removes a map that is exactly equal to one of
-  `legacyMimeSeeds`. A map that a person changed stays.
+  `config.LegacyMimeSeeds`. A map that a person changed stays.
 * `writeHTMLHeader` is the only place that writes the type of a page. The
   type is `text/html; charset=utf-8`.
-* `hasKnownAssetExtension` decides if a name is a note or a file. The last
+* `config.HasKnownAssetExtension` decides if a name is a note or a file. The last
   extension decides. An unknown extension makes a note.
-* `hasKnownAssetExtension` does not ask the standard library. Git sync
+* `config.HasKnownAssetExtension` does not ask the standard library. Git sync
   copies a name to each device. The name must be a note on each device,
   or a file on each device.
 * `.jsonl` is `text/plain`. A browser shows `text/plain`, and the Android
@@ -50,6 +52,6 @@ Four faults came from this:
 
 ## Consequences
 
-* A new type is one row in `builtinMIME`.
+* A new type is one row in `config.BuiltinMIME`.
 * A person can still change a type in `mime_types`. That change also
-  applies to `hasKnownAssetExtension`.
+  applies to `config.HasKnownAssetExtension`.

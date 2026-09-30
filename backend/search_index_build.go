@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
 	"net.basov.omngo/backend/internal/textmatch"
 )
@@ -23,30 +24,30 @@ func (a *App) searchRoots(kinds []string) []searchRoot {
 		want[k] = true
 	}
 	var roots []searchRoot
-	if want[SearchKindMD] || want[SearchKindBookmarks] {
+	if want[config.SearchKindMD] || want[config.SearchKindBookmarks] {
 		roots = append(roots, searchRoot{
-			kind: SearchKindMD,
+			kind: config.SearchKindMD,
 			dir:  a.layout().md(),
 			exts: []string{".md"},
 		})
 	}
-	if want[SearchKindJS] {
+	if want[config.SearchKindJS] {
 		roots = append(roots, searchRoot{
-			kind: SearchKindJS,
+			kind: config.SearchKindJS,
 			dir:  a.layout().html("js"),
 			exts: []string{".js"},
 		})
 	}
-	if want[SearchKindJSON] {
+	if want[config.SearchKindJSON] {
 		roots = append(roots, searchRoot{
-			kind: SearchKindJSON,
+			kind: config.SearchKindJSON,
 			dir:  a.layout().html("json"),
 			exts: []string{".json"},
 		})
 	}
-	if want[SearchKindUserJSON] {
+	if want[config.SearchKindUserJSON] {
 		roots = append(roots, searchRoot{
-			kind: SearchKindUserJSON,
+			kind: config.SearchKindUserJSON,
 			dir:  a.layout().html("user_json"),
 			exts: []string{".json", ".jsonl"},
 		})
@@ -58,7 +59,7 @@ func (a *App) searchRoots(kinds []string) []searchRoot {
 // the new map first, and swaps it in under the write lock. A query thus sees
 // the whole old index or the whole new one.
 func (a *App) rebuildSearchIndex() {
-	cfg := a.config.get()
+	cfg := a.config.Get()
 	if !cfg.SearchEnabled {
 		a.dropSearchIndex()
 		return
@@ -68,14 +69,14 @@ func (a *App) rebuildSearchIndex() {
 	}
 
 	started := time.Now()
-	kinds := normalizeSearchKinds(cfg.SearchKinds)
+	kinds := config.NormalizeSearchKinds(cfg.SearchKinds)
 	wantBookmarks := false
 	wantMD := false
 	for _, k := range kinds {
 		switch k {
-		case SearchKindBookmarks:
+		case config.SearchKindBookmarks:
 			wantBookmarks = true
-		case SearchKindMD:
+		case config.SearchKindMD:
 			wantMD = true
 		}
 	}
@@ -94,7 +95,7 @@ func (a *App) rebuildSearchIndex() {
 			if e.IsDir() {
 				// md/local is the ignored scratch tree, and buildTagIndex
 				// skips it too.
-				if root.kind == SearchKindMD && p == filepath.Join(root.dir, "local") {
+				if root.kind == config.SearchKindMD && p == filepath.Join(root.dir, "local") {
 					return fs.SkipDir
 				}
 				return nil
@@ -109,7 +110,7 @@ func (a *App) rebuildSearchIndex() {
 			rel = filepath.ToSlash(rel)
 
 			kind := root.kind
-			if root.kind == SearchKindMD {
+			if root.kind == config.SearchKindMD {
 				name := strings.TrimSuffix(rel, ".md")
 				switch name {
 				case "OMNGoTags":
@@ -118,7 +119,7 @@ func (a *App) rebuildSearchIndex() {
 					if !wantBookmarks {
 						return nil
 					}
-					kind = SearchKindBookmarks
+					kind = config.SearchKindBookmarks
 				default:
 					if !wantMD {
 						return nil
@@ -190,7 +191,7 @@ func (a *App) indexFile(rootKind, kind, rel, path string, info fs.FileInfo, bund
 	}
 
 	var doc *searchDocument
-	if rootKind == SearchKindMD {
+	if rootKind == config.SearchKindMD {
 		doc = newMarkdownDocument(strings.TrimSuffix(rel, ".md"), string(data), truncated)
 		doc.Kind = kind // Bookmarks.md is its own kind
 	} else {
@@ -244,7 +245,7 @@ func addTrigrams(sig *[8]uint64, s []rune) {
 // versionDependentAssets in assets.go, thus a new bundled file needs no
 // second list.
 func isBundledAsset(rootKind, rel string) bool {
-	if rootKind != SearchKindJS && rootKind != SearchKindJSON {
+	if rootKind != config.SearchKindJS && rootKind != config.SearchKindJSON {
 		return false
 	}
 	full := "html/" + rootKind + "/" + rel
@@ -288,7 +289,7 @@ func (a *App) searchStamp(kinds []string) indexStamp {
 				return nil
 			}
 			if e.IsDir() {
-				if root.kind == SearchKindMD && p == filepath.Join(root.dir, "local") {
+				if root.kind == config.SearchKindMD && p == filepath.Join(root.dir, "local") {
 					return fs.SkipDir
 				}
 				consider(e, false) // a rename shows up here and nowhere else
@@ -310,11 +311,11 @@ func (a *App) searchStamp(kinds []string) indexStamp {
 // indexStaleCheckEvery, unless a write inside the process marked the index
 // dirty.
 func (a *App) ensureSearchIndex() bool {
-	cfg := a.config.get()
+	cfg := a.config.Get()
 	if !cfg.SearchEnabled || a.search == nil {
 		return false
 	}
-	kinds := strings.Join(normalizeSearchKinds(cfg.SearchKinds), ",")
+	kinds := strings.Join(config.NormalizeSearchKinds(cfg.SearchKinds), ",")
 
 	a.search.mu.RLock()
 	built := a.search.docs != nil
@@ -341,7 +342,7 @@ func (a *App) ensureSearchIndex() bool {
 		return true
 	}
 
-	fresh := a.searchStamp(normalizeSearchKinds(cfg.SearchKinds))
+	fresh := a.searchStamp(config.NormalizeSearchKinds(cfg.SearchKinds))
 	if fresh == stamp {
 		a.search.mu.Lock()
 		a.search.checked = time.Now()

@@ -59,8 +59,8 @@ const (
 )
 
 // AllTags holds each tag, in the order of the Config page.
-// normalizeLogTags in config.go keeps only these tags, thus config.json
-// cannot keep a tag that the page does not show.
+// config.NormalizeLogTags in internal/config/config.go keeps only these tags,
+// thus config.json cannot keep a tag that the page does not show.
 var AllTags = []Tag{
 	NotFound,
 	Assets,

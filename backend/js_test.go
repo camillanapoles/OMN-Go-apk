@@ -36,6 +36,7 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
 	"net.basov.omngo/backend/internal/noteheader"
 )
@@ -384,7 +385,7 @@ func TestLogFilterPortAgreesWithTheRealJavaScript(t *testing.T) {
 	// THE FOUR STATES OF Config.LogTags, and each one is reachable.
 	//
 	// nil is a configuration that never held the key, and
-	// normalizeLogTags answers the whole default set for it. An EMPTY
+	// config.NormalizeLogTags answers the whole default set for it. An EMPTY
 	// slice is a person who unticked every box on the Config page, and
 	// it answers an empty set. The two are different, and the first
 	// draft of this test used nil where it meant empty. It then read a
@@ -405,7 +406,7 @@ func TestLogFilterPortAgreesWithTheRealJavaScript(t *testing.T) {
 			for _, set := range tagSets {
 				for _, debug := range []bool{true, false} {
 					for _, info := range []bool{true, false} {
-						cfg := Config{LogDebug: debug, LogInfo: info, LogTags: set}
+						cfg := config.Config{LogDebug: debug, LogInfo: info, LogTags: set}
 						a.applyLogFilter(cfg)
 						want = append(want, a.logLineEnabled(lvl, tag))
 						cases = append(cases, jsFilterCase{
@@ -415,7 +416,7 @@ func TestLogFilterPortAgreesWithTheRealJavaScript(t *testing.T) {
 							// page. A test that builds this value another
 							// way compares the two sides against a state
 							// that no browser ever holds.
-							Tags: strings.Join(normalizeLogTags(cfg.LogTags), ","),
+							Tags: strings.Join(config.NormalizeLogTags(cfg.LogTags), ","),
 							// The shape that logx.Logger.emit writes. See internal/logx/hub.go.
 							Line: "2026/09/06 12:00:00 [" + string(tag) + "] (" +
 								string(lvl) + ") a message",

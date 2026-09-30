@@ -620,10 +620,10 @@ public class MainActivity extends Activity {
     private static final String FULLSCREEN_ON = OmnConfig.FULLSCREEN_ON;
     private static final String FULLSCREEN_IMMERSIVE = OmnConfig.FULLSCREEN_IMMERSIVE;
 
-    // OmnConfig.fullscreenMode mirrors normalizeFullscreen in
-    // backend/config.go. An unknown or absent value means "fullscreen",
-    // thus a config.json written before this setting existed keeps the
-    // behavior that install already had. See the banner of OmnConfig.
+    // OmnConfig.fullscreenMode mirrors config.NormalizeFullscreen in
+    // backend/internal/config/config.go. An unknown or absent value means
+    // "fullscreen", thus a config.json written before this setting existed
+    // keeps the behavior that install already had. See the banner of OmnConfig.
     private String readFullscreenMode() {
         return OmnConfig.fullscreenMode(storageDir());
     }
@@ -1159,12 +1159,12 @@ public class MainActivity extends Activity {
         return name;
     }
 
-    // Reads max_upload_size_mb straight out of config.json. This path
-    // writes the shared file directly to disk, and it does not go through
-    // /api/upload or /api/upload_json of the Go server. It thus cannot use
+    // Reads max_upload_size_mb straight out of config.json. This path writes
+    // the shared file directly to disk, and it does not use /api/upload
+    // or /api/upload_json of the Go server. It thus cannot use
     // a.maxUploadBytes() on the server. It repeats the same default,
-    // defaultMaxUploadSizeMB in backend/config.go, when config.json is
-    // missing or unreadable.
+    // config.DefaultMaxUploadSizeMB in backend/internal/config/config.go, when
+    // config.json is missing or unreadable.
     private int readMaxUploadSizeMB() {
         return OmnConfig.maxUploadMB(storageDir());
     }

@@ -13,6 +13,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"net.basov.omngo/backend/internal/config"
 )
 
 func getSearchPage(t *testing.T, a *App, query string) *httptest.ResponseRecorder {
@@ -128,7 +130,7 @@ func TestRenderSnippetHTML(t *testing.T) {
 // An empty result has to say what WAS searched. "No results" from a config the
 // reader has forgotten about is a trap, not an answer.
 func TestSearchPage_EmptyStateNamesTheCorpus(t *testing.T) {
-	a := enabledSearchApp(t, SearchKindMD)
+	a := enabledSearchApp(t, config.SearchKindMD)
 	writeSearchNote(t, a, "Note.md", "Title: A Note\n\nsomething\n")
 
 	body := getSearchPage(t, a, "zzzznothing").Body.String()

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
 	"net.basov.omngo/backend/internal/textmatch"
 )
@@ -18,7 +19,7 @@ import (
 // user asked for it AND an index exists. injectRuntimeVars gives it to each
 // page as OMN_SEARCH_GLOBAL, thus the dialog never offers a scope that fails.
 func (a *App) globalSearchAvailable() bool {
-	return a.config.get().SearchEnabled && a.searchIndexBuilt()
+	return a.config.Get().SearchEnabled && a.searchIndexBuilt()
 }
 
 // defaultSearchScope is the scope of a request without one. It follows the
@@ -26,9 +27,9 @@ func (a *App) globalSearchAvailable() bool {
 // A request with no preference must not get a scope that fails.
 func (a *App) defaultSearchScope() string {
 	if a.globalSearchAvailable() {
-		return normalizeSearchScope(a.config.get().SearchScope)
+		return config.NormalizeSearchScope(a.config.Get().SearchScope)
 	}
-	return SearchScopePage
+	return config.SearchScopePage
 }
 
 // searchMatch is one snippet of the response. Spans are [start, len] pairs in
@@ -97,11 +98,11 @@ func (a *App) handleSearch(w http.ResponseWriter, r *http.Request) {
 
 	code := http.StatusOK
 	switch scope {
-	case SearchScopePage:
+	case config.SearchScopePage:
 		a.searchPage(&resp, qs)
-	case SearchScopeAll:
+	case config.SearchScopeAll:
 		switch {
-		case !a.config.get().SearchEnabled:
+		case !a.config.Get().SearchEnabled:
 			// This is not an empty result. "Nothing matched" is about the
 			// notes, and this answer is about the settings.
 			code = http.StatusServiceUnavailable
@@ -346,7 +347,7 @@ func buildMatches(doc *searchDocument, hits []lineHit) ([]searchMatch, string) {
 // source and no cache. The page is for GLOBAL search only. With global search
 // off, it names the setting. Page search lives in the dialog.
 func (a *App) serveSearchPage(w http.ResponseWriter, r *http.Request) {
-	cfg := a.config.get()
+	cfg := a.config.Get()
 
 	// A note can link to the Search page, thus a person can reach it when
 	// search is off. The page then says why it can do nothing, and where to
@@ -360,14 +361,14 @@ func (a *App) serveSearchPage(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	view := searchPageView{
 		Query:        query,
-		IndexedKinds: normalizeSearchKinds(cfg.SearchKinds),
+		IndexedKinds: config.NormalizeSearchKinds(cfg.SearchKinds),
 		Highlight:    highlightTerms(parseQuery(query)),
 	}
 
 	if strings.TrimSpace(query) != "" && a.ensureSearchIndex() {
 		// The page and the API use the same code, thus the page and the
 		// dialog always agree.
-		resp := searchResponse{Query: query, Scope: SearchScopeAll, Results: []searchResult{}}
+		resp := searchResponse{Query: query, Scope: config.SearchScopeAll, Results: []searchResult{}}
 		a.searchGlobal(&resp, map[string][]string{"q": {query}})
 		view.Results = resp.Results
 		view.Total = resp.Total

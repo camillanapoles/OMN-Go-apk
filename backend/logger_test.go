@@ -21,6 +21,7 @@ import (
 	"sync"
 	"testing"
 
+	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
 )
 
@@ -119,17 +120,17 @@ func TestEmitLogLineShape(t *testing.T) {
 // person who unticks every box gets an empty list, which is a different
 // thing and must survive a save.
 func TestNormalizeLogTags(t *testing.T) {
-	if got := normalizeLogTags(nil); len(got) != len(logx.AllTags) {
+	if got := config.NormalizeLogTags(nil); len(got) != len(logx.AllTags) {
 		t.Errorf("nil gave %d tags, want every one of the %d", len(got), len(logx.AllTags))
 	}
-	if got := normalizeLogTags([]string{}); len(got) != 0 {
+	if got := config.NormalizeLogTags([]string{}); len(got) != 0 {
 		t.Errorf("an empty list gave %v, want an empty list - unticking every box "+
 			"is not the same as an upgrade with no key", got)
 	}
-	got := normalizeLogTags([]string{"SYNC", " sync ", "not-a-tag", "assets"})
+	got := config.NormalizeLogTags([]string{"SYNC", " sync ", "not-a-tag", "assets"})
 	want := []string{"assets", "sync"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
-		t.Errorf("normalizeLogTags gave %v, want %v - it lowercases, trims, "+
+		t.Errorf("config.NormalizeLogTags gave %v, want %v - it lowercases, trims, "+
 			"drops an unknown tag, and keeps the order of logx.AllTags", got, want)
 	}
 }
@@ -140,7 +141,7 @@ func TestNormalizeLogTags(t *testing.T) {
 func TestLogLineEnabled(t *testing.T) {
 	a := newTestApp(t)
 
-	a.applyLogFilter(Config{LogDebug: false, LogInfo: false, LogTags: logTagsDefault})
+	a.applyLogFilter(config.Config{LogDebug: false, LogInfo: false, LogTags: config.LogTagsDefault})
 	if !a.logLineEnabled(logx.LevelError, logx.Sync) {
 		t.Error("an error was filtered out with both levels off")
 	}
@@ -148,7 +149,7 @@ func TestLogLineEnabled(t *testing.T) {
 		t.Error("a quiet level printed with both levels off")
 	}
 
-	a.applyLogFilter(Config{LogDebug: true, LogInfo: true, LogTags: []string{"assets"}})
+	a.applyLogFilter(config.Config{LogDebug: true, LogInfo: true, LogTags: []string{"assets"}})
 	if !a.logLineEnabled(logx.LevelDebug, logx.Assets) {
 		t.Error("a ticked tag was filtered out with debug on")
 	}
@@ -225,7 +226,7 @@ func TestLogHistoryKeepsTheNewestLines(t *testing.T) {
 // wants to SEE, and never what the application keeps.
 func TestLogHistoryHoldsASuppressedLine(t *testing.T) {
 	a := newTestApp(t)
-	a.applyLogFilter(Config{LogDebug: false, LogInfo: false, LogTags: []string{}})
+	a.applyLogFilter(config.Config{LogDebug: false, LogInfo: false, LogTags: []string{}})
 
 	if a.logLineEnabled(logx.LevelDebug, logx.Sync) {
 		t.Fatal("the filter lets a debug line through, thus this test proves nothing")
@@ -538,7 +539,7 @@ func TestLogsPageIsAReaderOfTheTwoAddresses(t *testing.T) {
 // The route carries no authMiddleware for that reason. See page_access.go.
 func TestLogsPageAnswersARemoteCallerWithAPage(t *testing.T) {
 	a := newTestApp(t)
-	a.config.update(func(c *Config) { c.ShareLAN = true })
+	a.config.Update(func(c *config.Config) { c.ShareLAN = true })
 
 	req := httptest.NewRequest(http.MethodGet, "/OMNGoLogs.html", nil)
 	req.RemoteAddr = "192.168.1.44:51000" // another machine on the network

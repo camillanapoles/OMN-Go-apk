@@ -3,6 +3,8 @@ package backend
 import (
 	"fmt"
 	"strings"
+
+	"net.basov.omngo/backend/internal/config"
 )
 
 // --- The search result page (search_page.html) ---
@@ -24,15 +26,15 @@ type searchPageView struct {
 // searchKindLabel answers the name of a kind for the group heading.
 func searchKindLabel(kind string) string {
 	switch kind {
-	case SearchKindMD:
+	case config.SearchKindMD:
 		return "Notes"
-	case SearchKindBookmarks:
+	case config.SearchKindBookmarks:
 		return "Bookmarks"
-	case SearchKindJS:
+	case config.SearchKindJS:
 		return "Scripts"
-	case SearchKindJSON:
+	case config.SearchKindJSON:
 		return "JSON"
-	case SearchKindUserJSON:
+	case config.SearchKindUserJSON:
 		return "Uploaded JSON"
 	default:
 		return kind
@@ -100,7 +102,7 @@ func renderSearchPage(v searchPageView) string {
 
 	// Group by kind, in a fixed order, thus the page has a stable shape.
 	// Inside a group, the order of the server stays.
-	for _, kind := range searchKindsAll {
+	for _, kind := range config.SearchKindsAll {
 		var inKind []searchResult
 		for _, r := range v.Results {
 			if r.Kind == kind {

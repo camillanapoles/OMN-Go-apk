@@ -1,4 +1,4 @@
-package backend
+package config
 
 import (
 	"encoding/json"
@@ -9,10 +9,10 @@ import (
 	"net.basov.omngo/backend/internal/logx"
 )
 
-// maxGitServers is the fixed number of git server slots. The loader,
-// config_fields.go and getConfigPageBody read it, thus a new count is a
+// MaxGitServers is the fixed number of git server slots. The loader,
+// fields.go and getConfigPageBody read it, thus a new count is a
 // change of one line.
-const maxGitServers = 5
+const MaxGitServers = 5
 
 // These are the theme values of Config.Theme. ThemeAuto follows the dark mode
 // of the system, through the prefers-color-scheme media query of the CSS.
@@ -22,11 +22,11 @@ const (
 	ThemeDark  = "dark"
 )
 
-// normalizeTheme maps each input to a valid theme. An unknown or empty value,
+// NormalizeTheme maps each input to a valid theme. An unknown or empty value,
 // also a missing key, becomes ThemeAuto. The loader, the POST handler and the
 // renderer all use it, thus each reader after them gets one of the three
 // constants.
-func normalizeTheme(s string) string {
+func NormalizeTheme(s string) string {
 	switch s {
 	case ThemeLight, ThemeDark:
 		return s
@@ -46,11 +46,11 @@ const (
 	FullscreenImmersive = "immersive"  // status AND navigation bars hidden
 )
 
-// normalizeFullscreen maps each input to a valid mode. An unknown or empty
+// NormalizeFullscreen maps each input to a valid mode. An unknown or empty
 // value, also a missing key, becomes FullscreenOn.
 // MainActivity.readFullscreenMode reads config.json itself, and it must apply
 // the same default.
-func normalizeFullscreen(s string) string {
+func NormalizeFullscreen(s string) string {
 	switch s {
 	case FullscreenOff, FullscreenImmersive:
 		return s
@@ -71,7 +71,7 @@ const (
 	SearchKindUserJSON  = "user_json"
 )
 
-var searchKindsAll = []string{
+var SearchKindsAll = []string{
 	SearchKindMD, SearchKindBookmarks, SearchKindJS, SearchKindJSON, SearchKindUserJSON,
 }
 
@@ -84,11 +84,11 @@ const (
 	SearchScopePage = "page"
 )
 
-// normalizeSearchKinds keeps only known kinds, with no duplicate, in their
+// NormalizeSearchKinds keeps only known kinds, with no duplicate, in their
 // order. nil and empty differ on purpose. A config.json with NO search_kinds
 // key gives nil, and nil gets the default. A person who clears each box gets
 // an empty list, which means "index nothing".
-func normalizeSearchKinds(kinds []string) []string {
+func NormalizeSearchKinds(kinds []string) []string {
 	if kinds == nil {
 		return append([]string(nil), searchKindsDefault...)
 	}
@@ -99,7 +99,7 @@ func normalizeSearchKinds(kinds []string) []string {
 		if seen[k] {
 			continue
 		}
-		for _, known := range searchKindsAll {
+		for _, known := range SearchKindsAll {
 			if k == known {
 				seen[k] = true
 				out = append(out, k)
@@ -110,10 +110,10 @@ func normalizeSearchKinds(kinds []string) []string {
 	return out
 }
 
-// logTagsDefault holds each tag of logx.AllTags. A fresh install checks each
+// LogTagsDefault holds each tag of logx.AllTags. A fresh install checks each
 // tag, because the two level switches are the control
 // that a reader finds first. The tag list narrows a level that is on.
-var logTagsDefault = func() []string {
+var LogTagsDefault = func() []string {
 	out := make([]string, 0, len(logx.AllTags))
 	for _, t := range logx.AllTags {
 		out = append(out, string(t))
@@ -121,19 +121,19 @@ var logTagsDefault = func() []string {
 	return out
 }()
 
-// normalizeLogTags keeps only known tags, with no duplicate, in the order of
-// logx.AllTags. As in normalizeSearchKinds, nil gets each tag, and an empty
+// NormalizeLogTags keeps only known tags, with no duplicate, in the order of
+// logx.AllTags. As in NormalizeSearchKinds, nil gets each tag, and an empty
 // list means "no debug or info line".
-func normalizeLogTags(tags []string) []string {
+func NormalizeLogTags(tags []string) []string {
 	if tags == nil {
-		return append([]string(nil), logTagsDefault...)
+		return append([]string(nil), LogTagsDefault...)
 	}
 	want := map[string]bool{}
 	for _, t := range tags {
 		want[strings.ToLower(strings.TrimSpace(t))] = true
 	}
 	out := []string{}
-	for _, known := range logTagsDefault {
+	for _, known := range LogTagsDefault {
 		if want[known] {
 			out = append(out, known)
 		}
@@ -141,8 +141,8 @@ func normalizeLogTags(tags []string) []string {
 	return out
 }
 
-// normalizeSearchScope maps each unknown or empty value to SearchScopeAll.
-func normalizeSearchScope(s string) string {
+// NormalizeSearchScope maps each unknown or empty value to SearchScopeAll.
+func NormalizeSearchScope(s string) string {
 	if strings.ToLower(strings.TrimSpace(s)) == SearchScopePage {
 		return SearchScopePage
 	}
@@ -153,16 +153,16 @@ func normalizeSearchScope(s string) string {
 // The mime_types map of config.json
 // ----------------------------------------------------------------------
 //
-// Config.MimeTypes OVERRIDES builtinMIME in content_types.go, and
-// resolveContentType reads it first. builtinMIME is the one authority for a
+// Config.MimeTypes OVERRIDES BuiltinMIME in content_types.go, and
+// resolveContentType reads it first. BuiltinMIME is the one authority for a
 // content type. A FRESH INSTALL WRITES NO MAP, because each row of a map
 // hides the table and has no charset. See
 // doc/decisions/0003-use-one-table-for-each-content-type.md.
 //
-// legacyMimeSeeds holds the two maps that an older version wrote.
+// LegacyMimeSeeds holds the two maps that an older version wrote.
 // dropLegacyMimeSeed removes a map only when it is EXACTLY one of them. A map
 // with one changed row is a choice of the user, and it stays.
-var legacyMimeSeeds = []map[string]string{
+var LegacyMimeSeeds = []map[string]string{
 	{
 		".css":   "text/css",
 		".js":    "application/javascript",
@@ -191,7 +191,7 @@ func dropLegacyMimeSeed(log logx.Logger, c *Config) bool {
 	if c.MimeTypes == nil {
 		return false
 	}
-	for _, seed := range legacyMimeSeeds {
+	for _, seed := range LegacyMimeSeeds {
 		if !sameStringMap(c.MimeTypes, seed) {
 			continue
 		}
@@ -216,19 +216,19 @@ func sameStringMap(a, b map[string]string) bool {
 	return true
 }
 
-type GitServerConfig struct {
+type GitServer struct {
 	Name       string `json:"name"`
 	URL        string `json:"url"`
 	SSHKeyData string `json:"ssh_key_data"`
 	Password   string `json:"password"`
 }
 
-// defaultMaxUploadSizeMB is the default limit, in MB, for an uploaded image
+// DefaultMaxUploadSizeMB is the default limit, in MB, for an uploaded image
 // or JSON file. saveUploadedFile in upload_handlers.go applies it. The Android
 // "share to OMN-Go" path writes the file without the Go server, thus
 // MainActivity.java reads the same value from config.json. See
 // Config.MaxUploadSizeMB.
-const defaultMaxUploadSizeMB = 3
+const DefaultMaxUploadSizeMB = 3
 
 type Config struct {
 	ForcePullOneTime bool   `json:"force_pull_one_time"`
@@ -237,7 +237,7 @@ type Config struct {
 	Author           string `json:"author"`
 	UseInternalEd    bool   `json:"use_internal_editor"`
 	DesktopExtCmd    string `json:"desktop_ext_cmd"`
-	Theme            string `json:"theme"` // "auto" | "light" | "dark", see normalizeTheme
+	Theme            string `json:"theme"` // "auto" | "light" | "dark", see NormalizeTheme
 	// ShareLAN sets the listen address. False, the default, binds 127.0.0.1,
 	// and only this device can connect. True binds 0.0.0.0, and each write
 	// needs the admin password. The socket binds one time, thus
@@ -248,12 +248,12 @@ type Config struct {
 	BackupPruneDepth int               `json:"backup_prune_depth"`
 	MimeTypes        map[string]string `json:"mime_types"`
 	ActiveGitIndex   int               `json:"active_git_index"`
-	GitServers       []GitServerConfig `json:"git_servers"`
+	GitServers       []GitServer       `json:"git_servers"`
 	// SearchEnabled turns on GLOBAL search, which builds and keeps an index.
 	// The default is FALSE. The index uses about half the size of the indexed
 	// text, for the life of the process. Page search does not need it.
 	SearchEnabled bool `json:"search_enabled"`
-	// SearchKinds is what the global index covers. See normalizeSearchKinds
+	// SearchKinds is what the global index covers. See NormalizeSearchKinds
 	// for why absent and empty differ.
 	SearchKinds []string `json:"search_kinds"`
 	// SearchBundled also indexes the scripts that OMN-Go ships, from the
@@ -264,7 +264,7 @@ type Config struct {
 	// SearchScope is where a search starts: "all" or "page".
 	SearchScope string `json:"search_scope"`
 	// MaxUploadSizeMB limits an uploaded image or JSON file, in MB. See
-	// defaultMaxUploadSizeMB.
+	// DefaultMaxUploadSizeMB.
 	MaxUploadSizeMB int `json:"max_upload_size_mb"`
 	// EnableIntentURI is the main switch for an Android "intent:" link in a
 	// note, for example
@@ -281,7 +281,7 @@ type Config struct {
 	// value from config.json at each tap.
 	EnableTermuxIntent bool `json:"enable_termux_intent"`
 	// AndroidFullscreen selects the system bars that the Android app hides.
-	// See normalizeFullscreen. MainActivity reads it from config.json on
+	// See NormalizeFullscreen. MainActivity reads it from config.json on
 	// resume and after each page load, thus a change needs no restart. The
 	// desktop ignores it.
 	AndroidFullscreen string `json:"android_fullscreen"`
@@ -293,29 +293,25 @@ type Config struct {
 	LogInfo  bool `json:"log_info"`
 	// LogTags is the second axis. A debug or info line prints when its level
 	// is on AND its tag is in this list. An error line ignores the list. See
-	// normalizeLogTags.
+	// NormalizeLogTags.
 	LogTags []string `json:"log_tags"`
 }
 
-// loadConfig reads configPath, the config.json of storageLayout.config.
-func (a *App) loadConfig(configPath string) {
-	a.config.update(func(c *Config) { a.loadConfigLocked(c, configPath) })
-}
-
-// loadConfigLocked fills c from config.json. The caller holds the write lock.
-func (a *App) loadConfigLocked(c *Config, configPath string) {
+// Load fills c from the config.json at configPath. The caller holds the write
+// lock. fallbackPort is the port for a config.json with none.
+func Load(c *Config, configPath string, fallbackPort int, log logx.Logger) {
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		*c = Config{
 			// Do not use a literal 8080. The fdroid flavor of Android passes
 			// 8081, because the two flavors can run side by side. The loader
 			// writes the port to config.json, thus each later reader sees it.
-			ServerPort:      a.fallbackPort(),
+			ServerPort:      fallbackPort,
 			AdminPassword:   "admin_secret_changeme",
 			Author:          "Anonymous",
 			UseInternalEd:   true,
 			DesktopExtCmd:   "subl",
 			Theme:           ThemeAuto,
-			MaxUploadSizeMB: defaultMaxUploadSizeMB,
+			MaxUploadSizeMB: DefaultMaxUploadSizeMB,
 
 			// Global search is off on a fresh install. When a person turns it
 			// on, it covers notes and bookmarks.
@@ -327,7 +323,7 @@ func (a *App) loadConfigLocked(c *Config, configPath string) {
 			// install thus writes faults and nothing else.
 			LogDebug: false,
 			LogInfo:  false,
-			LogTags:  append([]string(nil), logTagsDefault...),
+			LogTags:  append([]string(nil), LogTagsDefault...),
 			// This is the same as Theme.NoTitleBar.Fullscreen in the
 			// manifest.
 			AndroidFullscreen: FullscreenOn,
@@ -335,17 +331,17 @@ func (a *App) loadConfigLocked(c *Config, configPath string) {
 			// Hostname labels this device in the file names of database
 			// backups. See db_backup.go. BackupPruneDepth is the number of
 			// backups that each database keeps.
-			Hostname:         defaultHostname(),
+			Hostname:         DefaultHostname(),
 			BackupPruneDepth: 3,
 
 			// Write NO MimeTypes MAP. A fresh install overrides nothing. See
-			// legacyMimeSeeds.
+			// LegacyMimeSeeds.
 		}
 		data, err := json.MarshalIndent(*c, "", "  ")
 		if err != nil {
-			a.log(logx.Config).Errf("loadConfig: failed to marshal default config: %v", err)
+			log.Errf("loadConfig: failed to marshal default config: %v", err)
 		} else if err := os.WriteFile(configPath, data, 0644); err != nil {
-			a.log(logx.Config).Errf("loadConfig: failed to write default config.json: %v", err)
+			log.Errf("loadConfig: failed to write default config.json: %v", err)
 		}
 	} else {
 		data, readErr := os.ReadFile(configPath)
@@ -353,81 +349,62 @@ func (a *App) loadConfigLocked(c *Config, configPath string) {
 			// The loader cannot read an existing config.json. Leave c
 			// at its zero value, and write an error line. Do not run with an
 			// empty config in silence.
-			a.log(logx.Config).Errf("loadConfig: failed to read %s: %v", configPath, readErr)
+			log.Errf("loadConfig: failed to read %s: %v", configPath, readErr)
 		} else if err := json.Unmarshal(data, c); err != nil {
 			// A config.json that does not parse leaves c partly zero.
 			// The error line explains why the passwords and settings seem to
 			// reset.
-			a.log(logx.Config).Errf("loadConfig: failed to parse %s (using defaults for any unparsed fields): %v", configPath, err)
+			log.Errf("loadConfig: failed to parse %s (using defaults for any unparsed fields): %v", configPath, err)
 		}
 	}
 	// A config.json with no server_port, or a value below 1, gets the
 	// fallback port.
 	if c.ServerPort <= 0 {
-		c.ServerPort = a.fallbackPort()
+		c.ServerPort = fallbackPort
 	}
 	// normalizeConfig applies each other repair from the table in
-	// config_fields.go. An old config.json can have an empty theme and no
+	// fields.go. An old config.json can have an empty theme and no
 	// log_tags key. The next save of config.json writes the repair.
 	normalizeConfig(c)
-	// The slot array always holds maxGitServers rows. A config.json with
+	// The slot array always holds MaxGitServers rows. A config.json with
 	// fewer rows, or with "git_servers": null, gets the missing rows here.
 	// getConfigPageBody holds a second guard for its snapshot.
-	for len(c.GitServers) < maxGitServers {
-		c.GitServers = append(c.GitServers, GitServerConfig{Name: fmt.Sprintf("Server %d", len(c.GitServers)+1)})
+	for len(c.GitServers) < MaxGitServers {
+		c.GitServers = append(c.GitServers, GitServer{Name: fmt.Sprintf("Server %d", len(c.GitServers)+1)})
 	}
 
 	// Remove a map that an older version wrote, thus the table of the build
 	// answers again. See dropLegacyMimeSeed.
-	if dropLegacyMimeSeed(a.log(logx.Config), c) {
+	if dropLegacyMimeSeed(log, c) {
 		data, err := json.MarshalIndent(*c, "", "  ")
 		if err != nil {
-			a.log(logx.Config).Errf("loadConfig: failed to marshal config after the mime-type repair: %v", err)
+			log.Errf("loadConfig: failed to marshal config after the mime-type repair: %v", err)
 		} else if err := os.WriteFile(configPath, data, 0644); err != nil {
-			a.log(logx.Config).Errf("loadConfig: failed to write config.json after the mime-type repair: %v", err)
+			log.Errf("loadConfig: failed to write config.json after the mime-type repair: %v", err)
 		}
 	}
-
-	// Call this last. Each line above is a fault, and a fault always prints.
-	// See applyLogFilter.
-	a.applyLogFilter(*c)
 }
 
-// fallbackPort is the port for a config.json with none. Only the config
-// loader can apply it. loadConfig writes the port into config.json on a fresh
-// install, and a later default would never reach the file. See
-// DEFAULT_SERVER_PORT in android/app/build.gradle.
-func (a *App) fallbackPort() int {
-	if a.defaultPort > 0 {
-		return a.defaultPort
-	}
-	return 8080
-}
-
-// applyLogFilter caches the log switches of one configuration.
-//
-// A LOG LINE MUST NEVER TAKE THE CONFIG LOCK. loadConfig holds the write lock
-// and can write a log line, and a Go RWMutex is not reentrant. A read of the
-// config from emit would thus deadlock the start. An atomic value costs
-// one load for each line. loadConfig and handleConfigPost refresh the cache.
-func (a *App) applyLogFilter(c Config) {
+// LogFilter answers the log switches of c. See applyLogFilter of package
+// backend.
+func LogFilter(c Config) logx.Filter {
 	f := logx.Filter{
 		Debug: c.LogDebug,
 		Info:  c.LogInfo,
 		Tags:  make(map[logx.Tag]bool, len(logx.AllTags)),
 	}
-	for _, t := range normalizeLogTags(c.LogTags) {
+	for _, t := range NormalizeLogTags(c.LogTags) {
 		f.Tags[logx.Tag(t)] = true
 	}
-	a.logFilter.Store(f)
+	return f
 }
 
-// maxUploadBytes converts MaxUploadSizeMB to bytes. loadConfig always sets a
+// MaxUploadBytes converts MaxUploadSizeMB to bytes. load always sets a
 // positive value, thus the fallback below is a guard only.
-func (a *App) maxUploadBytes() int64 {
-	mb := a.config.get().MaxUploadSizeMB
+func MaxUploadBytes(c Config) int64 {
+	mb := c.MaxUploadSizeMB
 	if mb <= 0 {
-		mb = defaultMaxUploadSizeMB
+		mb = DefaultMaxUploadSizeMB
 	}
 	return int64(mb) * 1024 * 1024
 }

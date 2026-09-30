@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
 )
 
@@ -203,10 +204,10 @@ func (a *App) createDBBackup(name string) (created string, pruned []string, err 
 
 	// The header is line 1, and the code builds it last, because it holds the
 	// counts. The list endpoint then reads one line for the metadata.
-	cfg := a.config.get()
-	host := sanitizeHostname(cfg.Hostname)
+	cfg := a.config.Get()
+	host := config.SanitizeHostname(cfg.Hostname)
 	if host == "" {
-		host = defaultHostname()
+		host = config.DefaultHostname()
 	}
 	header := backupHeader{
 		Format:   backupFormatName,
@@ -290,7 +291,7 @@ func (a *App) listBackupFiles(name string) ([]string, error) {
 // newest. It answers the relative path of each removed file. git carries the
 // deletions of a tracked database. For a local-* database, they are final.
 func (a *App) pruneDBBackups(name string) ([]string, error) {
-	depth := a.config.get().BackupPruneDepth
+	depth := a.config.Get().BackupPruneDepth
 	if depth <= 0 {
 		depth = 3
 	}

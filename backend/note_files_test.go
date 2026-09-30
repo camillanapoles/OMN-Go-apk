@@ -183,8 +183,8 @@ func TestSyncNoteFileToMDRefusesEscape(t *testing.T) {
 	}
 }
 
-// The mirror is useful only when the copy is then SERVED, and served as
-// text. ".txt" is not in the own MIME table of Go. Without the builtinMIME
+// The mirror is useful only when the copy is then SERVED, and served as text.
+// ".txt" is not in the own MIME table of Go. Without the config.BuiltinMIME
 // row, the file has no content type on a device with no /etc/mime.types.
 // editableFileType reads that same table, and it then calls the file "not
 // text".

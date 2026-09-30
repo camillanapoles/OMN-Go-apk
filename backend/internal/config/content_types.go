@@ -1,4 +1,4 @@
-package backend
+package config
 
 import (
 	"mime"
@@ -6,9 +6,9 @@ import (
 	"strings"
 )
 
-// builtinMIME is the content-type table of OMN-Go. It names the web fonts,
+// BuiltinMIME is the content-type table of OMN-Go. It names the web fonts,
 // for a container whose own table is small.
-var builtinMIME = map[string]string{
+var BuiltinMIME = map[string]string{
 	".html": "text/html; charset=utf-8",
 	".css":  "text/css; charset=utf-8",
 	".js":   "text/javascript; charset=utf-8",
@@ -36,22 +36,23 @@ var builtinMIME = map[string]string{
 	".ttf":   "font/ttf",
 }
 
-// resolveContentType is the single MIME resolver. It reads Config.MimeTypes,
-// then builtinMIME, then mime.TypeByExtension. The override is empty on a new
+// ResolveContentType is the single MIME resolver. It reads overrides, the
+// Config.MimeTypes map,
+// then BuiltinMIME, then mime.TypeByExtension. The override is empty on a new
 // install. The answer is "" when no source knows the extension, and net/http
 // then reads the content.
-func (a *App) resolveContentType(path string) string {
+func ResolveContentType(overrides map[string]string, path string) string {
 	ext := strings.ToLower(filepath.Ext(path))
-	if ct, ok := a.config.get().MimeTypes[ext]; ok && ct != "" {
+	if ct, ok := overrides[ext]; ok && ct != "" {
 		return ct
 	}
-	if ct, ok := builtinMIME[ext]; ok {
+	if ct, ok := BuiltinMIME[ext]; ok {
 		return ct
 	}
 	return mime.TypeByExtension(ext)
 }
 
-// hasKnownAssetExtension reports whether the last extension of name is one
+// HasKnownAssetExtension reports whether the last extension of name is one
 // that this install serves as a file. It is the one answer to "is this name a
 // note, or a file under html/".
 //
@@ -67,14 +68,14 @@ func (a *App) resolveContentType(path string) string {
 // IT MUST NOT CALL mime.TypeByExtension. The standard library reads
 // /etc/mime.types, which differs between devices. Git sync carries a name to
 // each device, and the name must be a note on each one or a file on each one.
-func (a *App) hasKnownAssetExtension(name string) bool {
+func HasKnownAssetExtension(overrides map[string]string, name string) bool {
 	ext := strings.ToLower(filepath.Ext(name))
 	if ext == "" {
 		return false
 	}
-	if ct, ok := a.config.get().MimeTypes[ext]; ok && ct != "" {
+	if ct, ok := overrides[ext]; ok && ct != "" {
 		return true
 	}
-	_, ok := builtinMIME[ext]
+	_, ok := BuiltinMIME[ext]
 	return ok
 }

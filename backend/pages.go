@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"net.basov.omngo/backend/internal/config"
 )
 
 // pageHeader is the header block of a page that the server makes.
@@ -122,15 +124,15 @@ type pageFacts struct {
 // on disk keeps the marker, thus a change of a setting needs no new compile.
 //
 // The marker is in <head>, thus data-theme applies before the body shows. The
-// server controls each value, and normalizeTheme and normalizeLogTags allow
-// only known values, thus fmt can put them in.
+// server controls each value, and config.NormalizeTheme and
+// config.NormalizeLogTags allow only known values, thus fmt can put them in.
 func (a *App) injectRuntimeVars(page []byte) []byte {
-	cfg := a.config.get()
+	cfg := a.config.Get()
 	searchGlobal := a.pages.searchGlobal != nil && a.pages.searchGlobal()
 	script := fmt.Sprintf(
 		`<script>var APP_VERSION = %q; var USE_INTERNAL_ED = %t; var OMN_THEME = %q; var OMN_SEARCH_GLOBAL = %t; var OMN_INCOMING_PAGE = %q; var OMN_LOG_DEBUG = %t; var OMN_LOG_INFO = %t; var OMN_LOG_TAGS = %q; document.documentElement.setAttribute('data-theme', OMN_THEME);</script>`,
-		APP_VERSION, cfg.UseInternalEd, normalizeTheme(cfg.Theme), searchGlobal, a.pages.incomingPage,
-		cfg.LogDebug, cfg.LogInfo, strings.Join(normalizeLogTags(cfg.LogTags), ","))
+		APP_VERSION, cfg.UseInternalEd, config.NormalizeTheme(cfg.Theme), searchGlobal, a.pages.incomingPage,
+		cfg.LogDebug, cfg.LogInfo, strings.Join(config.NormalizeLogTags(cfg.LogTags), ","))
 	page = bytes.Replace(page, []byte(runtimeVarsMarker), []byte(script), 1)
 	// Put the modals into the slot. The editor page has no slot, and nothing
 	// changes there.
