@@ -1,4 +1,4 @@
-package backend
+package exchange
 
 import (
 	"encoding/base64"
@@ -20,23 +20,23 @@ import (
 // way out of the note tree. The device itself passes authMiddleware. A person
 // reads an error answer as a toast on Android or as a line on the incoming page.
 
-// handleExportNote answers GET /api/export/note?name=<note> with the Markdown
+// HandleExportNote answers GET /api/export/note?name=<note> with the Markdown
 // of the note, FileName: set, as a download. MainActivity gives the bytes to
 // the share sheet.
-func (a *App) handleExportNote(w http.ResponseWriter, r *http.Request) {
+func (svc Service) HandleExportNote(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")
 	if name == "" {
-		a.writeJSONError(w, http.StatusBadRequest, "no note named")
+		svc.writeJSONError(w, http.StatusBadRequest, "no note named")
 		return
 	}
 
-	data, filename, err := a.exportNoteSource(name)
+	data, filename, err := svc.ExportNoteSource(name)
 	if err != nil {
 		if os.IsNotExist(err) {
-			a.writeJSONError(w, http.StatusNotFound, fmt.Sprintf("no note %q", name))
+			svc.writeJSONError(w, http.StatusNotFound, fmt.Sprintf("no note %q", name))
 			return
 		}
-		a.writeJSONError(w, http.StatusBadRequest, err.Error())
+		svc.writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -53,28 +53,28 @@ func (a *App) handleExportNote(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
-// handleImportNote answers POST /api/import/note?name=<display name>. Android
+// HandleImportNote answers POST /api/import/note?name=<display name>. Android
 // posts raw bytes, and the desktop posts a form file. The sanitizer also
 // checks ?name=, the fallback for a note with no FileName: line.
-func (a *App) handleImportNote(w http.ResponseWriter, r *http.Request) {
+func (svc Service) HandleImportNote(w http.ResponseWriter, r *http.Request) {
 
-	limit := a.maxUploadBytes()
+	limit := svc.MaxUploadBytes
 	displayName := r.URL.Query().Get("name")
 	var content []byte
 
 	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
 		if err := r.ParseMultipartForm(limit); err != nil {
-			a.writeJSONError(w, http.StatusBadRequest, "cannot read the upload: "+err.Error())
+			svc.writeJSONError(w, http.StatusBadRequest, "cannot read the upload: "+err.Error())
 			return
 		}
 		file, header, err := r.FormFile("file")
 		if err != nil {
-			a.writeJSONError(w, http.StatusBadRequest, "no file in the upload")
+			svc.writeJSONError(w, http.StatusBadRequest, "no file in the upload")
 			return
 		}
 		defer file.Close()
 		if content, err = readImportBody(file, limit); err != nil {
-			a.writeJSONError(w, http.StatusRequestEntityTooLarge, err.Error())
+			svc.writeJSONError(w, http.StatusRequestEntityTooLarge, err.Error())
 			return
 		}
 		if displayName == "" && header != nil {
@@ -83,15 +83,15 @@ func (a *App) handleImportNote(w http.ResponseWriter, r *http.Request) {
 	} else {
 		var err error
 		if content, err = readImportBody(r.Body, limit); err != nil {
-			a.writeJSONError(w, http.StatusRequestEntityTooLarge, err.Error())
+			svc.writeJSONError(w, http.StatusRequestEntityTooLarge, err.Error())
 			return
 		}
 	}
 
-	res, err := a.importNote(content, displayName, time.Now())
+	res, err := svc.ImportNote(content, displayName, time.Now())
 	if res.Name == "" {
 		// The import wrote nothing. This is the only real failure.
-		a.writeJSONError(w, http.StatusBadRequest, err.Error())
+		svc.writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -106,10 +106,10 @@ func (a *App) handleImportNote(w http.ResponseWriter, r *http.Request) {
 		// report would make the user send the note again, and a second copy
 		// repairs nothing.
 		out["warning"] = err.Error()
-		a.log(logx.Exchange).Errf("%v", err)
+		svc.Log(logx.Exchange).Errf("%v", err)
 	}
-	a.log(logx.Exchange).Infof("imported %s", res.Name)
-	a.writeJSON(w, http.StatusOK, out)
+	svc.Log(logx.Exchange).Infof("imported %s", res.Name)
+	svc.writeJSON(w, http.StatusOK, out)
 }
 
 // readImportBody reads at most limit bytes, and it answers an error when the

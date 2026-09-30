@@ -696,9 +696,9 @@ if (window.location.protocol !== 'file:') {
             };
 
             // One note for each request. The rules live in the backend, in
-            // note_exchange.go. The Android share path reaches that same
-            // code. A note thus lands in the same place, whichever way it
-            // came.
+            // internal/exchange/exchange.go. The Android share path reaches
+            // that same code. A note thus lands in the same place, whichever
+            // way it came.
             const importOne = async function (file) {
                 const form = new FormData();
                 form.append('file', file, file.name);

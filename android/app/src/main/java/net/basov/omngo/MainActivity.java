@@ -778,11 +778,11 @@ public class MainActivity extends Activity {
     // through ACTION_VIEW, or as TEXT in the message body.
     //
     // Every one of them ends at the same place, POST /api/import/note. The
-    // rules live in Go, in backend/note_exchange.go. Those rules say where
-    // a note lands, what its name becomes and how a collision is numbered.
-    // This side repeats none of them. The block comment above
-    // handleSharedFile below documents that trap, where the native image
-    // path had to be kept in step with handleUpload by hand.
+    // rules live in Go, in backend/internal/exchange/exchange.go. Those rules
+    // say where a note lands, what its name becomes and how a collision is
+    // numbered. This side repeats none of them. The block comment above
+    // handleSharedFile below documents that trap, where the native image path
+    // had to be kept in step with handleUpload by hand.
 
     /** Names a shared note by extension. ".txt" is not one: v1 sends notes. */
     private static final java.util.Set<String> SHARED_NOTE_EXT =
@@ -2006,12 +2006,12 @@ public class MainActivity extends Activity {
     // device, so OMN-Go integrates with none of them by name.
     //
     // The bytes come from the SERVER, and not from the note file.
-    // /api/export/note adds the "FileName:" line that carries the path of
-    // the note. That rule lives in Go, thus the desktop and this side
-    // cannot disagree about what a sent note looks like. See
-    // backend/note_exchange.go. The endpoint is admin-only, and a local
-    // connection bypasses that. This request comes from 127.0.0.1, which IS
-    // the device.
+    // /api/export/note adds the "FileName:" line that carries the path of the
+    // note. That rule lives in Go, thus the desktop and this side cannot
+    // disagree about what a sent note looks like. See
+    // backend/internal/exchange/exchange.go. The endpoint is admin-only, and a
+    // local connection bypasses that. This request comes from 127.0.0.1, which
+    // IS the device.
 
     /**
      * Answers "omngo://share?name=<note>" and "…&as=text".
@@ -2132,7 +2132,7 @@ public class MainActivity extends Activity {
 
     /**
      * Decodes the X-OMN-Description header (see headerDescription in
-     * backend/note_exchange.go).
+     * backend/internal/exchange/exchange.go).
      *
      * Base64 of UTF-8, because the description is a paragraph: it can hold a
      * newline, which would end the header field, and it can hold Cyrillic or
@@ -2181,8 +2181,8 @@ public class MainActivity extends Activity {
      * Sanitized even though OMN-Go's own server wrote it: this string becomes
      * a path under the cache directory, and a name that arrives over a socket
      * is not a name to join onto a path untouched. flattenExportName in
-     * backend/note_exchange.go already restricts it to the same set, so a
-     * well-formed answer passes through unchanged.
+     * backend/internal/exchange/exchange.go already restricts it to the same
+     * set, so a well-formed answer passes through unchanged.
      */
     private String exportFilename(String contentDisposition) {
         String raw = "";

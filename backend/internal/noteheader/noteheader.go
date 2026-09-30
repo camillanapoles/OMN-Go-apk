@@ -121,10 +121,11 @@ func Parse(content string) Block {
 // Read and write ONE header key
 // ----------------------------------------------------------------------
 //
-// note_exchange.go SETS "FileName:" on a note that it sends, and "Imported:"
-// on a note that it receives. SET means that it replaces the line when it
-// exists. A note can travel from A to B to C. An append would then give two
-// "Imported:" lines, and a header with one key twice has no defined meaning.
+// internal/exchange/exchange.go SETS "FileName:" on a note that it sends, and
+// "Imported:" on a note that it receives. SET means that it replaces the line
+// when it exists. A note can travel from A to B to C. An append would then give
+// two "Imported:" lines, and a header with one key twice has no defined
+// meaning.
 //
 // These functions put the header back into the ORIGINAL string, and they do
 // not join a parsed copy. The separator is one newline after a header that

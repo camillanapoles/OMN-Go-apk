@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"net.basov.omngo/backend/internal/exchange"
 	"net.basov.omngo/backend/internal/render"
 )
 
@@ -75,7 +76,7 @@ func TestEachPageShowsTheValuesOfOtherGroups(t *testing.T) {
 	page := string(a.injectRuntimeVars([]byte(render.RuntimeVarsMarker)))
 	for _, want := range []string{
 		"var OMN_SEARCH_GLOBAL = true;",
-		fmt.Sprintf("var OMN_INCOMING_PAGE = %q;", incomingIndexName),
+		fmt.Sprintf("var OMN_INCOMING_PAGE = %q;", exchange.IncomingIndexName),
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the page misses %s: %s", want, page)

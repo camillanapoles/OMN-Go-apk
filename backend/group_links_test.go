@@ -22,9 +22,9 @@ var fileGroups = map[string]string{
 	"render_app.go":  "render",
 	"storage_app.go": "storage",
 
-	"files_app.go":     "files",
-	"note_exchange.go": "exchange", "note_exchange_http.go": "exchange",
-	"status.go": "status", "status_collect.go": "status", "status_render.go": "status",
+	"files_app.go":    "files",
+	"exchange_app.go": "exchange",
+	"status.go":       "status", "status_collect.go": "status", "status_render.go": "status",
 	"search_app.go":  "search",
 	"gitsync_app.go": "gitsync",
 	"db_app.go":      "db",

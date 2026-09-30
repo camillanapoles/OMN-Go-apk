@@ -688,7 +688,8 @@ details.omn-incoming[open] > summary.omn-incoming-head {
 }
 /* The date on each list line. Smaller and quieter than the note's own title,
    which is what a reader is looking for; the date only says how recent it
-   is. Written by addIncomingIndexLine (backend/note_exchange.go). */
+   is. addIncomingIndexLine (backend/internal/exchange/exchange.go) writes
+   it. */
 .omn-incoming-when {
     font-size: 0.8em;
     color: var(--text-muted);

@@ -1,4 +1,4 @@
-package backend
+package exchange
 
 // ----------------------------------------------------------------------
 // Send a note to another person, and receive one
@@ -33,10 +33,10 @@ const (
 	// md/incoming/incoming.md.
 	incomingIndexBase = "incoming"
 
-	// incomingIndexName is the NAME of that note, as a URL and the page use
+	// IncomingIndexName is the NAME of that note, as a URL and the page use
 	// it. injectRuntimeVars gives it to the page as OMN_INCOMING_PAGE, thus
 	// the JavaScript needs no copy of the name.
-	incomingIndexName = incomingDirName + "/" + incomingIndexBase
+	IncomingIndexName = incomingDirName + "/" + incomingIndexBase
 
 	// incomingListMarker marks the list. A new line goes directly after it,
 	// newest first, and a person can keep text above it.
@@ -66,11 +66,11 @@ const (
 	importMaxSegments     = 8
 )
 
-// exportNoteSource answers the Markdown of a note, ready to send, and the
+// ExportNoteSource answers the Markdown of a note, ready to send, and the
 // name of the attachment. It SETS FileName:, and it does not add a second
 // line. An imported note already has one. See noteheader.SetKey.
-func (a *App) exportNoteSource(name string) (data []byte, filename string, err error) {
-	mdPath, _, baseName, isPage := a.resolvePageName(name)
+func (svc Service) ExportNoteSource(name string) (data []byte, filename string, err error) {
+	mdPath, _, baseName, isPage := storage.ResolvePageName(svc.Layout, svc.MimeTypes, name)
 	if !isPage {
 		return nil, "", fmt.Errorf("%q is not a note", name)
 	}
@@ -164,10 +164,10 @@ type importResult struct {
 	Label string
 }
 
-// importNote writes an arriving note under md/incoming/ and adds a line to
+// ImportNote writes an arriving note under md/incoming/ and adds a line to
 // the incoming index. displayName is the attachment name, the fallback for a
 // note with no FileName: line. The caller gives now for the tests.
-func (a *App) importNote(content []byte, displayName string, now time.Time) (importResult, error) {
+func (svc Service) ImportNote(content []byte, displayName string, now time.Time) (importResult, error) {
 	src := normalizeNewlines(string(content))
 	if strings.TrimSpace(src) == "" {
 		return importResult{}, fmt.Errorf("the note is empty")
@@ -190,7 +190,7 @@ func (a *App) importNote(content []byte, displayName string, now time.Time) (imp
 	}
 
 	dir, base := path.Split(rel)
-	fullDir, ok := a.incomingPath(dir)
+	fullDir, ok := svc.incomingPath(dir)
 	if !ok {
 		return importResult{}, fmt.Errorf("the name %q leaves the incoming directory", original)
 	}
@@ -226,7 +226,7 @@ func (a *App) importNote(content []byte, displayName string, now time.Time) (imp
 		Base:  base,
 		Label: label,
 	}
-	if err := a.addIncomingIndexLine(res, now); err != nil {
+	if err := svc.addIncomingIndexLine(res, now); err != nil {
 		// The note is on disk. Only its index line is missing. Report that,
 		// and do not fail an import that worked.
 		return res, fmt.Errorf("the note was saved, but the incoming index was not updated: %w", err)
@@ -326,8 +326,8 @@ func sanitizeImportSegment(seg string) string {
 // incomingPath joins rel under md/incoming/ and reports whether the resolved
 // result stays inside. filepath.Join resolves a "..", and it does not refuse
 // it.
-func (a *App) incomingPath(rel string) (string, bool) {
-	root := a.layout().MD(incomingDirName)
+func (svc Service) incomingPath(rel string) (string, bool) {
+	root := svc.Layout.MD(incomingDirName)
 	full := filepath.Join(root, filepath.FromSlash(rel))
 	if _, ok := storage.RelInside(root, full); !ok {
 		return "", false
@@ -424,8 +424,8 @@ func incomingLabel(title, base, index string) string {
 // addIncomingIndexLine puts one line at the top of the list in
 // md/incoming/incoming.md: below the marker, or first in the body. The link
 // target is relative to the index directory.
-func (a *App) addIncomingIndexLine(res importResult, now time.Time) error {
-	dir := a.layout().MD(incomingDirName)
+func (svc Service) addIncomingIndexLine(res importResult, now time.Time) error {
+	dir := svc.Layout.MD(incomingDirName)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
@@ -487,11 +487,11 @@ func incomingIndexStarter(now time.Time) string {
 	}))
 }
 
-// ensureIncomingIndex writes the incoming index when it is absent. The start
+// EnsureIncomingIndex writes the incoming index when it is absent. The start
 // and each import call it. On the desktop, the receive box is how the first
 // note arrives, thus the page must exist before the first import.
-func (a *App) ensureIncomingIndex(now time.Time) error {
-	dir := a.layout().MD(incomingDirName)
+func (svc Service) EnsureIncomingIndex(now time.Time) error {
+	dir := svc.Layout.MD(incomingDirName)
 	indexPath := filepath.Join(dir, incomingIndexBase+".md")
 	if storage.FileExists(indexPath) {
 		return nil

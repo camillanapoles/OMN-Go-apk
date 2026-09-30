@@ -1,6 +1,6 @@
-package backend
+package exchange
 
-// Tests for note exchange (note_exchange.go) and the two header-key helpers
+// Tests for note exchange (exchange.go) and the two header-key helpers
 // it needs (package noteheader).
 //
 // Two properties carry the weight here.
@@ -36,10 +36,10 @@ import (
 )
 
 // testNow is fixed so that a test can state exactly what Imported: and the
-// index line must say. importNote takes the clock as a parameter for this.
+// index line must say. ImportNote takes the clock as a parameter for this.
 var testNow = time.Date(2026, 8, 9, 12, 34, 56, 0, time.UTC)
 
-func incomingFile(t *testing.T, a *App, rel string) string {
+func incomingFile(t *testing.T, a *testApp, rel string) string {
 	t.Helper()
 	b, err := os.ReadFile(filepath.Join(a.StorageDir, "md", "incoming", filepath.FromSlash(rel)))
 	if err != nil {

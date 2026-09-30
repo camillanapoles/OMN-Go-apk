@@ -144,8 +144,9 @@ Tags: Bookmarks
 	// link tap in the first second must find the copy.
 	a.syncNoteFilesToHTML()
 
-	// Make the incoming index when it is absent. See note_exchange.go. On the
-	// desktop, the receive box on that page is how a note arrives.
+	// Make the incoming index when it is absent. See
+	// internal/exchange/exchange.go. On the desktop, the receive box on that page
+	// is how a note arrives.
 	if err := a.ensureIncomingIndex(time.Now()); err != nil {
 		a.log(logx.Storage).Errf("initStorage: incoming index: %v", err)
 	}

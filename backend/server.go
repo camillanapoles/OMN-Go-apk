@@ -11,6 +11,7 @@ import (
 
 	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/db"
+	"net.basov.omngo/backend/internal/exchange"
 	"net.basov.omngo/backend/internal/gitsync"
 	"net.basov.omngo/backend/internal/logx"
 	"net.basov.omngo/backend/internal/render"
@@ -80,7 +81,7 @@ func (a *App) WaitUntilReady() {
 // another group through the App, and not by name. See group_links_test.go.
 func (a *App) connectGroups() {
 	a.onPageWritten = func(string) { a.markSearchIndexDirty() }
-	a.pages = render.Facts{SearchGlobal: a.globalSearchAvailable, IncomingPage: incomingIndexName}
+	a.pages = render.Facts{SearchGlobal: a.globalSearchAvailable, IncomingPage: exchange.IncomingIndexName}
 }
 
 // runningApp is the App of StartServer. gomobile exports functions only, thus
