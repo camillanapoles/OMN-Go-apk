@@ -130,7 +130,7 @@ func TestHighlightURLKeepsCommasInsideOneTerm(t *testing.T) {
 }
 
 // The API hands the terms to the dialog, which puts them on the URL itself
-// (withHighlight in omn-go-sse.js). One list, computed once, so a result
+// (withHighlight in omn-go-search.js). One list, computed once, so a result
 // behaves the same whether it was opened from the panel or the results page.
 func TestSearchAPIReturnsHighlightTerms(t *testing.T) {
 	a := enabledSearchApp(t)

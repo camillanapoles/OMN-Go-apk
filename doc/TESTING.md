@@ -38,6 +38,9 @@ date with the next test. `go test -v ./backend/...` lists each test.
 Each package holds the tests of its own code. `backend/internal/repocheck`
 holds only tests. Each one reads files outside one package: the source
 scans, the ports between two languages, the build files and the documents.
+The tests of a feature package build their stand-in App with
+`backend/internal/testkit`. The tests of `backend/internal/app` use the real
+App.
 
 The Java and the JavaScript tests are started BY a Go test. There is no
 second command and no second gate.

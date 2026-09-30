@@ -57,16 +57,16 @@ OMN-Go replaces the original [mvbasov/OMN](https://github.com/mvbasov/OMN) proje
 OMN-Go is one Go binary that serves the frontend from a local web server. Each
 platform wraps this binary in a different way:
 
-1. **The backend (`backend/`):** A Go package that runs the whole application.
-   An `http.ServeMux` (`server.go`) connects request authentication
-   (`middleware.go`), the note and API handlers (`handlers.go` and the
-   `*_handlers.go` files), and Markdown compilation with goldmark
-   (`internal/render/markdown.go`, `internal/render/pages.go`,
-   `internal/render/templates.go`). The backend writes the HTML cache to disk
-   (`internal/render/cache.go`). It also holds an embedded SQLite database
-   (pure-Go `modernc.org/sqlite`, `internal/db/sqlite.go` and the
-   `internal/db/backup*.go` files) and runs git synchronization over SSH
-   (`internal/gitsync/sync.go`). The build compiles all frontend assets into the
+1. **The backend (`backend/`):** The Go code, in several packages. Package
+   `backend` is the facade that gomobile binds and that `main_desktop.go` calls.
+   Package `internal/app` is the application. An `http.ServeMux` (`server.go`)
+   connects the request authentication (`middleware.go`, `session.go`) and the
+   note and API handlers (`handlers.go` and the `*_handlers.go` files). Each
+   other package under `backend/internal/` holds one part of the application or
+   of the tests. `render` compiles Markdown with goldmark and writes the HTML
+   cache to disk. `db` holds the embedded SQLite databases (pure-Go
+   `modernc.org/sqlite`) and their backups. `gitsync` runs the git
+   synchronization over SSH. The build compiles all frontend assets into the
    binary with `//go:embed`, and the backend extracts them to the storage
    directory when it first needs them. This is why OMN-Go works without an
    internet connection.

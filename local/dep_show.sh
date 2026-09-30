@@ -1,5 +1,5 @@
 #!/bin/bash
-SEARCH_WHERE="backend/frontend/html/js/omn-go-core.js backend/frontend/html/js/omn-go-sse.js"
+SEARCH_WHERE="backend/frontend/html/js/OMN-Go/omn-go-core.js backend/frontend/html/js/OMN-Go/omn-go-sse.js"
 
 # Define color codes for output
 GREEN='\033[0;32m'
