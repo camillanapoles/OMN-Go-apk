@@ -337,9 +337,9 @@ func TestBaseline_RouteSet(t *testing.T) {
 		"/api/save",
 		"/api/search",
 		"/api/sql",
-		// The status endpoint. An exact pattern under /api/, so
-		// it shadows nothing. Admin only - the answer carries LAN
-		// addresses, absolute paths and a commit subject (see status.go).
+		// The status endpoint. An exact pattern under /api/, so it shadows nothing.
+		// Admin only - the answer carries LAN addresses, absolute paths and a commit
+		// subject (see internal/status/status.go).
 		"/api/status",
 		"/api/sync",
 		"/api/sync/preview",

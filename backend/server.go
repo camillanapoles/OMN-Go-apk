@@ -16,6 +16,7 @@ import (
 	"net.basov.omngo/backend/internal/logx"
 	"net.basov.omngo/backend/internal/render"
 	"net.basov.omngo/backend/internal/search"
+	"net.basov.omngo/backend/internal/status"
 )
 
 // App encapsulates the global state for the backend
@@ -43,8 +44,8 @@ type App struct {
 	// pages holds the values of other groups that each page shows.
 	pages render.Facts
 
-	// android holds the facts that the Android layer sets. See androidEnv.
-	android androidEnv
+	// android holds the facts that the Android layer sets. See status.Android.
+	android status.Android
 
 	// defaultPort is the port of the flavor, for a config.json with no port.
 	// 0 means 8080. Only loadConfig can apply it: see fallbackPort.
@@ -90,7 +91,7 @@ func (a *App) connectGroups() {
 var (
 	runningMu  sync.Mutex
 	runningApp *App
-	earlyEnv   androidEnv
+	earlyEnv   status.Android
 )
 
 // setRunningApp gives a the facts of earlyEnv, and each later setter writes
@@ -98,14 +99,14 @@ var (
 func setRunningApp(a *App) {
 	runningMu.Lock()
 	defer runningMu.Unlock()
-	a.android.setPackage(earlyEnv.packageName())
-	a.android.setAddresses(earlyEnv.lanAddresses())
+	a.android.SetPackage(earlyEnv.PackageName())
+	a.android.SetAddresses(earlyEnv.LANAddresses())
 	runningApp = a
 }
 
 // withAndroidEnv runs fn on the facts of runningApp, or on earlyEnv before
 // StartServer.
-func withAndroidEnv(fn func(*androidEnv)) {
+func withAndroidEnv(fn func(*status.Android)) {
 	runningMu.Lock()
 	defer runningMu.Unlock()
 	if runningApp != nil {
@@ -119,7 +120,7 @@ func withAndroidEnv(fn func(*androidEnv)) {
 // ServerService.java calls it before Backend.startServer. gomobile exports
 // it.
 func SetAndroidPackage(name string) {
-	withAndroidEnv(func(e *androidEnv) { e.setPackage(name) })
+	withAndroidEnv(func(e *status.Android) { e.SetPackage(name) })
 }
 
 // SetLANAddresses records the addresses of this device as one list with
@@ -134,7 +135,7 @@ func SetLANAddresses(list string) {
 			out = append(out, text)
 		}
 	}
-	withAndroidEnv(func(e *androidEnv) { e.setAddresses(out) })
+	withAndroidEnv(func(e *status.Android) { e.SetAddresses(out) })
 }
 
 // StartServer starts the Go backend.

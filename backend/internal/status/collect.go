@@ -1,4 +1,4 @@
-package backend
+package status
 
 import (
 	"fmt"
@@ -27,8 +27,8 @@ import (
 // The sections
 // ----------------------------------------------------------------------
 
-func (a *App) statusServerSection(cfg config.Config) *statusServer {
-	_, portStr, addr := a.boundAddress()
+func (svc Service) statusServerSection(cfg config.Config) *statusServer {
+	_, portStr, addr := svc.boundAddress()
 	port, _ := strconv.Atoi(portStr)
 	if addr == "" {
 		// The listener is not up yet. The config gives the port.
@@ -41,19 +41,19 @@ func (a *App) statusServerSection(cfg config.Config) *statusServer {
 	}
 
 	s := &statusServer{
-		AppVersion:  APP_VERSION,
-		Started:     statusTime(a.startedAt),
-		UptimeS:     int64(time.Since(a.startedAt).Seconds()),
+		AppVersion:  svc.Version,
+		Started:     statusTime(svc.StartedAt),
+		UptimeS:     int64(time.Since(svc.StartedAt).Seconds()),
 		BindPort:    port,
 		ShareLAN:    cfg.ShareLAN,
 		LANURLs:     []string{},
-		ActiveConns: a.ActiveConnCount(),
+		ActiveConns: svc.ActiveConns,
 		Hostname:    hostname,
 		GOOS:        runtime.GOOS,
 		GOARCH:      runtime.GOARCH,
 	}
 	if cfg.ShareLAN {
-		s.LANURLs = lanURLs(port, a.android.lanAddresses())
+		s.LANURLs = lanURLs(port, svc.Android.LANAddresses())
 	}
 	return s
 }
@@ -85,7 +85,7 @@ func statusConfigSection(cfg config.Config) *statusConfig {
 
 // statusGitSection reads HEAD and changes nothing. An install that never
 // synced has no .git, and that is an answer, not an error.
-func (a *App) statusGitSection(cfg config.Config) (*statusGit, error) {
+func (svc Service) statusGitSection(cfg config.Config) (*statusGit, error) {
 	out := &statusGit{}
 
 	if idx := cfg.ActiveGitIndex; idx >= 0 && idx < len(cfg.GitServers) {
@@ -100,7 +100,7 @@ func (a *App) statusGitSection(cfg config.Config) (*statusGit, error) {
 		}
 	}
 
-	repo, err := a.openRepoReadOnly()
+	repo, err := svc.openRepoReadOnly()
 	if err != nil {
 		return out, nil // no repository on disk
 	}
@@ -171,8 +171,8 @@ func commitSummary(repo *git.Repository, h plumbing.Hash) *statusGitHead {
 // statusGitDirtySection is the slow half of the git answer: go-git hashes
 // each tracked file. It first writes one log line, thus the page can show it
 // under its progress bar.
-func (a *App) statusGitDirtySection() (*statusGitDirty, error) {
-	repo, err := a.openRepoReadOnly()
+func (svc Service) statusGitDirtySection() (*statusGitDirty, error) {
+	repo, err := svc.openRepoReadOnly()
 	if err != nil {
 		return &statusGitDirty{}, nil
 	}
@@ -181,7 +181,7 @@ func (a *App) statusGitDirtySection() (*statusGitDirty, error) {
 		return nil, fmt.Errorf("open worktree: %v", err)
 	}
 
-	a.log(logx.Status).Debugf("Reading the git worktree state")
+	svc.Log(logx.Status).Debugf("Reading the git worktree state")
 	started := time.Now()
 	st, err := wTree.Status()
 	if err != nil {
@@ -199,12 +199,12 @@ func (a *App) statusGitDirtySection() (*statusGitDirty, error) {
 		}
 	}
 	out.Dirty = out.Changed > 0
-	a.log(logx.Status).Infof("Worktree read in %s: %d changed, %d untracked",
+	svc.Log(logx.Status).Infof("Worktree read in %s: %d changed, %d untracked",
 		time.Since(started).Round(time.Millisecond), out.Changed, out.Untracked)
 	return out, nil
 }
 
-func (a *App) statusSearchSection(cfg config.Config) *statusSearch {
+func (svc Service) statusSearchSection(cfg config.Config) *statusSearch {
 	out := &statusSearch{
 		Enabled: cfg.SearchEnabled,
 		Scope:   cfg.SearchScope,
@@ -213,10 +213,10 @@ func (a *App) statusSearchSection(cfg config.Config) *statusSearch {
 	if out.Kinds == nil {
 		out.Kinds = []string{}
 	}
-	if a.search == nil {
+	if svc.Search == nil {
 		return out
 	}
-	st := a.search.Stats()
+	st := svc.Search.Stats()
 	out.Docs = st.Docs
 	out.Lines = st.Lines
 	out.Bytes = st.Bytes
@@ -231,12 +231,12 @@ func (a *App) statusSearchSection(cfg config.Config) *statusSearch {
 	return out
 }
 
-func (a *App) statusRuntimeSection() *statusRuntime {
+func (svc Service) statusRuntimeSection() *statusRuntime {
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
 
 	stamp := ""
-	if raw, err := os.ReadFile(a.layout().File(storage.AssetsVersionFilename)); err == nil {
+	if raw, err := os.ReadFile(svc.Layout.File(storage.AssetsVersionFilename)); err == nil {
 		stamp = strings.TrimSpace(string(raw))
 	}
 	return &statusRuntime{
@@ -245,21 +245,21 @@ func (a *App) statusRuntimeSection() *statusRuntime {
 		HeapAlloc:       mem.HeapAlloc,
 		Sys:             mem.Sys,
 		AssetsVersion:   stamp,
-		AssetsRefreshed: AssetsRefreshed(),
+		AssetsRefreshed: svc.AssetsRefreshed,
 	}
 }
 
 // statusStorageSection walks the storage directory ONE time and sorts each
 // file into its group. The walk of the note tree is the whole cost of this
 // section on a phone.
-func (a *App) statusStorageSection() (*statusStorage, error) {
-	out := &statusStorage{Dir: a.StorageDir}
+func (svc Service) statusStorageSection() (*statusStorage, error) {
+	out := &statusStorage{Dir: string(svc.Layout)}
 	add := func(g *statusGroup, size int64) {
 		g.Files++
 		g.Bytes += size
 	}
 
-	err := filepath.WalkDir(a.StorageDir, func(p string, d os.DirEntry, err error) error {
+	err := filepath.WalkDir(string(svc.Layout), func(p string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil // an unreadable corner must not fail the whole answer
 		}
@@ -276,7 +276,7 @@ func (a *App) statusStorageSection() (*statusStorage, error) {
 		size := info.Size()
 		add(&out.Total, size)
 
-		rel, err := filepath.Rel(a.StorageDir, p)
+		rel, err := filepath.Rel(string(svc.Layout), p)
 		if err != nil {
 			return nil
 		}
@@ -411,8 +411,8 @@ func defaultRouteIP() net.IP {
 // same file system wrappers as gitsync.Service.GetOrInitRepo in
 // internal/gitsync/repo.go, thus both see one worktree. With no repository on
 // disk, it answers an error.
-func (a *App) openRepoReadOnly() (*git.Repository, error) {
-	baseFS := osfs.New(a.StorageDir)
+func (svc Service) openRepoReadOnly() (*git.Repository, error) {
+	baseFS := osfs.New(string(svc.Layout))
 	wtFS := gitsync.WorktreeFS(baseFS)
 	dotFS, err := wtFS.Chroot(".git")
 	if err != nil {

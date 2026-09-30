@@ -1,4 +1,4 @@
-package backend
+package status
 
 import (
 	"net"
@@ -41,7 +41,7 @@ var (
 	statusSlowSections  = []string{"storage", "git_dirty"}
 )
 
-// androidEnv holds the facts that only the Android layer knows. The Go
+// Android holds the facts that only the Android layer knows. The Go
 // runtime cannot ask Android for them.
 //
 //   - pkg is the applicationId, net.basov.omngo or net.basov.omngo.fdroid.
@@ -51,45 +51,45 @@ var (
 //     deny that to an app.
 //
 // SetAndroidPackage and SetLANAddresses in server.go write these facts.
-type androidEnv struct {
+type Android struct {
 	mu        sync.RWMutex
 	pkg       string
 	addresses []string
 }
 
-func (e *androidEnv) setPackage(name string) {
+func (e *Android) SetPackage(name string) {
 	e.mu.Lock()
 	e.pkg = strings.TrimSpace(name)
 	e.mu.Unlock()
 }
 
-func (e *androidEnv) setAddresses(list []string) {
+func (e *Android) SetAddresses(list []string) {
 	e.mu.Lock()
 	e.addresses = append([]string(nil), list...)
 	e.mu.Unlock()
 }
 
-func (e *androidEnv) packageName() string {
+func (e *Android) PackageName() string {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return e.pkg
 }
 
-// lanAddresses answers a copy, thus a caller can keep it.
-func (e *androidEnv) lanAddresses() []string {
+// LANAddresses answers a copy, thus a caller can keep it.
+func (e *Android) LANAddresses() []string {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return append([]string(nil), e.addresses...)
 }
 
-// statusAndroidPackage answers the applicationId. Without SetAndroidPackage,
+// AndroidPackage answers the applicationId. Without SetAndroidPackage,
 // it takes the last element of the storage directory, which IS the package
 // name on Android.
-func (a *App) statusAndroidPackage() string {
-	if name := a.android.packageName(); name != "" {
+func (svc Service) AndroidPackage() string {
+	if name := svc.Android.PackageName(); name != "" {
 		return name
 	}
-	base := filepath.Base(filepath.Clean(a.StorageDir))
+	base := filepath.Base(filepath.Clean(string(svc.Layout)))
 	if strings.Contains(base, ".") {
 		return base // derived, see SetAndroidPackage
 	}
@@ -234,7 +234,7 @@ type statusStorage struct {
 // The handler
 // ----------------------------------------------------------------------
 
-func (a *App) handleStatus(w http.ResponseWriter, r *http.Request) {
+func (svc Service) HandleStatus(w http.ResponseWriter, r *http.Request) {
 
 	want, unknown := parseStatusSections(r.URL.Query().Get("sections"))
 	if len(unknown) > 0 {
@@ -242,7 +242,7 @@ func (a *App) handleStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := a.buildStatus(want)
+	res := svc.buildStatus(want)
 
 	if strings.EqualFold(r.URL.Query().Get("format"), "md") {
 		// Answer text/plain and not text/markdown, because the Android
@@ -253,15 +253,15 @@ func (a *App) handleStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a.writeJSON(w, http.StatusOK, res)
+	svc.writeJSON(w, http.StatusOK, res)
 }
 
 var statusPageTmpl = render.LoadTemplate("status_page.html")
 
-// serveStatusPage answers /OMNGoStatus.html. The page reads /api/status and
+// ServeStatusPage answers /OMNGoStatus.html. The page reads /api/status and
 // shows the answer. It holds no facts of its own.
-func (a *App) serveStatusPage(w http.ResponseWriter, r *http.Request) {
-	a.renderPage(w, http.StatusOK, "Status", render.PageHeader("Status", "System"), statusPageTmpl)
+func (svc Service) ServeStatusPage(w http.ResponseWriter, r *http.Request) {
+	svc.RenderPage(w, http.StatusOK, "Status", render.PageHeader("Status", "System"), statusPageTmpl)
 }
 
 // parseStatusSections changes the "sections" parameter into a set. Empty
@@ -297,8 +297,8 @@ func parseStatusSections(raw string) (want map[string]bool, unknown []string) {
 	return want, unknown
 }
 
-func (a *App) buildStatus(want map[string]bool) *statusResponse {
-	cfg := a.config.Get()
+func (svc Service) buildStatus(want map[string]bool) *statusResponse {
+	cfg := svc.Config
 	res := &statusResponse{Generated: statusTime(time.Now())}
 	fail := func(section string, err error) {
 		if res.Errors == nil {
@@ -308,41 +308,41 @@ func (a *App) buildStatus(want map[string]bool) *statusResponse {
 	}
 
 	if want["server"] {
-		res.Server = a.statusServerSection(cfg)
+		res.Server = svc.statusServerSection(cfg)
 	}
 	if want["config"] {
 		res.Config = statusConfigSection(cfg)
 	}
 	if want["git"] {
 		// The name is not "git", because this file imports that package.
-		section, err := a.statusGitSection(cfg)
+		section, err := svc.statusGitSection(cfg)
 		res.Git = section
 		if err != nil {
 			fail("git", err)
 		}
 	}
 	if want["search"] {
-		res.Search = a.statusSearchSection(cfg)
+		res.Search = svc.statusSearchSection(cfg)
 	}
 	if want["runtime"] {
-		res.Runtime = a.statusRuntimeSection()
+		res.Runtime = svc.statusRuntimeSection()
 	}
 	if want["android"] && runtime.GOOS == "android" {
 		res.Android = &statusAndroid{
-			Package:     a.statusAndroidPackage(),
-			DefaultPort: a.fallbackPort(),
+			Package:     svc.AndroidPackage(),
+			DefaultPort: svc.FallbackPort,
 			Fullscreen:  cfg.AndroidFullscreen,
 		}
 	}
 	if want["storage"] {
-		storage, err := a.statusStorageSection()
+		storage, err := svc.statusStorageSection()
 		res.Storage = storage
 		if err != nil {
 			fail("storage", err)
 		}
 	}
 	if want["git_dirty"] {
-		dirty, err := a.statusGitDirtySection()
+		dirty, err := svc.statusGitDirtySection()
 		res.GitDirty = dirty
 		if err != nil {
 			fail("git_dirty", err)
@@ -352,12 +352,9 @@ func (a *App) buildStatus(want map[string]bool) *statusResponse {
 }
 
 // boundAddress reports the address of the listener as host, port and the
-// joined form. Each value is empty before the bind. StartServer writes the
-// address with setBoundAddress.
-func (a *App) boundAddress() (host, port, addr string) {
-	a.metaMu.RLock()
-	addr = a.boundAddr
-	a.metaMu.RUnlock()
+// joined form. Each value is empty before the bind.
+func (svc Service) boundAddress() (host, port, addr string) {
+	addr = svc.BoundAddr
 	if addr == "" {
 		return "", "", ""
 	}
@@ -366,14 +363,4 @@ func (a *App) boundAddress() (host, port, addr string) {
 		return "", "", addr
 	}
 	return host, port, addr
-}
-
-func (a *App) setBoundAddress(addr string) {
-	a.metaMu.Lock()
-	a.boundAddr = addr
-	a.metaMu.Unlock()
-}
-
-func (a *App) ActiveConnCount() int64 {
-	return a.ActiveConns.Load()
 }

@@ -1,4 +1,4 @@
-package backend
+package status
 
 import (
 	"fmt"

@@ -24,10 +24,10 @@ var fileGroups = map[string]string{
 
 	"files_app.go":    "files",
 	"exchange_app.go": "exchange",
-	"status.go":       "status", "status_collect.go": "status", "status_render.go": "status",
-	"search_app.go":  "search",
-	"gitsync_app.go": "gitsync",
-	"db_app.go":      "db",
+	"status_app.go":   "status",
+	"search_app.go":   "search",
+	"gitsync_app.go":  "gitsync",
+	"db_app.go":       "db",
 
 	"server.go": "app", "middleware.go": "app", "session.go": "app",
 	"request_guard.go": "app", "handlers.go": "app", "page_access.go": "app",

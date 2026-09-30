@@ -28,6 +28,7 @@ var importLayers = map[string]int{
 	"net.basov.omngo/backend/internal/search":     4,
 	"net.basov.omngo/backend/internal/files":      4,
 	"net.basov.omngo/backend/internal/exchange":   4,
+	"net.basov.omngo/backend/internal/status":     5,
 	"net.basov.omngo/backend/internal/noteheader": 0,
 	"net.basov.omngo/backend/internal/textmatch":  0,
 	"net.basov.omngo/backend":                     7,

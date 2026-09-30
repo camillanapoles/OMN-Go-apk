@@ -477,7 +477,7 @@ func TestLogStreamKeepsItsOwnAddress(t *testing.T) {
 // /api/logs. omn-go-logs.js does that work.
 //
 // These two tests are the pair that the Status page carries, for the same
-// two reasons. See status_test.go.
+// two reasons. See internal/status/status_test.go.
 
 // The page must reach both addresses and carry no line of its own.
 func TestLogsPageIsAReaderOfTheTwoAddresses(t *testing.T) {
