@@ -4,8 +4,8 @@
 * Version: 1.10.14, 26.08.76, 26.09.16, 26.09.17
 * Code: `config.BuiltinMIME`, `config.ResolveContentType` and
   `config.HasKnownAssetExtension` in `backend/internal/config/content_types.go`,
-  `writeHTMLHeader` in `backend/pages.go`, `config.LegacyMimeSeeds` in
-  `backend/internal/config/config.go`
+  `render.WriteHTMLHeader` in `backend/internal/render/pages.go`,
+  `config.LegacyMimeSeeds` in `backend/internal/config/config.go`
 
 ## Context
 
@@ -39,7 +39,7 @@ Four faults came from this:
 * A new install writes no `mime_types` map. At the load of an older
   `config.json`, the server removes a map that is exactly equal to one of
   `config.LegacyMimeSeeds`. A map that a person changed stays.
-* `writeHTMLHeader` is the only place that writes the type of a page. The
+* `render.WriteHTMLHeader` is the only place that writes the type of a page. The
   type is `text/html; charset=utf-8`.
 * `config.HasKnownAssetExtension` decides if a name is a note or a file. The last
   extension decides. An unknown extension makes a note.

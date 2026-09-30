@@ -94,7 +94,7 @@ func (a *App) rebuildSearchIndex() {
 				return nil
 			}
 			if e.IsDir() {
-				// md/local is the ignored scratch tree, and buildTagIndex
+				// md/local is the ignored scratch tree, and render.Renderer.BuildTagIndex
 				// skips it too.
 				if root.kind == config.SearchKindMD && p == filepath.Join(root.dir, "local") {
 					return fs.SkipDir

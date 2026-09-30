@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/internal/config"
+	"net.basov.omngo/backend/internal/render"
 )
 
 // ----------------------------------------------------------------------
@@ -223,24 +224,17 @@ func writeConfigWithMime(t *testing.T, path string, mime map[string]string) {
 // The content type of a page
 // ----------------------------------------------------------------------
 
-// writeHTMLHeader is the one place that names the content type of a page.
-// A handler that writes the header by hand can lose the charset.
+// render.WriteHTMLHeader is the one place that names the content type of a
+// page. A handler that writes the header by hand can lose the charset.
 //
 // This test scans the source, the same as TestNoDirectLogPrintf.
 func TestNoBareHTMLContentType(t *testing.T) {
-	entries, err := os.ReadDir(".")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, e := range entries {
-		name := e.Name()
-		// A test file ships to no device, and this file names the banned
-		// text as a string.
-		if e.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
-			continue
-		}
-		// pages.go declares the value, thus it holds the text once.
-		if name == "pages.go" {
+	// A test file ships to no device, and this file names the banned text
+	// as a string. productionGoFiles skips each test file.
+	for _, name := range productionGoFiles(t) {
+		// internal/render/pages.go declares the value, thus it holds the text
+		// once.
+		if name == "internal/render/pages.go" {
 			continue
 		}
 		src, err := os.ReadFile(name)
@@ -252,21 +246,21 @@ func TestNoBareHTMLContentType(t *testing.T) {
 				continue
 			}
 			t.Errorf("%s:%d writes the HTML content type by hand. Call "+
-				"writeHTMLHeader(w) instead. A header with no charset lets the "+
+				"render.WriteHTMLHeader(w) instead. A header with no charset lets the "+
 				"browser guess the encoding of a page that the server renders.",
 				name, i+1)
 		}
 	}
 }
 
-// The one value that writeHTMLHeader writes. It carries the charset, and
+// The one value that render.WriteHTMLHeader writes. It carries the charset, and
 // it keeps the prefix that pageCacheWriter reads.
 func TestPageContentTypeCarriesTheCharset(t *testing.T) {
-	if htmlContentType != "text/html; charset=utf-8" {
-		t.Fatalf("the page content type is %q", htmlContentType)
+	if render.HTMLContentType != "text/html; charset=utf-8" {
+		t.Fatalf("the page content type is %q", render.HTMLContentType)
 	}
 	// The value must start with the prefix that pageCacheWriter reads.
-	if !strings.HasPrefix(htmlContentType, "text/html") {
+	if !strings.HasPrefix(render.HTMLContentType, "text/html") {
 		t.Error("pageCacheWriter reads the prefix text/html to make a page no-store")
 	}
 }

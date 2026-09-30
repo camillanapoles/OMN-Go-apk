@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"net.basov.omngo/backend/internal/render"
 )
 
 // Each row of the page-access table gets its role check from the router. A
@@ -41,36 +43,36 @@ func TestEachSystemPageFollowsItsRow(t *testing.T) {
 	}
 }
 
-// renderPage is the one shell of a page that the server makes. A second
-// call of compilePageWithBody outside pages.go and markdown.go fails this
-// test.
+// renderPage is the one shell of a page that the server makes. A call of
+// CompilePageWithBody in another file of package backend fails this test.
 func TestOnlyRenderPageCompilesAServerPage(t *testing.T) {
 	files, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, f := range files {
-		if strings.HasSuffix(f, "_test.go") || f == "pages.go" || f == "markdown.go" {
+		if strings.HasSuffix(f, "_test.go") || f == "render_app.go" {
 			continue
 		}
 		src, err := os.ReadFile(f)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if strings.Contains(string(src), "compilePageWithBody(") {
+		if strings.Contains(string(src), "CompilePageWithBody(") {
 			t.Errorf("%s compiles a page itself. Call a.renderPage.", f)
 		}
 	}
 }
 
-// connectGroups gives the page shell two values of other groups. Each page
-// must show them, although pages.go names no search or exchange code.
+// connectGroups gives the page shell two values of other groups. Each page must
+// show them, although internal/render/pages.go names no search or exchange
+// code.
 func TestEachPageShowsTheValuesOfOtherGroups(t *testing.T) {
 	a := enabledSearchApp(t)
 	writeSearchNote(t, a, "Note.md", "Title: A Note\n\nneedle\n")
 	a.rebuildSearchIndex()
 
-	page := string(a.injectRuntimeVars([]byte(runtimeVarsMarker)))
+	page := string(a.injectRuntimeVars([]byte(render.RuntimeVarsMarker)))
 	for _, want := range []string{
 		"var OMN_SEARCH_GLOBAL = true;",
 		fmt.Sprintf("var OMN_INCOMING_PAGE = %q;", incomingIndexName),
@@ -79,4 +81,11 @@ func TestEachPageShowsTheValuesOfOtherGroups(t *testing.T) {
 			t.Errorf("the page misses %s: %s", want, page)
 		}
 	}
+}
+
+// testRenderer answers the renderer of the App as a pointer, thus a test can
+// call a method of it in one expression.
+func (a *App) testRenderer() *render.Renderer {
+	rd := a.renderer()
+	return &rd
 }

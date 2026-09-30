@@ -35,6 +35,6 @@ link.
 ## Consequences
 
 * A page must set a content type that starts with `text/html`, or it
-  keeps `no-cache`. `writeHTMLHeader` sets that type.
+  keeps `no-cache`. `render.WriteHTMLHeader` sets that type.
 * `pageCacheWriter` must implement `Flush`, or the log stream holds each
   line until the response ends.

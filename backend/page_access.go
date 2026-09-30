@@ -1,6 +1,10 @@
 package backend
 
-import "net/http"
+import (
+	"net/http"
+
+	"net.basov.omngo/backend/internal/render"
+)
 
 // systemPage is one row of the page-access table: the address, the handler
 // and the role that a caller on another machine needs. A refused caller gets
@@ -45,5 +49,5 @@ func (a *App) serveRefusalPage(w http.ResponseWriter, title string) {
 		`<p class="config-hint">This page is for the admin of this device. ` +
 		`Log in as admin on a note page, then open the page again.</p>` +
 		`</div>`
-	a.renderPage(w, http.StatusOK, title, pageHeader(title, "System"), body)
+	a.renderPage(w, http.StatusOK, title, render.PageHeader(title, "System"), body)
 }

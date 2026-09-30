@@ -14,6 +14,7 @@ import (
 	cryptossh "golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 	"net.basov.omngo/backend/internal/logx"
+	"net.basov.omngo/backend/internal/render"
 )
 
 // ----------------------------------------------------------------------
@@ -207,7 +208,7 @@ func (a *App) handleTrustHostKey(w http.ResponseWriter, r *http.Request) {
 	}
 	a.hostKeys.pending = nil
 	a.log(logx.Sync).Infof("trusted the new host key of %s: %s", host, fingerprint)
-	a.writeJSON(w, http.StatusOK, jsonStatus{Status: "success"})
+	a.writeJSON(w, http.StatusOK, render.JSONStatus{Status: "success"})
 }
 
 // hostKeyAnswer is the answer of /api/sync for a changed host key.

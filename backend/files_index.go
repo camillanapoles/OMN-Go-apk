@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/render"
 )
 
 // filesDirLimit limits the FILES that one directory shows. It never hides a
@@ -439,7 +440,7 @@ func (a *App) writeFilesPage(w http.ResponseWriter, view filesPageView) {
 		title += ": " + strings.TrimSuffix(view.Dir, "/")
 	}
 	body := renderFilesPage(view)
-	a.renderPage(w, http.StatusOK, title, pageHeader(title, "System"), body)
+	a.renderPage(w, http.StatusOK, title, render.PageHeader(title, "System"), body)
 }
 
 // filesCrumbs makes the breadcrumb, from the root of the tree to the current

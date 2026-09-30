@@ -734,12 +734,12 @@
             setDot('clean');
         }
         renderGutter();
-        // Land on the error line if we arrived from a console error.
-        // Otherwise put the caret right after the Pelican-style header
+        // Land on the error line if we arrived from a console error. Otherwise
+        // put the caret right after the Pelican-style header
         // (Title:/Date:/...), which every note gets. See
-        // ensureHeaderModified in backend/markdown.go. A note then opens on
-        // its body, and not scrolled all the way down to the end of the
-        // file.
+        // render.EnsureHeaderModified in backend/internal/render/markdown.go. A
+        // note then opens on its body, and not scrolled all the way down to the
+        // end of the file.
         if (!jumpToTarget()) {
             ta.focus();
             var pos = firstLineAfterHeader(ta.value);

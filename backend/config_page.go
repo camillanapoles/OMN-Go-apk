@@ -6,13 +6,14 @@ import (
 
 	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
+	"net.basov.omngo/backend/internal/render"
 )
 
 // --- The Config page ---
 
 var (
-	configPageTmpl    = loadTemplate("config_page.html")
-	gitServerCardTmpl = loadTemplate("git_server_card.html")
+	configPageTmpl    = render.LoadTemplate("config_page.html")
+	gitServerCardTmpl = render.LoadTemplate("git_server_card.html")
 )
 
 // gitServerView is one git server slot on the Config page. It holds NO SSH
@@ -89,9 +90,9 @@ func renderLogTagBoxes(checked map[string]string) string {
 		}
 		b.WriteString(`                <div class="config-checkbox-row">` + "\n")
 		b.WriteString(`                    <input type="checkbox" name="log_tags" value="` +
-			escapeHTML(string(tag)) + `" ` + checked[string(tag)] + ` />` + "\n")
+			render.EscapeHTML(string(tag)) + `" ` + checked[string(tag)] + ` />` + "\n")
 		b.WriteString(`                    <label class="config-label"><code>` +
-			escapeHTML(string(tag)) + `</code> - ` + escapeHTML(label) + `</label>` + "\n")
+			render.EscapeHTML(string(tag)) + `</code> - ` + render.EscapeHTML(label) + `</label>` + "\n")
 		b.WriteString("                </div>\n")
 	}
 	return b.String()
@@ -105,13 +106,13 @@ func renderConfigPage(v configPageView) string {
 			checked = "checked"
 		}
 		// Put no SSH_KEY and no PASSWORD here. See gitServerView.
-		cards.WriteString(fill(gitServerCardTmpl, map[string]string{
+		cards.WriteString(render.Fill(gitServerCardTmpl, map[string]string{
 			"INDEX":          fmt.Sprintf("%d", gs.Index),
 			"SLOT":           fmt.Sprintf("%d", gs.Slot),
 			"ACTIVE_CHECKED": checked,
-			"NAME":           escapeHTML(gs.Name),
-			"URL":            escapeHTML(gs.URL),
-			"HOST_KEY":       escapeHTML(gs.HostKey),
+			"NAME":           render.EscapeHTML(gs.Name),
+			"URL":            render.EscapeHTML(gs.URL),
+			"HOST_KEY":       render.EscapeHTML(gs.HostKey),
 		}))
 	}
 
@@ -199,18 +200,18 @@ func renderConfigPage(v configPageView) string {
 	}
 
 	// Put no ADMIN_PWD here. See gitServerView.
-	return fill(configPageTmpl, map[string]string{
+	return render.Fill(configPageTmpl, map[string]string{
 		// Give the names of the checkboxes of this page, from the table in
 		// internal/config/fields.go. See config.CheckboxFields.
 		"CONFIG_FIELDS":          config.CheckboxFields(),
 		"SERVER_PORT":            fmt.Sprintf("%d", v.ServerPort),
-		"AUTHOR":                 escapeHTML(v.Author),
+		"AUTHOR":                 render.EscapeHTML(v.Author),
 		"INTERNAL_ED_CHECKED":    internalEdChecked,
 		"SHARE_LAN_CHECKED":      shareLanChecked,
 		"INTENT_URI_CHECKED":     intentUriChecked,
 		"TERMUX_INTENT_CHECKED":  termuxIntentChecked,
-		"DESKTOP_EXT_CMD":        escapeHTML(v.DesktopExtCmd),
-		"HOSTNAME":               escapeHTML(config.NormalizeHostname(v.Hostname)),
+		"DESKTOP_EXT_CMD":        render.EscapeHTML(v.DesktopExtCmd),
+		"HOSTNAME":               render.EscapeHTML(config.NormalizeHostname(v.Hostname)),
 		"BACKUP_PRUNE_DEPTH":     fmt.Sprintf("%d", config.NormalizePruneDepth(v.PruneDepth)),
 		"THEME_AUTO_SEL":         themeSel["THEME_AUTO_SEL"],
 		"THEME_LIGHT_SEL":        themeSel["THEME_LIGHT_SEL"],
@@ -228,7 +229,7 @@ func renderConfigPage(v configPageView) string {
 		"SEARCH_KIND_USER_JSON":  kindChecked[config.SearchKindUserJSON],
 		"SEARCH_SCOPE_ALL_SEL":   searchScopeAllSel,
 		"SEARCH_SCOPE_PAGE_SEL":  searchScopePageSel,
-		"SEARCH_INDEX_STATUS":    escapeHTML(v.SearchIndexStatus),
+		"SEARCH_INDEX_STATUS":    render.EscapeHTML(v.SearchIndexStatus),
 		"LOG_DEBUG_CHECKED":      logDebugChecked,
 		"LOG_INFO_CHECKED":       logInfoChecked,
 		"LOG_TAG_BOXES":          renderLogTagBoxes(logTagChecked),

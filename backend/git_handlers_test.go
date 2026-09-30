@@ -41,6 +41,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"net.basov.omngo/backend/internal/config"
+	"net.basov.omngo/backend/internal/render"
 )
 
 // ghSync posts a form to handleSync and answers the recorder.
@@ -142,7 +143,7 @@ func ghCommitLocally(t *testing.T, a *App, rel, content, message string) plumbin
 func TestSyncJSONWriterEscapesTheMessage(t *testing.T) {
 	w := httptest.NewRecorder()
 	msg := `a "quoted" name and a \ backslash`
-	newTestApp(t).writeJSON(w, http.StatusOK, jsonStatus{Status: "error", Message: msg})
+	newTestApp(t).writeJSON(w, http.StatusOK, render.JSONStatus{Status: "error", Message: msg})
 
 	if got := w.Header().Get("Content-Type"); got != "application/json" {
 		t.Errorf("the content type is %q, want application/json", got)

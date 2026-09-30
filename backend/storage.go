@@ -172,7 +172,7 @@ func (a *App) precompileAllPages() {
 				relPath, _ := filepath.Rel(mdDir, f)
 				name := strings.TrimSuffix(filepath.ToSlash(relPath), ".md")
 				// renderAndCache is the one cache writer. See
-				// render_cache.go.
+				// internal/render/cache.go.
 				if _, err := a.renderAndCache(name, content); err != nil {
 					a.log(logx.Precompile).Errf("precompileAllPages: %v", err)
 				} else {

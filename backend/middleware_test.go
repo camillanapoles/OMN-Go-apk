@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+
+	"net.basov.omngo/backend/internal/render"
 )
 
 // connectionMiddleware wraps each route (see server.go), thus each
@@ -38,10 +40,10 @@ func TestConnectionMiddlewareSetsCacheControl(t *testing.T) {
 // while that page waited in the history. The + button showed this. The link
 // that it writes into the page you started from was absent after Back.
 func TestConnectionMiddlewareUsesNoStoreForAPage(t *testing.T) {
-	// htmlContentType is the value that writeHTMLHeader writes for each
-	// page. A change of it that loses the prefix "text/html" makes each
-	// page cacheable again, and Back then shows an old copy.
-	for _, contentType := range []string{"text/html", "text/html; charset=utf-8", htmlContentType} {
+	// render.HTMLContentType is the value that render.WriteHTMLHeader writes for
+	// each page. A change of it that loses the prefix "text/html" makes each page
+	// cacheable again, and Back then shows an old copy.
+	for _, contentType := range []string{"text/html", "text/html; charset=utf-8", render.HTMLContentType} {
 		a := &App{}
 		h := a.connectionMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", contentType)
@@ -140,17 +142,9 @@ func TestNoBare64BitAtomics(t *testing.T) {
 		"atomic.AddUint64(", "atomic.LoadUint64(", "atomic.StoreUint64(",
 		"atomic.SwapUint64(", "atomic.CompareAndSwapUint64(",
 	}
-	entries, err := os.ReadDir(".")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, e := range entries {
-		name := e.Name()
-		// Test files are not shipped to a device, and this one names every
-		// banned call as a string.
-		if e.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
-			continue
-		}
+	// Test files are not shipped to a device, and this one names every
+	// banned call as a string. productionGoFiles skips each test file.
+	for _, name := range productionGoFiles(t) {
 		src, err := os.ReadFile(name)
 		if err != nil {
 			t.Fatal(err)

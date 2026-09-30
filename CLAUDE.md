@@ -18,11 +18,12 @@ Do not remove a constraint without an instruction from the maintainer.
 1. **No AndroidX. No AppCompat.** The Android layer uses `android.app.Activity`,
    `android.webkit.WebView`, and `android.app.AlertDialog` only. The one Gradle
    dependency is `fileTree(dir: 'libs', include: ['*.jar','*.aar'])`.
-2. **Do not use `html/template`.** It calls `reflect.Value.MethodByName`. That call
-   stops linker dead-code elimination for the whole program. The go-git method
-   surface then makes the binary large. Use `fill()` with `%%PLACEHOLDER%%` tokens.
-   Use the `escapeHTML` and `escapeJS` pair in `backend/templates.go`. Put the
-   view and the render function of a page in the file of that page.
+2. **Do not use `html/template`.** It calls `reflect.Value.MethodByName`. That
+   call stops linker dead-code elimination for the whole program. The go-git
+   method surface then makes the binary large. Use `render.Fill()` with
+   `%%PLACEHOLDER%%` tokens. Use the `render.EscapeHTML` and `render.EscapeJS`
+   pair in `backend/internal/render/templates.go`. Put the view and the render
+   function of a page in the file of that page.
 3. **Keep Android storage isolated.** Files stay in
    `/storage/emulated/0/Android/media/<applicationId>/`. This directory needs no
    runtime permission. The Go package cannot read the flavor applicationId.
@@ -49,9 +50,10 @@ Do not remove a constraint without an instruction from the maintainer.
    distribution. F-Droid signs the package on its own server. A local build looks
    official, but it is not official.
 7. **Give each decision one authority.** Each decision has one implementation.
-   `noteheader.Parse` is the only header-block parser. `renderAndCache` is the only
-   writer of `html/<name>.html`. `storage.ResolvePageName` is the only name
-   resolver. `hasRole` is the only role check. `systemPages` is the only page-access table.
+   `noteheader.Parse` is the only header-block parser.
+   `render.Renderer.RenderAndCache` is the only writer of `html/<name>.html`.
+   `storage.ResolvePageName` is the only name resolver.
+   `hasRole` is the only role check. `systemPages` is the only page-access table.
    `storage.Layout` is the only code that joins a name to `StorageDir`.
    `storage.RelInside` is the only test that a path stays inside a directory.
    `renderPage` is the only shell of a page that the server makes.
@@ -85,7 +87,7 @@ Do not remove a constraint without an instruction from the maintainer.
 | --- | --- |
 | `main_desktop.go` | The only file in `package main`. It holds the only build tag: `//go:build !android`. |
 | `backend/` | The Go application. `package backend` holds most of the code, and the split into packages is in progress. |
-| `backend/internal/` | The packages of the split. `textmatch` holds the search matcher, and `noteheader` holds the header block. `logx` holds the log tags and the log hub. `config` holds the settings and their store. `storage` holds the storage layout, the application files and the plain files beside the notes. |
+| `backend/internal/` | The packages of the split. `textmatch` holds the search matcher, and `noteheader` holds the header block. `logx` holds the log tags and the log hub. `config` holds the settings and their store. `storage` holds the storage layout, the application files and the plain files beside the notes. `render` holds the page compile, the page shell, the Tags page and the JSON answer. |
 | `backend/frontend/embed.go` | `package frontend`. It embeds `html/` and `md/` as `frontend.Static`, and `templates/` as `frontend.Templates`. |
 | `backend/frontend/templates/` | Server-side page fragments. Embedded as `frontend.Templates`. Never extracted to disk. |
 | `backend/frontend/html/` | `js/`, `css/`, `css/fonts/`, `json/`, `favicon.ico`. Embedded as `frontend.Static`. Extracted to the storage directory on demand. The user can edit these files with `?edit=true`. |
@@ -130,6 +132,9 @@ update these files.
   `backend/import_layers_test.go` is the table, and `TestImportLayers` holds it. Give
   each new package a row. At the end of the split, `backend` is the gomobile and
   desktop facade. It then holds no logic, and it exports only functions of simple types.
+  Until then, the App side of a package is one file of `package backend`, for
+  example `config_app.go`, `storage_app.go` and `render_app.go`. Its methods give
+  the values of the App to the package.
 * **Until the split ends, keep the groups of `package backend` apart.** Each production
   file there belongs to one group of `fileGroups` in `backend/group_links_test.go`. A
   group uses only the groups of a lower layer. `TestGroupsUseOnlyLowerLayers` holds the
@@ -196,8 +201,8 @@ update these files.
     lock and writes a line, and a Go RWMutex is not reentrant. `applyLogFilter`
     keeps an atomic copy of the three switches for that reason.
   * Two call sites keep `log.Printf`, because no `*App` can reach them:
-    `loadTemplate` in `templates.go` runs at package init, and
-    `search_sections.go` logs from a `sync.Once` and from a method on
+    `render.LoadTemplate` in `internal/render/templates.go` runs at package
+    init, and `search_sections.go` logs from a `sync.Once` and from a method on
     `searchDocument`. Both files write `[tag] (error) ` into the text by hand.
 * **Configuration.** Read the configuration with `a.config.Get()`. It returns a
   copy under `RLock`. Change the configuration with
@@ -309,9 +314,10 @@ update these files.
   `frontend/html` and `frontend/md`. The app extracts these files, and the user can
   edit them. `frontend.Templates` holds `frontend/templates`. Templates are render
   logic. Never make them extractable.
-* **Escape by hand and by context.** Use `escapeHTML(v)` for HTML text and for an
-  attribute. Use `escapeJS(v)` for a JS string literal. Use `escapeHTML(escapeJS(v))`
-  for a JS literal inside an HTML attribute. Splice trusted pre-rendered HTML raw.
+* **Escape by hand and by context.** Use `render.EscapeHTML(v)` for HTML text
+  and for an attribute. Use `render.EscapeJS(v)` for a JS string literal. Use
+  `render.EscapeHTML(render.EscapeJS(v))` for a JS literal inside an HTML
+  attribute. Splice trusted pre-rendered HTML raw.
 * The server injects the runtime variables **when it serves the page**. It replaces
   the marker `<meta id="omn-go-runtime-vars-marker">`. A version bump therefore does
   not invalidate the HTML cache on disk. Do not "repair" this.

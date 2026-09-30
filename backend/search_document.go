@@ -8,6 +8,7 @@ import (
 
 	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/noteheader"
+	"net.basov.omngo/backend/internal/render"
 	"net.basov.omngo/backend/internal/textmatch"
 )
 
@@ -120,7 +121,7 @@ func newAssetDocument(rel, content string, truncated bool) *searchDocument {
 // header too.
 func (d *searchDocument) parseMarkdown(content string) {
 	hb := noteheader.Parse(content)
-	title, tags := extractTitleTags(content)
+	title, tags := render.ExtractTitleTags(content)
 	if title == "" {
 		title = d.Name
 	}
@@ -192,10 +193,10 @@ func (d *searchDocument) addLines(content string, firstLineNo int) ([]string, []
 	return raw, contexts
 }
 
-// classifyContexts marks each line as prose, "code" or "script". The mark
-// does not lower the score, because a person can search FOR code. The fence
-// state wins over the tag state, the same as in markdown.go. An inline `code`
-// span gets no mark.
+// classifyContexts marks each line as prose, "code" or "script". The mark does
+// not lower the score, because a person can search FOR code. The fence state
+// wins over the tag state, the same as in internal/render/markdown.go. An
+// inline `code` span gets no mark.
 func classifyContexts(lines []string) []string {
 	out := make([]string, len(lines))
 	inFence, inScript, inPre := false, false, false

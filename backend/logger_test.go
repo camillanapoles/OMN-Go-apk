@@ -25,18 +25,18 @@ import (
 	"net.basov.omngo/backend/internal/logx"
 )
 
-// logPrintfAllowed names the only two files that may call log.Printf.
-// No *App can reach either call site. loadTemplate in templates.go runs at
-// package init. logAnchorsOff and addBookmarks in search_sections.go run
-// from a package-level function inside a sync.Once, and from a method on
-// searchDocument, which has no application.
+// logPrintfAllowed names the only two files that may call log.Printf. No *App
+// can reach either call site. render.LoadTemplate in
+// internal/render/templates.go runs at package init. logAnchorsOff and
+// addBookmarks in search_sections.go run from a package-level function inside a
+// sync.Once, and from a method on searchDocument, which has no application.
 //
 // Each of those lines is a fault, and a fault always prints, so the missing
 // level costs the reader nothing. They write "(error)" in the text by hand,
 // which the second half of this test checks.
 var logPrintfAllowed = map[string]bool{
-	"templates.go":       true,
-	"search_sections.go": true,
+	"internal/render/templates.go": true,
+	"search_sections.go":           true,
 }
 
 // handWrittenLevelRe matches the shape those two files must produce:
@@ -46,18 +46,13 @@ var handWrittenLevelRe = regexp.MustCompile(`^log\.Printf\("\[[a-z0-9-]+\] \(err
 // TestNoDirectLogPrintf exists because a log.Printf line reaches stdout and
 // the browser with no tag and no level. The Config page can then never
 // switch it off, and the person who asked for less noise still gets it.
+//
+// The scan reads each production file below backend/, thus a package of the
+// split cannot hide a call.
 func TestNoDirectLogPrintf(t *testing.T) {
-	entries, err := os.ReadDir(".")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, e := range entries {
-		name := e.Name()
-		// A test file does not ship to a device. This file names the banned
-		// call as a string, which a scan cannot tell from a real call.
-		if e.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
-			continue
-		}
+	// A test file does not ship to a device, and productionGoFiles skips
+	// it. This file names the banned call as a string.
+	for _, name := range productionGoFiles(t) {
 		src, err := os.ReadFile(name)
 		if err != nil {
 			t.Fatal(err)

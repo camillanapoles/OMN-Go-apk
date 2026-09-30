@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -34,12 +33,8 @@ func TestWriteJSONErrorShape(t *testing.T) {
 // writeJSON is the one JSON writer. A second encoder on a ResponseWriter
 // fails this test.
 func TestOnlyWriteJSONEncodesAnAnswer(t *testing.T) {
-	files, err := filepath.Glob("*.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, f := range files {
-		if strings.HasSuffix(f, "_test.go") || f == "json_response.go" {
+	for _, f := range productionGoFiles(t) {
+		if f == "internal/render/json_response.go" {
 			continue
 		}
 		src, err := os.ReadFile(f)

@@ -1,4 +1,4 @@
-package backend
+package render
 
 import (
 	"log"
@@ -16,14 +16,14 @@ import (
 // doc/decisions/0008-render-the-pages-without-html-template.md. Each render
 // function is in the file of its page. It escapes each value for its place:
 //
-//	escapeHTML(v)            HTML text, or a quoted HTML attribute.
-//	escapeJS(v)              A quoted JS string in an inline <script>.
-//	escapeHTML(escapeJS(v))  A JS string inside an HTML attribute.
+//	EscapeHTML(v)            HTML text, or a quoted HTML attribute.
+//	EscapeJS(v)              A quoted JS string in an inline <script>.
+//	EscapeHTML(EscapeJS(v))  A JS string inside an HTML attribute.
 //	trusted HTML             The markdown body or a fragment from a render
 //	                         function. It never gets a second escape.
 
-// escapeHTML escapes a value for HTML text or a double-quoted HTML attribute.
-func escapeHTML(s string) string {
+// EscapeHTML escapes a value for HTML text or a double-quoted HTML attribute.
+func EscapeHTML(s string) string {
 	s = strings.ReplaceAll(s, "&", "&amp;")
 	s = strings.ReplaceAll(s, "<", "&lt;")
 	s = strings.ReplaceAll(s, ">", "&gt;")
@@ -32,10 +32,10 @@ func escapeHTML(s string) string {
 	return s
 }
 
-// escapeJS escapes a value for a quoted JavaScript string in an inline
+// EscapeJS escapes a value for a quoted JavaScript string in an inline
 // <script>. It writes '<' and '>' as hex escapes, thus no value can close the
 // </script> block.
-func escapeJS(s string) string {
+func EscapeJS(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))
 	for _, r := range s {
@@ -67,22 +67,22 @@ func escapeJS(s string) string {
 	return b.String()
 }
 
-// loadTemplate reads one page fragment from frontend.Templates. That embed stays
-// separate from frontend.Static, because the app extracts frontend.Static as files that a
-// person can edit. A missing file shows at the first render.
-func loadTemplate(filename string) string {
+// LoadTemplate reads one page fragment from frontend.Templates. That embed
+// stays separate from frontend.Static, because the app extracts frontend.Static
+// as files that a person can edit. A missing file shows at the first render.
+func LoadTemplate(filename string) string {
 	data, err := frontend.Templates.ReadFile("templates/" + filename)
 	if err != nil {
 		log.Printf("[templates] (error) failed to read embedded %s: %v", filename, err)
-		return "<p>Missing embedded template: " + escapeHTML(filename) + "</p>"
+		return "<p>Missing embedded template: " + EscapeHTML(filename) + "</p>"
 	}
 	return string(data)
 }
 
-// fill replaces the %%NAME%% placeholders in tmpl. Each value MUST already
-// have the escape for its place. See the banner of this file. fill itself
+// Fill replaces the %%NAME%% placeholders in tmpl. Each value MUST already
+// have the escape for its place. See the banner of this file. Fill itself
 // escapes nothing, thus trusted HTML can also pass through it.
-func fill(tmpl string, pairs map[string]string) string {
+func Fill(tmpl string, pairs map[string]string) string {
 	oldnew := make([]string, 0, len(pairs)*2)
 	for k, v := range pairs {
 		oldnew = append(oldnew, "%%"+k+"%%", v)

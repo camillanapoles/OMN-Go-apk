@@ -111,7 +111,7 @@ func TestHeadingIDsDeclineWhatTheyCannotRead(t *testing.T) {
 		{"link", "# see [the docs](http://x.co/y)",
 			"the URL is not in the rendered text"},
 		{"inline code", "# the `fetch` call",
-			"renderMarkdownToHTML shields it as a placeholder before goldmark sees it"},
+			"render.Renderer.RenderMarkdown shields it as a placeholder before goldmark sees it"},
 		{"math", "# cost is $x^2$",
 			"shielded the same way"},
 		{"entity", "# Cats &amp; Dogs",
@@ -569,7 +569,7 @@ func predictedIDs(body string) []string {
 // baseline suite's helper so the two files stay independent.
 func headingIDs2(a *App, md string) []string {
 	out := []string{}
-	for _, m := range headingIDAttrRe.FindAllStringSubmatch(a.renderMarkdownToHTML([]byte(md)), -1) {
+	for _, m := range headingIDAttrRe.FindAllStringSubmatch(a.testRenderer().RenderMarkdown([]byte(md)), -1) {
 		out = append(out, m[1])
 	}
 	return out

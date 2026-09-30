@@ -149,12 +149,12 @@ func TestBookmarkerKeyReasoningStillHolds(t *testing.T) {
 
 	// Fact two: PackageName is one literal, thus it cannot tell the two
 	// flavors apart.
-	md, err := readRepoFile("backend/markdown.go")
+	md, err := readRepoFile("backend/internal/render/markdown.go")
 	if err != nil {
-		t.Fatalf("markdown.go: %v", err)
+		t.Fatalf("internal/render/markdown.go: %v", err)
 	}
 	if !strings.Contains(md, `PackageName: "net.basov.omngo"`) {
-		t.Error("PackageName is no longer one literal in compilePageWithBody. The " +
+		t.Error("PackageName is no longer one literal in CompilePageWithBody. The " +
 			"banner of Bookmarker.js says that it is, thus one of the two needs a " +
 			"change.")
 	}

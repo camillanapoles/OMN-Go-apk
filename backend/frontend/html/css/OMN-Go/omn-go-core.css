@@ -18,8 +18,9 @@
    Theming model:
      - All colors live in custom properties defined in section 1.
      - The server sets  <html data-theme="auto|light|dark">  at runtime via
-       an injected head script (see injectRuntimeVars in pages.go), so
-       cached pages pick up config changes without recompiling.
+       an injected head script (see render.Renderer.InjectRuntimeVars
+       in internal/render/pages.go), so cached pages pick up config
+       changes without recompiling.
      - "light" and "dark" pin the palette explicitly. "auto" - or NO
        attribute at all, e.g. an exported page opened via file:// where the
        runtime script is never injected - follows the OS/browser setting
@@ -1621,8 +1622,8 @@ mark.omn-search-hit.omn-search-hit-current {
 /* -- Android-only controls (e.g. "add to home screen" shortcut) --
    Hidden by default: there's no native shortcut API to call on
    desktop, so these stay hidden until omn-go-core.js's applyPlatformUI()
-   (gated on the server-injected IS_ANDROID flag, see pages.go) reveals
-   them. */
+   (gated on the server-injected IS_ANDROID flag, see
+   internal/render/pages.go) reveals them. */
 .android-only {
     display: none;
 }

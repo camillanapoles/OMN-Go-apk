@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
+	"net.basov.omngo/backend/internal/render"
 )
 
 // ----------------------------------------------------------------------
@@ -41,7 +42,7 @@ func (a *App) handleSync(w http.ResponseWriter, r *http.Request) {
 	// page posts a form. TestHandleSyncReadsTheQueryString tests the query
 	// string.
 	if err := r.ParseForm(); err != nil {
-		a.writeJSON(w, http.StatusOK, jsonStatus{Status: "error", Message: "bad request: " + err.Error()})
+		a.writeJSON(w, http.StatusOK, render.JSONStatus{Status: "error", Message: "bad request: " + err.Error()})
 		return
 	}
 
@@ -78,15 +79,15 @@ func (a *App) handleSync(w http.ResponseWriter, r *http.Request) {
 			if status == "conflict" && errors.As(err, &ce) {
 				a.writeJSON(w, http.StatusOK, newSyncConflict(msg, ce.Files))
 			} else {
-				a.writeJSON(w, http.StatusOK, jsonStatus{Status: status, Message: msg})
+				a.writeJSON(w, http.StatusOK, render.JSONStatus{Status: status, Message: msg})
 			}
 		} else {
-			a.writeJSON(w, http.StatusOK, jsonStatus{Status: "error", Message: err.Error()})
+			a.writeJSON(w, http.StatusOK, render.JSONStatus{Status: "error", Message: err.Error()})
 		}
 		return
 	}
 
-	a.writeJSON(w, http.StatusOK, jsonStatus{Status: "success"})
+	a.writeJSON(w, http.StatusOK, render.JSONStatus{Status: "success"})
 }
 
 func (a *App) handleSyncPreview(w http.ResponseWriter, r *http.Request) {

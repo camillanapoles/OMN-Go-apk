@@ -8,46 +8,6 @@ import (
 	"time"
 )
 
-func TestTagSlug(t *testing.T) {
-	cases := []struct{ in, want string }{
-		{"Hydroponics", "Hydroponics"},
-		{"3D Print", "3D-Print"},
-		{"QR code", "QR-code"},
-		{"OMN documentation", "OMN-documentation"},
-		{"R&D", "R-D"},
-		{"  spaced  ", "spaced"},
-		{"a--b__c", "a-b-c"},
-		{"Гидропоника", "Гидропоника"}, // unicode letters kept
-		{"", ""},
-		{"!!!", ""},
-	}
-	for _, c := range cases {
-		if got := tagSlug(c.in); got != c.want {
-			t.Errorf("tagSlug(%q) = %q, want %q", c.in, got, c.want)
-		}
-	}
-}
-
-func TestExtractTitleTags(t *testing.T) {
-	title, tags := extractTitleTags("Title: My Page\nTags: Red, Blue ,, Green\n\nbody")
-	if title != "My Page" {
-		t.Errorf("title = %q, want %q", title, "My Page")
-	}
-	if strings.Join(tags, "|") != "Red|Blue|Green" {
-		t.Errorf("tags = %v, want [Red Blue Green] (empties dropped, trimmed)", tags)
-	}
-
-	// No header -> empty title, nil tags.
-	if ti, tg := extractTitleTags("no header here"); ti != "" || tg != nil {
-		t.Errorf("no-header = (%q,%v), want (\"\",nil)", ti, tg)
-	}
-
-	// Header without Title/Tags.
-	if ti, tg := extractTitleTags("Date: 2026-01-01\n\nbody"); ti != "" || len(tg) != 0 {
-		t.Errorf("no title/tags = (%q,%v), want empty", ti, tg)
-	}
-}
-
 // writeNote is a tiny helper for the index/generate tests.
 func writeNote(t *testing.T, dir, rel, content string) {
 	t.Helper()
@@ -71,7 +31,7 @@ func TestBuildTagIndex(t *testing.T) {
 	writeNote(t, dir, "local/Scratch.md", "Title: S\nTags: Red\n\nx")    // md/local excluded
 	writeNote(t, dir, "OMNGoTags.md", "Title: Tags\nTags: Ignored\n\nx") // self excluded
 
-	idx := a.buildTagIndex()
+	idx := a.testRenderer().BuildTagIndex()
 
 	if len(idx["Blue"]) != 2 {
 		t.Errorf("Blue has %d pages, want 2 (Alpha, Beta)", len(idx["Blue"]))
@@ -85,10 +45,10 @@ func TestBuildTagIndex(t *testing.T) {
 	// Untagged note contributes no tag.
 	for tag, refs := range idx {
 		for _, r := range refs {
-			if r.path == "Untagged" {
+			if r.Path == "Untagged" {
 				t.Errorf("untagged note appeared under tag %q", tag)
 			}
-			if r.path == "local/Scratch" {
+			if r.Path == "local/Scratch" {
 				t.Errorf("md/local note appeared under tag %q", tag)
 			}
 		}
@@ -96,7 +56,7 @@ func TestBuildTagIndex(t *testing.T) {
 	// Subdir path preserved (used as a relative link later).
 	foundBeta := false
 	for _, r := range idx["Blue"] {
-		if r.path == "sub/Beta" && r.title == "Beta" {
+		if r.Path == "sub/Beta" && r.Title == "Beta" {
 			foundBeta = true
 		}
 	}
@@ -190,16 +150,16 @@ func TestTagsPageStaleness(t *testing.T) {
 	setSources(past)
 	os.Chtimes(htmlPath, mid, mid)
 
-	if a.tagsPageStale(false) {
+	if a.testRenderer().TagsPageStale(false) {
 		t.Error("not stale expected: html is newer than every note source")
 	}
-	if !a.tagsPageStale(true) {
+	if !a.testRenderer().TagsPageStale(true) {
 		t.Error("forceRefresh must report stale")
 	}
 
 	// Editing a note makes it newer than the cache.
 	os.Chtimes(filepath.Join(dir, "md", "Alpha.md"), future, future)
-	if !a.tagsPageStale(false) {
+	if !a.testRenderer().TagsPageStale(false) {
 		t.Error("edited note must report stale")
 	}
 
@@ -207,7 +167,7 @@ func TestTagsPageStaleness(t *testing.T) {
 	setSources(past)
 	os.Chtimes(htmlPath, mid, mid)
 	os.Chtimes(filepath.Join(dir, "md", "sub"), future, future)
-	if !a.tagsPageStale(false) {
+	if !a.testRenderer().TagsPageStale(false) {
 		t.Error("directory mtime bump (add/delete/rename) must report stale")
 	}
 
@@ -215,13 +175,13 @@ func TestTagsPageStaleness(t *testing.T) {
 	setSources(past)
 	os.Chtimes(htmlPath, mid, mid)
 	os.Chtimes(filepath.Join(dir, "md", "OMNGoTags.md"), future, future)
-	if a.tagsPageStale(false) {
+	if a.testRenderer().TagsPageStale(false) {
 		t.Error("derived OMNGoTags.md must be excluded from the staleness scan")
 	}
 
 	// Missing cache is stale.
 	os.Remove(htmlPath)
-	if !a.tagsPageStale(false) {
+	if !a.testRenderer().TagsPageStale(false) {
 		t.Error("missing html cache must report stale")
 	}
 }

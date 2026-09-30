@@ -72,7 +72,7 @@ func TestSearchPage_RendersResults(t *testing.T) {
 // Everything on this page comes from either the URL of the user or the notes
 // of the user. Both are attacker-controlled in the LAN-sharing case. The page
 // is assembled by hand, and not by html/template. See the note at the top of
-// templates.go. The escaping is thus the business of this test.
+// internal/render/templates.go. The escaping is thus the business of this test.
 func TestSearchPage_Escaping(t *testing.T) {
 	a := enabledSearchApp(t)
 	writeSearchNote(t, a, "Evil.md",

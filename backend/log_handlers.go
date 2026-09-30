@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"net.basov.omngo/backend/internal/logx"
+	"net.basov.omngo/backend/internal/render"
 )
 
 func (a *App) HandleLogsSSE(w http.ResponseWriter, r *http.Request) {
@@ -31,7 +32,7 @@ func (a *App) HandleLogsSSE(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-var logsPageTmpl = loadTemplate("logs_page.html")
+var logsPageTmpl = render.LoadTemplate("logs_page.html")
 
 // serveLogsPage answers /OMNGoLogs.html. The page reads /api/logs/history one
 // time, and then it adds each new line of /api/logs. omn-go-logs.js does that
@@ -40,7 +41,7 @@ var logsPageTmpl = loadTemplate("logs_page.html")
 // Android has no terminal. Without this page, a person on a phone needs adb
 // logcat, or a second browser at the history endpoint.
 func (a *App) serveLogsPage(w http.ResponseWriter, r *http.Request) {
-	a.renderPage(w, http.StatusOK, "Log", pageHeader("Log", "System"), logsPageTmpl)
+	a.renderPage(w, http.StatusOK, "Log", render.PageHeader("Log", "System"), logsPageTmpl)
 }
 
 // handleLogHistory answers the ring of the last logx.HistoryCap lines, oldest

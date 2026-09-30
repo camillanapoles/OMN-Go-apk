@@ -407,7 +407,8 @@
          nowhere else.
 
          The path is absolute because a page with a body of its own gets
-         the asset prefix "/" (see compilePageWithBody in markdown.go).
+         the asset prefix "/" (see render.Renderer.CompilePageWithBody in
+         internal/render/markdown.go).
          The element sits after the form, thus omn-go-core.js and
          omn-go-sse.js in the head of the shell have already run. -->
     <script src="/js/OMN-Go/omn-go-config.js"></script>

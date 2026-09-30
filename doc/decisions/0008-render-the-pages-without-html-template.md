@@ -2,8 +2,9 @@
 
 * Status: accepted
 * Version: 1.7.4
-* Code: `fill`, `escapeHTML` and `escapeJS` in `backend/templates.go`, and
-  each `render...` function in the file of its page
+* Code: `render.Fill`, `render.EscapeHTML` and `render.EscapeJS` in
+  `backend/internal/render/templates.go`, and each `render...` function in the
+  file of its page
 
 ## Context
 
@@ -24,13 +25,13 @@ much larger.
 ## Decision
 
 * The pages do not use `html/template` or `text/template`.
-* `fill` puts values into `%%NAME%%` places in a template file.
+* `render.Fill` puts values into `%%NAME%%` places in a template file.
 * Each render function escapes each value. The place of the value sets
   the escape function:
-  * HTML text or a quoted HTML attribute: `escapeHTML`.
-  * A JavaScript string in an inline `<script>`: `escapeJS`.
+  * HTML text or a quoted HTML attribute: `render.EscapeHTML`.
+  * A JavaScript string in an inline `<script>`: `render.EscapeJS`.
   * A JavaScript string in an HTML attribute, for example `onclick`:
-    `escapeHTML(escapeJS(v))`.
+    `render.EscapeHTML(render.EscapeJS(v))`.
 * A render function puts HTML that the server made, for example the body
   of a note, into the page as it is. No function escapes it a second
   time.

@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -21,6 +22,7 @@ var importLayers = map[string]int{
 	"net.basov.omngo/backend/internal/logx":       0,
 	"net.basov.omngo/backend/internal/config":     1,
 	"net.basov.omngo/backend/internal/storage":    2,
+	"net.basov.omngo/backend/internal/render":     3,
 	"net.basov.omngo/backend/internal/noteheader": 0,
 	"net.basov.omngo/backend/internal/textmatch":  0,
 	"net.basov.omngo/backend":                     7,
@@ -78,4 +80,29 @@ func TestImportLayers(t *testing.T) {
 	if _, err := os.Stat("frontend/embed.go"); err != nil {
 		t.Errorf("backend/frontend has no embed.go: %v", err)
 	}
+}
+
+// productionGoFiles answers each Go file below backend/ that is not a test,
+// as a slash path from backend/. A source scan uses it, thus a package of the
+// split cannot hide a file from the scan.
+func productionGoFiles(t *testing.T) []string {
+	t.Helper()
+	var names []string
+	err := filepath.WalkDir(".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
+			return nil
+		}
+		names = append(names, filepath.ToSlash(p))
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(names, "internal/render/templates.go") {
+		t.Fatal("the scan did not find internal/render/templates.go. The scan is broken.")
+	}
+	return names
 }

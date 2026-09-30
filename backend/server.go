@@ -12,6 +12,7 @@ import (
 
 	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
+	"net.basov.omngo/backend/internal/render"
 )
 
 // App encapsulates the global state for the backend
@@ -43,7 +44,7 @@ type App struct {
 	onPageWritten func(name string)
 
 	// pages holds the values of other groups that each page shows.
-	pages pageFacts
+	pages render.Facts
 
 	// android holds the facts that the Android layer sets. See androidEnv.
 	android androidEnv
@@ -83,7 +84,7 @@ func (a *App) WaitUntilReady() {
 // another group through the App, and not by name. See group_links_test.go.
 func (a *App) connectGroups() {
 	a.onPageWritten = func(string) { a.markSearchIndexDirty() }
-	a.pages = pageFacts{searchGlobal: a.globalSearchAvailable, incomingPage: incomingIndexName}
+	a.pages = render.Facts{SearchGlobal: a.globalSearchAvailable, IncomingPage: incomingIndexName}
 }
 
 // runningApp is the App of StartServer. gomobile exports functions only, thus

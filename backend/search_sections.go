@@ -29,6 +29,7 @@ import (
 	"sync"
 	"unicode"
 
+	"net.basov.omngo/backend/internal/render"
 	"net.basov.omngo/backend/internal/textmatch"
 )
 
@@ -72,7 +73,8 @@ func timestampAnchor(date string) string {
 //
 //	[ ]    A link. "[text](http://x)" renders as "text", without the URL.
 //	& < >  An entity or inline HTML. "&amp;" renders as "&".
-//	`      Inline code. renderMarkdownToHTML puts a placeholder there first.
+//	`      Inline code. render.Renderer.RenderMarkdown puts a
+//	       placeholder there first.
 //	$      KaTeX math, with the same placeholder.
 //	\      An escape changes the meaning of the next character.
 //	_      An emphasis marker, and also a character that the rule keeps.
@@ -199,9 +201,11 @@ func probeAnchors() bool {
 		want = append(want, c.want)
 	}
 
+	// A zero Renderer is enough: the probe holds no link to a file.
+	var rd render.Renderer
 	var got []string
 	for _, m := range headingIDAttrRe.FindAllStringSubmatch(
-		(&App{}).renderMarkdownToHTML([]byte(src.String())), -1) {
+		rd.RenderMarkdown([]byte(src.String())), -1) {
 		got = append(got, m[1])
 	}
 

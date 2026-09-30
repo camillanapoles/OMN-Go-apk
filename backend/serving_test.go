@@ -229,10 +229,10 @@ func TestServeNotFoundNegotiatesContentType(t *testing.T) {
 }
 
 // The requested URL and the Referer are attacker-controlled, and they are
-// echoed into HTML. This pins that they arrive escaped. renderNotFoundPage
-// does the escaping by hand, because this package deliberately avoids
-// html/template. See the note at the top of templates.go. Nothing else
-// catches a regression here.
+// echoed into HTML. This pins that they arrive escaped. renderNotFoundPage does
+// the escaping by hand, because this package deliberately avoids html/template.
+// See the note at the top of internal/render/templates.go. Nothing else catches
+// a regression here.
 func TestServeNotFoundEscapesRequestedURL(t *testing.T) {
 	a := newTestApp(t)
 	req := httptest.NewRequest(http.MethodGet, "/x", nil)

@@ -1,4 +1,4 @@
-package backend
+package render
 
 import (
 	"bytes"
@@ -13,6 +13,7 @@ import (
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer/html"
+	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/noteheader"
 )
 
@@ -20,11 +21,11 @@ import (
 // for each link.
 var hrefRe = regexp.MustCompile(`href="([^"]*)"`)
 
-// uriSchemeRe matches a URI scheme at the start of a link, as RFC 3986
+// URISchemeRe matches a URI scheme at the start of a link, as RFC 3986
 // defines it. A link with a scheme is not a page, and it must reach the
 // browser as the author wrote it. setupPreviewLinkInterceptor in
 // omn-go-core.js uses the same expression. Keep the two equal.
-var uriSchemeRe = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9+.-]*:`)
+var URISchemeRe = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9+.-]*:`)
 
 var mdParser = goldmark.New(
 	goldmark.WithExtensions(extension.GFM),
@@ -60,7 +61,8 @@ var (
 	reMathInline = regexp.MustCompile(`\$[^\$]+\$`)
 )
 
-func (a *App) renderMarkdownToHTML(mdContent []byte) string {
+// RenderMarkdown makes the HTML body of a note from its markdown.
+func (rd *Renderer) RenderMarkdown(mdContent []byte) string {
 	contentStr := string(mdContent)
 
 	rawBlocks := make(map[string]string)
@@ -106,13 +108,13 @@ func (a *App) renderMarkdownToHTML(mdContent []byte) string {
 	// Restore the math for KaTeX in the page.
 	htmlStr = restorePlaceholders(htmlStr, mathBlocks)
 
-	// Rewrite each internal link. See rewriteInternalLink.
+	// Rewrite each internal link. See RewriteInternalLink.
 	htmlStr = hrefRe.ReplaceAllStringFunc(htmlStr, func(m string) string {
 		match := hrefRe.FindStringSubmatch(m)
 		if len(match) < 2 {
 			return m
 		}
-		return `href="` + a.rewriteInternalLink(match[1]) + `"`
+		return `href="` + rd.RewriteInternalLink(match[1]) + `"`
 	})
 	return htmlStr
 }
@@ -133,7 +135,7 @@ func restorePlaceholders(s string, store map[string]string) string {
 	return s
 }
 
-// rewriteInternalLink changes one thing in an href: the extension of a link
+// RewriteInternalLink changes one thing in an href: the extension of a link
 // to a page. ".md" becomes ".html", and a page name with no extension gets
 // ".html". "./page", "../page", "page" and "/page" keep their meaning. A
 // "#anchor" or "?query" suffix stays after the new extension.
@@ -147,7 +149,7 @@ func restorePlaceholders(s string, store map[string]string) string {
 //	sms:+15551234               ->  sms:+15551234.html
 //	whatsapp://send?phone=1555  ->  whatsapp://send.html?phone=1555
 //
-// The test is thus the scheme itself, uriSchemeRe, the same as the click
+// The test is thus the scheme itself, URISchemeRe, the same as the click
 // interceptor of omn-go-core.js. This function decides what the page SAYS,
 // and the interceptor decides what a tap DOES.
 // MainActivity.shouldOverrideUrlLoading gives each unknown scheme to the OS.
@@ -155,7 +157,7 @@ func restorePlaceholders(s string, store map[string]string) string {
 //
 // This rule has a cost. A page name with ":" before each "/", for example
 // "Notes:Draft", looks like a scheme and gets no ".html".
-func (a *App) rewriteInternalLink(href string) string {
+func (rd *Renderer) RewriteInternalLink(href string) string {
 	if href == "" {
 		return href
 	}
@@ -165,7 +167,7 @@ func (a *App) rewriteInternalLink(href string) string {
 	// page.
 	case strings.HasPrefix(href, "//"),
 		strings.HasPrefix(href, "#"),
-		uriSchemeRe.MatchString(href):
+		URISchemeRe.MatchString(href):
 		return href
 	}
 
@@ -203,7 +205,7 @@ func (a *App) rewriteInternalLink(href string) string {
 	switch {
 	case strings.HasSuffix(base, ".md"):
 		base = strings.TrimSuffix(base, ".md") + ".html"
-	case a.hasKnownAssetExtension(base):
+	case config.HasKnownAssetExtension(rd.Config.MimeTypes, base):
 		// This is a file that this install serves, for example .js, .css or
 		// .png.
 	default:
@@ -213,15 +215,16 @@ func (a *App) rewriteInternalLink(href string) string {
 	return dir + base + suffix
 }
 
-func (a *App) compilePage(name string, mdContent []byte) []byte {
-	return a.compilePageWithBody(name, mdContent, "")
+// CompilePage compiles a note. See CompilePageWithBody.
+func (rd *Renderer) CompilePage(name string, mdContent []byte) []byte {
+	return rd.CompilePageWithBody(name, mdContent, "")
 }
 
-// compilePageWithBody renders the page shell (indexPageTmpl) for one view.
+// CompilePageWithBody renders the page shell (IndexPageTmpl) for one view.
 // When customBody is not empty, it is the HTML of the page, and mdContent is
 // not rendered. The Config page and the wait page of the external editor use
-// that. ?edit=true goes to renderEditorPage, and not here.
-func (a *App) compilePageWithBody(name string, mdContent []byte, customBody string) []byte {
+// that. ?edit=true goes to RenderEditorPage, and not here.
+func (rd *Renderer) CompilePageWithBody(name string, mdContent []byte, customBody string) []byte {
 	// noteheader.Parse is the one header split. See package noteheader.
 	hb := noteheader.Parse(string(mdContent))
 	var headers []string
@@ -231,17 +234,17 @@ func (a *App) compilePageWithBody(name string, mdContent []byte, customBody stri
 
 	renderedBody := customBody
 	if renderedBody == "" {
-		renderedBody = a.renderMarkdownToHTML([]byte(hb.Body))
+		renderedBody = rd.RenderMarkdown([]byte(hb.Body))
 	}
 
-	// extractTitleTags reads the title and the tags, the same as the Tags
+	// ExtractTitleTags reads the title and the tags, the same as the Tags
 	// page. The loop below only makes metaTags.
 	title := "OMN-Go - " + name
-	rawTitle, tags := extractTitleTags(string(mdContent))
+	rawTitle, tags := ExtractTitleTags(string(mdContent))
 	if rawTitle != "" {
 		title = rawTitle
 	}
-	var metaTags []metaTagView
+	var metaTags []MetaTagView
 	for _, h := range headers {
 		parts := strings.SplitN(h, ":", 2)
 		if len(parts) != 2 {
@@ -249,20 +252,20 @@ func (a *App) compilePageWithBody(name string, mdContent []byte, customBody stri
 		}
 		k := strings.ToLower(strings.TrimSpace(parts[0]))
 		v := strings.TrimSpace(parts[1])
-		// renderIndexPage escapes each meta name and value for the attribute.
-		metaTags = append(metaTags, metaTagView{Name: k, Value: v})
+		// RenderIndexPage escapes each meta name and value for the attribute.
+		metaTags = append(metaTags, MetaTagView{Name: k, Value: v})
 	}
-	metaTags = append(metaTags, metaTagView{Name: "generator", Value: "OMN-Go " + APP_VERSION})
+	metaTags = append(metaTags, MetaTagView{Name: "generator", Value: rd.Generator})
 
 	// Find the file extension for the edit link of the view page. An empty
-	// customBody means a note, because renderAndCache is the only caller that
+	// customBody means a note, because RenderAndCache is the only caller that
 	// passes none. A NAME ALONE CANNOT ANSWER THIS. The note "Draft.txt" and
 	// the file html/Draft.txt have the same name here. The note "Report.2026"
 	// must still get IsMarkdown.
 	pageExt := ""
 	if strings.HasSuffix(name, ".md") {
 		pageExt = ".md"
-	} else if customBody != "" && a.hasKnownAssetExtension(name) {
+	} else if customBody != "" && config.HasKnownAssetExtension(rd.Config.MimeTypes, name) {
 		// This is a view that the server makes for a file, for example the
 		// wait page of the external editor. Keep the extension of the file.
 		pageExt = filepath.Ext(name)
@@ -271,15 +274,15 @@ func (a *App) compilePageWithBody(name string, mdContent []byte, customBody stri
 
 	// Find the path prefix of the page assets: CSS, JS and Home. A note goes
 	// to the cache html/<name>.html, and a person can open it from disk
-	// through file://. There, "/js/..." does not resolve. relPrefix gives a
+	// through file://. There, "/js/..." does not resolve. RelPrefix gives a
 	// relative prefix that works online and offline. A page with customBody
 	// is always dynamic, thus it keeps "/".
 	assetPrefix := "/"
 	if customBody == "" {
-		assetPrefix = relPrefix(name)
+		assetPrefix = RelPrefix(name)
 	}
 
-	view := indexPageView{
+	view := IndexPageView{
 		Title:       title,
 		PackageName: "net.basov.omngo",
 		PageName:    name,
@@ -292,17 +295,20 @@ func (a *App) compilePageWithBody(name string, mdContent []byte, customBody stri
 		PreviewHTML: renderedBody,
 	}
 
-	return []byte(renderIndexPage(view))
+	return []byte(RenderIndexPage(view))
 }
 
-// relPrefix answers one "../" for each directory level of name. With it, the
+// RelPrefix answers one "../" for each directory level of name. With it, the
 // asset URLs of a cached page reach the storage root over HTTP and through
 // file://. A page at the root gets "".
-func relPrefix(name string) string {
+func RelPrefix(name string) string {
 	return strings.Repeat("../", strings.Count(name, "/"))
 }
 
-func (a *App) ensureHeaderModified(content string, defaultTitle string) string {
+// EnsureHeaderModified sets the Modified: line of a note to now. A note
+// with no header block gets a new header with the title, the dates and the
+// author.
+func EnsureHeaderModified(content, defaultTitle, author string) string {
 	content = strings.ReplaceAll(content, "\r\n", "\n")
 	now := time.Now().Format("2006-01-02 15:04:05")
 
@@ -330,7 +336,7 @@ func (a *App) ensureHeaderModified(content string, defaultTitle string) string {
 	}
 
 	authorLine := ""
-	if author := a.config.Get().Author; author != "" {
+	if author != "" {
 		authorLine = fmt.Sprintf("\nAuthor: %s", author)
 	}
 	return fmt.Sprintf("Title: %s\nDate: %s\nModified: %s%s\n\n%s", defaultTitle, now, now, authorLine, content)

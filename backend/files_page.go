@@ -5,11 +5,13 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"net.basov.omngo/backend/internal/render"
 )
 
 // --- The file index page (files_page.html, see files_index.go) ---
 
-var filesPageTmpl = loadTemplate("files_page.html")
+var filesPageTmpl = render.LoadTemplate("files_page.html")
 
 // filesCrumb is one step of the breadcrumb. Dir is the new value of ?dir=.
 type filesCrumb struct {
@@ -87,9 +89,9 @@ const filesOwnerHint = "The next version of OMN-Go backs up your copy and replac
 
 func renderFilesPage(v filesPageView) string {
 	if v.Tree == "" {
-		return fill(filesPageTmpl, map[string]string{"BODY": renderFilesCards(v)})
+		return render.Fill(filesPageTmpl, map[string]string{"BODY": renderFilesCards(v)})
 	}
-	return fill(filesPageTmpl, map[string]string{"BODY": renderFilesListing(v)})
+	return render.Fill(filesPageTmpl, map[string]string{"BODY": renderFilesListing(v)})
 }
 
 // renderFilesCards makes the first screen: three buttons in one column at
@@ -106,9 +108,9 @@ func renderFilesCards(v filesPageView) string {
 			`<span class="files-card-where">%s</span>`+
 			`<span class="files-card-count">%s</span>`+
 			`</span></a>`,
-			escapeHTML(c.Class), escapeHTML(filesPageURL(c.Key, "", false)),
-			escapeHTML(c.Icon), escapeHTML(c.Title), escapeHTML(c.Where),
-			escapeHTML(c.Count))
+			render.EscapeHTML(c.Class), render.EscapeHTML(filesPageURL(c.Key, "", false)),
+			render.EscapeHTML(c.Icon), render.EscapeHTML(c.Title), render.EscapeHTML(c.Where),
+			render.EscapeHTML(c.Count))
 	}
 	b.WriteString(`</div>`)
 	return b.String()
@@ -141,15 +143,15 @@ func renderFilesListing(v filesPageView) string {
 	b.WriteString(`<div class="files-crumbs">`)
 	for i, c := range v.Crumbs {
 		if i == len(v.Crumbs)-1 {
-			fmt.Fprintf(&b, `<span class="files-crumb-here">%s</span>`, escapeHTML(c.Label))
+			fmt.Fprintf(&b, `<span class="files-crumb-here">%s</span>`, render.EscapeHTML(c.Label))
 			continue
 		}
 		fmt.Fprintf(&b, `<a href="%s">%s</a>`,
-			escapeHTML(filesPageURL(v.Tree, c.Dir, false)), escapeHTML(c.Label))
+			render.EscapeHTML(filesPageURL(v.Tree, c.Dir, false)), render.EscapeHTML(c.Label))
 	}
 	b.WriteString(`</div>`)
 
-	fmt.Fprintf(&b, `<p class="files-summary">%s</p>`, escapeHTML(v.Summary))
+	fmt.Fprintf(&b, `<p class="files-summary">%s</p>`, render.EscapeHTML(v.Summary))
 
 	// Fold the legend, and leave it out when this directory uses no word.
 	// <details> needs no script, and it keeps its state while the page is
@@ -159,7 +161,7 @@ func renderFilesListing(v filesPageView) string {
 			`<summary>What the words mean</summary>`)
 		for _, item := range v.Legend {
 			fmt.Fprintf(&b, `<div><b class="%s">%s</b> — %s</div>`,
-				escapeHTML(item.Color), escapeHTML(item.Word), escapeHTML(item.Text))
+				render.EscapeHTML(item.Color), render.EscapeHTML(item.Word), render.EscapeHTML(item.Text))
 		}
 		b.WriteString(`</details>`)
 	}
@@ -174,14 +176,14 @@ func renderFilesListing(v filesPageView) string {
 		fmt.Fprintf(&b, `<li class="files-row files-dir">`+
 			`<span class="files-name"><i class="material-icons files-kind">folder</i>`+
 			`<a href="%s">%s</a></span>`,
-			escapeHTML(filesPageURL(v.Tree, d.Dir, false)), escapeHTML(d.Name+"/"))
+			render.EscapeHTML(filesPageURL(v.Tree, d.Dir, false)), render.EscapeHTML(d.Name+"/"))
 		if word, color := filesDirNote(v.Tree, d); word != "" {
 			fmt.Fprintf(&b, `<span class="files-state %s">%s</span>`,
-				escapeHTML(color), escapeHTML(word))
+				render.EscapeHTML(color), render.EscapeHTML(word))
 		}
 		fmt.Fprintf(&b, `<span class="files-facts"><span class="files-size">%s · %s</span>`+
 			`</span></li>`,
-			escapeHTML(filesCountLabel(d.Files)), escapeHTML(filesSize(d.Bytes)))
+			render.EscapeHTML(filesCountLabel(d.Files)), render.EscapeHTML(filesSize(d.Bytes)))
 	}
 	for _, f := range v.Files {
 		renderFilesRow(&b, f)
@@ -191,9 +193,9 @@ func renderFilesListing(v filesPageView) string {
 	if v.Hidden > 0 {
 		fmt.Fprintf(&b, `<p class="files-more">%s not shown `+
 			`<a href="%s">show all %s &rarr;</a></p>`,
-			escapeHTML(strconv.Itoa(v.Hidden)),
-			escapeHTML(filesPageURL(v.Tree, v.Dir, true)),
-			escapeHTML(strconv.Itoa(v.Total)))
+			render.EscapeHTML(strconv.Itoa(v.Hidden)),
+			render.EscapeHTML(filesPageURL(v.Tree, v.Dir, true)),
+			render.EscapeHTML(strconv.Itoa(v.Total)))
 	}
 	return b.String()
 }
@@ -205,30 +207,30 @@ func renderFilesRow(b *strings.Builder, f filesFileRow) {
 	b.WriteString(`<li class="files-row">`)
 	fmt.Fprintf(b, `<span class="files-name">`+
 		`<i class="material-icons files-kind">%s</i><a href="%s">%s</a></span>`,
-		escapeHTML(f.Kind), escapeHTML(f.URL), escapeHTML(f.Name))
+		render.EscapeHTML(f.Kind), render.EscapeHTML(f.URL), render.EscapeHTML(f.Name))
 	if f.State != "" {
 		fmt.Fprintf(b, `<span class="files-state %s">%s</span>`,
-			escapeHTML(f.StateColor), escapeHTML(f.State))
+			render.EscapeHTML(f.StateColor), render.EscapeHTML(f.State))
 	}
 	b.WriteString(`<span class="files-facts">`)
-	fmt.Fprintf(b, `<span class="files-size">%s</span>`, escapeHTML(f.Size))
+	fmt.Fprintf(b, `<span class="files-size">%s</span>`, render.EscapeHTML(f.Size))
 	if f.Mod != "" {
 		// Show the date only, because the full time is too wide for a phone.
 		// The title keeps the full time.
 		fmt.Fprintf(b, `<span class="files-meta" title="%s">%s</span>`,
-			escapeHTML(f.ModFull), escapeHTML(f.Mod))
+			render.EscapeHTML(f.ModFull), render.EscapeHTML(f.Mod))
 	}
 	// The ownership word is on the second line of each row that has it, in
 	// each tree. The color is a hint, and the word is the fact.
 	if f.AppOwned {
 		fmt.Fprintf(b, `<span class="files-meta %s" title="%s">app-owned</span>`,
-			escapeHTML(f.OwnerColor), escapeHTML(filesOwnerHint))
+			render.EscapeHTML(f.OwnerColor), render.EscapeHTML(filesOwnerHint))
 	}
 	for _, extra := range f.Extra {
-		fmt.Fprintf(b, `<span class="files-meta">%s</span>`, escapeHTML(extra))
+		fmt.Fprintf(b, `<span class="files-meta">%s</span>`, render.EscapeHTML(extra))
 	}
 	if f.EditURL != "" {
-		fmt.Fprintf(b, `<a class="files-edit" href="%s">edit</a>`, escapeHTML(f.EditURL))
+		fmt.Fprintf(b, `<a class="files-edit" href="%s">edit</a>`, render.EscapeHTML(f.EditURL))
 	}
 	b.WriteString(`</span></li>`)
 }

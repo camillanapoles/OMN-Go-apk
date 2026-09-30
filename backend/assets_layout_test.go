@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/render"
 	"net.basov.omngo/backend/internal/storage"
 )
 
@@ -278,7 +279,7 @@ func TestFdroidFetchScriptWritesUnderOMNGo(t *testing.T) {
 // No template and no bundled note may load markdown.css. The build does
 // not ship the file, thus a reference to it would answer 404.
 func TestNoPageLoadsMarkdownCSS(t *testing.T) {
-	for _, tmpl := range []string{indexPageTmpl, editorPageTmpl, configPageTmpl} {
+	for _, tmpl := range []string{render.IndexPageTmpl, render.EditorPageTmpl, configPageTmpl} {
 		if strings.Contains(tmpl, "markdown.css") {
 			t.Error("a template still loads markdown.css")
 		}

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"net.basov.omngo/backend/internal/render"
 )
 
 // ----------------------------------------------------------------------
@@ -253,12 +255,12 @@ func (a *App) handleStatus(w http.ResponseWriter, r *http.Request) {
 	a.writeJSON(w, http.StatusOK, res)
 }
 
-var statusPageTmpl = loadTemplate("status_page.html")
+var statusPageTmpl = render.LoadTemplate("status_page.html")
 
 // serveStatusPage answers /OMNGoStatus.html. The page reads /api/status and
 // shows the answer. It holds no facts of its own.
 func (a *App) serveStatusPage(w http.ResponseWriter, r *http.Request) {
-	a.renderPage(w, http.StatusOK, "Status", pageHeader("Status", "System"), statusPageTmpl)
+	a.renderPage(w, http.StatusOK, "Status", render.PageHeader("Status", "System"), statusPageTmpl)
 }
 
 // parseStatusSections changes the "sections" parameter into a set. Empty

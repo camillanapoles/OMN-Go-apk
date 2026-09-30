@@ -42,7 +42,8 @@ The maintainer could not reproduce the fault during the session.
 ## 3. What the editor does for each key press
 
 The internal editor is the standalone page. `handlers.go` serves it when
-`UseInternalEd` is true. `renderEditorPage` in `editor_page.go` builds it from
+`UseInternalEd` is true. `render.RenderEditorPage` in
+`internal/render/editor_page.go` builds it from
 `frontend/templates/editor.html`.
 
 `editor.html` loads two files only: `/css/omn-go-core.css` and

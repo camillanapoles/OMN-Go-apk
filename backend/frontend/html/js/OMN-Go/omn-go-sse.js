@@ -68,9 +68,9 @@ if (window.location.protocol !== 'file:') {
     // next line, with no server restart and no page reload of the writer's
     // side.
     //
-    // So the filter lives here. OMN_LOG_DEBUG, OMN_LOG_INFO and
-    // OMN_LOG_TAGS arrive with the runtime variables the server injects
-    // into every page (see injectRuntimeVars in pages.go).
+    // So the filter lives here. OMN_LOG_DEBUG, OMN_LOG_INFO and OMN_LOG_TAGS
+    // arrive with the runtime variables the server injects into every page (see
+    // render.Renderer.InjectRuntimeVars in internal/render/pages.go).
     //
     // A line reads "<stamp> [tag] (level) message". A line with no level -
     // the three log.Printf call sites that cannot reach an application -

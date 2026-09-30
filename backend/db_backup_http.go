@@ -8,19 +8,21 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"net.basov.omngo/backend/internal/render"
 )
 
 // ----------------------------------------------------------------------
 // The HTTP endpoints and the page
 // ----------------------------------------------------------------------
 
-var dbBackupsPageTmpl = loadTemplate("db_backups.html")
+var dbBackupsPageTmpl = render.LoadTemplate("db_backups.html")
 
 // serveDBBackupsPage renders the Database Backups page. The button at the top
 // of the Config page opens it. The page gets its data from GET
-// /api/db/backups, thus the template needs no fill().
+// /api/db/backups, thus the template needs no render.Fill().
 func (a *App) serveDBBackupsPage(w http.ResponseWriter, r *http.Request) {
-	a.renderPage(w, http.StatusOK, "DB_Backups", pageHeader("Database Backups", "Settings"), dbBackupsPageTmpl)
+	a.renderPage(w, http.StatusOK, "DB_Backups", render.PageHeader("Database Backups", "Settings"), dbBackupsPageTmpl)
 }
 
 // handleDBBackupCreate answers POST /api/db/backup?db=NAME.

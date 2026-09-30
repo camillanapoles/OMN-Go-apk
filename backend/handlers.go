@@ -11,6 +11,7 @@ import (
 
 	"net.basov.omngo/backend/frontend"
 	"net.basov.omngo/backend/internal/logx"
+	"net.basov.omngo/backend/internal/render"
 )
 
 func (a *App) serveFrontend(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +52,7 @@ func (a *App) serveHTMLPage(w http.ResponseWriter, r *http.Request, path string)
 		a.recompileMarkdownPage(name, mdPath, errMd)
 	}
 
-	writeHTMLHeader(w)
+	render.WriteHTMLHeader(w)
 	data, err := os.ReadFile(htmlPath)
 	if err == nil {
 		w.Write(a.injectRuntimeVars(data))
@@ -134,14 +135,14 @@ func (a *App) renderInternalEditor(w http.ResponseWriter, relPath string) {
 		title = baseName
 	}
 
-	page := renderEditorPage(editorPageView{
+	page := render.RenderEditorPage(render.EditorPageView{
 		Title:   title,
 		Name:    name,
 		PageExt: pageExt,
 		ViewURL: viewURL,
 	})
 
-	writeHTMLHeader(w)
+	render.WriteHTMLHeader(w)
 	w.Write(a.injectRuntimeVars([]byte(page)))
 }
 

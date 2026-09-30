@@ -12,6 +12,7 @@ import (
 
 	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
+	"net.basov.omngo/backend/internal/render"
 )
 
 func (a *App) getConfigPageBody() string {
@@ -219,5 +220,5 @@ func (a *App) restartProcess() {
 
 // serveConfigPage answers /Config.html. The page has no .md and no cache.
 func (a *App) serveConfigPage(w http.ResponseWriter, r *http.Request) {
-	a.renderPage(w, http.StatusOK, "Config", pageHeader("Config", "Settings"), a.getConfigPageBody())
+	a.renderPage(w, http.StatusOK, "Config", render.PageHeader("Config", "Settings"), a.getConfigPageBody())
 }

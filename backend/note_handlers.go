@@ -16,16 +16,17 @@ import (
 	"net.basov.omngo/backend/frontend"
 	"net.basov.omngo/backend/internal/logx"
 	"net.basov.omngo/backend/internal/noteheader"
+	"net.basov.omngo/backend/internal/render"
 	"net.basov.omngo/backend/internal/storage"
 )
 
 func (a *App) getExternalEditPageBody(fileName string, viewURL string) string {
-	view := externalEditView{
+	view := render.ExternalEditView{
 		Cmd:      a.config.Get().DesktopExtCmd,
 		FileName: fileName,
 		ViewURL:  viewURL,
 	}
-	return renderExternalEditPage(view)
+	return render.RenderExternalEditPage(view)
 }
 
 // resolveAndroidEditName makes the name for the omngo://edit intent.
@@ -162,7 +163,8 @@ func (a *App) handleQuickNote(w http.ResponseWriter, r *http.Request) {
 	fullMarkdown = a.ensureHeaderModified(fullMarkdown, "Quick Notes")
 	os.WriteFile(path, []byte(fullMarkdown), 0644)
 
-	// renderAndCache is the only writer of html/*.html. See render_cache.go.
+	// renderAndCache is the only writer of html/*.html. See
+	// internal/render/cache.go.
 	if _, err := a.renderAndCache("QuickNotes", []byte(fullMarkdown)); err != nil {
 		a.log(logx.Page).Errf("handleQuickNote: %v", err)
 	}

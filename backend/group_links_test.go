@@ -19,9 +19,7 @@ var fileGroups = map[string]string{
 
 	"config_app.go": "config", "version.go": "config",
 
-	"markdown.go": "render", "templates.go": "render", "pages.go": "render",
-	"render_cache.go": "render", "tags.go": "render",
-	"editor_page.go": "render", "json_response.go": "render",
+	"render_app.go":  "render",
 	"storage_app.go": "storage",
 
 	"files_index.go": "files", "files_page.go": "files", "files_state.go": "files",
@@ -154,7 +152,7 @@ func TestEachFileHasAGroup(t *testing.T) {
 // A group uses only groups of a lower layer. The test allows no exception.
 func TestGroupsUseOnlyLowerLayers(t *testing.T) {
 	uses := groupLinkUses(t)
-	if uses["config_handlers.go uses renderPage"] != "pages.go" {
+	if uses["config_handlers.go uses renderPage"] != "render_app.go" {
 		t.Fatal("the scan did not find a use of renderPage. The scan is broken.")
 	}
 	for use, to := range uses {

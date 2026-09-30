@@ -88,9 +88,10 @@ func TestRewriteInternalLink(t *testing.T) {
 		// empty
 		{"", ""},
 	}
+	rd := a.renderer()
 	for _, tt := range tests {
-		if got := a.rewriteInternalLink(tt.in); got != tt.want {
-			t.Errorf("rewriteInternalLink(%q) = %q, want %q", tt.in, got, tt.want)
+		if got := rd.RewriteInternalLink(tt.in); got != tt.want {
+			t.Errorf("RewriteInternalLink(%q) = %q, want %q", tt.in, got, tt.want)
 		}
 	}
 }
@@ -100,7 +101,7 @@ func TestRenderMarkdownToHTMLMathProtection(t *testing.T) {
 	// Underscores inside math would be corrupted into <em> by the markdown
 	// parser if the $$...$$ / $...$ protection did not hold.
 	md := "Before\n\n$$x_1 + y_2$$\n\nand inline $a_b$ end"
-	out := a.renderMarkdownToHTML([]byte(md))
+	out := a.testRenderer().RenderMarkdown([]byte(md))
 
 	if !strings.Contains(out, "$$x_1 + y_2$$") {
 		t.Errorf("block math not preserved verbatim, got:\n%s", out)
@@ -150,9 +151,9 @@ func TestRenderMarkdownRawNoPlaceholderLeak(t *testing.T) {
 	}, "\n")
 
 	// Render repeatedly: the historical bug was nondeterministic (map order).
-	first := a.renderMarkdownToHTML([]byte(md))
+	first := a.testRenderer().RenderMarkdown([]byte(md))
 	for i := 0; i < 40; i++ {
-		out := a.renderMarkdownToHTML([]byte(md))
+		out := a.testRenderer().RenderMarkdown([]byte(md))
 		if strings.Contains(out, "OMN_RAW_") {
 			t.Fatalf("raw placeholder leaked into output:\n%s", out)
 		}
@@ -175,7 +176,7 @@ func TestRenderMarkdownRawNoPlaceholderLeak(t *testing.T) {
 
 func TestRenderMarkdownToHTMLLinkRewrite(t *testing.T) {
 	a := &App{}
-	out := a.renderMarkdownToHTML([]byte("[a](Other) [b](Other.md) [c](img.png) [d](https://x.y/z)"))
+	out := a.testRenderer().RenderMarkdown([]byte("[a](Other) [b](Other.md) [c](img.png) [d](https://x.y/z)"))
 
 	for _, want := range []string{`href="Other.html"`, `href="img.png"`, `href="https://x.y/z"`} {
 		if !strings.Contains(out, want) {
@@ -192,7 +193,7 @@ func TestRenderMarkdownToHTMLLinkRewrite(t *testing.T) {
 func TestRenderMarkdownToHTMLIntentLinkUntouched(t *testing.T) {
 	a := &App{}
 	const intentHref = "intent:#Intent;action=android.settings.WIRELESS_SETTINGS;end;"
-	out := a.renderMarkdownToHTML([]byte("[Wi-Fi](" + intentHref + ")"))
+	out := a.testRenderer().RenderMarkdown([]byte("[Wi-Fi](" + intentHref + ")"))
 
 	if !strings.Contains(out, `href="`+intentHref+`"`) {
 		t.Errorf("intent link was rewritten; expected href=%q in:\n%s", intentHref, out)
@@ -221,7 +222,7 @@ func TestRenderMarkdownToHTMLSchemeLinksUntouched(t *testing.T) {
 		{"whatsapp://send?phone=15551234", "whatsapp:"},
 		{"market://details?id=net.basov.omngo", "market:"},
 	} {
-		out := a.renderMarkdownToHTML([]byte("[go](" + c.href + ")"))
+		out := a.testRenderer().RenderMarkdown([]byte("[go](" + c.href + ")"))
 		if strings.Contains(out, ".html") {
 			t.Errorf("%q picked up a .html extension:\n%s", c.href, out)
 		}
@@ -234,7 +235,7 @@ func TestRenderMarkdownToHTMLSchemeLinksUntouched(t *testing.T) {
 func TestCompilePageWithBodyHeaders(t *testing.T) {
 	a := &App{}
 	md := "Title: My \"Quoted\" Page\nTags: alpha, beta\nAuthor: Someone\n\n# Heading\n\nBody **bold** text."
-	out := string(a.compilePage("TestPage", []byte(md)))
+	out := string(a.testRenderer().CompilePage("TestPage", []byte(md)))
 
 	if strings.Contains(out, "%%") {
 		t.Fatalf("unfilled placeholder in compiled page:\n%s", out)
@@ -279,22 +280,22 @@ func TestCompilePageWithBodyHeaders(t *testing.T) {
 	}
 }
 
-// A tag pill must reach the one OMNGoTags page relatively, at the correct
-// depth through AssetPrefix. It must use tagSlug for the fragment. It thus
-// resolves offline from any directory depth, and it matches the section ids
-// of the generated page.
+// A tag pill must reach the one OMNGoTags page relatively, at the correct depth
+// through AssetPrefix. It must use render.TagSlug for the fragment. It thus
+// resolves offline from any directory depth, and it matches the section ids of
+// the generated page.
 func TestTagPillRelativePrefixAndSlug(t *testing.T) {
 	a := &App{}
 	md := "Title: Deep\nTags: 3D Print\n\nbody" // tag with a space -> slug "3D-Print"
 
 	// Two directories deep: prefix "../../".
-	deep := string(a.compilePage("a/b/Deep", []byte(md)))
+	deep := string(a.testRenderer().CompilePage("a/b/Deep", []byte(md)))
 	if !strings.Contains(deep, `href="../../OMNGoTags.html#3D-Print"`) {
 		t.Errorf("subdir pill href wrong (want ../../OMNGoTags.html#3D-Print):\n%s", deep)
 	}
 
 	// Root page: no prefix.
-	root := string(a.compilePage("Deep", []byte(md)))
+	root := string(a.testRenderer().CompilePage("Deep", []byte(md)))
 	if !strings.Contains(root, `href="OMNGoTags.html#3D-Print"`) {
 		t.Errorf("root pill href wrong (want OMNGoTags.html#3D-Print):\n%s", root)
 	}
@@ -306,7 +307,7 @@ func TestTagPillRelativePrefixAndSlug(t *testing.T) {
 func TestModalsInjectedAtServeTime(t *testing.T) {
 	a := &App{}
 
-	compiled := string(a.compilePage("Welcome", []byte("Title: W\n\nBody")))
+	compiled := string(a.testRenderer().CompilePage("Welcome", []byte("Title: W\n\nBody")))
 	if !strings.Contains(compiled, `<div id="omn-go-modals-slot"></div>`) {
 		t.Fatalf("compiled/cached page missing the modals slot marker:\n%s", compiled)
 	}
@@ -327,21 +328,6 @@ func TestModalsInjectedAtServeTime(t *testing.T) {
 	}
 }
 
-func TestRelPrefix(t *testing.T) {
-	cases := map[string]string{
-		"Welcome":                     "",
-		"QuickNotes":                  "",
-		"local/Note":                  "../",
-		"AI/GeminiSvgComponentEditor": "../",
-		"a/b/c":                       "../../",
-	}
-	for name, want := range cases {
-		if got := relPrefix(name); got != want {
-			t.Errorf("relPrefix(%q) = %q, want %q", name, got, want)
-		}
-	}
-}
-
 // TestCompilePageAssetPrefix pins Phase 5b. A cached markdown page gets
 // depth-relative chrome-asset paths. It thus loads when opened directly
 // from disk, and over HTTP as well. A dynamic custom-body page keeps
@@ -351,7 +337,7 @@ func TestCompilePageAssetPrefix(t *testing.T) {
 	a := &App{}
 
 	// Root markdown page -> bare relative paths, no leading slash.
-	root := string(a.compilePage("Welcome", []byte("Title: W\n\nBody")))
+	root := string(a.testRenderer().CompilePage("Welcome", []byte("Title: W\n\nBody")))
 	for _, want := range []string{`href="css/OMN-Go/omn-go-core.css"`, `src="js/OMN-Go/omn-go-core.js"`, `href="Welcome.html"`} {
 		if !strings.Contains(root, want) {
 			t.Errorf("root page missing %q", want)
@@ -362,7 +348,7 @@ func TestCompilePageAssetPrefix(t *testing.T) {
 	}
 
 	// Two-deep markdown page -> "../../" prefix.
-	nested := string(a.compilePage("a/b/Note", []byte("Title: N\n\nBody")))
+	nested := string(a.testRenderer().CompilePage("a/b/Note", []byte("Title: N\n\nBody")))
 	for _, want := range []string{`href="../../css/OMN-Go/omn-go-core.css"`, `src="../../js/OMN-Go/omn-go-core.js"`, `href="../../Welcome.html"`} {
 		if !strings.Contains(nested, want) {
 			t.Errorf("nested page missing %q", want)
@@ -370,7 +356,7 @@ func TestCompilePageAssetPrefix(t *testing.T) {
 	}
 
 	// Dynamic custom-body page -> absolute paths.
-	dyn := string(a.compilePageWithBody("Config", []byte("Title: Config\n\n"), "<p>dashboard</p>"))
+	dyn := string(a.testRenderer().CompilePageWithBody("Config", []byte("Title: Config\n\n"), "<p>dashboard</p>"))
 	for _, want := range []string{`href="/css/OMN-Go/omn-go-core.css"`, `src="/js/OMN-Go/omn-go-core.js"`, `href="/Welcome.html"`} {
 		if !strings.Contains(dyn, want) {
 			t.Errorf("custom-body page missing absolute %q:\n%s", want, dyn)
@@ -384,7 +370,7 @@ func TestCompilePageWithBodyCustomBody(t *testing.T) {
 	// A non-markdown asset rendered with a custom body (e.g. the Config
 	// dashboard / external-edit wait page path): IS_MARKDOWN off, PAGE_EXT
 	// derived from the name, custom body used verbatim as the content.
-	out := string(a.compilePageWithBody("app.js", raw, "<pre>console.log('x');</pre>"))
+	out := string(a.testRenderer().CompilePageWithBody("app.js", raw, "<pre>console.log('x');</pre>"))
 
 	if strings.Contains(out, "var IS_MARKDOWN = true;") {
 		t.Error("IS_MARKDOWN set for a .js custom-body view")
@@ -451,7 +437,7 @@ func TestEnsureHeaderModifiedSynthesizesHeader(t *testing.T) {
 func TestCompilePageNoSpuriousMetaFromCSSBody(t *testing.T) {
 	a := &App{}
 	md := "Title: Editor\nTags: AI\n    \n<style>\n#app { --bg-color: #E2DCD2; }\nhtml, body { margin: 0; }\n</style>\n\nBody."
-	out := string(a.compilePage("AI/Editor", []byte(md)))
+	out := string(a.testRenderer().CompilePage("AI/Editor", []byte(md)))
 
 	// Legitimate header fields still become meta tags.
 	if !strings.Contains(out, `name="title" content="Editor"`) {

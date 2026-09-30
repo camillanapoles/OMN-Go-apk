@@ -15,10 +15,10 @@ const embedCont = document.querySelector('#preview');
 //   * On Android each flavor is a separate application with a storage
 //     directory of its own, thus the WebView data is separate as well.
 //
-// The one name that the page could have used is PackageName, which
-// index.html injects. That value is the literal "net.basov.omngo" for
-// each build. See compilePageWithBody in backend/markdown.go. A prefix
-// from it would therefore be the same text on both flavors.
+// The one name that the page could have used is PackageName, which index.html
+// injects. That value is the literal "net.basov.omngo" for each build. See
+// render.Renderer.CompilePageWithBody in backend/internal/render/markdown.go. A
+// prefix from it would therefore be the same text on both flavors.
 //
 // The name below is therefore the whole rule. It does not change, and a
 // change of it makes each reader lose the settings of this page. See

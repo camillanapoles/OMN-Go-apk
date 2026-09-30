@@ -4,9 +4,10 @@
 // of its answers matter more than the rest.
 //
 // A LINE THAT DOES NOT PARSE ALWAYS SHOWS. Three call sites of the project
-// write a log line with no level, because no application can reach them.
-// See loadTemplate in templates.go and the two in search_sections.go. Each
-// one is a fault. A filter that hides a fault is worse than no filter.
+// write a log line with no level, because no application can reach them. See
+// render.LoadTemplate in internal/render/templates.go and the two in
+// search_sections.go. Each one is a fault. A filter that hides a fault is worse
+// than no filter.
 //
 // AN UNKNOWN NAME SHOWS. The page builds its tag list from the lines that
 // arrive. A tag that arrives after the reader ticked the boxes is

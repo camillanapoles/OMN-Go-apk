@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/internal/config"
+	"net.basov.omngo/backend/internal/render"
 )
 
 func TestNormalizeSearchKinds(t *testing.T) {
@@ -281,7 +282,7 @@ func TestGlobalSearchAvailableRuntimeVar(t *testing.T) {
 		t.Error("available with the setting on but no index built")
 	}
 
-	page := string(a.injectRuntimeVars([]byte(runtimeVarsMarker)))
+	page := string(a.injectRuntimeVars([]byte(render.RuntimeVarsMarker)))
 	if !strings.Contains(page, "var OMN_SEARCH_GLOBAL = false;") {
 		t.Errorf("runtime var not injected as false: %s", page)
 	}

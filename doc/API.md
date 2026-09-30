@@ -80,10 +80,10 @@ There is no single envelope. The server uses three shapes:
    `/api/export/note`.
 3. **`text/event-stream`** — `/api/logs` only.
 
-One function writes each JSON answer: `writeJSON` in
-`backend/json_response.go`. It sets `Content-Type: application/json` and
-the status code, and it writes one JSON value. A test fails when another
-file encodes an answer.
+One function writes each JSON answer: `WriteJSON` in
+`backend/internal/render/json_response.go`. It sets
+`Content-Type: application/json` and the status code, and it writes one JSON
+value. A test fails when another file encodes an answer.
 
 `http.Error` sends `text/plain; charset=utf-8` with the message in the body.
 
@@ -380,12 +380,12 @@ Write a note or asset back to disk.
 **Side effects**
 
 * The endpoint changes `\r\n` to `\n`.
-* For a note, `ensureHeaderModified` writes or updates
+* For a note, `render.EnsureHeaderModified` writes or updates
   `Modified: YYYY-MM-DD HH:MM:SS` in the header block.
 * The endpoint saves the Markdown source **first**. Only then does
-  `renderAndCache` compile the HTML cache (`html/<name>.html`). The server
-  logs a cache failure, but the endpoint still reports success. The next
-  page view compiles the cache again.
+  `render.Renderer.RenderAndCache` compile the HTML cache (`html/<name>.html`).
+  The server logs a cache failure, but the endpoint still reports success. The
+  next page view compiles the cache again.
 * For a static asset, the endpoint saves the bytes straight to
   `html/<path>` and renders nothing.
 
@@ -1988,7 +1988,7 @@ Each special page is a row of the page-access table in
 `backend/page_access.go`. The router sends it to its handler, thus `?edit` and the catch-all do not
 apply to it. A remote caller gets the refusal page for an admin-only row.
 
-`injectRuntimeVars` adds this block to every served page:
+`render.Renderer.InjectRuntimeVars` adds this block to every served page:
 
 ```html
 <script>var APP_VERSION = "1.11.32"; var USE_INTERNAL_ED = true; var OMN_THEME = "auto";

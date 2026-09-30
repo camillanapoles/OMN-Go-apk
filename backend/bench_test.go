@@ -160,7 +160,8 @@ func BenchmarkCompileBundledNotes(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for name, data := range notes {
-			a.compilePage(name, data)
+			rd := a.renderer()
+			rd.CompilePage(name, data)
 		}
 	}
 }

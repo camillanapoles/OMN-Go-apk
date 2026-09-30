@@ -141,14 +141,14 @@ func TestDottedNoteNameReachesTheEditor(t *testing.T) {
 }
 
 // TestDottedNoteCompilesAsMarkdown exists because the compiled page carries
-// IS_MARKDOWN, and the frontend reads it to decide which controls a page
-// gets. compilePageWithBody cannot answer from the name alone: a note named
-// "Draft.txt" and the file html/Draft.txt look the same there. It reads the
-// caller instead. An empty customBody means a note.
+// IS_MARKDOWN, and the frontend reads it to decide which controls a page gets.
+// render.Renderer.CompilePageWithBody cannot answer from the name alone: a note
+// named "Draft.txt" and the file html/Draft.txt look the same there. It reads
+// the caller instead. An empty customBody means a note.
 func TestDottedNoteCompilesAsMarkdown(t *testing.T) {
 	a := newTestApp(t)
 	for _, name := range []string{"Welcome", "Report.2026", "Draft.txt", "a.b.c"} {
-		page := string(a.compilePage(name, []byte("Title: X\n\nbody")))
+		page := string(a.testRenderer().CompilePage(name, []byte("Title: X\n\nbody")))
 		if !strings.Contains(page, "var IS_MARKDOWN = true;") {
 			t.Errorf("the compiled page of note %q is not markdown. The page "+
 				"then loses each control that belongs to a note.", name)
@@ -160,7 +160,7 @@ func TestDottedNoteCompilesAsMarkdown(t *testing.T) {
 	}
 
 	// A server-built view of a file keeps the extension of that file.
-	wait := string(a.compilePageWithBody("js/app.min.js",
+	wait := string(a.testRenderer().CompilePageWithBody("js/app.min.js",
 		[]byte("Title: Wait\n\n"), "<p>waiting</p>"))
 	if !strings.Contains(wait, "var PAGE_EXT = '.js';") {
 		t.Error("a server-built view of a .js file lost its extension")

@@ -8,6 +8,7 @@ import (
 
 	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
+	"net.basov.omngo/backend/internal/render"
 	"net.basov.omngo/backend/internal/textmatch"
 )
 
@@ -354,7 +355,7 @@ func (a *App) serveSearchPage(w http.ResponseWriter, r *http.Request) {
 	// change that.
 	if !cfg.SearchEnabled {
 		body := renderSearchPage(searchPageView{Disabled: true})
-		a.renderPage(w, http.StatusOK, "Search", pageHeader("Search", "System"), body)
+		a.renderPage(w, http.StatusOK, "Search", render.PageHeader("Search", "System"), body)
 		return
 	}
 
@@ -380,5 +381,5 @@ func (a *App) serveSearchPage(w http.ResponseWriter, r *http.Request) {
 		title = "Search: " + query
 	}
 	body := renderSearchPage(view)
-	a.renderPage(w, http.StatusOK, title, pageHeader(title, "System"), body)
+	a.renderPage(w, http.StatusOK, title, render.PageHeader(title, "System"), body)
 }

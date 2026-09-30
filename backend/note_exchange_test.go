@@ -737,14 +737,16 @@ func TestBundledNotesLinkToTheIncomingIndex(t *testing.T) {
 	}
 }
 
-// The link the manual writes must be the link the renderer produces, and
-// that is a question about rewriteInternalLink, not about the Markdown.
+// The link the manual writes must be the link the renderer produces, and that
+// is a question about render.Renderer.RewriteInternalLink, not about the
+// Markdown.
 func TestIncomingIndexLinkRewrites(t *testing.T) {
 	a := newTestApp(t)
 	in := incomingDirName + "/" + incomingIndexBase
 	want := in + ".html"
-	if got := a.rewriteInternalLink(in); got != want {
-		t.Errorf("rewriteInternalLink(%q) = %q, want %q", in, got, want)
+	rd := a.renderer()
+	if got := rd.RewriteInternalLink(in); got != want {
+		t.Errorf("RewriteInternalLink(%q) = %q, want %q", in, got, want)
 	}
 }
 

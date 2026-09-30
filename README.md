@@ -57,18 +57,18 @@ OMN-Go replaces the original [mvbasov/OMN](https://github.com/mvbasov/OMN) proje
 OMN-Go is one Go binary that serves the frontend from a local web server. Each
 platform wraps this binary in a different way:
 
-1. **The backend (`backend/`):** A Go package that runs the whole
-   application. An `http.ServeMux` (`server.go`) connects request
-   authentication (`middleware.go`), the note and API handlers
-   (`handlers.go` and the `*_handlers.go` files), and Markdown compilation
-   with goldmark (`markdown.go`, `pages.go`, `templates.go`). The backend writes the HTML
-   cache to disk (`render_cache.go`). It also holds an embedded SQLite
-   database (pure-Go `modernc.org/sqlite`, `sqlite.go` and the
-   `db_backup*.go` files) and runs git synchronization over SSH
-   (`git_sync.go`). The build compiles all
-   frontend assets into the binary with `//go:embed`, and the backend
-   extracts them to the storage directory when it first needs them. This is
-   why OMN-Go works without an internet connection.
+1. **The backend (`backend/`):** A Go package that runs the whole application.
+   An `http.ServeMux` (`server.go`) connects request authentication
+   (`middleware.go`), the note and API handlers (`handlers.go` and the
+   `*_handlers.go` files), and Markdown compilation with goldmark
+   (`internal/render/markdown.go`, `internal/render/pages.go`,
+   `internal/render/templates.go`). The backend writes the HTML cache to disk
+   (`internal/render/cache.go`). It also holds an embedded SQLite database
+   (pure-Go `modernc.org/sqlite`, `sqlite.go` and the `db_backup*.go` files) and
+   runs git synchronization over SSH (`git_sync.go`). The build compiles all
+   frontend assets into the binary with `//go:embed`, and the backend extracts
+   them to the storage directory when it first needs them. This is why OMN-Go
+   works without an internet connection.
 
 2. **The frontend (`backend/frontend/`):** Pure HTML, CSS, and vanilla
    JavaScript, with no React, no Vue, and no external CDN. The page

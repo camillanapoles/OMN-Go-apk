@@ -12,6 +12,7 @@ import (
 	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
 	"net.basov.omngo/backend/internal/noteheader"
+	"net.basov.omngo/backend/internal/render"
 )
 
 // ----------------------------------------------------------------------
@@ -160,9 +161,9 @@ func TestHeaderRuleHasAFrontendCopy(t *testing.T) {
 // of omn-go-core.js uses.
 var jsURISchemeRe = regexp.MustCompile(`/\^\[a-zA-Z\]\[[^/]+\*:/`)
 
-// A link that carries a URI scheme is not a page of this application,
-// and it must reach the browser as the author wrote it. The server
-// decides that in rewriteInternalLink, and the page decides it again in
+// A link that carries a URI scheme is not a page of this application, and it
+// must reach the browser as the author wrote it. The server decides that in
+// render.Renderer.RewriteInternalLink, and the page decides it again in
 // setupPreviewLinkInterceptor.
 //
 // The two must agree. A link that the server leaves alone and the page
@@ -178,10 +179,10 @@ func TestURISchemeRuleHasAFrontendCopy(t *testing.T) {
 	// Strip the two slashes of the JavaScript literal.
 	jsPattern := strings.TrimSuffix(strings.TrimPrefix(found, "/"), "/")
 
-	if jsPattern != uriSchemeRe.String() {
+	if jsPattern != render.URISchemeRe.String() {
 		t.Errorf("the URI-scheme rule is %q in Go and %q in omn-go-core.js. "+
 			"A link then behaves differently on the server and in the page.",
-			uriSchemeRe.String(), jsPattern)
+			render.URISchemeRe.String(), jsPattern)
 	}
 
 	// Both sides must agree about real links, not about the text of a
@@ -199,8 +200,8 @@ func TestURISchemeRuleHasAFrontendCopy(t *testing.T) {
 		{"#anchor", false},
 		{"9lives:x", false}, // a scheme cannot start with a digit
 	} {
-		if got := uriSchemeRe.MatchString(c.href); got != c.want {
-			t.Errorf("uriSchemeRe.MatchString(%q) = %v, want %v", c.href, got, c.want)
+		if got := render.URISchemeRe.MatchString(c.href); got != c.want {
+			t.Errorf("render.URISchemeRe.MatchString(%q) = %v, want %v", c.href, got, c.want)
 		}
 	}
 }

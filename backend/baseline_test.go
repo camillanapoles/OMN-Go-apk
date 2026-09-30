@@ -37,6 +37,7 @@ import (
 	"time"
 
 	"net.basov.omngo/backend/internal/config"
+	"net.basov.omngo/backend/internal/render"
 	"net.basov.omngo/backend/internal/storage"
 )
 
@@ -443,7 +444,7 @@ var headingIDRe = regexp.MustCompile(`<h[1-6][^>]*\sid="([^"]*)"`)
 
 func headingIDs(a *App, md string) []string {
 	out := []string{}
-	for _, m := range headingIDRe.FindAllStringSubmatch(a.renderMarkdownToHTML([]byte(md)), -1) {
+	for _, m := range headingIDRe.FindAllStringSubmatch(a.testRenderer().RenderMarkdown([]byte(md)), -1) {
 		out = append(out, m[1])
 	}
 	return out
@@ -1072,7 +1073,7 @@ var runtimeVarRe = regexp.MustCompile(`var ([A-Za-z_][A-Za-z0-9_]*) =`)
 func TestBaseline_InjectedRuntimeVarSet(t *testing.T) {
 	a := newTestApp(t)
 
-	page := a.injectRuntimeVars([]byte(runtimeVarsMarker))
+	page := a.injectRuntimeVars([]byte(render.RuntimeVarsMarker))
 	names := []string{}
 	for _, m := range runtimeVarRe.FindAllStringSubmatch(string(page), -1) {
 		names = append(names, m[1])
@@ -1112,13 +1113,13 @@ func TestBaseline_InjectedRuntimeVarSet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(cached), runtimeVarsMarker) {
+	if !strings.Contains(string(cached), render.RuntimeVarsMarker) {
 		t.Error("cached page does not contain the raw runtime-vars marker")
 	}
-	if !strings.Contains(string(cached), modalsMarker) {
+	if !strings.Contains(string(cached), render.ModalsMarker) {
 		t.Error("cached page does not contain the raw modals slot")
 	}
-	if strings.Contains(string(a.injectRuntimeVars(cached)), runtimeVarsMarker) {
+	if strings.Contains(string(a.injectRuntimeVars(cached)), render.RuntimeVarsMarker) {
 		t.Error("marker survived injection at serve time")
 	}
 }

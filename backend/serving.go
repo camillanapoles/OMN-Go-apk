@@ -12,6 +12,7 @@ import (
 
 	"net.basov.omngo/backend/frontend"
 	"net.basov.omngo/backend/internal/logx"
+	"net.basov.omngo/backend/internal/render"
 	"net.basov.omngo/backend/internal/storage"
 )
 
@@ -224,7 +225,7 @@ func (a *App) serveNotFound(w http.ResponseWriter, r *http.Request) {
 	}
 
 	body := renderNotFoundPage(view)
-	a.renderPage(w, http.StatusNotFound, "Not found", pageHeader("Not found", "Error"), body)
+	a.renderPage(w, http.StatusNotFound, "Not found", render.PageHeader("Not found", "Error"), body)
 }
 
 // serveNotEditable answers an editor request for a file that is not text:
@@ -251,7 +252,7 @@ func (a *App) serveNotEditable(w http.ResponseWriter, r *http.Request, relPath s
 
 	body := renderNotEditablePage(notEditableView{Path: urlPath, Type: ct})
 	a.renderPage(w, http.StatusUnsupportedMediaType, "Not a text file",
-		pageHeader("Not a text file", "Error"), body)
+		render.PageHeader("Not a text file", "Error"), body)
 }
 
 // notFoundInterceptor keeps the path handling and the range handling of
@@ -285,8 +286,8 @@ func (w *notFoundInterceptor) Write(b []byte) (int, error) {
 // --- The 404 page ---
 
 var (
-	notFoundTmpl    = loadTemplate("not_found.html")
-	notEditableTmpl = loadTemplate("not_editable.html")
+	notFoundTmpl    = render.LoadTemplate("not_found.html")
+	notEditableTmpl = render.LoadTemplate("not_editable.html")
 )
 
 // notFoundView holds each value of the detailed 404 page. Each field is RAW,
@@ -322,10 +323,10 @@ func renderNotEditablePage(v notEditableView) string {
 	if typ == "" {
 		typ = "unknown"
 	}
-	return fill(notEditableTmpl, map[string]string{
-		"PATH":     escapeHTML(v.Path),
-		"TYPE":     escapeHTML(typ),
-		"VIEW_URL": escapeHTML(v.Path),
+	return render.Fill(notEditableTmpl, map[string]string{
+		"PATH":     render.EscapeHTML(v.Path),
+		"TYPE":     render.EscapeHTML(typ),
+		"VIEW_URL": render.EscapeHTML(v.Path),
 	})
 }
 
@@ -334,13 +335,13 @@ func renderNotFoundPage(v notFoundView) string {
 	// where it goes in.
 	refererRows := ""
 	if v.Referer != "" {
-		esc := escapeHTML(v.Referer)
+		esc := render.EscapeHTML(v.Referer)
 		if safeLocalPath(v.Referer) {
 			refererRows = fmt.Sprintf(`        <dt>Linked from</dt>
         <dd><a href="%s">%s</a> &middot; <a href="%s?edit=true">edit that page</a></dd>
 `, esc, esc, esc)
 		} else {
-			// Show the Referer, but never as a link. escapeHTML makes it
+			// Show the Referer, but never as a link. render.EscapeHTML makes it
 			// plain text. In an href, a "javascript:" value would stay live.
 			refererRows = fmt.Sprintf(`        <dt>Linked from</dt>
         <dd>%s</dd>
@@ -350,7 +351,7 @@ func renderNotFoundPage(v notFoundView) string {
 
 	suggestion := ""
 	if v.Suggested != "" && safeLocalPath(v.Suggested) {
-		esc := escapeHTML(v.Suggested)
+		esc := render.EscapeHTML(v.Suggested)
 		suggestion = fmt.Sprintf(`    <div class="config-field notfound-suggest">
         <span class="notfound-suggest-label">Did you mean</span>
         <a href="%s" class="notfound-suggest-link">%s</a>
@@ -359,10 +360,10 @@ func renderNotFoundPage(v notFoundView) string {
 `, esc, esc)
 	}
 
-	return fill(notFoundTmpl, map[string]string{
-		"URL":          escapeHTML(v.URL),
-		"METHOD":       escapeHTML(v.Method),
-		"TIME":         escapeHTML(v.Time),
+	return render.Fill(notFoundTmpl, map[string]string{
+		"URL":          render.EscapeHTML(v.URL),
+		"METHOD":       render.EscapeHTML(v.Method),
+		"TIME":         render.EscapeHTML(v.Time),
 		"REFERER_ROWS": refererRows,
 		"SUGGESTION":   suggestion,
 	})

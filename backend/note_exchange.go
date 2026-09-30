@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"net.basov.omngo/backend/internal/noteheader"
+	"net.basov.omngo/backend/internal/render"
 	"net.basov.omngo/backend/internal/storage"
 )
 
@@ -475,13 +476,13 @@ func (a *App) addIncomingIndexLine(res importResult, now time.Time) error {
 
 // incomingIndexTmpl is the incoming index as the app first writes it: a
 // header block, the receive box and the list marker.
-var incomingIndexTmpl = loadTemplate("incoming_index.md")
+var incomingIndexTmpl = render.LoadTemplate("incoming_index.md")
 
 // incomingIndexStarter answers the incoming index as the app first writes it.
 // It is a template, because initStorage extracts frontend/md FLAT into md/.
 // The app writes it one time, and then it belongs to the user.
 func incomingIndexStarter(now time.Time) string {
-	return normalizeNewlines(fill(incomingIndexTmpl, map[string]string{
+	return normalizeNewlines(render.Fill(incomingIndexTmpl, map[string]string{
 		"DATE": now.Format("2006-01-02 15:04:05"),
 	}))
 }

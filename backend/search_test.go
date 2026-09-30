@@ -270,7 +270,7 @@ func TestPageSearch_AssetTarget(t *testing.T) {
 
 // A "<script>" mentioned inside a fenced example must not mark the rest of the
 // file as script. This is the same failure the renderer's combined-scan comment
-// in markdown.go records, in a different guise.
+// in internal/render/markdown.go records, in a different guise.
 func TestClassifyContexts(t *testing.T) {
 	lines := strings.Split(strings.TrimPrefix(`
 prose one
@@ -462,7 +462,7 @@ func TestParseQuery(t *testing.T) {
 // existing applyOfflineUI() hides it there with no extra code.
 func TestSearchButtonIsInTheRenderedPage(t *testing.T) {
 	a := newTestApp(t)
-	page := string(a.compilePage("Note", []byte("Title: A Note\n\nbody")))
+	page := string(a.testRenderer().CompilePage("Note", []byte("Title: A Note\n\nbody")))
 
 	if !strings.Contains(page, "omnSearchOpen()") {
 		t.Fatal("rendered page has no search button")
