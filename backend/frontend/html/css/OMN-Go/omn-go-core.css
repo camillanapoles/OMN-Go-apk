@@ -74,8 +74,8 @@
     --info:          #17a2b8;   /* create / note / bookmark teal */
     --secondary:     #6c757d;   /* refresh / settings gray */
 
-    /* File-index state colors (see files_index.go: the word says what a file
-       is, the color says what happens to it). Each value is measured at
+    /* File-index state colors (see internal/files/index.go: the word says
+       what a file is, the color says what happens to it). Each value is measured at
        4.5:1 or better against BOTH backgrounds of its own theme - the page
        --bg and the card --bg-surface - because the words are 11px. The
        semantic accents above do not reach that on one theme each, so this

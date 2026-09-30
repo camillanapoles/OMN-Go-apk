@@ -1,4 +1,4 @@
-package backend
+package files
 
 import (
 	"bytes"
@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/storage"
 )
 
@@ -65,46 +66,14 @@ func filesKindIcon(name string, isDir bool) string {
 	return "insert_drive_file"
 }
 
-// filesEditable decides whether a row offers an "edit" link. A compiled .html
+// Editable decides whether a row offers an "edit" link. A compiled .html
 // page has its own Edit button. A file that is not text gets no link. See
-// editableFileType. SVG is an image, thus it gets no link.
-func (a *App) filesEditable(logical string) bool {
+// config.EditableFileType. SVG is an image, thus it gets no link.
+func (svc Service) Editable(logical string) bool {
 	if strings.HasSuffix(strings.ToLower(logical), ".html") {
 		return false
 	}
-	return a.editableFileType(logical)
-}
-
-// editableFileType reports whether the content type of logical is text that
-// an editor can open. The editor routes use it too. A picture, a font, an
-// audio file or a video file must not open an editor.
-func (a *App) editableFileType(logical string) bool {
-	ct := a.resolveContentType(logical)
-	if i := strings.IndexByte(ct, ';'); i >= 0 {
-		ct = ct[:i] // drop "; charset=utf-8"
-	}
-	ct = strings.ToLower(strings.TrimSpace(ct))
-	switch {
-	case ct == "":
-		return false // an unknown extension is not assumed to be text
-	// Check the media types BEFORE the +xml and +json suffixes, or
-	// image/svg+xml would count as text.
-	case strings.HasPrefix(ct, "image/"), strings.HasPrefix(ct, "font/"),
-		strings.HasPrefix(ct, "audio/"), strings.HasPrefix(ct, "video/"):
-		return false
-	case strings.HasPrefix(ct, "text/"):
-		return true
-	// The builtin table serves .jsonl as text/plain, thus the Android WebView
-	// can show it. A mime_types entry in config.json can map it to
-	// application/jsonl, and that is still text.
-	case ct == "application/javascript", ct == "application/x-javascript",
-		ct == "application/json", ct == "application/jsonl",
-		ct == "application/xml":
-		return true
-	case strings.HasSuffix(ct, "+json"), strings.HasSuffix(ct, "+xml"):
-		return true
-	}
-	return false
+	return config.EditableFileType(svc.MimeTypes, logical)
 }
 
 // isVersionDependent reports whether the app owns a path, from
@@ -155,7 +124,7 @@ func filesMirrorState(source, copyOf *indexedFile) (word, color string, extra st
 }
 
 // filesRowFor makes one row of the tree in view.
-func (a *App) filesRowFor(tree string, e filesEntry) filesFileRow {
+func (svc Service) filesRowFor(tree string, e filesEntry) filesFileRow {
 	name := path.Base(e.path)
 	row := filesFileRow{
 		Name: name,
@@ -184,7 +153,7 @@ func (a *App) filesRowFor(tree string, e filesEntry) filesFileRow {
 			row.URL = "/" + e.path
 		}
 		row.AppOwned = isVersionDependent(filesStoragePath(tree, e.path))
-		if a.filesEditable(e.path) {
+		if svc.Editable(e.path) {
 			row.EditURL = row.URL + "?edit=true"
 			if strings.HasSuffix(strings.ToLower(e.path), ".md") {
 				// The page address opens the editor on the source, the same
@@ -199,12 +168,12 @@ func (a *App) filesRowFor(tree string, e filesEntry) filesFileRow {
 	default: // served
 		row.URL = "/" + e.path
 		row.AppOwned = isVersionDependent(filesStoragePath(tree, e.path))
-		if a.filesEditable(e.path) {
+		if svc.Editable(e.path) {
 			row.EditURL = row.URL + "?edit=true"
 		}
 	}
 
-	a.filesState(tree, e, &row)
+	svc.filesState(tree, e, &row)
 	return row
 }
 
@@ -236,7 +205,7 @@ func filesEmbeddedPath(tree, logical string) string {
 
 // filesState sets the word of the first line, its color and the other facts.
 // Here most rows get no word at all.
-func (a *App) filesState(tree string, e filesEntry, row *filesFileRow) {
+func (svc Service) filesState(tree string, e filesEntry, row *filesFileRow) {
 	if e.device != nil {
 		row.Mod = e.device.mod.Format("2006-01-02")
 		row.ModFull = e.device.mod.Format("2006-01-02 15:04")
@@ -258,7 +227,7 @@ func (a *App) filesState(tree string, e filesEntry, row *filesFileRow) {
 		if e.ships.size != e.device.size {
 			same = false
 		} else {
-			same, checked = filesSameBytes(filesEmbeddedPath(tree, e.path), a.filesDiskPath(tree, e.path), e.device.size)
+			same, checked = filesSameBytes(filesEmbeddedPath(tree, e.path), svc.filesDiskPath(tree, e.path), e.device.size)
 		}
 		switch {
 		case !checked && e.ships.size == e.device.size:
@@ -290,9 +259,9 @@ func (a *App) filesState(tree string, e filesEntry, row *filesFileRow) {
 		var source, copyOf *indexedFile
 		switch tree {
 		case filesTreeServed:
-			source, copyOf = a.filesStat("md", e.path), e.device
+			source, copyOf = svc.filesStat("md", e.path), e.device
 		case filesTreeSource:
-			source, copyOf = e.device, a.filesStat("html", e.path)
+			source, copyOf = e.device, svc.filesStat("html", e.path)
 		}
 		word, color, extra := filesMirrorState(source, copyOf)
 		if word == "" {
@@ -306,17 +275,17 @@ func (a *App) filesState(tree string, e filesEntry, row *filesFileRow) {
 }
 
 // filesDiskPath answers the disk path of a logical path in the tree in view.
-func (a *App) filesDiskPath(tree, logical string) string {
+func (svc Service) filesDiskPath(tree, logical string) string {
 	sub := "html"
 	if tree == filesTreeSource {
 		sub = "md"
 	}
-	return a.layout().File(sub, filepath.FromSlash(logical))
+	return svc.Layout.File(sub, filepath.FromSlash(logical))
 }
 
 // filesStat reads one file of the storage tree for the .txt comparison.
-func (a *App) filesStat(sub, logical string) *indexedFile {
-	st, err := os.Stat(a.layout().File(sub, filepath.FromSlash(logical)))
+func (svc Service) filesStat(sub, logical string) *indexedFile {
+	st, err := os.Stat(svc.Layout.File(sub, filepath.FromSlash(logical)))
 	if err != nil || st.IsDir() {
 		return nil
 	}

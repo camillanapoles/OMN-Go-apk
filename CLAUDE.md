@@ -87,7 +87,7 @@ Do not remove a constraint without an instruction from the maintainer.
 | --- | --- |
 | `main_desktop.go` | The only file in `package main`. It holds the only build tag: `//go:build !android`. |
 | `backend/` | The Go application. `package backend` holds most of the code, and the split into packages is in progress. |
-| `backend/internal/` | The packages of the split. `textmatch` holds the search matcher, and `noteheader` holds the header block. `logx` holds the log tags and the log hub. `config` holds the settings and their store. `storage` holds the storage layout, the application files and the plain files beside the notes. `render` holds the page compile, the page shell, the Tags page and the JSON answer. `db` holds the SQLite databases of the notes and their backups. `gitsync` holds the git sync and the host keys. `search` holds the page search and the global search index. |
+| `backend/internal/` | The packages of the split. `textmatch` holds the search matcher, and `noteheader` holds the header block. `logx` holds the log tags and the log hub. `config` holds the settings and their store. `storage` holds the storage layout, the application files and the plain files beside the notes. `render` holds the page compile, the page shell, the Tags page and the JSON answer. `db` holds the SQLite databases of the notes and their backups. `gitsync` holds the git sync and the host keys. `search` holds the page search and the global search index. `files` holds the Files page. |
 | `backend/frontend/embed.go` | `package frontend`. It embeds `html/` and `md/` as `frontend.Static`, and `templates/` as `frontend.Templates`. |
 | `backend/frontend/templates/` | Server-side page fragments. Embedded as `frontend.Templates`. Never extracted to disk. |
 | `backend/frontend/html/` | `js/`, `css/`, `css/fonts/`, `json/`, `favicon.ico`. Embedded as `frontend.Static`. Extracted to the storage directory on demand. The user can edit these files with `?edit=true`. |
@@ -134,8 +134,8 @@ update these files.
   gomobile and desktop facade. It then holds no logic, and it exports only
   functions of simple types. Until then, the App side of a package is one file
   of `package backend`, for example `config_app.go`, `storage_app.go`,
-  `render_app.go`, `db_app.go`, `gitsync_app.go` and `search_app.go`. Its
-  methods give the values of the App to the package.
+  `render_app.go`, `db_app.go`, `gitsync_app.go`, `search_app.go` and
+  `files_app.go`. Its methods give the values of the App to the package.
 * **Until the split ends, keep the groups of `package backend` apart.** Each production
   file there belongs to one group of `fileGroups` in `backend/group_links_test.go`. A
   group uses only the groups of a lower layer. `TestGroupsUseOnlyLowerLayers` holds the

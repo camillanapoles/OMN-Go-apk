@@ -3,8 +3,8 @@
          screen is three buttons and nothing else. Each tree then shows one
          directory, the way a browser shows file:///, and the breadcrumb is
          the way back up.
-         Every row below is built by renderFilesPage (files_page.go), which
-         escapes each value as it splices it - file names come from uploads
+         renderFilesPage (internal/files/page.go) builds each row below, and
+         it escapes each value as it splices it - file names come from uploads
          and note titles, so they are user-controlled. -->
 %%BODY%%
 </div>

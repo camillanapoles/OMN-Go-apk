@@ -21,7 +21,7 @@ var BuiltinMIME = map[string]string{
 	".jsonl": "text/plain; charset=utf-8",
 	".md":    "text/markdown; charset=utf-8",
 	// The Go table has no ".txt", and a phone has no /etc/mime.types.
-	// editableFileType reads this table, thus without this row a .txt on
+	// EditableFileType reads this table, thus without this row a .txt on
 	// Android gets no editor. A file beside a note is a .txt.
 	".txt":   "text/plain; charset=utf-8",
 	".svg":   "image/svg+xml",
@@ -78,4 +78,36 @@ func HasKnownAssetExtension(overrides map[string]string, name string) bool {
 	}
 	_, ok := BuiltinMIME[ext]
 	return ok
+}
+
+// EditableFileType reports whether the content type of name is text that an
+// editor can open. The editor routes and the Files page use it. A picture, a
+// font, an audio file or a video file must not open an editor.
+func EditableFileType(overrides map[string]string, name string) bool {
+	ct := ResolveContentType(overrides, name)
+	if i := strings.IndexByte(ct, ';'); i >= 0 {
+		ct = ct[:i] // drop "; charset=utf-8"
+	}
+	ct = strings.ToLower(strings.TrimSpace(ct))
+	switch {
+	case ct == "":
+		return false // an unknown extension is not assumed to be text
+	// Check the media types BEFORE the +xml and +json suffixes, or
+	// image/svg+xml would count as text.
+	case strings.HasPrefix(ct, "image/"), strings.HasPrefix(ct, "font/"),
+		strings.HasPrefix(ct, "audio/"), strings.HasPrefix(ct, "video/"):
+		return false
+	case strings.HasPrefix(ct, "text/"):
+		return true
+	// The builtin table serves .jsonl as text/plain, thus the Android WebView
+	// can show it. A mime_types entry in config.json can map it to
+	// application/jsonl, and that is still text.
+	case ct == "application/javascript", ct == "application/x-javascript",
+		ct == "application/json", ct == "application/jsonl",
+		ct == "application/xml":
+		return true
+	case strings.HasSuffix(ct, "+json"), strings.HasSuffix(ct, "+xml"):
+		return true
+	}
+	return false
 }

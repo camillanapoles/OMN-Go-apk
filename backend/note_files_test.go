@@ -174,7 +174,7 @@ func TestTxtIsServedAndEditableText(t *testing.T) {
 	if !a.editableFileType("log.txt") {
 		t.Error("a .txt file is text and must open in the editor")
 	}
-	if !a.filesEditable("log.txt") {
+	if !a.filesService().Editable("log.txt") {
 		t.Error("a .txt file must offer an edit link in the file index")
 	}
 }

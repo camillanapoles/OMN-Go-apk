@@ -52,3 +52,9 @@ func (a *App) resolveContentType(path string) string {
 func (a *App) hasKnownAssetExtension(name string) bool {
 	return config.HasKnownAssetExtension(a.config.Get().MimeTypes, name)
 }
+
+// editableFileType reports whether an editor can open name. See
+// config.EditableFileType.
+func (a *App) editableFileType(name string) bool {
+	return config.EditableFileType(a.config.Get().MimeTypes, name)
+}

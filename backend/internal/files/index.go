@@ -1,4 +1,4 @@
-package backend
+package files
 
 // ----------------------------------------------------------------------
 // The file index: /OMNGoFiles.html
@@ -99,8 +99,8 @@ func embeddedFiles() []indexedFile {
 }
 
 // walkStorage lists one tree of the storage directory. sub is "html" or "md".
-func (a *App) walkStorage(sub string) []indexedFile {
-	base := a.layout().File(sub)
+func (svc Service) walkStorage(sub string) []indexedFile {
+	base := svc.Layout.File(sub)
 	var out []indexedFile
 	filepath.WalkDir(base, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -129,7 +129,7 @@ func (a *App) walkStorage(sub string) []indexedFile {
 
 // treeEntries makes the entry list of one tree, with the two sides paired by
 // name. Each row below reads the result.
-func (a *App) treeEntries(tree string) []filesEntry {
+func (svc Service) treeEntries(tree string) []filesEntry {
 	byPath := map[string]*filesEntry{}
 	add := func(p string, f indexedFile, ships bool) {
 		e := byPath[p]
@@ -158,7 +158,7 @@ func (a *App) treeEntries(tree string) []filesEntry {
 				add(rest, indexedFile{path: rest, size: f.size}, true)
 			}
 		}
-		for _, f := range a.walkStorage("md") {
+		for _, f := range svc.walkStorage("md") {
 			add(f.path, f, false)
 		}
 	default: // served
@@ -168,7 +168,7 @@ func (a *App) treeEntries(tree string) []filesEntry {
 			}
 			add(f.path, f, true)
 		}
-		for _, f := range a.walkStorage("html") {
+		for _, f := range svc.walkStorage("html") {
 			add(f.path, f, false)
 		}
 	}
@@ -270,9 +270,9 @@ func (e filesEntry) bytes() int64 {
 	return 0
 }
 
-// serveFilesPage answers GET /OMNGoFiles.html. The page-access table in
+// ServePage answers GET /OMNGoFiles.html. The page-access table in
 // page_access.go refuses a caller without the admin role.
-func (a *App) serveFilesPage(w http.ResponseWriter, r *http.Request) {
+func (svc Service) ServePage(w http.ResponseWriter, r *http.Request) {
 	dir := normalizeFilesDir(r.URL.Query().Get("dir"))
 	view := filesPageView{
 		Dir:  dir,
@@ -280,8 +280,8 @@ func (a *App) serveFilesPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if view.Tree == "" {
-		view.Cards = a.filesCards()
-		a.writeFilesPage(w, view)
+		view.Cards = svc.filesCards()
+		svc.writeFilesPage(w, view)
 		return
 	}
 
@@ -289,7 +289,7 @@ func (a *App) serveFilesPage(w http.ResponseWriter, r *http.Request) {
 	view.ShowingAll = all
 	view.Crumbs = filesCrumbs(view.Tree, view.Dir)
 
-	dirs, here, subtreeBytes, subtreeCount := foldToDir(a.treeEntries(view.Tree), view.Dir)
+	dirs, here, subtreeBytes, subtreeCount := foldToDir(svc.treeEntries(view.Tree), view.Dir)
 	view.Dirs = dirs
 	view.Total = len(here)
 	if !all && len(here) > filesDirLimit {
@@ -297,17 +297,17 @@ func (a *App) serveFilesPage(w http.ResponseWriter, r *http.Request) {
 		here = here[:filesDirLimit]
 	}
 	for _, e := range here {
-		view.Files = append(view.Files, a.filesRowFor(view.Tree, e))
+		view.Files = append(view.Files, svc.filesRowFor(view.Tree, e))
 	}
 	view.Empty = len(view.Dirs) == 0 && len(view.Files) == 0
 	view.Summary = filesSummary(subtreeCount, subtreeBytes, view.Dir != "" || len(dirs) > 0, view.Files)
 	view.Legend = filesLegend(view.Tree, view.Files, view.Dirs)
 
-	a.writeFilesPage(w, view)
+	svc.writeFilesPage(w, view)
 }
 
 // filesCards makes the first screen: one button for each tree, with its size.
-func (a *App) filesCards() []filesTreeCard {
+func (svc Service) filesCards() []filesTreeCard {
 	count := func(entries []filesEntry) (int, int64) {
 		var b int64
 		for _, e := range entries {
@@ -315,9 +315,9 @@ func (a *App) filesCards() []filesTreeCard {
 		}
 		return len(entries), b
 	}
-	nb, bb := count(a.treeEntries(filesTreeBundled))
-	ns, bs := count(a.treeEntries(filesTreeServed))
-	nm, bm := count(a.treeEntries(filesTreeSource))
+	nb, bb := count(svc.treeEntries(filesTreeBundled))
+	ns, bs := count(svc.treeEntries(filesTreeServed))
+	nm, bm := count(svc.treeEntries(filesTreeSource))
 	return []filesTreeCard{
 		{Key: filesTreeBundled, Icon: "inventory_2", Title: "Bundled",
 			Where: "inside the application",
@@ -426,7 +426,7 @@ func filesLegend(tree string, rows []filesFileRow, dirs []filesDirRow) []filesLe
 	return out
 }
 
-func (a *App) writeFilesPage(w http.ResponseWriter, view filesPageView) {
+func (svc Service) writeFilesPage(w http.ResponseWriter, view filesPageView) {
 	title := "Files"
 	switch view.Tree {
 	case filesTreeBundled:
@@ -440,7 +440,7 @@ func (a *App) writeFilesPage(w http.ResponseWriter, view filesPageView) {
 		title += ": " + strings.TrimSuffix(view.Dir, "/")
 	}
 	body := renderFilesPage(view)
-	a.renderPage(w, http.StatusOK, title, render.PageHeader(title, "System"), body)
+	svc.RenderPage(w, http.StatusOK, title, render.PageHeader(title, "System"), body)
 }
 
 // filesCrumbs makes the breadcrumb, from the root of the tree to the current

@@ -1,4 +1,4 @@
-package backend
+package files
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"net.basov.omngo/backend/internal/render"
 )
 
-// --- The file index page (files_page.html, see files_index.go) ---
+// --- The file index page (files_page.html, see index.go) ---
 
 var filesPageTmpl = render.LoadTemplate("files_page.html")
 
@@ -37,7 +37,7 @@ type filesLegendItem struct {
 }
 
 // filesDirRow is one directory below the directory in view. Files and Bytes
-// are RECURSIVE totals. See (*filesDirRow).note in files_state.go.
+// are RECURSIVE totals. See (*filesDirRow).note in state.go.
 type filesDirRow struct {
 	Name        string
 	Dir         string
@@ -51,7 +51,7 @@ type filesDirRow struct {
 }
 
 // filesFileRow is one NAME of the tree in view. Each field is raw, and
-// renderFilesPage escapes it. See the banner of files_index.go for the word
+// renderFilesPage escapes it. See the banner of index.go for the word
 // and the colors.
 type filesFileRow struct {
 	Name       string
