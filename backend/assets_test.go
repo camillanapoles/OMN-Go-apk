@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/storage"
 )
 
 // refreshEmbeddedAssets must do the following, one time for each APP_VERSION
@@ -77,7 +78,7 @@ func TestRefreshEmbeddedAssets(t *testing.T) {
 		}
 	}
 	// version stamp written
-	stamp, err := os.ReadFile(filepath.Join(dir, assetsVersionFilename))
+	stamp, err := os.ReadFile(filepath.Join(dir, storage.AssetsVersionFilename))
 	if err != nil || strings.TrimSpace(string(stamp)) != APP_VERSION {
 		t.Errorf("version stamp not written correctly: %q, %v", stamp, err)
 	}
@@ -95,7 +96,7 @@ func TestRefreshEmbeddedAssets(t *testing.T) {
 
 	// (f) version change with a user-edited file: edit backed up under the
 	// previous version's label, then replaced by the embedded content.
-	if err := os.WriteFile(filepath.Join(dir, assetsVersionFilename), []byte("0.0.1\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, storage.AssetsVersionFilename), []byte("0.0.1\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	a.refreshEmbeddedAssets()
@@ -131,7 +132,7 @@ func TestAssetsRefreshedReportsOnlyAStartThatWroteAFile(t *testing.T) {
 
 	// A version change alone is not sufficient. Each file on disk is already
 	// the content of this build. Nothing is written, and the cache stays.
-	if err := os.WriteFile(filepath.Join(dir, assetsVersionFilename), []byte("0.0.2\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, storage.AssetsVersionFilename), []byte("0.0.2\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	a.refreshEmbeddedAssets()
@@ -145,25 +146,11 @@ func TestAssetsRefreshedReportsOnlyAStartThatWroteAFile(t *testing.T) {
 	if err := os.WriteFile(target, []byte("// older extract\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, assetsVersionFilename), []byte("0.0.3\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, storage.AssetsVersionFilename), []byte("0.0.3\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	a.refreshEmbeddedAssets()
 	if !AssetsRefreshed() {
 		t.Error("a start that replaced an asset must report true")
-	}
-}
-
-// Every version-dependent asset must be embedded. If it is not,
-// refreshEmbeddedAssets silently logs "not embedded", and the file reaches no
-// install. That is exactly the failure of a new doc note, for example
-// md/AndroidIntents.md, that the list names but the build does not ship. This
-// test guards the whole list, thus a future addition is caught at test time
-// and not in the field.
-func TestVersionDependentAssetsAllEmbedded(t *testing.T) {
-	for _, rel := range versionDependentAssets {
-		if _, err := frontend.Static.ReadFile(rel); err != nil {
-			t.Errorf("version-dependent asset %q is not embedded in frontend.Static: %v", rel, err)
-		}
 	}
 }

@@ -167,7 +167,7 @@ every text: the button, the crumb, the manual and the API document.
 | the Served tree (`html/`) | the web tree, the html directory, the output tree |
 | the Source tree (`md/`) | the notes tree, the markdown tree, the source directory |
 | the state word (the word on the first line of a row) | the status, the badge, the label |
-| app-owned (in `versionDependentAssets`) | version-dependent, managed, owned by the app |
+| app-owned (in `storage.VersionDependentAssets`) | version-dependent, managed, owned by the app |
 | local only (a path that stays on this device) | not in git, private, device-only |
 - the Incoming notes page (`incoming/incoming.html`)
 

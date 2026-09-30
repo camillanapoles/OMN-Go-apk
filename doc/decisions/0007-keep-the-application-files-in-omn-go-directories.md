@@ -2,9 +2,9 @@
 
 * Status: accepted
 * Version: 26.09.12
-* Code: `versionDependentAssets`, `retiredAssets` and
-  `removeRetiredAssets` in `backend/assets.go`, `legacyAssetURL` in
-  `backend/serving.go`, `gitignorePatterns` in `backend/git_repo.go`
+* Code: `storage.VersionDependentAssets`, `storage.RetiredAssets` and
+  `removeRetiredAssets` in `backend/internal/storage/assets.go`,
+  `legacyAssetURL` in `backend/serving.go`, `gitignorePatterns` in `backend/git_repo.go`
 
 ## Context
 
@@ -35,6 +35,7 @@ directory could not tell which file belongs to whom.
   on disk would become a tracked file at the next commit, and the sync
   would copy it to each device. That is why `removeRetiredAssets` must
   delete it.
-* `retiredAssets` only grows. An install can skip any number of versions.
+* `storage.RetiredAssets` only grows. An install can skip any number of
+  versions.
 * `TestEveryAppAssetIsUnderOMNGo` in `backend/assets_layout_test.go`
   holds the rule for each new file.

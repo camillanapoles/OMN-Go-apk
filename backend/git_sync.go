@@ -27,7 +27,7 @@ import (
 // holds the HEAD from before pull_mark, and pull_abort resets to it.
 
 func (a *App) premergeHeadPath() string {
-	return a.layout().git("OMNGO_PREMERGE_HEAD")
+	return a.layout().Git("OMNGO_PREMERGE_HEAD")
 }
 
 func (a *App) savePremergeHead(h plumbing.Hash) {
@@ -57,7 +57,7 @@ func (a *App) clearPremergeHead() {
 // real merge commit with two parents.
 
 func (a *App) mergeParentPath() string {
-	return a.layout().git("OMNGO_MERGE_PARENT")
+	return a.layout().Git("OMNGO_MERGE_PARENT")
 }
 
 func (a *App) saveMergeParent(h plumbing.Hash) {
@@ -106,7 +106,7 @@ func (a *App) cleanUntrackedFiles(wTree *git.Worktree, matcher gitignore.Matcher
 			a.log(logx.Sync).Debugf("force pull: keeping ignored file %s", name)
 			continue
 		}
-		full := a.layout().file(name)
+		full := a.layout().File(name)
 		if err := os.Remove(full); err != nil {
 			a.log(logx.Sync).Errf("force pull: failed to delete %s: %v", name, err)
 		} else {

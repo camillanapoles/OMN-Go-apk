@@ -1,13 +1,15 @@
-package backend
+package storage
 
 import (
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+
+	"net.basov.omngo/backend/internal/config"
 )
 
-// containedName makes a name from a request safe to join under a storage
+// ContainedName makes a name from a request safe to join under a storage
 // directory. It answers a clean, relative name with slashes. A ".." cannot
 // climb above the root of the name: "../../x" gives "x", and "a/../../b"
 // gives "b". The function removes a leading slash. On Windows, a backslash
@@ -17,11 +19,11 @@ import (
 // storage directory. /api/save and /api/note would then write and read files
 // outside it. Each path that a request names must pass through this function.
 // TestContainedName holds the rule.
-func containedName(name string) string {
+func ContainedName(name string) string {
 	return strings.TrimPrefix(path.Clean("/"+filepath.ToSlash(name)), "/")
 }
 
-// resolvePageName is the one place that answers two questions about a name
+// ResolvePageName is the one place that answers two questions about a name
 // from a user or a URL. Is it a markdown page? Where are its .md source and
 // its .html file? It accepts three forms of the same page:
 //
@@ -37,7 +39,7 @@ func containedName(name string) string {
 // config.HasKnownAssetExtension in internal/config/content_types.go is the one
 // authority for that test: the LAST extension decides, and an unknown extension
 // is a page. Keep the decision here, and do not copy it.
-func (a *App) resolvePageName(name string) (mdPath, htmlPath, baseName string, isPage bool) {
+func ResolvePageName(l Layout, mimeTypes map[string]string, name string) (mdPath, htmlPath, baseName string, isPage bool) {
 	switch {
 	case strings.HasSuffix(name, ".md"):
 		baseName = strings.TrimSuffix(name, ".md")
@@ -45,35 +47,35 @@ func (a *App) resolvePageName(name string) (mdPath, htmlPath, baseName string, i
 	case strings.HasSuffix(name, ".html"):
 		baseName = strings.TrimSuffix(name, ".html")
 		isPage = true
-	case !a.hasKnownAssetExtension(name):
+	case !config.HasKnownAssetExtension(mimeTypes, name):
 		baseName = name
 		isPage = true
 	default:
 		// The name ends in an extension that this install serves as a file.
-		// See hasKnownAssetExtension.
-		name = containedName(name)
-		return "", a.layout().html(filepath.FromSlash(name)), name, false
+		// See config.HasKnownAssetExtension.
+		name = ContainedName(name)
+		return "", l.HTML(filepath.FromSlash(name)), name, false
 	}
 
-	// pageHTMLPath is the one formula for the path of a compiled page.
-	baseName = containedName(baseName)
-	mdPath = a.layout().md(filepath.FromSlash(baseName + ".md"))
-	htmlPath = a.pageHTMLPath(baseName)
+	// Layout.PageHTML is the one formula for the path of a compiled page.
+	baseName = ContainedName(baseName)
+	mdPath = l.MD(filepath.FromSlash(baseName + ".md"))
+	htmlPath = l.PageHTML(baseName)
 	return mdPath, htmlPath, baseName, true
 }
 
-// fileExists reports whether p is a file that can be read. A directory
+// FileExists reports whether p is a file that can be read. A directory
 // answers false.
-func fileExists(p string) bool {
+func FileExists(p string) bool {
 	st, err := os.Stat(p)
 	return err == nil && !st.IsDir()
 }
 
-// pageHTMLPath is the one formula for the compiled HTML path of a page.
-// resolvePageName answers the same path for a page, and TestPageHTMLPath
+// PageHTML is the one formula for the compiled HTML path of a page.
+// ResolvePageName answers the same path for a page, and TestPageHTMLPath
 // compares the two.
-func (a *App) pageHTMLPath(name string) string {
-	return a.layout().html(filepath.FromSlash(containedName(name) + ".html"))
+func (l Layout) PageHTML(name string) string {
+	return l.HTML(filepath.FromSlash(ContainedName(name) + ".html"))
 }
 
 // The local-only name rule: a file or a directory with a name that starts
@@ -85,17 +87,17 @@ func (a *App) pageHTMLPath(name string) string {
 //
 // The match is on a whole path segment, and it is case-sensitive, thus
 // "mylocal-data.json" is a normal file. A commit does not take a local-only
-// file. A force pull keeps it, because cleanUntrackedFiles keeps an ignored
-// file.
-const localOnlyPrefix = "local-"
+// file. A force pull keeps it, because cleanUntrackedFiles in
+// backend/git_sync.go keeps an ignored file.
+const LocalOnlyPrefix = "local-"
 
-// isLocalOnlyPath tells if the name of the file, or of a directory above it,
+// IsLocalOnlyPath tells if the name of the file, or of a directory above it,
 // starts with "local-". It is the rule for the index.
-// gitignoreLocalOnlyPattern is the rule for a new file.
+// gitignoreLocalOnlyPattern in backend/git_repo.go is the rule for a new file.
 // TestGitignoreMatchesEachLocalOnlyPath compares the two.
-func isLocalOnlyPath(name string) bool {
+func IsLocalOnlyPath(name string) bool {
 	for _, segment := range strings.Split(filepath.ToSlash(name), "/") {
-		if strings.HasPrefix(segment, localOnlyPrefix) {
+		if strings.HasPrefix(segment, LocalOnlyPrefix) {
 			return true
 		}
 	}

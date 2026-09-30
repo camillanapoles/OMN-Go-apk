@@ -325,7 +325,8 @@ The internal editor reads this endpoint when it loads.
 | --- | --- | --- | --- | --- |
 | `name` | string | no | `Welcome` | Page name or asset path |
 
-`resolvePageName` (`backend/paths.go`) resolves `name`:
+`storage.ResolvePageName` (`backend/internal/storage/paths.go`) resolves
+`name`:
 
 | Shape of `name` | Treated as | Source read |
 | --- | --- | --- |

@@ -235,7 +235,7 @@ func TestOldGuestPasswordIsDropped(t *testing.T) {
 	if err := os.WriteFile(path, []byte(old), 0644); err != nil {
 		t.Fatal(err)
 	}
-	a.loadConfig(a.layout().config())
+	a.loadConfig(a.layout().Config())
 	if got := a.config.Get().AdminPassword; got != "adminpw" {
 		t.Fatalf("the admin password is %q after the load, want adminpw", got)
 	}

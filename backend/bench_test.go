@@ -52,7 +52,7 @@ func benchApp(tb testing.TB) *App {
 			tb.Fatal(err)
 		}
 	}
-	a.loadConfig(a.layout().config())
+	a.loadConfig(a.layout().Config())
 	a.Router = http.NewServeMux()
 	a.registerRoutes(a.Router)
 	return a

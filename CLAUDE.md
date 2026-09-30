@@ -50,24 +50,26 @@ Do not remove a constraint without an instruction from the maintainer.
    official, but it is not official.
 7. **Give each decision one authority.** Each decision has one implementation.
    `noteheader.Parse` is the only header-block parser. `renderAndCache` is the only
-   writer of `html/<name>.html`. `resolvePageName` is the only name resolver.
-   `hasRole` is the only role check. `systemPages` is the only page-access table.
-   `storageLayout` is the only code that joins a name to `StorageDir`.
-   `relInside` is the only test that a path stays inside a directory.
+   writer of `html/<name>.html`. `storage.ResolvePageName` is the only name
+   resolver. `hasRole` is the only role check. `systemPages` is the only page-access table.
+   `storage.Layout` is the only code that joins a name to `StorageDir`.
+   `storage.RelInside` is the only test that a path stays inside a directory.
    `renderPage` is the only shell of a page that the server makes.
-   `resolveContentType` is the only MIME resolver.
-   `hasKnownAssetExtension` is the only note-or-file test.
+   `config.ResolveContentType` is the only MIME resolver.
+   `config.HasKnownAssetExtension` is the only note-or-file test.
    Do not add a second implementation. Extend the first one.
 8. **An upgrade never overwrites a user-owned asset.** A version change replaces the
-   files in `versionDependentAssets` (`backend/assets.go`). It first copies the old
-   files to `asset_backups/<previous>/`. The app creates `md/Welcome.md`,
+   files in `storage.VersionDependentAssets`
+   (`backend/internal/storage/assets.go`). It first copies the old files to
+   `asset_backups/<previous>/`. The app creates `md/Welcome.md`,
    `html/json/bookmarker-tags.json`, `omn-go-custom.css`, and `omn-go-custom.js` when
    they are absent. After that it leaves them alone.
 9. **The `local-` name rule.** A path segment that starts with `local-` stays on the
    device. Git excludes it. A force pull keeps it. The rule has two implementations
-   on purpose. `isLocalOnlyPath` covers the index. `gitignoreLocalOnlyPattern` covers
-   new files. A test compares the two. The pattern must stay last in
-   `gitignorePatterns`, because go-git reads patterns from the end.
+   on purpose. `storage.IsLocalOnlyPath` covers the index.
+   `gitignoreLocalOnlyPattern` covers new files. A test compares the two. The
+   pattern must stay last in `gitignorePatterns`, because go-git reads patterns
+   from the end.
 10. **LAN sharing is off by default.** When `share_lan` is false, the listener binds
     `127.0.0.1`. The socket enforces the limit, not the authentication code. A local
     connection from `127.0.0.1`, `::1`, or `localhost` always counts as admin.
@@ -83,7 +85,7 @@ Do not remove a constraint without an instruction from the maintainer.
 | --- | --- |
 | `main_desktop.go` | The only file in `package main`. It holds the only build tag: `//go:build !android`. |
 | `backend/` | The Go application. `package backend` holds most of the code, and the split into packages is in progress. |
-| `backend/internal/` | The packages of the split. `textmatch` holds the search matcher, and `noteheader` holds the header block. `logx` holds the log tags and the log hub. `config` holds the settings and their store. |
+| `backend/internal/` | The packages of the split. `textmatch` holds the search matcher, and `noteheader` holds the header block. `logx` holds the log tags and the log hub. `config` holds the settings and their store. `storage` holds the storage layout, the application files and the plain files beside the notes. |
 | `backend/frontend/embed.go` | `package frontend`. It embeds `html/` and `md/` as `frontend.Static`, and `templates/` as `frontend.Templates`. |
 | `backend/frontend/templates/` | Server-side page fragments. Embedded as `frontend.Templates`. Never extracted to disk. |
 | `backend/frontend/html/` | `js/`, `css/`, `css/fonts/`, `json/`, `favicon.ico`. Embedded as `frontend.Static`. Extracted to the storage directory on demand. The user can edit these files with `?edit=true`. |
@@ -144,7 +146,8 @@ update these files.
   exported name.
 * **Names.** Use `handleXxx` for an API endpoint. Use `serveXxx` for a page or an
   asset. Use `renderXxxPage` with an `xxxView` struct. Use `normalizeXxx` for value
-  repair. Write a predicate as a question: `isLocalOnlyPath`, `fileExists`, `hasRole`.
+  repair. Write a predicate as a question: `storage.IsLocalOnlyPath`,
+  `storage.FileExists`, `hasRole`.
   Compile each regular expression once into a package-level `xxxRe` variable.
 * **Branch on `runtime.GOOS`, not on a build tag.** The tree holds one build tag.
 * **Errors.** Wrap an error with `fmt.Errorf("...: %w", err)`. Send the HTTP failure

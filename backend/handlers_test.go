@@ -51,7 +51,7 @@ func newUnconfiguredApp(t *testing.T) *App {
 func newTestApp(t *testing.T) *App {
 	t.Helper()
 	a := newUnconfiguredApp(t)
-	a.loadConfig(a.layout().config())
+	a.loadConfig(a.layout().Config())
 	return a
 }
 

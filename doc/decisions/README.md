@@ -77,8 +77,8 @@ the status of the old record to `replaced by NNNN`.
 | [0003](0003-use-one-table-for-each-content-type.md) | Use one table for each content type. | `internal/config/content_types.go`, `pages.go`, `internal/config/config.go` |
 | [0004](0004-tell-the-browser-to-ask-before-it-uses-a-copy.md) | Tell the browser to ask before it uses a copy. | `middleware.go` |
 | [0005](0005-keep-each-secret-out-of-the-config-page.md) | Keep each secret out of the Config page. | `internal/config/fields.go`, `config_page.go`, `omn-go-config.js` |
-| [0006](0006-replace-the-application-files-at-each-new-version.md) | Replace the application files at each new version. | `assets.go`, `MainActivity.java` |
-| [0007](0007-keep-the-application-files-in-omn-go-directories.md) | Keep the application files in OMN-Go directories. | `assets.go`, `serving.go`, `git_repo.go` |
+| [0006](0006-replace-the-application-files-at-each-new-version.md) | Replace the application files at each new version. | `internal/storage/assets.go`, `storage_app.go`, `MainActivity.java` |
+| [0007](0007-keep-the-application-files-in-omn-go-directories.md) | Keep the application files in OMN-Go directories. | `internal/storage/assets.go`, `serving.go`, `git_repo.go` |
 | [0008](0008-render-the-pages-without-html-template.md) | Render the pages without html/template. | `templates.go` |
 | [0009](0009-show-only-the-search-rows-that-carry-a-word-of-the-query.md) | Show only the search rows that carry a word of the query. | `search_http.go`, `search_index.go` |
 | [0010](0010-write-a-pull-without-the-checkout-of-go-git.md) | Write a pull without the checkout of go-git. | `git_pull.go` |

@@ -257,7 +257,7 @@ type Config struct {
 	// for why absent and empty differ.
 	SearchKinds []string `json:"search_kinds"`
 	// SearchBundled also indexes the scripts that OMN-Go ships, from the
-	// versionDependentAssets list. It is off by default, because they are
+	// storage.VersionDependentAssets list. It is off by default, because they are
 	// larger than a typical note collection and rarely the target of a
 	// search.
 	SearchBundled bool `json:"search_bundled"`

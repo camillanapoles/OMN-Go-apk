@@ -30,7 +30,7 @@ import (
 // <StorageDir>/html/db_backup/<db>/<UTCtimestamp>_<hostname>.jsonl. Under
 // html/, the server sends it, thus a download link works, and git tracks it.
 // A database named local-* stays out of git through the local-only name rule.
-// See localOnlyPrefix in paths.go.
+// See storage.LocalOnlyPrefix in internal/storage/paths.go.
 //
 // The file format, version 2, has one JSON object on each line:
 //
@@ -100,13 +100,13 @@ func backupOrder(name string) (stamp string, counter int) {
 }
 
 func dbBackupRoot(a *App) string {
-	return a.layout().html("db_backup")
+	return a.layout().HTML("db_backup")
 }
 func (a *App) dbBackupDir(name string) string {
 	return filepath.Join(dbBackupRoot(a), name)
 }
 func (a *App) userDBPath(name string) string {
-	return a.layout().db(name + ".sqlite")
+	return a.layout().DB(name + ".sqlite")
 }
 
 // relStoragePath changes an absolute path under StorageDir into the relative

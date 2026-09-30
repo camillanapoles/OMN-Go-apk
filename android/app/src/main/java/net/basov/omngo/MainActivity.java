@@ -447,13 +447,13 @@ public class MainActivity extends Activity {
                     }
                 }
 
-                // An update of the application writes the shipped
-                // scripts and style sheets again (refreshEmbeddedAssets
-                // in backend/assets.go). The WebView can hold the
-                // previous copy of those files in its disk cache, and
-                // then some new pages do not operate correctly. The Go
-                // side tells if it wrote such a file at this start, thus
-                // the cache goes away only at the start after an update.
+                // An update of the application writes the shipped scripts and
+                // style sheets again (storage.RefreshEmbeddedAssets in
+                // backend/internal/storage/assets.go). The WebView can hold the
+                // previous copy of those files in its disk cache, and then some
+                // new pages do not operate correctly. The Go side tells if it
+                // wrote such a file at this start. The app thus clears the
+                // cache one time, at the first start of a new version.
                 //
                 // The server is up at this point. startService above sends
                 // onStartCommand to this same main thread, and

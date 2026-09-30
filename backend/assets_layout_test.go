@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/storage"
 )
 
 // ----------------------------------------------------------------------
@@ -29,7 +30,7 @@ import (
 // The rule of the directory, written as a test. A new asset that lands
 // beside the user files breaks this and not something far away.
 func TestEveryAppAssetIsUnderOMNGo(t *testing.T) {
-	for _, rel := range versionDependentAssets {
+	for _, rel := range storage.VersionDependentAssets {
 		if !strings.HasPrefix(rel, "html/") {
 			continue // an md/ note, which this rule does not cover
 		}
@@ -58,7 +59,7 @@ func TestUserFilesStayOutOfOMNGo(t *testing.T) {
 			t.Errorf("%s moved or went away: %v", rel, err)
 		}
 	}
-	for _, rel := range versionDependentAssets {
+	for _, rel := range storage.VersionDependentAssets {
 		if strings.Contains(rel, "omn-go-custom") {
 			t.Errorf("%s is user-owned and must not be version-dependent", rel)
 		}
@@ -149,7 +150,7 @@ func TestLegacyAssetURLOverHTTP(t *testing.T) {
 }
 
 // An upgrade must delete the copy of each moved file at its old place.
-// See retiredAssets. A file that stays becomes a tracked file, because
+// See storage.RetiredAssets. A file that stays becomes a tracked file, because
 // the .gitignore line for it went away in the same version.
 func TestMigrationRemovesTheOldCopy(t *testing.T) {
 	a := newTestApp(t)
@@ -199,7 +200,7 @@ func TestMigrationKeepsAChangedOldCopy(t *testing.T) {
 	// A stamp that no release carries, thus the refresh always runs and
 	// the name of the backup directory is known.
 	const previous = "26.00.01"
-	if err := os.WriteFile(filepath.Join(a.StorageDir, assetsVersionFilename), []byte(previous+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(a.StorageDir, storage.AssetsVersionFilename), []byte(previous+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -229,10 +230,10 @@ func TestMigrationKeepsAChangedOldCopy(t *testing.T) {
 // install a file and the migration delete it, at each version, forever.
 func TestRetiredAssetIsNotShipped(t *testing.T) {
 	shipped := map[string]bool{}
-	for _, rel := range versionDependentAssets {
+	for _, rel := range storage.VersionDependentAssets {
 		shipped[rel] = true
 	}
-	for _, rel := range append(append([]string(nil), retiredAssets...), retiredFonts...) {
+	for _, rel := range append(append([]string(nil), storage.RetiredAssets...), storage.RetiredFonts...) {
 		if shipped[rel] {
 			t.Errorf("%s is retired and version-dependent at the same time", rel)
 		}
@@ -242,8 +243,8 @@ func TestRetiredAssetIsNotShipped(t *testing.T) {
 			}
 		}
 	}
-	if len(retiredFonts) == 0 {
-		t.Error("retiredFonts is empty, thus the old font files stay on each device")
+	if len(storage.RetiredFonts) == 0 {
+		t.Error("storage.RetiredFonts is empty, thus the old font files stay on each device")
 	}
 }
 

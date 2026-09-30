@@ -55,7 +55,7 @@ func (e *errHostKeyChanged) Error() string {
 }
 
 func (a *App) knownHostsPath() string {
-	return a.layout().file(knownHostsFilename)
+	return a.layout().File(knownHostsFilename)
 }
 
 // knownHostKeys answers the stored keys of host. The caller holds mu.

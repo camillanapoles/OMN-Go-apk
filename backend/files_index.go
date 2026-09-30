@@ -99,7 +99,7 @@ func embeddedFiles() []indexedFile {
 
 // walkStorage lists one tree of the storage directory. sub is "html" or "md".
 func (a *App) walkStorage(sub string) []indexedFile {
-	base := a.layout().file(sub)
+	base := a.layout().File(sub)
 	var out []indexedFile
 	filepath.WalkDir(base, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {

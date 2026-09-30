@@ -13,14 +13,15 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/format/index"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"net.basov.omngo/backend/internal/logx"
+	"net.basov.omngo/backend/internal/storage"
 )
 
 // isDerivedTextPath reports whether a path is the html/ copy of a text file
-// that lives in md/. See note_files.go. Only the md/ file belongs in git. A
-// device that pulls it makes its own html/ copy.
+// that lives in md/. See internal/storage/note_files.go. Only the md/ file
+// belongs in git. A device that pulls it makes its own html/ copy.
 func isDerivedTextPath(name string) bool {
 	name = filepath.ToSlash(name)
-	return strings.HasPrefix(name, "html/") && isSyncedNoteFile(name)
+	return strings.HasPrefix(name, "html/") && storage.IsSyncedNoteFile(name)
 }
 
 // untrackReason says why a tracked path must leave the index, or "" when it
@@ -28,7 +29,7 @@ func isDerivedTextPath(name string) bool {
 // cannot promise more than the commit does.
 func untrackReason(name string) string {
 	switch {
-	case isLocalOnlyPath(name):
+	case storage.IsLocalOnlyPath(name):
 		return localOnlyPreviewNote
 	case isDerivedTextPath(name):
 		return derivedTextPreviewNote

@@ -12,6 +12,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"net.basov.omngo/backend/internal/config"
+	"net.basov.omngo/backend/internal/storage"
 )
 
 // Tests for git_repo.go and git_commit.go: the ignore rules, the staging,
@@ -249,7 +250,7 @@ func TestEnsureGitignoreDropsTheObsoleteLocalDatabaseRule(t *testing.T) {
 	}
 }
 
-// The .gitignore pattern and isLocalOnlyPath are two forms of one rule.
+// The .gitignore pattern and storage.IsLocalOnlyPath are two forms of one rule.
 // The pattern decides for a new file, and the function decides for the
 // index. They must agree, and the pattern must match a name at each
 // depth. This test reads the canonical list, thus it also pins the
@@ -284,8 +285,8 @@ func TestGitignoreMatchesEachLocalOnlyPath(t *testing.T) {
 		if got := matcher.Match(c.path, false); got != c.want {
 			t.Errorf("matcher.Match(%q) = %v, want %v (%s)", full, got, c.want, c.why)
 		}
-		if got := isLocalOnlyPath(full); got != c.want {
-			t.Errorf("isLocalOnlyPath(%q) = %v, want %v (%s)", full, got, c.want, c.why)
+		if got := storage.IsLocalOnlyPath(full); got != c.want {
+			t.Errorf("storage.IsLocalOnlyPath(%q) = %v, want %v (%s)", full, got, c.want, c.why)
 		}
 	}
 }
@@ -357,7 +358,8 @@ func overwrite(t *testing.T, a *App, rel, content string) {
 }
 
 // A .txt beside a note lives in md/ and is COPIED into html/, which is where
-// its URL resolves (note_files.go). Only the md/ original belongs in git.
+// its URL resolves (internal/storage/note_files.go). Only the md/ original
+// belongs in git.
 func TestGitignoreExcludesDerivedTextCopies(t *testing.T) {
 	patterns := make([]gitignore.Pattern, 0, len(gitignorePatterns))
 	for _, p := range gitignorePatterns {

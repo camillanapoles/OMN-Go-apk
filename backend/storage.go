@@ -31,14 +31,14 @@ func (a *App) initStorage(overrideDir string) {
 		a.log(logx.Storage).Errf("Failed to create storage: %v", err)
 	}
 
-	mdDir := a.layout().md()
+	mdDir := a.layout().MD()
 	os.MkdirAll(mdDir, 0755)
 
-	htmlDir := a.layout().html()
+	htmlDir := a.layout().HTML()
 	os.MkdirAll(htmlDir, 0755)
 
 	// Move the .md files at the root of an old storage layout into md/.
-	files, _ := filepath.Glob(a.layout().file("*.md"))
+	files, _ := filepath.Glob(a.layout().File("*.md"))
 	for _, f := range files {
 		os.Rename(f, filepath.Join(mdDir, filepath.Base(f)))
 	}
@@ -46,7 +46,7 @@ func (a *App) initStorage(overrideDir string) {
 	// Move the static directories of an old layout into html/.
 	dirsToMove := []string{"images", "user_json", "css", "js", "json", "fonts"}
 	for _, d := range dirsToMove {
-		oldPath := a.layout().file(d)
+		oldPath := a.layout().File(d)
 		newPath := filepath.Join(htmlDir, d)
 		if stat, err := os.Stat(oldPath); err == nil && stat.IsDir() {
 			os.Rename(oldPath, newPath)
@@ -54,12 +54,12 @@ func (a *App) initStorage(overrideDir string) {
 	}
 
 	// Bring the version-dependent files up to date with this build. See
-	// assets.go. It runs before the first request, and it does nothing while
-	// APP_VERSION stays the same.
+	// internal/storage/assets.go. It runs before the first request, and it does
+	// nothing while APP_VERSION stays the same.
 	a.refreshEmbeddedAssets()
 
 	// 2. Read the configuration.
-	a.loadConfig(a.layout().config())
+	a.loadConfig(a.layout().Config())
 
 	// The index struct exists from the start. It stays empty until a person
 	// turns global search on.
@@ -138,9 +138,9 @@ Tags: Bookmarks
 <!-- Don't edit body below this line -->
 ];
 </script>`)
-	// Copy each plain file beside a note into html/. See note_files.go. This
-	// runs before the start ends, because a link tap in the first second must
-	// find the copy.
+	// Copy each plain file beside a note into html/. See
+	// internal/storage/note_files.go. This runs before the start ends, because a
+	// link tap in the first second must find the copy.
 	a.syncNoteFilesToHTML()
 
 	// Make the incoming index when it is absent. See note_exchange.go. On the
@@ -154,8 +154,8 @@ Tags: Bookmarks
 }
 
 func (a *App) precompileAllPages() {
-	mdDir := a.layout().md()
-	htmlDir := a.layout().html()
+	mdDir := a.layout().MD()
+	htmlDir := a.layout().HTML()
 	os.MkdirAll(htmlDir, 0755)
 
 	// This runs in the background at the start. serveHTMLPage compiles a note

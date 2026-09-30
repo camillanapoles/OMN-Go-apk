@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"net.basov.omngo/backend/internal/noteheader"
+	"net.basov.omngo/backend/internal/storage"
 )
 
 const (
@@ -325,9 +326,9 @@ func sanitizeImportSegment(seg string) string {
 // result stays inside. filepath.Join resolves a "..", and it does not refuse
 // it.
 func (a *App) incomingPath(rel string) (string, bool) {
-	root := a.layout().md(incomingDirName)
+	root := a.layout().MD(incomingDirName)
 	full := filepath.Join(root, filepath.FromSlash(rel))
-	if _, ok := relInside(root, full); !ok {
+	if _, ok := storage.RelInside(root, full); !ok {
 		return "", false
 	}
 	return full, true
@@ -337,12 +338,12 @@ func (a *App) incomingPath(rel string) (string, bool) {
 // no note in dir has. The form "-2" is safe in a URL, a heading id, git and
 // Windows.
 func freeNoteBase(dir, base string) string {
-	if !fileExists(filepath.Join(dir, base+".md")) {
+	if !storage.FileExists(filepath.Join(dir, base+".md")) {
 		return base
 	}
 	for i := 2; ; i++ {
 		candidate := fmt.Sprintf("%s-%d", base, i)
-		if !fileExists(filepath.Join(dir, candidate+".md")) {
+		if !storage.FileExists(filepath.Join(dir, candidate+".md")) {
 			return candidate
 		}
 	}
@@ -423,7 +424,7 @@ func incomingLabel(title, base, index string) string {
 // md/incoming/incoming.md: below the marker, or first in the body. The link
 // target is relative to the index directory.
 func (a *App) addIncomingIndexLine(res importResult, now time.Time) error {
-	dir := a.layout().md(incomingDirName)
+	dir := a.layout().MD(incomingDirName)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
@@ -489,9 +490,9 @@ func incomingIndexStarter(now time.Time) string {
 // and each import call it. On the desktop, the receive box is how the first
 // note arrives, thus the page must exist before the first import.
 func (a *App) ensureIncomingIndex(now time.Time) error {
-	dir := a.layout().md(incomingDirName)
+	dir := a.layout().MD(incomingDirName)
 	indexPath := filepath.Join(dir, incomingIndexBase+".md")
-	if fileExists(indexPath) {
+	if storage.FileExists(indexPath) {
 		return nil
 	}
 	if err := os.MkdirAll(dir, 0755); err != nil {

@@ -95,7 +95,7 @@ func (a *App) openUserDBLocked(name string) (*sql.DB, error) {
 		return db, nil
 	}
 
-	dir := a.layout().db()
+	dir := a.layout().DB()
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, fmt.Errorf("create db directory: %w", err)
 	}

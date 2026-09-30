@@ -132,11 +132,10 @@ func TestInitStorageMakesAFreshInstall(t *testing.T) {
 // that reason.
 //
 // refreshEmbeddedAssets installs the seven notes of
-// versionDependentAssets, and it refreshes each one at a version change.
-// The loop of initStorage writes the other three, which are Welcome,
-// QuickNotes and Bookmarks. Those three belong to the person after the
-// first start, thus no upgrade touches them again. See rule 8 of
-// CLAUDE.md section 1.
+// storage.VersionDependentAssets, and it refreshes each one at a version
+// change. The loop of initStorage writes the other three, which are Welcome,
+// QuickNotes and Bookmarks. Those three belong to the person after the first
+// start, thus no upgrade touches them again. See rule 8 of CLAUDE.md section 1.
 //
 // initDefaultPage under that loop is a FALLBACK for the same three, with
 // a short text of its own. It runs when the embed gives nothing.

@@ -32,7 +32,7 @@ func freshInstall(t *testing.T) (*App, string) {
 	t.Helper()
 	dir := t.TempDir()
 	a := &App{StorageDir: dir}
-	a.loadConfig(a.layout().config())
+	a.loadConfig(a.layout().Config())
 	return a, filepath.Join(dir, "config.json")
 }
 
@@ -99,7 +99,7 @@ func TestLegacyMimeSeedIsDropped(t *testing.T) {
 		writeConfigWithMime(t, path, seed)
 
 		a := &App{StorageDir: dir}
-		a.loadConfig(a.layout().config())
+		a.loadConfig(a.layout().Config())
 
 		if got := a.config.Get().MimeTypes; got != nil {
 			t.Errorf("seed %d survived the load as %v", i, got)
@@ -136,7 +136,7 @@ func TestHandWrittenMimeMapSurvives(t *testing.T) {
 	writeConfigWithMime(t, filepath.Join(dir, "config.json"), mine)
 
 	a := &App{StorageDir: dir}
-	a.loadConfig(a.layout().config())
+	a.loadConfig(a.layout().Config())
 
 	got := a.config.Get().MimeTypes
 	if len(got) != len(mine) {
@@ -160,7 +160,7 @@ func TestSmallMimeMapSurvives(t *testing.T) {
 		map[string]string{".rst": "text/x-rst"})
 
 	a := &App{StorageDir: dir}
-	a.loadConfig(a.layout().config())
+	a.loadConfig(a.layout().Config())
 
 	if got := a.resolveContentType("x.rst"); got != "text/x-rst" {
 		t.Errorf(".rst answers %q, want the value of the person", got)

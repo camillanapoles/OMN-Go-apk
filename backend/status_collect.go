@@ -19,6 +19,7 @@ import (
 	"github.com/go-git/go-git/v5/storage/filesystem"
 	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
+	"net.basov.omngo/backend/internal/storage"
 )
 
 // ----------------------------------------------------------------------
@@ -253,7 +254,7 @@ func (a *App) statusRuntimeSection() *statusRuntime {
 	runtime.ReadMemStats(&mem)
 
 	stamp := ""
-	if raw, err := os.ReadFile(a.layout().file(assetsVersionFilename)); err == nil {
+	if raw, err := os.ReadFile(a.layout().File(storage.AssetsVersionFilename)); err == nil {
 		stamp = strings.TrimSpace(string(raw))
 	}
 	return &statusRuntime{

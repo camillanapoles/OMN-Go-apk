@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/internal/config"
+	"net.basov.omngo/backend/internal/storage"
 )
 
 // These tests cover the whole-database JSONL backups of db_backup*.go. They
@@ -493,7 +494,7 @@ func TestDBRestoreFailsWholeAtEachStep(t *testing.T) {
 		if got := dbbLive(t, a); got != want {
 			t.Errorf("%s: the live data changed to %s, want %s", tc.why, got, want)
 		}
-		if fileExists(a.userDBPath("t1") + ".restoretmp") {
+		if storage.FileExists(a.userDBPath("t1") + ".restoretmp") {
 			t.Errorf("%s: the temporary database is still on disk", tc.why)
 		}
 	}
@@ -573,7 +574,7 @@ func TestDBBackupPruneKeepsTheLastBackup(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		last = dbbBackup(t, a, "t1")
 	}
-	if !fileExists(filepath.Join(a.dbBackupDir("t1"), last)) {
+	if !storage.FileExists(filepath.Join(a.dbBackupDir("t1"), last)) {
 		t.Fatalf("the prune removed the last backup %s", last)
 	}
 	files, err := a.listBackupFiles("t1")

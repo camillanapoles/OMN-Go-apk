@@ -61,23 +61,23 @@ func TestRenderAndCacheCreatesNestedDirs(t *testing.T) {
 	}
 }
 
-// TestPageHTMLPath guards that the single path formula (pageHTMLPath) and
-// resolvePageName agree - the whole reason resolvePageName now delegates to
-// it. If a future edit reintroduces a second formula, this fails.
+// TestPageHTMLPath holds the one path formula of a compiled page.
+// storage.Layout.PageHTML and resolvePageName must give the same path for
+// each page. A second formula fails this test.
 func TestPageHTMLPath(t *testing.T) {
 	a := &App{StorageDir: "/store"}
 
 	for _, name := range []string{"Note", "dir/Note", "a/b/c"} {
 		want := filepath.Join("/store", "html", filepath.Clean(name+".html"))
-		if got := a.pageHTMLPath(name); got != want {
-			t.Errorf("pageHTMLPath(%q) = %q, want %q", name, got, want)
+		if got := a.layout().PageHTML(name); got != want {
+			t.Errorf("storage.Layout.PageHTML(%q) = %q, want %q", name, got, want)
 		}
 		_, htmlPath, _, isPage := a.resolvePageName(name)
 		if !isPage {
 			t.Fatalf("resolvePageName(%q) unexpectedly not a page", name)
 		}
-		if got := a.pageHTMLPath(name); got != htmlPath {
-			t.Errorf("pageHTMLPath(%q)=%q disagrees with resolvePageName htmlPath %q", name, got, htmlPath)
+		if got := a.layout().PageHTML(name); got != htmlPath {
+			t.Errorf("storage.Layout.PageHTML(%q)=%q disagrees with resolvePageName htmlPath %q", name, got, htmlPath)
 		}
 	}
 }

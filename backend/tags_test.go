@@ -174,7 +174,7 @@ func TestTagsPageStaleness(t *testing.T) {
 	if err := a.generateTagsPage(); err != nil {
 		t.Fatalf("generateTagsPage: %v", err)
 	}
-	htmlPath := a.pageHTMLPath("OMNGoTags")
+	htmlPath := a.layout().PageHTML("OMNGoTags")
 
 	past := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)   // notes
 	mid := time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)    // html (newer than notes)

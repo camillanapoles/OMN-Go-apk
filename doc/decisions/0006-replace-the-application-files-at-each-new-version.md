@@ -2,8 +2,9 @@
 
 * Status: accepted
 * Version: 1.8.11, 26.08.21
-* Code: `refreshEmbeddedAssets` and `AssetsRefreshed` in
-  `backend/assets.go`, `MainActivity.java`
+* Code: `storage.RefreshEmbeddedAssets` in
+  `backend/internal/storage/assets.go`, `AssetsRefreshed` in
+  `backend/storage_app.go`, `MainActivity.java`
 
 ## Context
 
@@ -25,16 +26,16 @@ cleared the cache.
 
 ## Decision
 
-* `versionDependentAssets` lists each file of the application. A file
+* `storage.VersionDependentAssets` lists each file of the application. A file
   that is not on the list belongs to the user.
 * `assets_version` in the storage directory holds the version that last
   wrote the files. When the version of the build is different,
-  `refreshEmbeddedAssets` writes each listed file from the build.
-* `refreshEmbeddedAssets` first moves a copy on disk that differs from the
-  build to `asset_backups/<previous-version>/`. When the backup fails, the
-  file stays as it is.
-* `refreshEmbeddedAssets` writes the version stamp after the loop. When
-  the process stops during the refresh, the next start does it again.
+  `storage.RefreshEmbeddedAssets` writes each listed file from the build.
+* `storage.RefreshEmbeddedAssets` first moves a copy on disk that differs
+  from the build to `asset_backups/<previous-version>/`. When the backup
+  fails, the file stays as it is.
+* `storage.RefreshEmbeddedAssets` writes the version stamp after the loop.
+  When the process stops during the refresh, the next start does it again.
 * `AssetsRefreshed` tells the Android layer that this start wrote a file.
   `MainActivity` then clears the cache of the WebView one time.
 
@@ -42,5 +43,5 @@ cleared the cache.
 
 * A person who edits a file of the application loses the edit at the next
   version. The copy in `asset_backups` keeps it.
-* A new bundled note is one line in `versionDependentAssets`.
+* A new bundled note is one line in `storage.VersionDependentAssets`.
 * A start with no version change writes no file and keeps the cache.

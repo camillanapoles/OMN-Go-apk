@@ -37,6 +37,7 @@ import (
 	"time"
 
 	"net.basov.omngo/backend/internal/config"
+	"net.basov.omngo/backend/internal/storage"
 )
 
 // ---------------------------------------------------------------------
@@ -116,7 +117,7 @@ func TestBaseline_ServeHTMLPageDispatch(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(a.StorageDir, "md", "Config.md")); err == nil {
 			t.Error("Config.html created an md/ source; it must stay dynamic")
 		}
-		if _, err := os.Stat(a.pageHTMLPath("Config")); err == nil {
+		if _, err := os.Stat(a.layout().PageHTML("Config")); err == nil {
 			t.Error("Config.html wrote an html/ cache; it must stay dynamic")
 		}
 	})
@@ -130,7 +131,7 @@ func TestBaseline_ServeHTMLPageDispatch(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(a.StorageDir, "md", "OMNGoTags.md")); err != nil {
 			t.Errorf("OMNGoTags.md not generated: %v", err)
 		}
-		if _, err := os.Stat(a.pageHTMLPath("OMNGoTags")); err != nil {
+		if _, err := os.Stat(a.layout().PageHTML("OMNGoTags")); err != nil {
 			t.Errorf("OMNGoTags.html not cached: %v", err)
 		}
 	})
@@ -159,7 +160,7 @@ func TestBaseline_ServeHTMLPageDispatch(t *testing.T) {
 		if rec.Code != http.StatusOK {
 			t.Fatalf("status %d with global search on", rec.Code)
 		}
-		if _, err := os.Stat(a.pageHTMLPath("OMNGoSearch")); err == nil {
+		if _, err := os.Stat(a.layout().PageHTML("OMNGoSearch")); err == nil {
 			t.Error("the search page wrote an html/ cache; it is dynamic like Config")
 		}
 	})
@@ -172,7 +173,7 @@ func TestBaseline_ServeHTMLPageDispatch(t *testing.T) {
 		if !strings.Contains(rec.Body.String(), "hello baseline") {
 			t.Error("note body missing from response")
 		}
-		if _, err := os.Stat(a.pageHTMLPath("Note")); err != nil {
+		if _, err := os.Stat(a.layout().PageHTML("Note")); err != nil {
 			t.Errorf("note was not cached to html/: %v", err)
 		}
 	})
@@ -193,7 +194,7 @@ func TestBaseline_ServeHTMLPageDispatch(t *testing.T) {
 
 	t.Run("refresh recompiles the cache", func(t *testing.T) {
 		// Poison the cache, then prove ?refresh=1 rebuilt it from the source.
-		if err := os.WriteFile(a.pageHTMLPath("Note"), []byte("STALE-SENTINEL"), 0644); err != nil {
+		if err := os.WriteFile(a.layout().PageHTML("Note"), []byte("STALE-SENTINEL"), 0644); err != nil {
 			t.Fatal(err)
 		}
 		rec := getPage(t, a, "/Note.html?refresh=1")
@@ -203,7 +204,7 @@ func TestBaseline_ServeHTMLPageDispatch(t *testing.T) {
 		if strings.Contains(rec.Body.String(), "STALE-SENTINEL") {
 			t.Error("?refresh=1 served the poisoned cache instead of recompiling")
 		}
-		onDisk, err := os.ReadFile(a.pageHTMLPath("Note"))
+		onDisk, err := os.ReadFile(a.layout().PageHTML("Note"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -988,15 +989,16 @@ func TestConfigPost_HostnameClearedFallsBack(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------
-// 7. versionDependentAssets and gitignorePatterns agree
+// 7. storage.VersionDependentAssets and gitignorePatterns agree
 //
-// versionDependentAssets (assets.go) is the list of files that ship with the
-// build and are refreshed on upgrade. gitignorePatterns (git_repo.go) keeps
-// those same files out of the sync repo of the user. They are two hand-kept
-// lists that must not drift. The search feature also makes the first list the
-// single source of truth for the own code of OMN-Go. Its integrity thus
-// matters more than it did. TestVersionDependentAssetsAllEmbedded covers the
-// embed side. This test is the other half.
+// storage.VersionDependentAssets (internal/storage/assets.go) is the list of
+// files that ship with the build and are refreshed on upgrade.
+// gitignorePatterns (git_repo.go) keeps those same files out of the sync repo
+// of the user. They are two hand-kept lists that must not drift. The search
+// feature also makes the first list the single source of truth for the own code
+// of OMN-Go. Its integrity thus matters more than it did.
+// TestVersionDependentAssetsAllEmbedded covers the embed side. This test is the
+// other half.
 // ---------------------------------------------------------------------
 
 func TestBaseline_VersionDependentAssetsAreGitignored(t *testing.T) {
@@ -1004,9 +1006,9 @@ func TestBaseline_VersionDependentAssetsAreGitignored(t *testing.T) {
 	for _, p := range gitignorePatterns {
 		ignored[p] = true
 	}
-	for _, rel := range versionDependentAssets {
+	for _, rel := range storage.VersionDependentAssets {
 		if !ignored["/"+rel] {
-			t.Errorf("versionDependentAssets has %q but gitignorePatterns has no %q - "+
+			t.Errorf("storage.VersionDependentAssets has %q but gitignorePatterns has no %q - "+
 				"a shipped file that gets committed to the user's repo will "+
 				"conflict on every upgrade", rel, "/"+rel)
 		}
@@ -1037,7 +1039,7 @@ func TestBaseline_PrecompileAllPages(t *testing.T) {
 
 	for rel := range notes {
 		name := strings.TrimSuffix(rel, ".md")
-		if _, err := os.Stat(a.pageHTMLPath(name)); err != nil {
+		if _, err := os.Stat(a.layout().PageHTML(name)); err != nil {
 			t.Errorf("%s was not compiled: %v", rel, err)
 		}
 		got, err := os.ReadFile(filepath.Join(a.StorageDir, "md", filepath.FromSlash(rel)))
@@ -1051,7 +1053,7 @@ func TestBaseline_PrecompileAllPages(t *testing.T) {
 
 	// The Tags index is generated at the end of the pass, so an export taken
 	// after startup always contains it.
-	if _, err := os.Stat(a.pageHTMLPath("OMNGoTags")); err != nil {
+	if _, err := os.Stat(a.layout().PageHTML("OMNGoTags")); err != nil {
 		t.Errorf("OMNGoTags.html not generated by precompileAllPages: %v", err)
 	}
 }
@@ -1106,7 +1108,7 @@ func TestBaseline_InjectedRuntimeVarSet(t *testing.T) {
 	if _, err := a.renderAndCache("Marked", []byte("Title: Marked\n\nbody")); err != nil {
 		t.Fatal(err)
 	}
-	cached, err := os.ReadFile(a.pageHTMLPath("Marked"))
+	cached, err := os.ReadFile(a.layout().PageHTML("Marked"))
 	if err != nil {
 		t.Fatal(err)
 	}

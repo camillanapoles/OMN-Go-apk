@@ -8,6 +8,7 @@ import (
 
 	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
+	"net.basov.omngo/backend/internal/storage"
 	"net.basov.omngo/backend/internal/textmatch"
 )
 
@@ -27,28 +28,28 @@ func (a *App) searchRoots(kinds []string) []searchRoot {
 	if want[config.SearchKindMD] || want[config.SearchKindBookmarks] {
 		roots = append(roots, searchRoot{
 			kind: config.SearchKindMD,
-			dir:  a.layout().md(),
+			dir:  a.layout().MD(),
 			exts: []string{".md"},
 		})
 	}
 	if want[config.SearchKindJS] {
 		roots = append(roots, searchRoot{
 			kind: config.SearchKindJS,
-			dir:  a.layout().html("js"),
+			dir:  a.layout().HTML("js"),
 			exts: []string{".js"},
 		})
 	}
 	if want[config.SearchKindJSON] {
 		roots = append(roots, searchRoot{
 			kind: config.SearchKindJSON,
-			dir:  a.layout().html("json"),
+			dir:  a.layout().HTML("json"),
 			exts: []string{".json"},
 		})
 	}
 	if want[config.SearchKindUserJSON] {
 		roots = append(roots, searchRoot{
 			kind: config.SearchKindUserJSON,
-			dir:  a.layout().html("user_json"),
+			dir:  a.layout().HTML("user_json"),
 			exts: []string{".json", ".jsonl"},
 		})
 	}
@@ -242,14 +243,14 @@ func addTrigrams(sig *[8]uint64, s []rune) {
 }
 
 // isBundledAsset reports whether OMN-Go ships a file. It reads
-// versionDependentAssets in assets.go, thus a new bundled file needs no
-// second list.
+// storage.VersionDependentAssets in internal/storage/assets.go, thus a new
+// bundled file needs no second list.
 func isBundledAsset(rootKind, rel string) bool {
 	if rootKind != config.SearchKindJS && rootKind != config.SearchKindJSON {
 		return false
 	}
 	full := "html/" + rootKind + "/" + rel
-	for _, v := range versionDependentAssets {
+	for _, v := range storage.VersionDependentAssets {
 		if v == full {
 			return true
 		}

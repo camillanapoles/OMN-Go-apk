@@ -8,7 +8,7 @@ import (
 // The App side of the config package. Each method reads the config.Store of
 // the App, or writes the cache of the log switches.
 
-// loadConfig reads configPath, the config.json of storageLayout.config.
+// loadConfig reads configPath, the config.json of storage.Layout.Config.
 func (a *App) loadConfig(configPath string) {
 	a.config.Update(func(c *config.Config) {
 		config.Load(c, configPath, a.fallbackPort(), a.log(logx.Config))

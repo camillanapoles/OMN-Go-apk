@@ -170,8 +170,8 @@ func TestJavaScriptUnitTests(t *testing.T) {
 //
 // frontend.Static embeds frontend/html and frontend/md. A test file under either
 // one would go into the binary, onto the storage of each device, and into
-// each git sync. frontend/test is outside both, and this test says so
-// rather than leaving it to a reader of assets.go.
+// each git sync. frontend/test is outside both. This test holds that rule,
+// thus a reader of internal/storage/assets.go does not have to check it.
 func TestFrontendTestsAreNotShipped(t *testing.T) {
 	entries, err := os.ReadDir(filepath.FromSlash("frontend/test"))
 	if err != nil {

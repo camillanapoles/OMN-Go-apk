@@ -30,7 +30,7 @@ import (
 // bytes for a caller that also sends them.
 func (a *App) renderAndCache(name string, content []byte) ([]byte, error) {
 	compiled := a.compilePage(name, content)
-	htmlPath := a.pageHTMLPath(name)
+	htmlPath := a.layout().PageHTML(name)
 	if err := os.MkdirAll(filepath.Dir(htmlPath), 0755); err != nil {
 		return compiled, fmt.Errorf("cache %q: mkdir: %w", name, err)
 	}

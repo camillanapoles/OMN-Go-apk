@@ -16,6 +16,7 @@ import (
 	"net.basov.omngo/backend/frontend"
 	"net.basov.omngo/backend/internal/logx"
 	"net.basov.omngo/backend/internal/noteheader"
+	"net.basov.omngo/backend/internal/storage"
 )
 
 func (a *App) getExternalEditPageBody(fileName string, viewURL string) string {
@@ -141,7 +142,7 @@ func (a *App) handleQuickNote(w http.ResponseWriter, r *http.Request) {
 	if note == "" {
 		return
 	}
-	path := a.layout().md("QuickNotes.md")
+	path := a.layout().MD("QuickNotes.md")
 	data, _ := os.ReadFile(path)
 	lines := strings.Split(string(data), "\n")
 
@@ -175,7 +176,7 @@ func (a *App) handleBookmark(w http.ResponseWriter, r *http.Request) {
 	tags := r.FormValue("tags")
 	notes := r.FormValue("notes")
 
-	path := a.layout().md("Bookmarks.md")
+	path := a.layout().MD("Bookmarks.md")
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
 
 	tagsList := []string{}
@@ -300,13 +301,14 @@ func (a *App) handleNewPage(w http.ResponseWriter, r *http.Request) {
 	// a bare relative link on that page. "test" from "local/local" is
 	// "local/test".
 	rawTarget := target
-	// containedName keeps each name in the md directory. See paths.go.
-	target = containedName(a.resolveNewPageTarget(source, target))
-	source = containedName(source)
+	// storage.ContainedName keeps each name in the md directory. See
+	// internal/storage/paths.go.
+	target = storage.ContainedName(a.resolveNewPageTarget(source, target))
+	source = storage.ContainedName(source)
 
 	now := time.Now().Format("2006-01-02 15:04:05")
 
-	targetMdPath := a.layout().md(target + ".md")
+	targetMdPath := a.layout().MD(target + ".md")
 	if _, err := os.Stat(targetMdPath); os.IsNotExist(err) {
 		authorLine := ""
 		if a.config.Get().Author != "" {
@@ -318,7 +320,7 @@ func (a *App) handleNewPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if source != "" {
-		sourceMdPath := a.layout().md(source + ".md")
+		sourceMdPath := a.layout().MD(source + ".md")
 		sourceData, err := os.ReadFile(sourceMdPath)
 		if err == nil {
 			content := string(sourceData)
@@ -388,7 +390,7 @@ func (a *App) handleSaveNote(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// A text file beside a note also goes back to md/. Git sync carries
-		// the md/ copy, and it must not go stale. See note_files.go.
+		// the md/ copy, and it must not go stale. See internal/storage/note_files.go.
 		a.syncNoteFileToMD(htmlPath)
 		w.Write([]byte("Saved"))
 		return

@@ -22,8 +22,7 @@ var fileGroups = map[string]string{
 	"markdown.go": "render", "templates.go": "render", "pages.go": "render",
 	"render_cache.go": "render", "tags.go": "render",
 	"editor_page.go": "render", "json_response.go": "render",
-	"storage_layout.go": "storage", "assets.go": "storage",
-	"note_files.go": "storage", "paths.go": "storage",
+	"storage_app.go": "storage",
 
 	"files_index.go": "files", "files_page.go": "files", "files_state.go": "files",
 	"note_exchange.go": "exchange", "note_exchange_http.go": "exchange",

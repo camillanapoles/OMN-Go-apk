@@ -30,11 +30,11 @@ if (window.location.protocol !== 'file:') {
     //     it can answer, through OMN_SEARCH_GLOBAL, thus the control never
     //     leads nowhere.
     //
-    // It lives in this file rather than in a new asset, for two reasons.
-    // This file is already inside the `protocol !== 'file:'` guard, thus an
-    // exported page gets the stub version for free. It is also already in
-    // versionDependentAssets and in gitignorePatterns, thus it needs no new
-    // plumbing to ship.
+    // It lives in this file rather than in a new asset, for two reasons. This
+    // file is already inside the `protocol !== 'file:'` guard, thus an exported
+    // page gets the stub version for free. It is also already in
+    // storage.VersionDependentAssets and in gitignorePatterns, thus it needs no
+    // new code to ship.
     //
     // Everything the server returns is written with textContent, or into the
     // textContent of a <mark> element. Nothing from a response is ever

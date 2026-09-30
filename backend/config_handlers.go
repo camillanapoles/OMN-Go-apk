@@ -135,7 +135,7 @@ func (a *App) persistConfig(cfg config.Config) error {
 		a.log(logx.Config).Errf("persistConfig: failed to marshal the configuration: %v", err)
 		return err
 	}
-	configPath := a.layout().config()
+	configPath := a.layout().Config()
 	if err := os.WriteFile(configPath, data, 0644); err != nil {
 		a.log(logx.Config).Errf("persistConfig: failed to write %s: %v", configPath, err)
 		return err

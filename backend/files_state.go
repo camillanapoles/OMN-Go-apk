@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/storage"
 )
 
 // note records the one fact that a directory row can show: the subtree is all
@@ -107,10 +108,10 @@ func (a *App) editableFileType(logical string) bool {
 }
 
 // isVersionDependent reports whether the app owns a path, from
-// versionDependentAssets in assets.go. want is relative to the storage
-// directory.
+// storage.VersionDependentAssets in internal/storage/assets.go. want is
+// relative to the storage directory.
 func isVersionDependent(want string) bool {
-	for _, v := range versionDependentAssets {
+	for _, v := range storage.VersionDependentAssets {
 		if v == want {
 			return true
 		}
@@ -135,11 +136,11 @@ func filesSameBytes(embeddedLogical, diskPath string, size int64) (same bool, ch
 	return bytes.Equal(emb, disk), true
 }
 
-// filesMirrorState describes the .txt pair of note_files.go. An equal size
-// and mtime is the answer with no read, because copyFileWithTime copies the
-// mtime. An older copy "waits for restart". A newer copy was "edited
-// outside", and one save in the app editor copies it back. A pair that agrees
-// says NOTHING.
+// filesMirrorState describes the .txt pair of internal/storage/note_files.go.
+// An equal size and mtime is the answer with no read, because
+// storage.CopyFileWithTime copies the mtime. An older copy "waits for restart".
+// A newer copy was "edited outside", and one save in the app editor copies it
+// back. A pair that agrees says NOTHING.
 func filesMirrorState(source, copyOf *indexedFile) (word, color string, extra string) {
 	if source == nil || copyOf == nil {
 		return "", "", ""
@@ -191,7 +192,7 @@ func (a *App) filesRowFor(tree string, e filesEntry) filesFileRow {
 				row.EditURL = "/" + strings.TrimSuffix(e.path, ".md") + ".html?edit=true"
 			}
 		}
-		if isLocalOnlyPath("md/"+e.path) || strings.HasPrefix(e.path, "local/") {
+		if storage.IsLocalOnlyPath("md/"+e.path) || strings.HasPrefix(e.path, "local/") {
 			row.Extra = append(row.Extra, "local only")
 		}
 
@@ -208,7 +209,7 @@ func (a *App) filesRowFor(tree string, e filesEntry) filesFileRow {
 }
 
 // filesStoragePath maps a logical path of one tree to the form of
-// versionDependentAssets.
+// storage.VersionDependentAssets.
 func filesStoragePath(tree, logical string) string {
 	switch tree {
 	case filesTreeSource:
@@ -281,8 +282,9 @@ func (a *App) filesState(tree string, e filesEntry, row *filesFileRow) {
 
 	default:
 		// A file only on the device says NOTHING. The .txt pair of
-		// note_files.go is the exception, when the two copies differ.
-		if !isSyncedNoteFile(e.path) {
+		// internal/storage/note_files.go is the exception, when the two copies
+		// differ.
+		if !storage.IsSyncedNoteFile(e.path) {
 			return
 		}
 		var source, copyOf *indexedFile
@@ -309,12 +311,12 @@ func (a *App) filesDiskPath(tree, logical string) string {
 	if tree == filesTreeSource {
 		sub = "md"
 	}
-	return a.layout().file(sub, filepath.FromSlash(logical))
+	return a.layout().File(sub, filepath.FromSlash(logical))
 }
 
 // filesStat reads one file of the storage tree for the .txt comparison.
 func (a *App) filesStat(sub, logical string) *indexedFile {
-	st, err := os.Stat(a.layout().file(sub, filepath.FromSlash(logical)))
+	st, err := os.Stat(a.layout().File(sub, filepath.FromSlash(logical)))
 	if err != nil || st.IsDir() {
 		return nil
 	}

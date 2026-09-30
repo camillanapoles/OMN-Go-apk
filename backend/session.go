@@ -68,7 +68,7 @@ const (
 // the key stays in memory until the process stops.
 func (a *App) sessionSecret() []byte {
 	a.sessionOnce.Do(func() {
-		path := a.layout().file(sessionSecretFilename)
+		path := a.layout().File(sessionSecretFilename)
 
 		if data, err := os.ReadFile(path); err == nil {
 			key, decErr := hex.DecodeString(strings.TrimSpace(string(data)))

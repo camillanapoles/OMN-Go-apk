@@ -64,7 +64,7 @@ func TestSearchPage_RendersResults(t *testing.T) {
 	}
 
 	// Dynamic like Config: no source, no cache, nothing written.
-	if _, err := readIfExists(a.pageHTMLPath("OMNGoSearch")); err == nil {
+	if _, err := readIfExists(a.layout().PageHTML("OMNGoSearch")); err == nil {
 		t.Error("the results page wrote an html/ cache; it must stay dynamic")
 	}
 }
@@ -185,7 +185,7 @@ func TestSearchPage_ExplainsHowToEnableGlobalSearch(t *testing.T) {
 	if _, err := readIfExists(a.storagePath("md/OMNGoSearch.md")); err == nil {
 		t.Error("serving the disabled page created md/OMNGoSearch.md")
 	}
-	if _, err := readIfExists(a.pageHTMLPath("OMNGoSearch")); err == nil {
+	if _, err := readIfExists(a.layout().PageHTML("OMNGoSearch")); err == nil {
 		t.Error("the disabled page wrote an html/ cache; it must stay dynamic")
 	}
 }

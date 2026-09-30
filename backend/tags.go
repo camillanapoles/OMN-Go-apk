@@ -91,7 +91,7 @@ type tagPageRef struct {
 // OMNGoTags itself, the md/local scratch tree, a note with no tag and a file
 // that it cannot read. A tag that a note names twice counts one time.
 func (a *App) buildTagIndex() map[string][]tagPageRef {
-	mdRoot := a.layout().md()
+	mdRoot := a.layout().MD()
 	index := map[string][]tagPageRef{}
 
 	_ = filepath.WalkDir(mdRoot, func(p string, d fs.DirEntry, walkErr error) error {
@@ -211,7 +211,7 @@ func (a *App) generateTagsPage() error {
 			len(index), time.Since(started).Round(time.Millisecond))
 	}()
 
-	mdRoot := a.layout().md()
+	mdRoot := a.layout().MD()
 	if err := os.MkdirAll(mdRoot, 0755); err != nil {
 		return fmt.Errorf("tags: mkdir md: %w", err)
 	}
@@ -229,7 +229,7 @@ func (a *App) generateTagsPage() error {
 // directory, and maybe of no file. It skips OMNGoTags.md and md/local. It
 // uses stat only, and it answers the zero time when it cannot walk md/.
 func (a *App) newestNoteMtime() time.Time {
-	mdRoot := a.layout().md()
+	mdRoot := a.layout().MD()
 	var newest time.Time
 	consider := func(d fs.DirEntry) {
 		if info, err := d.Info(); err == nil && info.ModTime().After(newest) {
@@ -270,7 +270,7 @@ func (a *App) tagsPageStale(forceRefresh bool) bool {
 	if forceRefresh {
 		return true
 	}
-	htmlStat, err := os.Stat(a.pageHTMLPath("OMNGoTags"))
+	htmlStat, err := os.Stat(a.layout().PageHTML("OMNGoTags"))
 	if err != nil {
 		return true // missing or unreadable -> (re)generate
 	}
@@ -287,7 +287,7 @@ func (a *App) serveTagsPage(w http.ResponseWriter, r *http.Request) {
 			a.log(logx.Tags).Errf("serveTagsPage: %v", err)
 		}
 	}
-	htmlPath := a.pageHTMLPath("OMNGoTags")
+	htmlPath := a.layout().PageHTML("OMNGoTags")
 	writeHTMLHeader(w)
 	data, err := os.ReadFile(htmlPath)
 	if err == nil {

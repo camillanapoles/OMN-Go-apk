@@ -12,6 +12,7 @@ import (
 
 	"net.basov.omngo/backend/frontend"
 	"net.basov.omngo/backend/internal/logx"
+	"net.basov.omngo/backend/internal/storage"
 )
 
 // ----------------------------------------------------------------------
@@ -28,9 +29,9 @@ import (
 // See doc/decisions/0003-use-one-table-for-each-content-type.md.
 
 // legacyAssetPaths maps the old URL of each app asset to its place under
-// OMN-Go/. It comes from versionDependentAssets and retiredFonts, thus it
-// follows each move. Each key and value starts with a slash, the same as in
-// materializeAsset.
+// OMN-Go/. It comes from storage.VersionDependentAssets and
+// storage.RetiredFonts, thus it follows each move. Each key and value starts
+// with a slash, the same as in materializeAsset.
 var legacyAssetPaths = func() map[string]string {
 	out := map[string]string{}
 	add := func(rel string) {
@@ -39,12 +40,12 @@ var legacyAssetPaths = func() map[string]string {
 		oldDir := strings.TrimSuffix(dir, "OMN-Go/")
 		out[oldDir+name] = urlNew
 	}
-	for _, rel := range versionDependentAssets {
+	for _, rel := range storage.VersionDependentAssets {
 		if strings.HasPrefix(rel, "html/") {
 			add(rel)
 		}
 	}
-	for _, rel := range retiredFonts {
+	for _, rel := range storage.RetiredFonts {
 		name := path.Base(rel)
 		out["/css/fonts/"+name] = "/css/OMN-Go/fonts/" + name
 	}
@@ -73,7 +74,7 @@ func (a *App) materializeAsset(urlPath string) (physPath string, ok bool) {
 	if moved, isLegacy := legacyAssetURL(filepath.ToSlash(clean)); isLegacy {
 		clean = filepath.FromSlash(moved)
 	}
-	physPath = a.layout().html(clean)
+	physPath = a.layout().HTML(clean)
 
 	if stat, err := os.Stat(physPath); err == nil {
 		if stat.IsDir() {
@@ -115,7 +116,7 @@ func (a *App) serveEmbeddableAsset(w http.ResponseWriter, r *http.Request, urlPa
 // resolveContentType decides for each file. The binary embeds none of these
 // files, thus there is no extraction.
 func (a *App) serveStorageSubdir(subDir, forcedType string) http.Handler {
-	dirPath := a.layout().html(subDir)
+	dirPath := a.layout().HTML(subDir)
 	os.MkdirAll(dirPath, 0755)
 	fsHandler := http.StripPrefix("/"+subDir+"/", http.FileServer(http.Dir(dirPath)))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -168,7 +169,7 @@ func (a *App) notFoundSuggestion(urlPath string) string {
 		return ""
 	}
 	for _, candidate := range []string{htmlPath, mdPath} {
-		if candidate == "" || !a.layout().contains(candidate) {
+		if candidate == "" || !a.layout().Contains(candidate) {
 			continue
 		}
 		if stat, err := os.Stat(candidate); err == nil && !stat.IsDir() {

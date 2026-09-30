@@ -327,16 +327,16 @@ func TestFilesPage_OrdinaryFilesAreSilent(t *testing.T) {
 	}
 }
 
-// The .txt pair of note_files.go: md/x.txt is the file, html/x.txt is a copy.
-// A pair that agrees says NOTHING - that is the ordinary state of every text
-// file beside a note. Only a pair that disagrees speaks, and the two
-// directions do not read the same, because the remedies differ.
+// The .txt pair of internal/storage/note_files.go: md/x.txt is the file,
+// html/x.txt is a copy. A pair that agrees says NOTHING - that is the ordinary
+// state of every text file beside a note. Only a pair that disagrees speaks,
+// and the two directions do not read the same, because the remedies differ.
 func TestFilesPage_TxtMirror(t *testing.T) {
 	a := newTestApp(t)
 	old := time.Now().Add(-2 * time.Hour)
 
 	// In step: same size, same modification time - which is what
-	// copyFileWithTime produces on purpose.
+	// storage.CopyFileWithTime produces on purpose.
 	writeNoteFile(t, a, "log.txt", "one")
 	writeDiskFile(t, a, "log.txt", "one")
 	touch(t, filepath.Join(a.StorageDir, "md", "log.txt"), old)
@@ -420,7 +420,7 @@ func TestFilesPage_SameSizeEditIsFound(t *testing.T) {
 			"bytes have to be compared", row.State)
 	}
 	if !row.AppOwned {
-		t.Error("Editor.md is in versionDependentAssets, thus the change is the one that is lost")
+		t.Error("Editor.md is in storage.VersionDependentAssets, thus the change is the one that is lost")
 	}
 	if row.StateColor != filesColorAlert {
 		t.Errorf("an app-owned file that was changed reads %q, want the alert color", row.StateColor)
@@ -523,7 +523,7 @@ func TestFilesPage_BundledSpellsOutAppOwned(t *testing.T) {
 	// and there is at least one in js/.
 	row := rowOfName(t, a, filesTreeBundled, "js/", "local_counter.js")
 	if row.AppOwned {
-		t.Error("local_counter.js is not in versionDependentAssets")
+		t.Error("local_counter.js is not in storage.VersionDependentAssets")
 	}
 }
 
@@ -665,9 +665,9 @@ func TestFilesPage_SourceNoteEditsThroughItsPage(t *testing.T) {
 // Ownership
 // ----------------------------------------------------------------------
 
-// isVersionDependent reads a path as versionDependentAssets writes it: relative
-// to the storage directory. The mapping from a logical path of one tree is
-// filesStoragePath, and getting it wrong would mark every file safe.
+// isVersionDependent reads a path as storage.VersionDependentAssets writes it:
+// relative to the storage directory. filesStoragePath gives that form for a
+// logical path of one tree. A wrong form would mark each file safe.
 func TestFilesStoragePathAndOwnership(t *testing.T) {
 	cases := []struct {
 		tree, logical, want string
@@ -829,7 +829,7 @@ func TestFilesPage_WritesNothing(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(a.StorageDir, "md", "OMNGoFiles.md")); err == nil {
 		t.Error("the page synthesized an md/ source for itself")
 	}
-	if _, err := os.Stat(a.pageHTMLPath("OMNGoFiles")); err == nil {
+	if _, err := os.Stat(a.layout().PageHTML("OMNGoFiles")); err == nil {
 		t.Error("the page wrote an html/ cache; it must stay dynamic")
 	}
 }

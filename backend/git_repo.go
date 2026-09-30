@@ -23,6 +23,7 @@ import (
 	cryptossh "golang.org/x/crypto/ssh"
 	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
+	"net.basov.omngo/backend/internal/storage"
 )
 
 // ----------------------------------------------------------------------
@@ -104,9 +105,9 @@ var gitignorePatterns = []string{
 }
 
 // gitignoreLocalOnlyPattern is the .gitignore form of the local-only rule of
-// paths.go. The pattern has no "/", thus go-git compares it with each segment of a
-// path, at each depth.
-const gitignoreLocalOnlyPattern = localOnlyPrefix + "*"
+// internal/storage/paths.go. The pattern has no "/", thus go-git compares it
+// with each segment of a path, at each depth.
+const gitignoreLocalOnlyPattern = storage.LocalOnlyPrefix + "*"
 
 // obsoleteGitignoreLines are the lines that ensureGitignore deletes from an
 // existing file.
@@ -117,7 +118,7 @@ var obsoleteGitignoreLines = map[string]bool{
 	// The general local-* rule covers the same files.
 	"/html/db_backup/local-*/": true,
 	// These lines name the old places of the app files. removeRetiredAssets
-	// in assets.go deletes the files. See retiredAssets.
+	// in internal/storage/assets.go deletes the files. See storage.RetiredAssets.
 	"/html/css/omn-go-core.css":           true,
 	"/html/css/Bookmarker.css":            true,
 	"/html/css/highlight.default.min.css": true,
@@ -134,7 +135,7 @@ var obsoleteGitignoreLines = map[string]bool{
 }
 
 func (a *App) ensureGitignore() {
-	gitignorePath := a.layout().file(gitignoreFilename)
+	gitignorePath := a.layout().File(storage.GitignoreFilename)
 	gitignoreBase := "# OMN-Go sync ignore\n" + strings.Join(gitignorePatterns, "\n") + "\n"
 	content, err := os.ReadFile(gitignorePath)
 	if os.IsNotExist(err) {
@@ -374,7 +375,7 @@ func (a *App) loadGitignoreMatcher(wt *git.Worktree) (gitignore.Matcher, error) 
 // manualStageFile writes the file into a new blob and sets its index entry.
 // It does not use Add of go-git.
 func (a *App) manualStageFile(repo *git.Repository, wt *git.Worktree, name string) error {
-	fullPath := a.layout().file(name)
+	fullPath := a.layout().File(name)
 	stat, err := os.Lstat(fullPath)
 	if err != nil {
 		return err
@@ -483,7 +484,7 @@ func (a *App) protectGitDirs() {
 		return
 	}
 	for _, dir := range []string{"objects"} {
-		p := a.layout().git(dir)
+		p := a.layout().Git(dir)
 		if err := os.MkdirAll(p, 0755); err != nil {
 			a.log(logx.Sync).Errf("MkdirAll %s failed: %v", p, err)
 			continue

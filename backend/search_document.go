@@ -58,7 +58,7 @@ func (a *App) loadPageDocument(name string) (*searchDocument, error) {
 	if isPage {
 		filePath = mdPath
 	}
-	if !a.layout().contains(filePath) {
+	if !a.layout().Contains(filePath) {
 		return nil, nil
 	}
 

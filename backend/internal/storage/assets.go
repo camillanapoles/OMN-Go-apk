@@ -1,4 +1,4 @@
-package backend
+package storage
 
 import (
 	"bytes"
@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync/atomic"
 
 	"net.basov.omngo/backend/frontend"
 	"net.basov.omngo/backend/internal/logx"
@@ -21,43 +20,29 @@ import (
 // file reaches StorageDir in one of two ways:
 //
 //	- A USER file comes from the embed ONLY when it is absent.
-//	  materializeAsset in serving.go extracts an html/ file at the first
-//	  request, and the start extracts the starter notes one time. After
-//	  that, the copy belongs to the user, for example md/Welcome.md.
-//	- A VERSION-DEPENDENT file (versionDependentAssets) must match the
+//	  materializeAsset in backend/serving.go extracts an html/ file at the
+//	  first request, and the start extracts the starter notes one time.
+//	  After that, the copy belongs to the user, for example md/Welcome.md.
+//	- A VERSION-DEPENDENT file (VersionDependentAssets) must match the
 //	  running build: the app scripts, the app styles and the system notes.
 //
 // A lazy extract alone keeps the old copy of a version-dependent file after
 // an upgrade. A new note in a new release would also never appear. At each
-// change of APP_VERSION, refreshEmbeddedAssets writes the embedded copy of
-// each listed file. It first moves a copy on disk that differs to
+// version change, RefreshEmbeddedAssets writes the embedded copy of each
+// listed file. It first moves a copy on disk that differs to
 // asset_backups/<previous-version>/, thus nothing is lost. See
 // doc/decisions/0006-replace-the-application-files-at-each-new-version.md.
 
-// assetsVersionFilename holds the APP_VERSION of the last refresh. It is in
+// AssetsVersionFilename holds the version of the last refresh. It is in
 // StorageDir beside config.json, and NOT under html/, where the server would
 // send it and the sync would carry it.
-const assetsVersionFilename = "assets_version"
-
-// assetsRefreshed tells whether refreshEmbeddedAssets wrote a file in this
-// process. The Android WebView keeps scripts and styles in its own disk
-// cache, thus new pages can use old scripts after an update. The Android
-// layer reads this value through AssetsRefreshed.
-var assetsRefreshed atomic.Bool
-
-// AssetsRefreshed tells whether this start installed or replaced a
-// version-dependent file. gomobile exports it. MainActivity.java calls it
-// before the first loadUrl, and on true it calls WebView.clearCache(true) one
-// time. A start with no change keeps the cache.
-func AssetsRefreshed() bool {
-	return assetsRefreshed.Load()
-}
+const AssetsVersionFilename = "assets_version"
 
 // backupLabelSanitizer keeps a backup directory name safe, whatever an old
 // version stamp holds.
 var backupLabelSanitizer = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 
-// versionDependentAssets lists the StorageDir-relative files that ship with
+// VersionDependentAssets lists the StorageDir-relative files that ship with
 // OMN-Go and must match the running build. The embedded source of each is
 // "frontend/" plus the path. Each file that is NOT here belongs to the user,
 // and a version change leaves it alone.
@@ -65,9 +50,9 @@ var backupLabelSanitizer = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 // EACH FILE BELOW html/ IS IN AN OMN-Go DIRECTORY.
 // TestEveryAppAssetIsUnderOMNGo holds that rule. The two user files stay at
 // html/js/omn-go-custom.js and html/css/omn-go-custom.css. legacyAssetURL in
-// serving.go answers a request for an old path from the new place. See
+// backend/serving.go answers a request for an old path from the new place. See
 // doc/decisions/0007-keep-the-application-files-in-omn-go-directories.md.
-var versionDependentAssets = []string{
+var VersionDependentAssets = []string{
 	"html/js/OMN-Go/omn-go-compat.js",
 	"html/js/OMN-Go/omn-go-core.js",
 	"html/js/OMN-Go/omn-go-editor.js",
@@ -97,15 +82,15 @@ var versionDependentAssets = []string{
 	"md/UserManual.md",
 }
 
-// retiredAssets lists the StorageDir-relative paths that this build does not
+// RetiredAssets lists the StorageDir-relative paths that this build does not
 // own any more. They are the old place of each moved file, and
 // html/css/markdown.css, which no page loaded. THE LIST ONLY GROWS, because
 // an install can skip versions.
 //
-// removeRetiredAssets deletes each copy on disk. gitignorePatterns does not
-// name these paths, thus a copy that stays would become a TRACKED file at the
-// next commit.
-var retiredAssets = []string{
+// removeRetiredAssets deletes each copy on disk. gitignorePatterns in
+// backend/git_repo.go does not name these paths, thus a copy that stays would
+// become a TRACKED file at the next commit.
+var RetiredAssets = []string{
 	"html/js/omn-go-compat.js",
 	"html/js/omn-go-core.js",
 	"html/js/omn-go-editor.js",
@@ -121,11 +106,11 @@ var retiredAssets = []string{
 	"html/css/markdown.css",
 }
 
-// retiredFonts adds the old place of each web font to retiredAssets. A font
-// is not version-dependent: materializeAsset writes it when a page asks for
-// it. The list comes from the embedded tree, thus a new font needs no change
-// here.
-var retiredFonts = func() []string {
+// RetiredFonts adds the old place of each web font to RetiredAssets. A font is
+// not version-dependent: materializeAsset in backend/serving.go writes it when
+// a page asks for it. The list comes from the embedded tree, thus a new font
+// needs no change here.
+var RetiredFonts = func() []string {
 	entries, err := frontend.Static.ReadDir("html/css/OMN-Go/fonts")
 	if err != nil {
 		return nil
@@ -145,14 +130,14 @@ var retiredAssetDirs = []string{
 	"html/css/fonts",
 }
 
-// removeRetiredAssets deletes each path of retiredAssets. A copy that differs
+// removeRetiredAssets deletes each path of RetiredAssets. A copy that differs
 // from the shipped bytes goes to asset_backups/<previous>/ first, thus the
 // work of a person stays. It runs one time for each version change, under the
-// version stamp of refreshEmbeddedAssets.
-func (a *App) removeRetiredAssets(backupDir string) int {
+// version stamp of RefreshEmbeddedAssets.
+func removeRetiredAssets(l Layout, backupDir string, log logx.Logger) int {
 	removed := 0
-	for _, rel := range append(append([]string(nil), retiredAssets...), retiredFonts...) {
-		diskPath := a.layout().file(filepath.FromSlash(rel))
+	for _, rel := range append(append([]string(nil), RetiredAssets...), RetiredFonts...) {
+		diskPath := l.File(filepath.FromSlash(rel))
 		diskData, rerr := os.ReadFile(diskPath)
 		if rerr != nil {
 			continue // absent, which is the normal state after the first run
@@ -164,29 +149,29 @@ func (a *App) removeRetiredAssets(backupDir string) int {
 			backupPath := filepath.Join(backupDir, filepath.FromSlash(rel))
 			if err := os.MkdirAll(filepath.Dir(backupPath), 0755); err == nil {
 				if err := os.WriteFile(backupPath, diskData, 0644); err == nil {
-					a.log(logx.Assets).Infof("kept your copy of %s at %s", rel, backupPath)
+					log.Infof("kept your copy of %s at %s", rel, backupPath)
 				} else {
-					a.log(logx.Assets).Errf("cannot back up %s: %v", rel, err)
+					log.Errf("cannot back up %s: %v", rel, err)
 					continue // do not delete work that has no copy
 				}
 			} else {
-				a.log(logx.Assets).Errf("cannot make the backup directory for %s: %v", rel, err)
+				log.Errf("cannot make the backup directory for %s: %v", rel, err)
 				continue
 			}
 		}
 
 		if err := os.Remove(diskPath); err != nil {
-			a.log(logx.Assets).Errf("cannot remove the old %s: %v", rel, err)
+			log.Errf("cannot remove the old %s: %v", rel, err)
 			continue
 		}
-		a.log(logx.Assets).Infof("removed the old %s", rel)
+		log.Infof("removed the old %s", rel)
 		removed++
 	}
 
 	for _, rel := range retiredAssetDirs {
-		dirPath := a.layout().file(filepath.FromSlash(rel))
+		dirPath := l.File(filepath.FromSlash(rel))
 		if err := os.Remove(dirPath); err == nil {
-			a.log(logx.Assets).Infof("removed the empty directory %s", rel)
+			log.Infof("removed the empty directory %s", rel)
 		}
 	}
 	return removed
@@ -204,15 +189,15 @@ func embeddedTwinOf(rel string) []byte {
 	return data
 }
 
-func (a *App) refreshEmbeddedAssets() {
-	// The flag reports the work of this start only.
-	assetsRefreshed.Store(false)
-
-	verFile := a.layout().file(assetsVersionFilename)
+// RefreshEmbeddedAssets writes each changed version-dependent file, and it
+// answers the count of files that it wrote or removed. It runs at each start,
+// and it does nothing when the stamp holds version.
+func RefreshEmbeddedAssets(l Layout, version string, log logx.Logger) int {
+	verFile := l.File(AssetsVersionFilename)
 	prevRaw, _ := os.ReadFile(verFile) // missing file => "" => first run
 	prev := strings.TrimSpace(string(prevRaw))
-	if prev == APP_VERSION {
-		return
+	if prev == version {
+		return 0
 	}
 
 	prevLabel := prev
@@ -222,32 +207,32 @@ func (a *App) refreshEmbeddedAssets() {
 	}
 	prevLabel = backupLabelSanitizer.ReplaceAllString(prevLabel, "_")
 
-	backupDir := a.layout().assetBackups(prevLabel)
+	backupDir := l.AssetBackups(prevLabel)
 
 	// Delete the old copies BEFORE the install loop. A reader of the storage
-	// directory must never see two copies of one script. See retiredAssets.
-	refreshed := a.removeRetiredAssets(backupDir)
+	// directory must never see two copies of one script. See RetiredAssets.
+	refreshed := removeRetiredAssets(l, backupDir, log)
 
-	for _, rel := range versionDependentAssets {
+	for _, rel := range VersionDependentAssets {
 		embedData, eerr := frontend.Static.ReadFile(rel)
 		if eerr != nil {
 			// The list names the file, but this build does not embed it.
-			a.log(logx.Assets).Errf("%s not embedded in this build: %v", rel, eerr)
+			log.Errf("%s not embedded in this build: %v", rel, eerr)
 			continue
 		}
-		diskPath := a.layout().file(filepath.FromSlash(rel))
+		diskPath := l.File(filepath.FromSlash(rel))
 
 		diskData, rerr := os.ReadFile(diskPath)
 		if rerr == nil && bytes.Equal(diskData, embedData) {
 			continue // already current - nothing to do
 		}
 		if rerr != nil && !os.IsNotExist(rerr) {
-			a.log(logx.Assets).Errf("cannot read %s: %v", diskPath, rerr)
+			log.Errf("cannot read %s: %v", diskPath, rerr)
 			continue
 		}
 
 		if err := os.MkdirAll(filepath.Dir(diskPath), 0755); err != nil {
-			a.log(logx.Assets).Errf("skip %s: cannot create dir: %v", rel, err)
+			log.Errf("skip %s: cannot create dir: %v", rel, err)
 			continue
 		}
 
@@ -258,37 +243,35 @@ func (a *App) refreshEmbeddedAssets() {
 		if existed {
 			bakPath := filepath.Join(backupDir, filepath.FromSlash(rel))
 			if err := os.MkdirAll(filepath.Dir(bakPath), 0755); err != nil {
-				a.log(logx.Assets).Errf("skip %s: cannot create backup dir: %v", rel, err)
+				log.Errf("skip %s: cannot create backup dir: %v", rel, err)
 				continue
 			}
 			if err := os.WriteFile(bakPath, diskData, 0644); err != nil {
-				a.log(logx.Assets).Errf("skip %s: backup failed: %v", rel, err)
+				log.Errf("skip %s: backup failed: %v", rel, err)
 				continue
 			}
 		}
 
 		if err := os.WriteFile(diskPath, embedData, 0644); err != nil {
-			a.log(logx.Assets).Errf("write of %s failed: %v", rel, err)
+			log.Errf("write of %s failed: %v", rel, err)
 			continue
 		}
 		refreshed++
 		if existed {
-			a.log(logx.Assets).Infof("refreshed %s (previous copy saved to asset_backups/%s/%s)", rel, prevLabel, rel)
+			log.Infof("refreshed %s (previous copy saved to asset_backups/%s/%s)", rel, prevLabel, rel)
 		} else {
-			a.log(logx.Assets).Infof("installed %s from this build", rel)
+			log.Infof("installed %s from this build", rel)
 		}
 	}
 
 	// Write the stamp AFTER the loop. When the process stops during a
 	// refresh, the next start runs it again, and the loop skips an equal
 	// file.
-	if err := os.WriteFile(verFile, []byte(APP_VERSION+"\n"), 0644); err != nil {
-		a.log(logx.Assets).Errf("cannot write version stamp %s: %v", verFile, err)
+	if err := os.WriteFile(verFile, []byte(version+"\n"), 0644); err != nil {
+		log.Errf("cannot write version stamp %s: %v", verFile, err)
 	}
 	if refreshed > 0 {
-		// AssetsRefreshed tells the Android layer to clear the WebView cache
-		// one time.
-		assetsRefreshed.Store(true)
-		a.log(logx.Assets).Infof("%d embedded asset(s) refreshed for v%s (previous: %s)", refreshed, APP_VERSION, prevLabel)
+		log.Infof("%d embedded asset(s) refreshed for v%s (previous: %s)", refreshed, version, prevLabel)
 	}
+	return refreshed
 }
