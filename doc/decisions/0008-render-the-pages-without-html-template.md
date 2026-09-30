@@ -39,8 +39,8 @@ much larger.
 ## Consequences
 
 * A new page must escape each value by hand. `html/template` did that
-  automatically. The tests of `templates_test.go` check the escape of the
-  values that come from a person.
+  automatically. The tests of `internal/render/templates_test.go` check the
+  escape of the values that come from a person.
 * No test stops a new import of `html/template`. `TestBinarySize` shows
   the growth of the binary when one appears. See section 6 of
   `doc/TESTING.md`.

@@ -1,4 +1,4 @@
-package app
+package render
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 // TestRenderAndCacheWritesCompiledHTML pins the single cache pipeline that
 // Phase 2 introduced. renderAndCache compiles a page and writes it to
 // html/<name>.html. The on-disk bytes equal the output of
-// render.Renderer.CompilePage, and they equal the bytes that the function
+// Renderer.CompilePage, and they equal the bytes that the function
 // returns.
 func TestRenderAndCacheWritesCompiledHTML(t *testing.T) {
 	a := newTestApp(t)
@@ -22,10 +22,10 @@ func TestRenderAndCacheWritesCompiledHTML(t *testing.T) {
 		t.Fatalf("renderAndCache: %v", err)
 	}
 
-	// Returned bytes must equal a direct render.Renderer.CompilePage of the same
+	// Returned bytes must equal a direct Renderer.CompilePage of the same
 	// input.
 	if want := a.testRenderer().CompilePage("Doc", content); !bytes.Equal(compiled, want) {
-		t.Error("returned bytes differ from render.Renderer.CompilePage output")
+		t.Error("returned bytes differ from Renderer.CompilePage output")
 	}
 
 	// The on-disk cache must equal the returned bytes exactly.
@@ -67,7 +67,7 @@ func TestRenderAndCacheCreatesNestedDirs(t *testing.T) {
 // storage.Layout.PageHTML and resolvePageName must give the same path for
 // each page. A second formula fails this test.
 func TestPageHTMLPath(t *testing.T) {
-	a := &App{StorageDir: "/store"}
+	a := &testApp{StorageDir: "/store"}
 
 	for _, name := range []string{"Note", "dir/Note", "a/b/c"} {
 		want := filepath.Join("/store", "html", filepath.Clean(name+".html"))

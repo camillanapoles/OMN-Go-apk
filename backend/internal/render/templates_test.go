@@ -4,9 +4,13 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
+
+	"net.basov.omngo/backend/frontend"
+	"net.basov.omngo/backend/internal/config"
 )
 
 func TestEscapeHTML(t *testing.T) {
@@ -257,5 +261,168 @@ func TestTemplatesGoHoldsOnlyTheHelpers(t *testing.T) {
 	if !slices.Equal(got, want) {
 		t.Errorf("templates.go declares %v, want %v. Put the view and the "+
 			"render function of a page in the file of that page.", got, want)
+	}
+}
+
+func TestInjectRuntimeVars(t *testing.T) {
+	a := &testApp{}
+	a.config.Update(func(c *config.Config) { c.UseInternalEd = true })
+
+	page := []byte("<head>" + RuntimeVarsMarker + "</head>")
+	out := string(a.injectRuntimeVars(page))
+
+	if strings.Contains(out, RuntimeVarsMarker) {
+		t.Error("marker not replaced")
+	}
+	if !strings.Contains(out, `var APP_VERSION = "`+version+`";`) {
+		t.Error("APP_VERSION not injected")
+	}
+	if !strings.Contains(out, "var USE_INTERNAL_ED = true;") {
+		t.Error("USE_INTERNAL_ED not injected")
+	}
+
+	// A page without the marker passes through unchanged.
+	plain := []byte("<head>no marker</head>")
+	if got := string(a.injectRuntimeVars(plain)); got != string(plain) {
+		t.Errorf("page without marker was modified: %q", got)
+	}
+}
+
+// End-to-end guard. A page rendered through RenderIndexPage carries the
+// marker, and injectRuntimeVars finds it. That is the exact pair that broke
+// when the marker was an HTML comment.
+func TestRenderedPageAcceptsRuntimeVars(t *testing.T) {
+	a := &testApp{}
+	out := a.injectRuntimeVars([]byte(RenderIndexPage(IndexPageView{Title: "T", PageName: "T"})))
+	if !strings.Contains(string(out), "var APP_VERSION") {
+		t.Error("rendered index page did not accept runtime vars injection")
+	}
+}
+
+func TestInjectRuntimeVarsTheme(t *testing.T) {
+	page := []byte("<head>" + RuntimeVarsMarker + "</head>")
+
+	// Explicit theme delivered verbatim, and applied to <html> from the
+	// injected head script (before first paint).
+	a := &testApp{}
+	a.config.Update(func(c *config.Config) { c.Theme = config.ThemeDark })
+	out := string(a.injectRuntimeVars(page))
+	if !strings.Contains(out, `var OMN_THEME = "dark";`) {
+		t.Error("dark theme not injected")
+	}
+	if !strings.Contains(out, `document.documentElement.setAttribute('data-theme', OMN_THEME);`) {
+		t.Error("data-theme application script missing")
+	}
+
+	// Unset / invalid themes normalize to auto at the injection point too
+	// (belt and braces on top of loadConfig's normalization).
+	for _, raw := range []string{"", "purple"} {
+		b := &testApp{}
+		b.config.Update(func(c *config.Config) { c.Theme = raw })
+		got := string(b.injectRuntimeVars(page))
+		if !strings.Contains(got, `var OMN_THEME = "auto";`) {
+			t.Errorf("theme=%q: expected auto in injection, got:\n%s", raw, got)
+		}
+	}
+}
+
+// ---------------------------------------------------------------------
+// The compat script
+//
+// omn-go-compat.js tells a person with an old WebView why the page is
+// blank. Every other script uses async/await and arrow functions, and a
+// parser that cannot read those drops the WHOLE file. A notice written in
+// the style of its neighbors would be the one thing that does not run when
+// it is needed.
+//
+// The notice is a file of its own, and not an inline block of index.html.
+// An inline copy would go into the compiled page of every note. A <script
+// src> element is its own parse unit, thus a SyntaxError in omn-go-core.js
+// cannot stop it. That holds while two rules
+// hold, and this test is the whole guarantee of both:
+//
+//   - the file itself is ES5, thus the old parser accepts it.
+//   - index.html loads it FIRST, thus nothing throws before it runs.
+//
+// See the banner of omn-go-compat.js for the version number and where that
+// number comes from.
+// ---------------------------------------------------------------------
+
+// compatCommentRe removes a block comment and a line comment. The prose of
+// the banner names "async/await" and "arrow functions". It thus cannot look
+// like code to the scan below.
+var compatCommentRe = regexp.MustCompile(`(?s)/\*.*?\*/|//[^\n]*`)
+
+// compatBannedES6 are tokens that an ES5 parser rejects. Each one is
+// written so that it cannot match ordinary prose.
+var compatBannedES6 = []string{"=>", "`", "const ", "let ", "async ", "await ", "class ", "?.", "??", "..."}
+
+func TestCompatScriptIsFirstAndES5(t *testing.T) {
+	// 1. index.html loads it before every other script, and before the
+	//    stylesheet links, which would delay it for no reason.
+	scripts := regexp.MustCompile(`<script[^>]*>`).FindAllString(IndexPageTmpl, -1)
+	if len(scripts) == 0 {
+		t.Fatal("index.html loads no script at all")
+	}
+	if !strings.Contains(scripts[0], "js/OMN-Go/omn-go-compat.js") {
+		t.Errorf("the first script of index.html is %q, want omn-go-compat.js. "+
+			"A script above it that a WebView cannot parse throws before the "+
+			"notice runs, and the reader sees a blank page with no reason.",
+			scripts[0])
+	}
+	if strings.Contains(scripts[0], "defer") || strings.Contains(scripts[0], " async") {
+		t.Errorf("the compat script carries defer or async: %q. Either one "+
+			"delays it past the modern scripts, which is the order this test "+
+			"exists to protect.", scripts[0])
+	}
+	at := strings.Index(IndexPageTmpl, "omn-go-compat.js")
+	if css := strings.Index(IndexPageTmpl, `<link rel="stylesheet"`); css >= 0 && at > css {
+		t.Error("the compat script is after the stylesheet link, which delays it for no reason")
+	}
+
+	raw, err := frontend.Static.ReadFile("html/js/OMN-Go/omn-go-compat.js")
+	if err != nil {
+		t.Fatalf("omn-go-compat.js is not embedded: %v", err)
+	}
+	code := compatCommentRe.ReplaceAllString(string(raw), "")
+
+	// 2. The file parses on the oldest WebView this build supports.
+	for _, es6 := range compatBannedES6 {
+		if strings.Contains(code, es6) {
+			t.Errorf("omn-go-compat.js uses %q, which an old WebView cannot parse - "+
+				"it must stay ES5, or it is the one script that fails when it is needed", es6)
+		}
+	}
+
+	// 3. The number it reports has to be a number, and one this application
+	//    can justify: 85 is String.replaceAll, the highest requirement the
+	//    frontend really has.
+	if !strings.Contains(code, "var MIN = 85;") {
+		t.Error("the notice does not name 85 as the minimum. When you change it on " +
+			"purpose, change it here too, and give the reason in the banner.")
+	}
+
+	// 4. Every byte stays ASCII. The server sends this file as
+	//    application/javascript with no charset, thus a literal multi-byte
+	//    character can arrive misdecoded.
+	for i, c := range raw {
+		if c > 127 {
+			t.Errorf("omn-go-compat.js byte %d is not ASCII. Write a \\uXXXX "+
+				"escape instead of the character.", i)
+			break
+		}
+	}
+}
+
+// TestCompiledPageShellStaysSmall exists because the shell of index.html is
+// copied into html/<name>.html for EVERY note. A new inline block here
+// costs the same bytes again, on disk and in every
+// git sync, multiplied by the note count.
+func TestCompiledPageShellStaysSmall(t *testing.T) {
+	const maxShellBytes = 5000
+	if n := len(IndexPageTmpl); n > maxShellBytes {
+		t.Errorf("index.html is %d bytes, over the %d-byte guard. Put the new "+
+			"code in an asset under frontend/html/ and load it with a src, or "+
+			"raise this number on purpose.", n, maxShellBytes)
 	}
 }

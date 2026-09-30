@@ -457,8 +457,8 @@ func TestStatusPageIsAReaderOfTheEndpoint(t *testing.T) {
 	// The check does not look for the word execCommand in the page. That
 	// word can match a COMMENT and not the code, thus it proves nothing
 	// about the clipboard. TestClipboardHasOneAuthority in
-	// templates_test.go is what holds that rule, and it reads every
-	// embedded script and template.
+	// internal/repocheck/frontend_test.go is what holds that rule, and it
+	// reads every embedded script and template.
 	if strings.Contains(statusPageTmpl, "<script>") {
 		t.Error("the template holds an inline script")
 	}
