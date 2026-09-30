@@ -1,4 +1,4 @@
-package app
+package gitsync
 
 import (
 	"encoding/json"
@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"net.basov.omngo/backend/internal/gitsync"
 )
 
 // TestSyncErrorStatus pins the Phase 4 typed-sentinel mapping. Each sync
@@ -22,18 +20,18 @@ func TestSyncErrorStatus(t *testing.T) {
 		wantStatus string
 		wantOK     bool
 	}{
-		{"conflict", gitsync.ErrSyncConflict, "conflict", true},
-		{"push conflict", gitsync.ErrPushConflict, "push_conflict", true},
-		{"needs message", gitsync.ErrCommitMessageRequired, "needs_commit_message", true},
-		{"wrapped conflict", fmt.Errorf("pull step: %w", gitsync.ErrSyncConflict), "conflict", true},
+		{"conflict", ErrSyncConflict, "conflict", true},
+		{"push conflict", ErrPushConflict, "push_conflict", true},
+		{"needs message", ErrCommitMessageRequired, "needs_commit_message", true},
+		{"wrapped conflict", fmt.Errorf("pull step: %w", ErrSyncConflict), "conflict", true},
 		{"generic error", errors.New("disk exploded"), "", false},
 		{"nil", nil, "", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			status, msg, ok := gitsync.SyncErrorStatus(tt.err)
+			status, msg, ok := SyncErrorStatus(tt.err)
 			if ok != tt.wantOK || status != tt.wantStatus {
-				t.Errorf("gitsync.SyncErrorStatus(%v) = (%q, %v), want (%q, %v)",
+				t.Errorf("SyncErrorStatus(%v) = (%q, %v), want (%q, %v)",
 					tt.err, status, ok, tt.wantStatus, tt.wantOK)
 			}
 			// A mapped error must carry a non-empty user message. An
@@ -50,22 +48,22 @@ func TestSyncErrorStatus(t *testing.T) {
 
 // TestSyncConflictErrorWrapsSentinel pins that the file-carrying conflict
 // error still reads as ErrSyncConflict everywhere the state machine looks,
-// which is errors.Is and gitsync.SyncErrorStatus. Its file list stays reachable
+// which is errors.Is and SyncErrorStatus. Its file list stays reachable
 // with errors.As, and that list survives a wrap with %w.
 func TestSyncConflictErrorWrapsSentinel(t *testing.T) {
-	ce := &gitsync.SyncConflictError{Files: []string{"md/A.md", "md/B.md"}}
+	ce := &SyncConflictError{Files: []string{"md/A.md", "md/B.md"}}
 
-	if !errors.Is(ce, gitsync.ErrSyncConflict) {
-		t.Error("gitsync.SyncConflictError does not unwrap to ErrSyncConflict")
+	if !errors.Is(ce, ErrSyncConflict) {
+		t.Error("SyncConflictError does not unwrap to ErrSyncConflict")
 	}
-	if status, _, ok := gitsync.SyncErrorStatus(ce); !ok || status != "conflict" {
-		t.Errorf("gitsync.SyncErrorStatus(gitsync.SyncConflictError) = (%q, %v), want (conflict, true)", status, ok)
+	if status, _, ok := SyncErrorStatus(ce); !ok || status != "conflict" {
+		t.Errorf("SyncErrorStatus(SyncConflictError) = (%q, %v), want (conflict, true)", status, ok)
 	}
 
 	wrapped := fmt.Errorf("pull: %w", error(ce))
-	var got *gitsync.SyncConflictError
+	var got *SyncConflictError
 	if !errors.As(wrapped, &got) {
-		t.Fatal("errors.As could not recover gitsync.SyncConflictError through a %w wrap")
+		t.Fatal("errors.As could not recover SyncConflictError through a %w wrap")
 	}
 	if len(got.Files) != 2 || got.Files[0] != "md/A.md" || got.Files[1] != "md/B.md" {
 		t.Errorf("recovered Files = %v, want [md/A.md md/B.md]", got.Files)
@@ -82,7 +80,7 @@ func TestSyncConflictAnswerShape(t *testing.T) {
 
 	// With files.
 	rec := httptest.NewRecorder()
-	a.writeJSON(rec, http.StatusOK, gitsync.NewSyncConflict("Fast-forward not possible.", []string{"md/A.md"}))
+	a.writeJSON(rec, http.StatusOK, NewSyncConflict("Fast-forward not possible.", []string{"md/A.md"}))
 	var body struct {
 		Status  string   `json:"status"`
 		Message string   `json:"message"`
@@ -97,7 +95,7 @@ func TestSyncConflictAnswerShape(t *testing.T) {
 
 	// Nil files must serialize as [] (never null) and never omit the key.
 	rec2 := httptest.NewRecorder()
-	a.writeJSON(rec2, http.StatusOK, gitsync.NewSyncConflict("diverged", nil))
+	a.writeJSON(rec2, http.StatusOK, NewSyncConflict("diverged", nil))
 	raw := rec2.Body.String()
 	if !contains(raw, `"files":[]`) {
 		t.Errorf("nil files did not serialize as []: %s", raw)
@@ -116,7 +114,7 @@ func contains(s, sub string) bool {
 // TestSyncSentinelsAreDistinct guards that the three sentinels are not
 // accidentally the same value (which would collapse their wire statuses).
 func TestSyncSentinelsAreDistinct(t *testing.T) {
-	all := []error{gitsync.ErrSyncConflict, gitsync.ErrPushConflict, gitsync.ErrCommitMessageRequired}
+	all := []error{ErrSyncConflict, ErrPushConflict, ErrCommitMessageRequired}
 	for i := range all {
 		for j := range all {
 			if i != j && errors.Is(all[i], all[j]) {

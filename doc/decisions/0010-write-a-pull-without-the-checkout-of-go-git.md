@@ -40,8 +40,8 @@ A pull does not call the checkout of go-git. It writes the files itself:
 
 * `config.json`, the databases and the other local files survive each
   kind of pull.
-* A change of this code needs care. The tests of `git_sync_test.go` run a
-  real sync against a bare repository on disk, and they check each of
+* A change of this code needs care. The tests of `internal/gitsync/sync_test.go`
+  run a real sync against a bare repository on disk, and they check each of
   these files.
 * `gitsync.Service.LoadGitignoreMatcher` adds the built-in
   `gitsync.GitignorePatterns` to the `.gitignore` of the worktree. A stale

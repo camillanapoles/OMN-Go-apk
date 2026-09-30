@@ -529,10 +529,7 @@ func indexedPaths(a *testApp) []string {
 	return out
 }
 
-// containsPath is a slice membership test. It is named for what it holds, and
-// not the obvious "contains". sync_errors_test.go already has a function of
-// that name with a different signature. Every _test.go file in a package
-// shares one namespace.
+// containsPath is a slice membership test. It is named for what it holds.
 func containsPath(list []string, want string) bool {
 	for _, s := range list {
 		if s == want {

@@ -43,6 +43,6 @@ then showed a plain alert, and not the dialog that offers a force push.
 
 * Do not add a check that skips the push. Such a check can give a wrong
   answer. The push itself always asks the correct remote.
-* A go-git upgrade that changes the text of the error breaks the
-  push-conflict dialog. The tests of `git_sync_test.go` push against a
-  real remote and check the status `push_conflict`.
+* A go-git upgrade that changes the text of the error breaks the push-conflict
+  dialog. The tests of `internal/gitsync/sync_test.go` push against a real
+  remote and check the status `push_conflict`.

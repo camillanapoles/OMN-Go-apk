@@ -106,18 +106,19 @@ In a Node module, the fault did not show. See
 call promises. A ReferenceError is a failure. A TypeError is not, because
 the page is a stub and not a browser.
 
-Two tests of `backend/internal/app/js_port_test.go` run BOTH languages
-against one another. Each
-one starts on the Go side, because the Go side is what writes the input.
+Two tests run BOTH languages against one another. Each one starts on the Go
+side, because the Go side is what writes the input.
 
-`TestEverySyncLineReachesTheOverlay` runs a whole sync, reads the lines
+`TestEverySyncLineReachesTheOverlay` in
+`backend/internal/gitsync/js_port_test.go` runs a whole sync, reads the lines
 that it really wrote out of the log ring, and sends each one through the
 real `applySyncLogLine`. A line that moves no stage is the failure. The
 overlay fails quietly, thus nothing else would report it.
 
-`TestLogFilterPortAgreesWithTheRealJavaScript` compares `logLineEnabled` in
-`backend/internal/logx/hub.go` with `logLinePrints` in `omn-go-sse.js` over 120
-states. It builds the value of `OMN_LOG_TAGS` the way
+`TestLogFilterPortAgreesWithTheRealJavaScript` in
+`backend/internal/app/js_port_test.go` compares `logLineEnabled` in
+`backend/internal/app/log_app.go` with `logLinePrints` in `omn-go-sse.js` over
+120 states. It builds the value of `OMN_LOG_TAGS` the way
 `render.Renderer.InjectRuntimeVars` does. A test that builds it another way
 compares a state that no page ever holds.
 
@@ -195,7 +196,7 @@ fullscreen modes, the intent dispatch and the Termux path each need a
 device or an emulator. An emulator needs a test framework, and a test
 framework is a Gradle dependency.
 
-**The git remote over SSH.** `backend/internal/app/git_sync_test.go` drives the
+**The git remote over SSH.** `backend/internal/gitsync/sync_test.go` drives the
 real sync code against a BARE REPOSITORY ON DISK, which needs no server and no
 network. It cannot test the SSH transport, and it cannot test a network failure.
 `gitsync.Service.GetSSHAuth` runs in each of those tests, and the code that

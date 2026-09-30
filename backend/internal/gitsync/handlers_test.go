@@ -1,10 +1,10 @@
-package app
+package gitsync
 
 // ----------------------------------------------------------------------
 // The two sync endpoints
 // ----------------------------------------------------------------------
 //
-// git_sync_test.go tests the sync PATHS. Each test there calls SyncRepo or
+// sync_test.go tests the sync PATHS. Each test there calls SyncRepo or
 // a syncXxx method directly. The tests here go through an http.Request.
 // They hold the layer between the browser and the sync code:
 //
@@ -18,7 +18,7 @@ package app
 // **This is the code that can destroy the notes of a person, and its
 // outermost layer had no test.**
 //
-// THE HARNESS IS THE ONE OF git_sync_test.go. gsRemote makes a bare
+// THE HARNESS IS THE ONE OF sync_test.go. gsRemote makes a bare
 // repository on disk, gsApp points a git-server slot at it, and
 // gsSeedRemote writes a commit into it. Read the banner of that file for
 // why a bare repository on disk is enough, and why the slot needs a key
@@ -41,7 +41,6 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"net.basov.omngo/backend/internal/config"
-	"net.basov.omngo/backend/internal/gitsync"
 	"net.basov.omngo/backend/internal/render"
 )
 
@@ -49,7 +48,7 @@ import (
 //
 // The frontend posts action, force and message in the body. See the
 // comment at the top of handleSync.
-func ghSync(t *testing.T, a *App, form url.Values) *httptest.ResponseRecorder {
+func ghSync(t *testing.T, a *testApp, form url.Values) *httptest.ResponseRecorder {
 	t.Helper()
 	r := httptest.NewRequest("POST", "/api/sync", strings.NewReader(form.Encode()))
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -62,7 +61,7 @@ func ghSync(t *testing.T, a *App, form url.Values) *httptest.ResponseRecorder {
 //
 // The conflict buttons of the page use this form. Both must work, and
 // that is why handleSync calls ParseForm and then FormValue.
-func ghSyncQuery(t *testing.T, a *App, query string) *httptest.ResponseRecorder {
+func ghSyncQuery(t *testing.T, a *testApp, query string) *httptest.ResponseRecorder {
 	t.Helper()
 	r := httptest.NewRequest("GET", "/api/sync?"+query, nil)
 	w := httptest.NewRecorder()
@@ -71,7 +70,7 @@ func ghSyncQuery(t *testing.T, a *App, query string) *httptest.ResponseRecorder 
 }
 
 // ghPreview calls handleSyncPreview with a query string.
-func ghPreview(t *testing.T, a *App, method, query string) *httptest.ResponseRecorder {
+func ghPreview(t *testing.T, a *testApp, method, query string) *httptest.ResponseRecorder {
 	t.Helper()
 	r := httptest.NewRequest(method, "/api/sync/preview?"+query, nil)
 	w := httptest.NewRecorder()
@@ -98,9 +97,9 @@ func ghStatus(t *testing.T, w *httptest.ResponseRecorder) string {
 }
 
 // ghPreviewAnswer decodes the answer of the upload preview.
-func ghPreviewAnswer(t *testing.T, w *httptest.ResponseRecorder) gitsync.SyncPreviewResponse {
+func ghPreviewAnswer(t *testing.T, w *httptest.ResponseRecorder) SyncPreviewResponse {
 	t.Helper()
-	var out gitsync.SyncPreviewResponse
+	var out SyncPreviewResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
 		t.Fatalf("the preview answer is not JSON: %v\n%s", err, w.Body.String())
 	}
@@ -110,7 +109,7 @@ func ghPreviewAnswer(t *testing.T, w *httptest.ResponseRecorder) gitsync.SyncPre
 // ghCommitLocally makes one commit in the storage repository and pushes
 // nothing. The upload preview then has a clean worktree and a commit that
 // the remote has never seen.
-func ghCommitLocally(t *testing.T, a *App, rel, content, message string) plumbing.Hash {
+func ghCommitLocally(t *testing.T, a *testApp, rel, content, message string) plumbing.Hash {
 	t.Helper()
 	gsWrite(t, a, rel, content)
 	repo, err := git.PlainOpen(a.StorageDir)
@@ -165,7 +164,7 @@ func TestSyncJSONWriterEscapesTheMessage(t *testing.T) {
 // no way forward.
 func TestSyncConflictWriterAlwaysSendsAnArray(t *testing.T) {
 	w := httptest.NewRecorder()
-	newTestApp(t).writeJSON(w, http.StatusOK, gitsync.NewSyncConflict("diverged", nil))
+	newTestApp(t).writeJSON(w, http.StatusOK, NewSyncConflict("diverged", nil))
 
 	if strings.Contains(w.Body.String(), `"files":null`) {
 		t.Errorf("the body carries a null file list: %s", w.Body.String())
@@ -511,7 +510,7 @@ func TestSyncPreviewSkipsAnIgnoredFile(t *testing.T) {
 
 // The first preview after a pull lists .gitignore.
 //
-// gitsync.Service.GetOrInitRepo writes .gitignore, and no commit carries it
+// Service.GetOrInitRepo writes .gitignore, and no commit carries it
 // until the first push of this device. The file is therefore a real pending
 // change, and the preview is right to name it. This test records that, so that
 // a reader of a bug report knows it is the design.
@@ -650,7 +649,7 @@ func TestSyncPreviewNamesAPathThatLeavesTheRepository(t *testing.T) {
 // tracked local- name that the person edits therefore DOES reach the
 // status, and the matcher keeps it out of the pending list.
 //
-// gitsync.Service.UntrackTrackedPaths then adds the same path back with its
+// Service.UntrackTrackedPaths then adds the same path back with its
 // reason. The row that the person reads says "git stops to track it", which is
 // what the commit does. Without the matcher the list holds the path twice, and
 // the two rows say different things.
@@ -691,9 +690,9 @@ func TestSyncPreviewListsATrackedIgnoredPathOneTime(t *testing.T) {
 //
 // WHICH GUARD DOES THE WORK. Two stand in handleSyncPreview: the gitignore
 // matcher, and a check of the name. The matcher is the one that acts.
-// gitsync.Service.GetOrInitRepo backfills each line of
-// gitsync.GitignorePatterns into .gitignore on EVERY open, thus config.json is
-// always covered by the time gitsync.Service.LoadGitignoreMatcher reads the
+// Service.GetOrInitRepo backfills each line of
+// GitignorePatterns into .gitignore on EVERY open, thus config.json is
+// always covered by the time Service.LoadGitignoreMatcher reads the
 // file. The check by name is unreachable behind it.
 //
 // This test holds the OUTCOME and not one guard. It also holds the fact
