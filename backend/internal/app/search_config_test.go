@@ -75,49 +75,6 @@ func searchReq(t *testing.T, a *App, query url.Values) (*httptest.ResponseRecord
 	return rec, resp
 }
 
-func TestNormalizeSearchKinds(t *testing.T) {
-	// Absent (nil) and empty are NOT the same thing. The difference is what
-	// stands between "this config predates the feature" and "the user
-	// unticked everything on purpose".
-	if got := config.NormalizeSearchKinds(nil); strings.Join(got, ",") != "md,bookmarks" {
-		t.Errorf("nil -> %v, want the default md,bookmarks", got)
-	}
-	if got := config.NormalizeSearchKinds([]string{}); len(got) != 0 {
-		t.Errorf("explicitly empty -> %v, want it to stay empty", got)
-	}
-
-	cases := []struct {
-		in   []string
-		want string
-	}{
-		{[]string{"md"}, "md"},
-		{[]string{"MD", " js "}, "md,js"},                           // folded and trimmed
-		{[]string{"md", "md", "js"}, "md,js"},                       // de-duplicated
-		{[]string{"md", "nonsense", "js"}, "md,js"},                 // unknown dropped
-		{[]string{"nonsense"}, ""},                                  // ... even to nothing
-		{[]string{"user_json", "bookmarks"}, "user_json,bookmarks"}, // order kept
-	}
-	for _, c := range cases {
-		if got := strings.Join(config.NormalizeSearchKinds(c.in), ","); got != c.want {
-			t.Errorf("config.NormalizeSearchKinds(%v) = %q, want %q", c.in, got, c.want)
-		}
-	}
-}
-
-func TestNormalizeSearchScope(t *testing.T) {
-	for in, want := range map[string]string{
-		"page": config.SearchScopePage,
-		"PAGE": config.SearchScopePage,
-		"all":  config.SearchScopeAll,
-		"":     config.SearchScopeAll, // every config written before this field
-		"junk": config.SearchScopeAll,
-	} {
-		if got := config.NormalizeSearchScope(in); got != want {
-			t.Errorf("config.NormalizeSearchScope(%q) = %q, want %q", in, got, want)
-		}
-	}
-}
-
 // A config.json from before this feature must load with global search off and
 // the default kinds. It must not load with search silently enabled. It must
 // not load with an empty kind list, which would index nothing once enabled.

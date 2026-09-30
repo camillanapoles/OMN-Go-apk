@@ -470,3 +470,52 @@ func TestRemoteLogLinesHideThePassword(t *testing.T) {
 		}
 	}
 }
+
+// ---------------------------------------------------------------------
+// storage.VersionDependentAssets and GitignorePatterns agree
+//
+// storage.VersionDependentAssets (internal/storage/assets.go) is the list of
+// files that ship with the build and are refreshed on upgrade.
+// GitignorePatterns (internal/gitsync/repo.go) keeps those same files
+// out of the sync repo of the user. They are two hand-kept lists that must not
+// drift. The search feature also makes the first list the single source of
+// truth for the own code of OMN-Go. Its integrity thus matters more than it
+// did. TestVersionDependentAssetsAllEmbedded covers the embed side. This test
+// is the other half.
+// ---------------------------------------------------------------------
+
+func TestVersionDependentAssetsAreGitignored(t *testing.T) {
+	ignored := map[string]bool{}
+	for _, p := range GitignorePatterns {
+		ignored[p] = true
+	}
+	for _, rel := range storage.VersionDependentAssets {
+		if !ignored["/"+rel] {
+			t.Errorf("storage.VersionDependentAssets has %q but GitignorePatterns has no %q - "+
+				"a shipped file that gets committed to the user's repo will "+
+				"conflict on every upgrade", rel, "/"+rel)
+		}
+	}
+}
+
+// No path may be in both lists. An entry in both would make the refresh
+// install a file and the migration delete it, at each version, forever.
+func TestRetiredAssetIsNotShipped(t *testing.T) {
+	shipped := map[string]bool{}
+	for _, rel := range storage.VersionDependentAssets {
+		shipped[rel] = true
+	}
+	for _, rel := range append(append([]string(nil), storage.RetiredAssets...), storage.RetiredFonts...) {
+		if shipped[rel] {
+			t.Errorf("%s is retired and version-dependent at the same time", rel)
+		}
+		for _, pattern := range GitignorePatterns {
+			if pattern == "/"+rel {
+				t.Errorf("%s is retired and still in GitignorePatterns", rel)
+			}
+		}
+	}
+	if len(storage.RetiredFonts) == 0 {
+		t.Error("storage.RetiredFonts is empty, thus the old font files stay on each device")
+	}
+}

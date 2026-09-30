@@ -426,3 +426,15 @@ func TestCompiledPageShellStaysSmall(t *testing.T) {
 			"raise this number on purpose.", n, maxShellBytes)
 	}
 }
+
+// The one value that WriteHTMLHeader writes. It carries the charset, and
+// it keeps the prefix that pageCacheWriter reads.
+func TestPageContentTypeCarriesTheCharset(t *testing.T) {
+	if HTMLContentType != "text/html; charset=utf-8" {
+		t.Fatalf("the page content type is %q", HTMLContentType)
+	}
+	// The value must start with the prefix that pageCacheWriter reads.
+	if !strings.HasPrefix(HTMLContentType, "text/html") {
+		t.Error("pageCacheWriter reads the prefix text/html to make a page no-store")
+	}
+}

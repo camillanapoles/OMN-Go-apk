@@ -37,10 +37,8 @@ import (
 	"time"
 
 	"net.basov.omngo/backend/internal/config"
-	"net.basov.omngo/backend/internal/gitsync"
 	"net.basov.omngo/backend/internal/render"
 	"net.basov.omngo/backend/internal/search"
-	"net.basov.omngo/backend/internal/storage"
 )
 
 // ---------------------------------------------------------------------
@@ -992,34 +990,7 @@ func TestConfigPost_HostnameClearedFallsBack(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------
-// 7. storage.VersionDependentAssets and gitsync.GitignorePatterns agree
-//
-// storage.VersionDependentAssets (internal/storage/assets.go) is the list of
-// files that ship with the build and are refreshed on upgrade.
-// gitsync.GitignorePatterns (internal/gitsync/repo.go) keeps those same files
-// out of the sync repo of the user. They are two hand-kept lists that must not
-// drift. The search feature also makes the first list the single source of
-// truth for the own code of OMN-Go. Its integrity thus matters more than it
-// did. TestVersionDependentAssetsAllEmbedded covers the embed side. This test
-// is the other half.
-// ---------------------------------------------------------------------
-
-func TestBaseline_VersionDependentAssetsAreGitignored(t *testing.T) {
-	ignored := map[string]bool{}
-	for _, p := range gitsync.GitignorePatterns {
-		ignored[p] = true
-	}
-	for _, rel := range storage.VersionDependentAssets {
-		if !ignored["/"+rel] {
-			t.Errorf("storage.VersionDependentAssets has %q but gitsync.GitignorePatterns has no %q - "+
-				"a shipped file that gets committed to the user's repo will "+
-				"conflict on every upgrade", rel, "/"+rel)
-		}
-	}
-}
-
-// ---------------------------------------------------------------------
-// 8. precompileAllPages
+// 7. precompileAllPages
 //
 // The startup pass that compiles every note. It is untested today. It is also
 // where any future "warm up something at startup" work will be attached. Pin
@@ -1062,7 +1033,7 @@ func TestBaseline_PrecompileAllPages(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------
-// 9. The injected runtime-variable set
+// 8. The injected runtime-variable set
 //
 // Cached pages carry a marker that injectRuntimeVars fills per request with the
 // values that must reflect the RUNNING server rather than compile time. Which
@@ -1127,7 +1098,7 @@ func TestBaseline_InjectedRuntimeVarSet(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------
-// 10. The compiled-page shape, across every write path
+// 9. The compiled-page shape, across every write path
 //
 // Five different handlers write html/<name>.html through renderAndCache. All
 // five must make a page that the frontend can run.
@@ -1190,7 +1161,7 @@ func TestBaseline_CompiledHTMLShapeAcrossWritePaths(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------
-// 11. The /api/logs SSE lifecycle
+// 10. The /api/logs SSE lifecycle
 //
 // A page that holds its EventSource open forever stalls the desktop
 // connections. The client closes it on pagehide. This is the server half.

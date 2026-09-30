@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/internal/config"
-	"net.basov.omngo/backend/internal/render"
 )
 
 // ----------------------------------------------------------------------
@@ -217,17 +216,5 @@ func writeConfigWithMime(t *testing.T, path string, mime map[string]string) {
 	}
 	if err := os.WriteFile(path, data, 0o644); err != nil {
 		t.Fatal(err)
-	}
-}
-
-// The one value that render.WriteHTMLHeader writes. It carries the charset, and
-// it keeps the prefix that pageCacheWriter reads.
-func TestPageContentTypeCarriesTheCharset(t *testing.T) {
-	if render.HTMLContentType != "text/html; charset=utf-8" {
-		t.Fatalf("the page content type is %q", render.HTMLContentType)
-	}
-	// The value must start with the prefix that pageCacheWriter reads.
-	if !strings.HasPrefix(render.HTMLContentType, "text/html") {
-		t.Error("pageCacheWriter reads the prefix text/html to make a page no-store")
 	}
 }

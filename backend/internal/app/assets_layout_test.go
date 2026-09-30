@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"net.basov.omngo/backend/frontend"
-	"net.basov.omngo/backend/internal/gitsync"
 	"net.basov.omngo/backend/internal/render"
 	"net.basov.omngo/backend/internal/storage"
 )
@@ -171,28 +170,6 @@ func TestMigrationKeepsAChangedOldCopy(t *testing.T) {
 	}
 	if string(data) != mine {
 		t.Errorf("the backup holds %q", string(data))
-	}
-}
-
-// No path may be in both lists. An entry in both would make the refresh
-// install a file and the migration delete it, at each version, forever.
-func TestRetiredAssetIsNotShipped(t *testing.T) {
-	shipped := map[string]bool{}
-	for _, rel := range storage.VersionDependentAssets {
-		shipped[rel] = true
-	}
-	for _, rel := range append(append([]string(nil), storage.RetiredAssets...), storage.RetiredFonts...) {
-		if shipped[rel] {
-			t.Errorf("%s is retired and version-dependent at the same time", rel)
-		}
-		for _, pattern := range gitsync.GitignorePatterns {
-			if pattern == "/"+rel {
-				t.Errorf("%s is retired and still in gitsync.GitignorePatterns", rel)
-			}
-		}
-	}
-	if len(storage.RetiredFonts) == 0 {
-		t.Error("storage.RetiredFonts is empty, thus the old font files stay on each device")
 	}
 }
 

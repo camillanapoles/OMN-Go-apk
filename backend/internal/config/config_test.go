@@ -61,3 +61,46 @@ func TestNormalizeLogTags(t *testing.T) {
 			"drops an unknown tag, and keeps the order of logx.AllTags", got, want)
 	}
 }
+
+func TestNormalizeSearchKinds(t *testing.T) {
+	// Absent (nil) and empty are NOT the same thing. The difference is what
+	// stands between "this config predates the feature" and "the user
+	// unticked everything on purpose".
+	if got := NormalizeSearchKinds(nil); strings.Join(got, ",") != "md,bookmarks" {
+		t.Errorf("nil -> %v, want the default md,bookmarks", got)
+	}
+	if got := NormalizeSearchKinds([]string{}); len(got) != 0 {
+		t.Errorf("explicitly empty -> %v, want it to stay empty", got)
+	}
+
+	cases := []struct {
+		in   []string
+		want string
+	}{
+		{[]string{"md"}, "md"},
+		{[]string{"MD", " js "}, "md,js"},                           // folded and trimmed
+		{[]string{"md", "md", "js"}, "md,js"},                       // de-duplicated
+		{[]string{"md", "nonsense", "js"}, "md,js"},                 // unknown dropped
+		{[]string{"nonsense"}, ""},                                  // ... even to nothing
+		{[]string{"user_json", "bookmarks"}, "user_json,bookmarks"}, // order kept
+	}
+	for _, c := range cases {
+		if got := strings.Join(NormalizeSearchKinds(c.in), ","); got != c.want {
+			t.Errorf("NormalizeSearchKinds(%v) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestNormalizeSearchScope(t *testing.T) {
+	for in, want := range map[string]string{
+		"page": SearchScopePage,
+		"PAGE": SearchScopePage,
+		"all":  SearchScopeAll,
+		"":     SearchScopeAll, // every config written before this field
+		"junk": SearchScopeAll,
+	} {
+		if got := NormalizeSearchScope(in); got != want {
+			t.Errorf("NormalizeSearchScope(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
