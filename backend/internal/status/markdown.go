@@ -43,24 +43,18 @@ func renderStatusMarkdown(res *statusResponse) string {
 		})
 	}
 	if c := res.Config; c != nil {
-		table("Config", [][2]string{
-			{"internal_editor", yes(c.InternalEditor)},
-			{"theme", c.Theme},
-			{"max_upload_mb", strconv.Itoa(c.MaxUploadMB)},
-			{"search_enabled", yes(c.SearchEnabled)},
-			{"search_kinds", strings.Join(c.SearchKinds, ", ")},
-			{"search_scope", c.SearchScope},
-			{"search_bundled", yes(c.SearchBundled)},
-			{"intent_uri", yes(c.IntentURI)},
-			{"termux_intent", yes(c.TermuxIntent)},
-			{"android_fullscreen", c.AndroidFullscreen},
-			{"backup_prune_depth", strconv.Itoa(c.BackupPruneDepth)},
-			{"hostname", c.Hostname},
-			{"author", c.Author},
-			{"log_debug", yes(c.LogDebug)},
-			{"log_info", yes(c.LogInfo)},
-			{"log_tags", strings.Join(c.LogTags, ", ")},
-		})
+		rows := make([][2]string, 0, len(c))
+		for _, v := range c {
+			text := fmt.Sprint(v.Value)
+			switch x := v.Value.(type) {
+			case bool:
+				text = yes(x)
+			case []string:
+				text = strings.Join(x, ", ")
+			}
+			rows = append(rows, [2]string{v.Key, text})
+		}
+		table("Config", rows)
 	}
 	if g := res.Git; g != nil {
 		rows := [][2]string{

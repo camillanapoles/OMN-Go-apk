@@ -1,6 +1,7 @@
 package status
 
 import (
+	"encoding/json"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/render"
 )
 
@@ -103,7 +105,7 @@ func (svc Service) AndroidPackage() string {
 type statusResponse struct {
 	Generated string            `json:"generated"`
 	Server    *statusServer     `json:"server,omitempty"`
-	Config    *statusConfig     `json:"config,omitempty"`
+	Config    statusConfig      `json:"config,omitempty"`
 	Git       *statusGit        `json:"git,omitempty"`
 	Search    *statusSearch     `json:"search,omitempty"`
 	Runtime   *statusRuntime    `json:"runtime,omitempty"`
@@ -129,23 +131,26 @@ type statusServer struct {
 	GOARCH      string   `json:"goarch"`
 }
 
-type statusConfig struct {
-	InternalEditor    bool     `json:"internal_editor"`
-	Theme             string   `json:"theme"`
-	MaxUploadMB       int      `json:"max_upload_mb"`
-	SearchEnabled     bool     `json:"search_enabled"`
-	SearchKinds       []string `json:"search_kinds"`
-	SearchScope       string   `json:"search_scope"`
-	SearchBundled     bool     `json:"search_bundled"`
-	IntentURI         bool     `json:"intent_uri"`
-	TermuxIntent      bool     `json:"termux_intent"`
-	AndroidFullscreen string   `json:"android_fullscreen"`
-	BackupPruneDepth  int      `json:"backup_prune_depth"`
-	Hostname          string   `json:"hostname"`
-	Author            string   `json:"author"`
-	LogDebug          bool     `json:"log_debug"`
-	LogInfo           bool     `json:"log_info"`
-	LogTags           []string `json:"log_tags"`
+// statusConfig is the config section, in the order of the config table.
+type statusConfig []config.StatusValue
+
+func (c statusConfig) MarshalJSON() ([]byte, error) {
+	buf := []byte{'{'}
+	for i, v := range c {
+		if i > 0 {
+			buf = append(buf, ',')
+		}
+		k, err := json.Marshal(v.Key)
+		if err != nil {
+			return nil, err
+		}
+		val, err := json.Marshal(v.Value)
+		if err != nil {
+			return nil, err
+		}
+		buf = append(append(append(buf, k...), ':'), val...)
+	}
+	return append(buf, '}'), nil
 }
 
 type statusGitHead struct {

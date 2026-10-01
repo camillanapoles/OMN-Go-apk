@@ -29,9 +29,18 @@ func getStatus(t *testing.T, a *testApp, query string) (*statusResponse, *httpte
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
-	var res statusResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+	// The config section is a list in Go and an object in JSON, thus the
+	// decode reads it as a map.
+	var doc struct {
+		statusResponse
+		Config map[string]any `json:"config"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &doc); err != nil {
 		t.Fatalf("decode: %v\n%s", err, rec.Body.String())
+	}
+	res := doc.statusResponse
+	for k, v := range doc.Config {
+		res.Config = append(res.Config, config.StatusValue{Key: k, Value: v})
 	}
 	return &res, rec
 }

@@ -7,18 +7,15 @@ import (
 	"net.basov.omngo/backend/internal/logx"
 )
 
-// PageValue is one placeholder of the Config page and its value. Text marks
-// a value that a person typed. The page must escape it for HTML.
+// PageValue is one placeholder of the Config page and its value.
 type PageValue struct {
 	Name  string
 	Value string
-	Text  bool
+	Text  bool // a value that a person typed, which the page escapes
 }
 
 // PageValues answers the placeholders of the Config page for a normalized
-// copy of c. A Secret row gives none. The name is the key in upper case. A
-// cfBool row gives KEY_CHECKED, and a row with Options gives KEY_OPTION for
-// each option, with Mark for the chosen ones. See section 3 of CLAUDE.md.
+// copy of c. A Secret row gives none. Section 3 of CLAUDE.md gives the names.
 func PageValues(c Config) []PageValue {
 	normalizeConfig(&c)
 	var out []PageValue
@@ -79,4 +76,34 @@ func logTagNames() []string {
 		names[i] = string(t)
 	}
 	return names
+}
+
+// StatusValue is one value of the config section of /api/status.
+type StatusValue struct {
+	Key   string
+	Value any // a bool, an int, a string or a []string
+}
+
+// StatusValues answers the rows with a Status key for a normalized copy of c.
+func StatusValues(c Config) []StatusValue {
+	normalizeConfig(&c)
+	var out []StatusValue
+	for _, f := range configFields {
+		if f.Status == "" {
+			continue
+		}
+		var v any
+		switch f.Kind {
+		case cfBool:
+			v = *f.Bool(&c)
+		case cfInt:
+			v = *f.Int(&c)
+		case cfString:
+			v = *f.String(&c)
+		case cfList:
+			v = append([]string{}, *f.List(&c)...)
+		}
+		out = append(out, StatusValue{Key: f.Status, Value: v})
+	}
+	return out
 }

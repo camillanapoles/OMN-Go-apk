@@ -58,29 +58,8 @@ func (svc Service) statusServerSection(cfg config.Config) *statusServer {
 	return s
 }
 
-func statusConfigSection(cfg config.Config) *statusConfig {
-	kinds := cfg.SearchKinds
-	if kinds == nil {
-		kinds = []string{}
-	}
-	return &statusConfig{
-		InternalEditor:    cfg.UseInternalEd,
-		Theme:             cfg.Theme,
-		MaxUploadMB:       cfg.MaxUploadSizeMB,
-		SearchEnabled:     cfg.SearchEnabled,
-		SearchKinds:       kinds,
-		SearchScope:       cfg.SearchScope,
-		SearchBundled:     cfg.SearchBundled,
-		IntentURI:         cfg.EnableIntentURI,
-		TermuxIntent:      cfg.EnableTermuxIntent,
-		AndroidFullscreen: cfg.AndroidFullscreen,
-		BackupPruneDepth:  cfg.BackupPruneDepth,
-		Hostname:          cfg.Hostname,
-		Author:            cfg.Author,
-		LogDebug:          cfg.LogDebug,
-		LogInfo:           cfg.LogInfo,
-		LogTags:           config.NormalizeLogTags(cfg.LogTags),
-	}
+func statusConfigSection(cfg config.Config) statusConfig {
+	return statusConfig(config.StatusValues(cfg))
 }
 
 // statusGitSection reads HEAD and changes nothing. An install that never

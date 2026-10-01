@@ -17,8 +17,8 @@ import (
 // repairs an old value.
 //
 // The table drives ApplyForm (the POST handler), CheckboxFields (the hidden
-// config_fields input), normalizeConfig (loadConfig) and PageValues (the
-// values of the Config page). The Status page keeps its own typed struct.
+// config_fields input), normalizeConfig (loadConfig), PageValues (the
+// Config page) and StatusValues (the config section of /api/status).
 //
 // The git server slots and active_git_index stay outside the table. They are
 // an array of structs, and 21 rows would read worse than the loop of
@@ -73,6 +73,9 @@ type configField struct {
 	Options []string
 	Mark    string
 
+	// Status is the key in the config section of /api/status, or "" for none.
+	Status string
+
 	// Normalize repairs the value. loadConfig calls it for each row, and the
 	// apply loop calls it after each write. A request thus cannot store a
 	// value that the loader would refuse.
@@ -93,11 +96,11 @@ var configFields = []configField{
 		String: func(c *Config) *string { return &c.AdminPassword },
 	},
 	{
-		Key: "author", Kind: cfString,
+		Key: "author", Kind: cfString, Status: "author",
 		String: func(c *Config) *string { return &c.Author },
 	},
 	{
-		Key: "use_internal_editor", Kind: cfBool,
+		Key: "use_internal_editor", Kind: cfBool, Status: "internal_editor",
 		Bool: func(c *Config) *bool { return &c.UseInternalEd },
 	},
 	{
@@ -107,7 +110,7 @@ var configFields = []configField{
 	{
 		// This is an enumeration. NormalizeTheme changes each value other
 		// than light or dark to auto.
-		Key: "theme", Kind: cfString,
+		Key: "theme", Kind: cfString, Status: "theme",
 		String:    func(c *Config) *string { return &c.Theme },
 		Options:   []string{ThemeAuto, ThemeLight, ThemeDark},
 		Mark:      "selected",
@@ -124,17 +127,17 @@ var configFields = []configField{
 		// This is the device label in the name of a database backup file. A
 		// clear box gives the label of the operating system again. See
 		// NormalizeHostname.
-		Key: "hostname", Kind: cfString,
+		Key: "hostname", Kind: cfString, Status: "hostname",
 		String:    func(c *Config) *string { return &c.Hostname },
 		Normalize: func(c *Config) { c.Hostname = NormalizeHostname(c.Hostname) },
 	},
 	{
-		Key: "backup_prune_depth", Kind: cfInt,
+		Key: "backup_prune_depth", Kind: cfInt, Status: "backup_prune_depth",
 		Int:       func(c *Config) *int { return &c.BackupPruneDepth },
 		Normalize: func(c *Config) { c.BackupPruneDepth = NormalizePruneDepth(c.BackupPruneDepth) },
 	},
 	{
-		Key: "max_upload_size_mb", Kind: cfInt,
+		Key: "max_upload_size_mb", Kind: cfInt, Status: "max_upload_mb",
 		Int: func(c *Config) *int { return &c.MaxUploadSizeMB },
 		Normalize: func(c *Config) {
 			if c.MaxUploadSizeMB <= 0 {
@@ -145,35 +148,35 @@ var configFields = []configField{
 	{
 		// MainActivity reads this value from config.json at each tap. The
 		// desktop ignores it.
-		Key: "enable_intent_uri", Kind: cfBool,
+		Key: "enable_intent_uri", Kind: cfBool, Status: "intent_uri",
 		Bool: func(c *Config) *bool { return &c.EnableIntentURI },
 	},
 	{
-		Key: "enable_termux_intent", Kind: cfBool,
+		Key: "enable_termux_intent", Kind: cfBool, Status: "termux_intent",
 		Bool: func(c *Config) *bool { return &c.EnableTermuxIntent },
 	},
 	{
 		// This is an enumeration, the same as theme. An unknown value becomes
 		// FullscreenOn.
-		Key: "android_fullscreen", Kind: cfString,
+		Key: "android_fullscreen", Kind: cfString, Status: "android_fullscreen",
 		String:    func(c *Config) *string { return &c.AndroidFullscreen },
 		Options:   []string{FullscreenOff, FullscreenOn, FullscreenImmersive},
 		Mark:      "selected",
 		Normalize: func(c *Config) { c.AndroidFullscreen = NormalizeFullscreen(c.AndroidFullscreen) },
 	},
 	{
-		Key: "search_enabled", Kind: cfBool,
+		Key: "search_enabled", Kind: cfBool, Status: "search_enabled",
 		Bool: func(c *Config) *bool { return &c.SearchEnabled },
 	},
 	{
-		Key: "search_bundled", Kind: cfBool,
+		Key: "search_bundled", Kind: cfBool, Status: "search_bundled",
 		Bool: func(c *Config) *bool { return &c.SearchBundled },
 	},
 	{
 		// This is a set of checkboxes. An empty set means "index nothing",
 		// and nil means "no answer recorded". NormalizeSearchKinds keeps the
 		// two apart.
-		Key: "search_kinds", Kind: cfList,
+		Key: "search_kinds", Kind: cfList, Status: "search_kinds",
 		List:      func(c *Config) *[]string { return &c.SearchKinds },
 		Options:   SearchKindsAll,
 		Mark:      "checked",
@@ -182,24 +185,24 @@ var configFields = []configField{
 	{
 		// This is a pair of radio buttons. A browser always sends one of
 		// them, thus this key is not a checkbox key.
-		Key: "search_scope", Kind: cfString,
+		Key: "search_scope", Kind: cfString, Status: "search_scope",
 		String:    func(c *Config) *string { return &c.SearchScope },
 		Options:   []string{SearchScopeAll, SearchScopePage},
 		Mark:      "checked",
 		Normalize: func(c *Config) { c.SearchScope = NormalizeSearchScope(c.SearchScope) },
 	},
 	{
-		Key: "log_debug", Kind: cfBool,
+		Key: "log_debug", Kind: cfBool, Status: "log_debug",
 		Bool: func(c *Config) *bool { return &c.LogDebug },
 	},
 	{
-		Key: "log_info", Kind: cfBool,
+		Key: "log_info", Kind: cfBool, Status: "log_info",
 		Bool: func(c *Config) *bool { return &c.LogInfo },
 	},
 	{
 		// This is a set of checkboxes, the same as search_kinds. An empty set
 		// means "no debug or info line".
-		Key: "log_tags", Kind: cfList,
+		Key: "log_tags", Kind: cfList, Status: "log_tags",
 		List:      func(c *Config) *[]string { return &c.LogTags },
 		Options:   logTagNames(),
 		Mark:      "checked",

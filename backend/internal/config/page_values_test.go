@@ -46,3 +46,22 @@ func TestPageValuesMarkTheChosenOption(t *testing.T) {
 		}
 	}
 }
+
+// The keys of the config section of /api/status are an API. doc/API.md names
+// them in this order. A change here needs a change there.
+func TestStatusValuesKeepTheStatusKeys(t *testing.T) {
+	want := []string{"author", "internal_editor", "theme", "hostname",
+		"backup_prune_depth", "max_upload_mb", "intent_uri", "termux_intent",
+		"android_fullscreen", "search_enabled", "search_bundled", "search_kinds",
+		"search_scope", "log_debug", "log_info", "log_tags"}
+	var got []string
+	for _, v := range StatusValues(Config{AdminPassword: "s3cret"}) {
+		got = append(got, v.Key)
+		if v.Value == "s3cret" {
+			t.Errorf("%s carries the admin password", v.Key)
+		}
+	}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("the status keys are %v, want %v", got, want)
+	}
+}

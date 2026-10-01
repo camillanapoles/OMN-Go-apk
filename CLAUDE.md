@@ -311,8 +311,8 @@ one of these steps.
 3. Put the control in `config_page.html`, with the placeholder that
    `config.PageValues` gives. The name is the key in upper case. A checkbox
    uses `KEY_CHECKED`, and each option uses `KEY_OPTION`.
-4. When the Status page must show the value, add it to `statusConfig` in
-   `backend/internal/status/status.go`.
+4. When the Status page must show the value, give the row a `Status` key.
+   The key is the name of the value in the config section of `/api/status`.
 
 `TestEveryConfigFieldIsInTheTable` and
 `TestEachTableValueHasAPlaceOnTheConfigPage` fail when you skip step 2 or 3.
