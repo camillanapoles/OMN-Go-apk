@@ -3,20 +3,27 @@ package app
 import (
 	"strings"
 	"testing"
+
+	"net.basov.omngo/backend/internal/config"
 )
 
+// configPageOf renders the Config page of c and of the git server cards, the
+// same way as getConfigPageBody.
+func configPageOf(c config.Config, servers ...gitServerView) string {
+	return renderConfigPage(configPageView{Values: config.PageValues(c), GitServers: servers})
+}
+
 func TestRenderConfigPage(t *testing.T) {
-	v := configPageView{
+	c := config.Config{
 		ServerPort:    8080,
 		Author:        "A & B",
 		UseInternalEd: true,
 		DesktopExtCmd: "subl",
-		GitServers: []gitServerView{
-			{Index: 0, Slot: 1, Active: true, Name: `srv "one"`, URL: "git@host:repo.git"},
-			{Index: 1, Slot: 2, Active: false, Name: "srv two"},
-		},
 	}
-	out := renderConfigPage(v)
+	out := configPageOf(c,
+		gitServerView{Index: 0, Slot: 1, Active: true, Name: `srv "one"`, URL: "git@host:repo.git"},
+		gitServerView{Index: 1, Slot: 2, Active: false, Name: "srv two"},
+	)
 
 	if strings.Contains(out, "%%") {
 		t.Fatalf("unfilled placeholder left in output:\n%s", out)
@@ -52,8 +59,8 @@ func TestRenderConfigPage(t *testing.T) {
 func TestRenderConfigPageAndroidToggles(t *testing.T) {
 	// Off (zero value): neither Android checkbox is checked, but both
 	// placeholders are still filled (no leftover %%...%%).
-	off := renderConfigPage(configPageView{})
-	if strings.Contains(off, "%%INTENT_URI_CHECKED%%") || strings.Contains(off, "%%TERMUX_INTENT_CHECKED%%") {
+	off := configPageOf(config.Config{})
+	if strings.Contains(off, "%%") {
 		t.Fatalf("Android toggle placeholder left unfilled:\n%s", off)
 	}
 	if strings.Contains(off, `name="enable_intent_uri" value="true" checked`) {
@@ -64,7 +71,7 @@ func TestRenderConfigPageAndroidToggles(t *testing.T) {
 	}
 
 	// On: both checkboxes render checked.
-	on := renderConfigPage(configPageView{EnableIntentURI: true, EnableTermuxIntent: true})
+	on := configPageOf(config.Config{EnableIntentURI: true, EnableTermuxIntent: true})
 	if !strings.Contains(on, `name="enable_intent_uri" value="true" checked`) {
 		t.Error("enable_intent_uri checkbox not checked when EnableIntentURI is true")
 	}
@@ -103,7 +110,7 @@ func TestRenderConfigPageThemeSelection(t *testing.T) {
 		{"purple", `value="auto" selected`},
 	}
 	for _, tc := range cases {
-		out := renderConfigPage(configPageView{Theme: tc.theme})
+		out := configPageOf(config.Config{Theme: tc.theme})
 		if !strings.Contains(out, tc.wantSelected) {
 			t.Errorf("theme=%q: expected %q in output", tc.theme, tc.wantSelected)
 		}
@@ -133,7 +140,7 @@ func TestRenderConfigPageFullscreenSelection(t *testing.T) {
 		{"sideways", `value="fullscreen" selected`},
 	}
 	for _, tc := range cases {
-		out := renderConfigPage(configPageView{AndroidFullscreen: tc.mode})
+		out := configPageOf(config.Config{AndroidFullscreen: tc.mode})
 		if !strings.Contains(out, tc.wantSelected) {
 			t.Errorf("fullscreen=%q: expected %q in output", tc.mode, tc.wantSelected)
 		}
@@ -142,6 +149,20 @@ func TestRenderConfigPageFullscreenSelection(t *testing.T) {
 		}
 		if strings.Contains(out, "%%") {
 			t.Fatalf("fullscreen=%q: unfilled placeholder left in output", tc.mode)
+		}
+	}
+}
+
+// Each value of the table has its place in config_page.html. A new row of the
+// table thus fails here until the page shows it. The log tag boxes come from
+// renderLogTagBoxes and not from the template.
+func TestEachTableValueHasAPlaceOnTheConfigPage(t *testing.T) {
+	for _, pv := range config.PageValues(config.Config{}) {
+		if strings.HasPrefix(pv.Name, config.PlaceholderName("log_tags_")) {
+			continue
+		}
+		if !strings.Contains(configPageTmpl, "%%"+pv.Name+"%%") {
+			t.Errorf("config_page.html has no %%%%%s%%%%", pv.Name)
 		}
 	}
 }

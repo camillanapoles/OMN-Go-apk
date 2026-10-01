@@ -16,10 +16,9 @@ import (
 // setting. Each row tells how a request writes the field, and how the loader
 // repairs an old value.
 //
-// The table drives ApplyForm (the POST handler), CheckboxFields
-// (the hidden config_fields input) and normalizeConfig (loadConfig). The page
-// view and the Status page keep their own typed structs, because a reader can
-// follow a struct to the markup or to doc/API.md.
+// The table drives ApplyForm (the POST handler), CheckboxFields (the hidden
+// config_fields input), normalizeConfig (loadConfig) and PageValues (the
+// values of the Config page). The Status page keeps its own typed struct.
 //
 // The git server slots and active_git_index stay outside the table. They are
 // an array of structs, and 21 rows would read worse than the loop of
@@ -69,6 +68,11 @@ type configField struct {
 	String func(*Config) *string
 	List   func(*Config) *[]string
 
+	// Options are the values of an enumeration or of a set of checkboxes, one
+	// control each. Mark is "selected" or "checked". See PageValues.
+	Options []string
+	Mark    string
+
 	// Normalize repairs the value. loadConfig calls it for each row, and the
 	// apply loop calls it after each write. A request thus cannot store a
 	// value that the loader would refuse.
@@ -105,6 +109,8 @@ var configFields = []configField{
 		// than light or dark to auto.
 		Key: "theme", Kind: cfString,
 		String:    func(c *Config) *string { return &c.Theme },
+		Options:   []string{ThemeAuto, ThemeLight, ThemeDark},
+		Mark:      "selected",
 		Normalize: func(c *Config) { c.Theme = NormalizeTheme(c.Theme) },
 	},
 	{
@@ -151,6 +157,8 @@ var configFields = []configField{
 		// FullscreenOn.
 		Key: "android_fullscreen", Kind: cfString,
 		String:    func(c *Config) *string { return &c.AndroidFullscreen },
+		Options:   []string{FullscreenOff, FullscreenOn, FullscreenImmersive},
+		Mark:      "selected",
 		Normalize: func(c *Config) { c.AndroidFullscreen = NormalizeFullscreen(c.AndroidFullscreen) },
 	},
 	{
@@ -167,6 +175,8 @@ var configFields = []configField{
 		// two apart.
 		Key: "search_kinds", Kind: cfList,
 		List:      func(c *Config) *[]string { return &c.SearchKinds },
+		Options:   SearchKindsAll,
+		Mark:      "checked",
 		Normalize: func(c *Config) { c.SearchKinds = NormalizeSearchKinds(c.SearchKinds) },
 	},
 	{
@@ -174,6 +184,8 @@ var configFields = []configField{
 		// them, thus this key is not a checkbox key.
 		Key: "search_scope", Kind: cfString,
 		String:    func(c *Config) *string { return &c.SearchScope },
+		Options:   []string{SearchScopeAll, SearchScopePage},
+		Mark:      "checked",
 		Normalize: func(c *Config) { c.SearchScope = NormalizeSearchScope(c.SearchScope) },
 	},
 	{
@@ -189,6 +201,8 @@ var configFields = []configField{
 		// means "no debug or info line".
 		Key: "log_tags", Kind: cfList,
 		List:      func(c *Config) *[]string { return &c.LogTags },
+		Options:   logTagNames(),
+		Mark:      "checked",
 		Normalize: func(c *Config) { c.LogTags = NormalizeLogTags(c.LogTags) },
 	},
 }

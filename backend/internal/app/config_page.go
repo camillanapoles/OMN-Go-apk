@@ -28,28 +28,11 @@ type gitServerView struct {
 	HostKey string // the line of gitsync.Service.HostKeyText, or ""
 }
 
+// configPageView holds the page values. config.PageValues gives no secret.
 type configPageView struct {
-	ServerPort         int
-	Author             string
-	UseInternalEd      bool
-	DesktopExtCmd      string
-	Theme              string // "auto" | "light" | "dark" (normalized)
-	ShareLAN           bool
-	Hostname           string
-	PruneDepth         int
-	MaxUploadSizeMB    int
-	EnableIntentURI    bool
-	EnableTermuxIntent bool
-	AndroidFullscreen  string // "off" | "fullscreen" | "immersive" (normalized)
-	SearchEnabled      bool
-	SearchKinds        []string // normalized
-	SearchBundled      bool
-	SearchScope        string // "all" | "page" (normalized)
-	SearchIndexStatus  string // human-readable line for the Search screen
-	LogDebug           bool
-	LogInfo            bool
-	LogTags            []string // normalized
-	GitServers         []gitServerView
+	Values            []config.PageValue
+	SearchIndexStatus string // human-readable line for the Search screen
+	GitServers        []gitServerView
 }
 
 // logTagLabels gives the text beside each log tag checkbox. A tag with no
@@ -79,18 +62,19 @@ var logTagLabels = map[logx.Tag]string{
 	logx.Upload:      "File uploads",
 }
 
-// renderLogTagBoxes makes one checkbox for each tag in logx.AllTags. A new tag
-// thus needs one line in internal/logx/levels.go and nothing else.
-func renderLogTagBoxes(checked map[string]string) string {
+// renderLogTagBoxes makes one checkbox for each tag in logx.AllTags. values
+// holds the LOG_TAGS_<TAG> marks of config.PageValues.
+func renderLogTagBoxes(values map[string]string) string {
 	var b strings.Builder
 	for _, tag := range logx.AllTags {
 		label, ok := logTagLabels[tag]
 		if !ok {
 			label = string(tag)
 		}
+		checked := values[config.PlaceholderName("log_tags_"+string(tag))]
 		b.WriteString(`                <div class="config-checkbox-row">` + "\n")
 		b.WriteString(`                    <input type="checkbox" name="log_tags" value="` +
-			render.EscapeHTML(string(tag)) + `" ` + checked[string(tag)] + ` />` + "\n")
+			render.EscapeHTML(string(tag)) + `" ` + checked + ` />` + "\n")
 		b.WriteString(`                    <label class="config-label"><code>` +
 			render.EscapeHTML(string(tag)) + `</code> - ` + render.EscapeHTML(label) + `</label>` + "\n")
 		b.WriteString("                </div>\n")
@@ -116,123 +100,19 @@ func renderConfigPage(v configPageView) string {
 		}))
 	}
 
-	internalEdChecked := ""
-	if v.UseInternalEd {
-		internalEdChecked = "checked"
+	values := map[string]string{}
+	for _, pv := range v.Values {
+		if pv.Text {
+			values[pv.Name] = render.EscapeHTML(pv.Value)
+		} else {
+			values[pv.Name] = pv.Value
+		}
 	}
-	shareLanChecked := ""
-	if v.ShareLAN {
-		shareLanChecked = "checked"
-	}
-	intentUriChecked := ""
-	if v.EnableIntentURI {
-		intentUriChecked = "checked"
-	}
-	termuxIntentChecked := ""
-	if v.EnableTermuxIntent {
-		termuxIntentChecked = "checked"
-	}
-	searchEnabledChecked := ""
-	if v.SearchEnabled {
-		searchEnabledChecked = "checked"
-	}
-	searchBundledChecked := ""
-	if v.SearchBundled {
-		searchBundledChecked = "checked"
-	}
-	// Make one checkbox for each kind. Check it when the normalized list
-	// holds the kind.
-	kindChecked := map[string]string{}
-	for _, k := range v.SearchKinds {
-		kindChecked[k] = "checked"
-	}
-	logDebugChecked := ""
-	if v.LogDebug {
-		logDebugChecked = "checked"
-	}
-	logInfoChecked := ""
-	if v.LogInfo {
-		logInfoChecked = "checked"
-	}
-	// Make one checkbox for each tag. Check it when the normalized list holds
-	// the tag.
-	logTagChecked := map[string]string{}
-	for _, t := range v.LogTags {
-		logTagChecked[t] = "checked"
-	}
-
-	searchScopeAllSel, searchScopePageSel := "checked", ""
-	if config.NormalizeSearchScope(v.SearchScope) == config.SearchScopePage {
-		searchScopeAllSel, searchScopePageSel = "", "checked"
-	}
-
-	// Mark exactly one option as selected. config.NormalizeTheme answers one of
-	// the three values, and auto for an unknown one.
-	themeSel := map[string]string{
-		"THEME_AUTO_SEL":  "",
-		"THEME_LIGHT_SEL": "",
-		"THEME_DARK_SEL":  "",
-	}
-	switch config.NormalizeTheme(v.Theme) {
-	case config.ThemeLight:
-		themeSel["THEME_LIGHT_SEL"] = "selected"
-	case config.ThemeDark:
-		themeSel["THEME_DARK_SEL"] = "selected"
-	default:
-		themeSel["THEME_AUTO_SEL"] = "selected"
-	}
-
-	// Mark exactly one option as selected. config.NormalizeFullscreen answers one
-	// of the three values, and FullscreenOn for an unknown one.
-	// internal/config/config.go tells why on is the default.
-	fsSel := map[string]string{
-		"FS_OFF_SEL":       "",
-		"FS_ON_SEL":        "",
-		"FS_IMMERSIVE_SEL": "",
-	}
-	switch config.NormalizeFullscreen(v.AndroidFullscreen) {
-	case config.FullscreenOff:
-		fsSel["FS_OFF_SEL"] = "selected"
-	case config.FullscreenImmersive:
-		fsSel["FS_IMMERSIVE_SEL"] = "selected"
-	default:
-		fsSel["FS_ON_SEL"] = "selected"
-	}
-
-	// Put no ADMIN_PWD here. See gitServerView.
-	return render.Fill(configPageTmpl, map[string]string{
-		// Give the names of the checkboxes of this page, from the table in
-		// internal/config/fields.go. See config.CheckboxFields.
-		"CONFIG_FIELDS":          config.CheckboxFields(),
-		"SERVER_PORT":            fmt.Sprintf("%d", v.ServerPort),
-		"AUTHOR":                 render.EscapeHTML(v.Author),
-		"INTERNAL_ED_CHECKED":    internalEdChecked,
-		"SHARE_LAN_CHECKED":      shareLanChecked,
-		"INTENT_URI_CHECKED":     intentUriChecked,
-		"TERMUX_INTENT_CHECKED":  termuxIntentChecked,
-		"DESKTOP_EXT_CMD":        render.EscapeHTML(v.DesktopExtCmd),
-		"HOSTNAME":               render.EscapeHTML(config.NormalizeHostname(v.Hostname)),
-		"BACKUP_PRUNE_DEPTH":     fmt.Sprintf("%d", config.NormalizePruneDepth(v.PruneDepth)),
-		"THEME_AUTO_SEL":         themeSel["THEME_AUTO_SEL"],
-		"THEME_LIGHT_SEL":        themeSel["THEME_LIGHT_SEL"],
-		"THEME_DARK_SEL":         themeSel["THEME_DARK_SEL"],
-		"MAX_UPLOAD_MB":          fmt.Sprintf("%d", v.MaxUploadSizeMB),
-		"FS_OFF_SEL":             fsSel["FS_OFF_SEL"],
-		"FS_ON_SEL":              fsSel["FS_ON_SEL"],
-		"FS_IMMERSIVE_SEL":       fsSel["FS_IMMERSIVE_SEL"],
-		"SEARCH_ENABLED_CHECKED": searchEnabledChecked,
-		"SEARCH_BUNDLED_CHECKED": searchBundledChecked,
-		"SEARCH_KIND_MD":         kindChecked[config.SearchKindMD],
-		"SEARCH_KIND_BOOKMARKS":  kindChecked[config.SearchKindBookmarks],
-		"SEARCH_KIND_JS":         kindChecked[config.SearchKindJS],
-		"SEARCH_KIND_JSON":       kindChecked[config.SearchKindJSON],
-		"SEARCH_KIND_USER_JSON":  kindChecked[config.SearchKindUserJSON],
-		"SEARCH_SCOPE_ALL_SEL":   searchScopeAllSel,
-		"SEARCH_SCOPE_PAGE_SEL":  searchScopePageSel,
-		"SEARCH_INDEX_STATUS":    render.EscapeHTML(v.SearchIndexStatus),
-		"LOG_DEBUG_CHECKED":      logDebugChecked,
-		"LOG_INFO_CHECKED":       logInfoChecked,
-		"LOG_TAG_BOXES":          renderLogTagBoxes(logTagChecked),
-		"GIT_SERVERS":            cards.String(),
-	})
+	// Give the names of the checkboxes of this page, from the table in
+	// internal/config/fields.go. See config.CheckboxFields.
+	values["CONFIG_FIELDS"] = config.CheckboxFields()
+	values["SEARCH_INDEX_STATUS"] = render.EscapeHTML(v.SearchIndexStatus)
+	values["LOG_TAG_BOXES"] = renderLogTagBoxes(values)
+	values["GIT_SERVERS"] = cards.String()
+	return render.Fill(configPageTmpl, values)
 }

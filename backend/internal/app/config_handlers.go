@@ -24,26 +24,8 @@ func (a *App) getConfigPageBody() string {
 
 	// The view carries no secret. See gitServerView in config_page.go.
 	view := configPageView{
-		ServerPort:         cfg.ServerPort,
-		Author:             cfg.Author,
-		UseInternalEd:      cfg.UseInternalEd,
-		DesktopExtCmd:      cfg.DesktopExtCmd,
-		Theme:              cfg.Theme,
-		ShareLAN:           cfg.ShareLAN,
-		Hostname:           cfg.Hostname,
-		PruneDepth:         cfg.BackupPruneDepth,
-		MaxUploadSizeMB:    cfg.MaxUploadSizeMB,
-		EnableIntentURI:    cfg.EnableIntentURI,
-		EnableTermuxIntent: cfg.EnableTermuxIntent,
-		AndroidFullscreen:  cfg.AndroidFullscreen,
-		SearchEnabled:      cfg.SearchEnabled,
-		SearchKinds:        config.NormalizeSearchKinds(cfg.SearchKinds),
-		SearchBundled:      cfg.SearchBundled,
-		SearchScope:        cfg.SearchScope,
-		SearchIndexStatus:  a.searchIndexStatus(),
-		LogDebug:           cfg.LogDebug,
-		LogInfo:            cfg.LogInfo,
-		LogTags:            config.NormalizeLogTags(cfg.LogTags),
+		Values:            config.PageValues(cfg),
+		SearchIndexStatus: a.searchIndexStatus(),
 	}
 	gitFeature := a.gitSync()
 	for i, gs := range cfg.GitServers {

@@ -303,6 +303,20 @@ harness of step 12.
 `TestBaseline_RouteSet` and `TestEachFeatureHasItsParts` fail when you skip
 one of these steps.
 
+### Add a setting
+
+1. Add the field to `config.Config`, with its JSON key.
+2. Add one row to `configFields` in `backend/internal/config/fields.go`. Give
+   an enumeration or a set of checkboxes its `Options` and its `Mark`.
+3. Put the control in `config_page.html`, with the placeholder that
+   `config.PageValues` gives. The name is the key in upper case. A checkbox
+   uses `KEY_CHECKED`, and each option uses `KEY_OPTION`.
+4. When the Status page must show the value, add it to `statusConfig` in
+   `backend/internal/status/status.go`.
+
+`TestEveryConfigFieldIsInTheTable` and
+`TestEachTableValueHasAPlaceOnTheConfigPage` fail when you skip step 2 or 3.
+
 ---
 
 ## 4. Frontend rules

@@ -936,7 +936,7 @@ func TestConfigPost_EveryCheckboxIsDeclared(t *testing.T) {
 		t.Fatal("config_page.html does not fill config_fields from the table")
 	}
 
-	page := renderConfigPage(configPageView{})
+	page := configPageOf(config.Config{})
 
 	m := regexp.MustCompile(`name="config_fields" value="([^"]*)"`).FindStringSubmatch(page)
 	if m == nil {

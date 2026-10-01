@@ -129,13 +129,13 @@
             <div class="config-field">
                 <label class="config-label">Theme</label>
                 <select id="cfgTheme" name="theme" class="config-input">
-                    <option value="auto" %%THEME_AUTO_SEL%%>Auto (follow system)</option>
-                    <option value="light" %%THEME_LIGHT_SEL%%>Light</option>
-                    <option value="dark" %%THEME_DARK_SEL%%>Dark</option>
+                    <option value="auto" %%THEME_AUTO%%>Auto (follow system)</option>
+                    <option value="light" %%THEME_LIGHT%%>Light</option>
+                    <option value="dark" %%THEME_DARK%%>Dark</option>
                 </select>
             </div>
             <div class="config-field config-checkbox-row">
-                <input type="checkbox" id="cfgInternalEd" name="use_internal_editor" value="true" %%INTERNAL_ED_CHECKED%% />
+                <input type="checkbox" id="cfgInternalEd" name="use_internal_editor" value="true" %%USE_INTERNAL_EDITOR_CHECKED%% />
                 <label class="config-label">Use Internal Editor</label>
             </div>
             <div class="config-field">
@@ -221,7 +221,7 @@
             </div>
             <div class="config-field">
                 <label class="config-label">Max Upload Size (MB)</label>
-                <input type="number" id="cfgMaxUploadMB" name="max_upload_size_mb" value="%%MAX_UPLOAD_MB%%" class="config-input" min="1" step="1" required />
+                <input type="number" id="cfgMaxUploadMB" name="max_upload_size_mb" value="%%MAX_UPLOAD_SIZE_MB%%" class="config-input" min="1" step="1" required />
                 <span class="config-hint">Limits how large an image or JSON file can be when uploaded from the editor (drag-and-drop) or shared into Quick Notes from Android. Default 3 MB.</span>
             </div>
             <div class="config-field config-save-row">
@@ -238,22 +238,22 @@
             <div class="config-field">
                 <label class="config-label">Fullscreen mode</label>
                 <select id="cfgAndroidFullscreen" name="android_fullscreen" class="config-input">
-                    <option value="off" %%FS_OFF_SEL%%>Off (show status bar)</option>
-                    <option value="fullscreen" %%FS_ON_SEL%%>Fullscreen (hide status bar)</option>
-                    <option value="immersive" %%FS_IMMERSIVE_SEL%%>Immersive (hide status and navigation bars)</option>
+                    <option value="off" %%ANDROID_FULLSCREEN_OFF%%>Off (show status bar)</option>
+                    <option value="fullscreen" %%ANDROID_FULLSCREEN_FULLSCREEN%%>Fullscreen (hide status bar)</option>
+                    <option value="immersive" %%ANDROID_FULLSCREEN_IMMERSIVE%%>Immersive (hide status and navigation bars)</option>
                 </select>
                 <span class="config-hint">Which system bars the Android app hides. Immersive also hides the navigation bar; swipe from the edge to bring the bars back temporarily. Applies as soon as you save - no restart needed. Android only; ignored on desktop and in LAN browsers.</span>
             </div>
             <div class="config-field">
                 <div class="config-checkbox-row">
-                    <input type="checkbox" id="cfgEnableIntentUri" name="enable_intent_uri" value="true" %%INTENT_URI_CHECKED%% />
+                    <input type="checkbox" id="cfgEnableIntentUri" name="enable_intent_uri" value="true" %%ENABLE_INTENT_URI_CHECKED%% />
                     <label class="config-label">Enable intent: links</label>
                 </div>
                 <span class="config-hint">Lets a note launch Android "intent:" URIs when tapped in the app - e.g. opening a Settings screen with [Wi-Fi](intent:#Intent;action=android.settings.WIRELESS_SETTINGS;end;). Off by default. Android only; ignored on desktop and in LAN browsers.</span>
             </div>
             <div class="config-field">
                 <div class="config-checkbox-row">
-                    <input type="checkbox" id="cfgEnableTermuxIntent" name="enable_termux_intent" value="true" %%TERMUX_INTENT_CHECKED%% />
+                    <input type="checkbox" id="cfgEnableTermuxIntent" name="enable_termux_intent" value="true" %%ENABLE_TERMUX_INTENT_CHECKED%% />
                     <label class="config-label">Enable Termux commands</label>
                 </div>
                 <span class="config-hint">Additionally allows notes to run shell commands via Termux (RUN_COMMAND). Requires "Enable intent: links" above to also be on, Termux installed with allow-external-apps=true, and its RUN_COMMAND permission granted; each command asks for confirmation before it runs. <strong>Security:</strong> notes arriving via git sync or LAN editing could contain commands - leave this off unless you author your own notes.</span>
@@ -285,23 +285,23 @@
             <div class="config-field">
                 <label class="config-label">Include in the index</label>
                 <div class="config-checkbox-row">
-                    <input type="checkbox" id="cfgSearchKindMd" name="search_kinds" value="md" %%SEARCH_KIND_MD%% />
+                    <input type="checkbox" id="cfgSearchKindMd" name="search_kinds" value="md" %%SEARCH_KINDS_MD%% />
                     <label class="config-label">Notes</label>
                 </div>
                 <div class="config-checkbox-row">
-                    <input type="checkbox" id="cfgSearchKindBookmarks" name="search_kinds" value="bookmarks" %%SEARCH_KIND_BOOKMARKS%% />
+                    <input type="checkbox" id="cfgSearchKindBookmarks" name="search_kinds" value="bookmarks" %%SEARCH_KINDS_BOOKMARKS%% />
                     <label class="config-label">Bookmarks</label>
                 </div>
                 <div class="config-checkbox-row">
-                    <input type="checkbox" id="cfgSearchKindJs" name="search_kinds" value="js" %%SEARCH_KIND_JS%% />
+                    <input type="checkbox" id="cfgSearchKindJs" name="search_kinds" value="js" %%SEARCH_KINDS_JS%% />
                     <label class="config-label">Scripts (html/js)</label>
                 </div>
                 <div class="config-checkbox-row">
-                    <input type="checkbox" id="cfgSearchKindJson" name="search_kinds" value="json" %%SEARCH_KIND_JSON%% />
+                    <input type="checkbox" id="cfgSearchKindJson" name="search_kinds" value="json" %%SEARCH_KINDS_JSON%% />
                     <label class="config-label">JSON (html/json)</label>
                 </div>
                 <div class="config-checkbox-row">
-                    <input type="checkbox" id="cfgSearchKindUserJson" name="search_kinds" value="user_json" %%SEARCH_KIND_USER_JSON%% />
+                    <input type="checkbox" id="cfgSearchKindUserJson" name="search_kinds" value="user_json" %%SEARCH_KINDS_USER_JSON%% />
                     <label class="config-label">Uploaded JSON (html/user_json)</label>
                 </div>
                 <span class="config-hint">Every kind you add is more memory held for as long as the app runs. Unticking all of them means the index covers nothing.</span>
@@ -318,11 +318,11 @@
             <div class="config-field">
                 <label class="config-label">Search in</label>
                 <div class="config-checkbox-row">
-                    <input type="radio" id="cfgSearchScopeAll" name="search_scope" value="all" %%SEARCH_SCOPE_ALL_SEL%% />
+                    <input type="radio" id="cfgSearchScopeAll" name="search_scope" value="all" %%SEARCH_SCOPE_ALL%% />
                     <label class="config-label">All notes</label>
                 </div>
                 <div class="config-checkbox-row">
-                    <input type="radio" id="cfgSearchScopePage" name="search_scope" value="page" %%SEARCH_SCOPE_PAGE_SEL%% />
+                    <input type="radio" id="cfgSearchScopePage" name="search_scope" value="page" %%SEARCH_SCOPE_PAGE%% />
                     <label class="config-label">The open page only</label>
                 </div>
                 <span class="config-hint">Where a search starts. The search box can switch for a single query without changing this.</span>
