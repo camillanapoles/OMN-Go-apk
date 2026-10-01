@@ -362,7 +362,7 @@ func TestBaseline_RouteSet(t *testing.T) {
 		"/OMNGoStatus.html",
 		"/OMNGoTags.html",
 		// These patterns give the method of each route. Each bare path
-		// above answers 405 for another method. See route in server.go.
+		// above answers 405 for another method. See route in routes.go.
 		"GET /Config.html",
 		"GET /OMNGoFiles.html",
 		"GET /OMNGoLogs.html",

@@ -34,7 +34,7 @@ var fileGroups = map[string]string{
 	"log_handlers.go":  "app",
 	"note_handlers.go": "app", "config_handlers.go": "app",
 	"config_page.go": "app", "upload_handlers.go": "app",
-	"serving.go": "app", "storage.go": "app",
+	"serving.go": "app", "routes.go": "app", "storage.go": "app",
 }
 
 // groupLayers gives the layer of each group. A group can use a group of a

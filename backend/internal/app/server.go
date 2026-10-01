@@ -273,8 +273,8 @@ type routeTable interface {
 func (a *App) registerRoutes(mux routeTable) {
 	// /api/logs and /api/logs/history are admin only. A remote caller
 	// reads no log line, live or held. See handleLogHistory.
-	route(mux, "GET", "/api/logs", a.authMiddleware(a.handleLogsSSE))
-	route(mux, "GET", "/api/logs/history", a.authMiddleware(a.handleLogHistory))
+	a.route(mux, "/api/logs", admin, "SSE", get(a.handleLogsSSE))
+	a.route(mux, "/api/logs/history", admin, "JSON", get(a.handleLogHistory))
 
 	// The catch-all and the asset trees take each method.
 	mux.HandleFunc("/", a.serveFrontend)
@@ -294,63 +294,41 @@ func (a *App) registerRoutes(mux routeTable) {
 	mux.Handle("/images/", a.serveStorageSubdir("images", ""))
 	mux.Handle("/user_json/", a.serveStorageSubdir("user_json", ""))
 
-	route(mux, "POST", "/login", a.handleLogin)
-	route(mux, "POST", "/api/quick", a.authMiddleware(a.handleQuickNote))
-	route(mux, "POST", "/api/bookmark", a.authMiddleware(a.handleBookmark))
-	route(mux, "POST", "/api/upload", a.authMiddleware(a.handleUpload))
-	route(mux, "POST", "/api/upload_json", a.authMiddleware(a.handleUploadJSON))
-	route(mux, "GET", "/api/note", a.handleGetNote)
-	// This route has no authMiddleware, the same as /api/note and each page.
+	a.route(mux, "/login", open, "text", post(a.handleLogin))
+	a.route(mux, "/api/quick", admin, "text", post(a.handleQuickNote))
+	a.route(mux, "/api/bookmark", admin, "text", post(a.handleBookmark))
+	a.route(mux, "/api/upload", admin, "text (HTML fragment)", post(a.handleUpload))
+	a.route(mux, "/api/upload_json", admin, "text (Markdown fragment)", post(a.handleUploadJSON))
+	a.route(mux, "/api/note", open, "raw file", get(a.handleGetNote))
+	// This route is open, the same as /api/note and each page.
 	// Search collects nothing that a remote caller cannot read file by file.
-	route(mux, "GET", "/api/search", a.handleSearch)
-	route(mux, "POST", "/api/save", a.authMiddleware(a.handleSaveNote))
-	route(mux, "POST", "/api/newpage", a.authMiddleware(a.handleNewPage))
-	mux.HandleFunc("GET /api/config", a.authMiddleware(a.handleConfigGet))
-	mux.HandleFunc("POST /api/config", a.authMiddleware(a.handleConfigPost))
-	mux.HandleFunc("/api/config", refuseMethod("GET", "POST"))
-	route(mux, "POST", "/api/restart", a.authMiddleware(a.handleRestart))
-	route(mux, "POST", "/api/sql", a.authMiddleware(a.handleSQL))
-	route(mux, "POST", "/api/db/backup", a.authMiddleware(a.handleDBBackupCreate))
-	route(mux, "GET", "/api/db/backups", a.authMiddleware(a.handleDBBackupList))
-	route(mux, "POST", "/api/db/restore", a.authMiddleware(a.handleDBRestore))
-	route(mux, "POST", "/api/sync", a.authMiddleware(a.handleSync))
-	route(mux, "GET", "/api/sync/preview", a.authMiddleware(a.handleSyncPreview))
-	route(mux, "POST", "/api/sync/trust-host-key", a.authMiddleware(a.handleTrustHostKey))
-	route(mux, "GET", "/api/edit-external", a.authMiddleware(a.handleEditExternal))
+	a.route(mux, "/api/search", open, "JSON", get(a.handleSearch))
+	a.route(mux, "/api/save", admin, "text", post(a.handleSaveNote))
+	a.route(mux, "/api/newpage", admin, "text", post(a.handleNewPage))
+	a.route(mux, "/api/config", admin, "JSON / text", get(a.handleConfigGet), post(a.handleConfigPost))
+	a.route(mux, "/api/restart", admin, "text", post(a.handleRestart))
+	a.route(mux, "/api/sql", admin, "JSON", post(a.handleSQL))
+	a.route(mux, "/api/db/backup", admin, "JSON", post(a.handleDBBackupCreate))
+	a.route(mux, "/api/db/backups", admin, "JSON", get(a.handleDBBackupList))
+	a.route(mux, "/api/db/restore", admin, "JSON", post(a.handleDBRestore))
+	a.route(mux, "/api/sync", admin, "JSON", post(a.handleSync))
+	a.route(mux, "/api/sync/preview", admin, "JSON", get(a.handleSyncPreview))
+	a.route(mux, "/api/sync/trust-host-key", admin, "JSON", post(a.handleTrustHostKey))
+	a.route(mux, "/api/edit-external", admin, "HTML or 303", get(a.handleEditExternal))
 	// Note exchange. Both routes are admin only: import writes files, and
 	// export is a way out of the note tree. The device itself is always
 	// admin, and on Android the device is the caller.
-	route(mux, "GET", "/api/export/note", a.authMiddleware(a.handleExportNote))
-	route(mux, "POST", "/api/import/note", a.authMiddleware(a.handleImportNote))
+	a.route(mux, "/api/export/note", admin, "Markdown download", get(a.handleExportNote))
+	a.route(mux, "/api/import/note", admin, "JSON", post(a.handleImportNote))
 	// This route is admin only, because the answer holds LAN addresses,
 	// absolute paths and a commit subject.
-	route(mux, "GET", "/api/status", a.authMiddleware(a.handleStatus))
+	a.route(mux, "/api/status", admin, "JSON / Markdown", get(a.handleStatus))
 	// The loop registers each system page. See page_access.go.
 	for _, p := range a.systemPages() {
-		route(mux, "GET", p.path, a.pageHandler(p))
-	}
-}
-
-// route registers h for one method on one path. The pattern "GET /x" also
-// takes HEAD. The bare path answers 405 for another method. See
-// doc/decisions/0016-give-each-route-one-method.md.
-func route(mux routeTable, method, path string, h http.HandlerFunc) {
-	mux.HandleFunc(method+" "+path, h)
-	mux.HandleFunc(path, refuseMethod(method))
-}
-
-// refuseMethod answers 405, and the Allow header names the methods.
-func refuseMethod(methods ...string) http.HandlerFunc {
-	var allow []string
-	for _, m := range methods {
-		allow = append(allow, m)
-		if m == http.MethodGet {
-			allow = append(allow, http.MethodHead)
+		who := open
+		if p.admin {
+			who = adminPage
 		}
-	}
-	header := strings.Join(allow, ", ")
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Allow", header)
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		a.route(mux, p.path, who, "HTML", get(a.pageHandler(p)))
 	}
 }

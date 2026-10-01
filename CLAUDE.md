@@ -225,12 +225,15 @@ update these files.
   `backend/internal/app/server.go`. `StartServer` calls it with `a.Router`, a
   plain `http.ServeMux`. The parameter is the small `routeTable` interface, thus
   `TestBaseline_RouteSet` can pass a recorder and read the real table. Do not
-  register a route anywhere else. Use the form `route(mux, "POST", "/api/x",
-  a.authMiddleware(a.handleX))`. Give a route that reads the method GET. Give a
-  route that writes the method POST. `route` also registers the bare path, and
-  that path answers 405 for another method. Do not check `r.Method` in a
-  handler. A protected route needs the admin role. Add a comment to any
-  registration that differs from this form. Add a system page as a row of
+  register a route anywhere else. Use the form `a.route(mux, "/api/x", admin,
+  "JSON", post(a.handleX))`. The third argument is the role: `open`, `admin` or
+  `adminPage`. The fourth argument says what the route answers. Give a route
+  that reads the method GET. Give a route that writes the method POST. `route`
+  also registers the bare path, and that path answers 405 for another method.
+  Do not check `r.Method` in a handler. A protected route needs the admin role.
+  The route table of `doc/API.md` section 3 comes from these calls. After a
+  change, run `OMN_WRITE_API_TABLE=1 go test -run TestAPIRouteTable
+  ./backend/internal/app/`. Add a system page as a row of
   `systemPages` in `backend/internal/app/page_access.go`. Do not check the role
   in a page handler. A row with a `pageMenu` also gives a link in the Config
   page menu. Do not write that link in `config_page.html`.
@@ -289,10 +292,11 @@ harness of step 12.
    `backend/internal/app/group_links_test.go`.
 10. Register the routes. The page is one row of `systemPages` in
     `page_access.go`. Give the row a `pageMenu` when the Config page menu must
-    link to the page. Each API route is one `route` call in `registerRoutes`
-    in `server.go`. Give a route that writes, or that shows private data,
-    `authMiddleware`.
-11. Add each new route to `TestBaseline_RouteSet` in `baseline_test.go`.
+    link to the page. Each API route is one `a.route` call in
+    `registerRoutes` in `server.go`. Give a route that writes, or that shows
+    private data, the role `admin`.
+11. Add each new route to `TestBaseline_RouteSet` in `baseline_test.go`. Write
+    the route table of `doc/API.md` again with `TestAPIRouteTable`.
 12. Write the tests of the package. The `testApp` in `harness_test.go` embeds
     `testkit.App` and makes the Service. Test the routes and the role check
     in `backend/internal/app`.
@@ -302,8 +306,8 @@ harness of step 12.
 `TestImportLayers`, `TestEachFileHasAGroup`, `TestGroupsUseOnlyLowerLayers`,
 `TestEachAppScriptAndStyleIsVersionDependent`,
 `TestVersionDependentAssetsAreGitignored`, `TestEnsureGitignoreFreshInstall`,
-`TestBaseline_RouteSet` and `TestEachFeatureHasItsParts` fail when you skip
-one of these steps.
+`TestBaseline_RouteSet`, `TestAPIRouteTable` and `TestEachFeatureHasItsParts`
+fail when you skip one of these steps.
 
 ### Add a setting
 
@@ -535,10 +539,12 @@ subject line, also when it has no list.
 * Each Go package holds its own tests. The tests of the application live in
   `backend/internal/app/`. The tests in `backend/internal/repocheck/` read the
   whole repository, for example `ports_test.go` and `pipelines_test.go`. Put a
-  new test that reads files outside its own package there. Most production files
-  have a test file of the same name beside them. Some test files hold one topic
-  across many files, for example `baseline_test.go`. Each test uses the package
-  of its directory, so the tests are white-box tests.
+  new test that reads files outside its own package there. The one exception is
+  `TestAPIRouteTable` in `backend/internal/app`, because only package `app` can
+  run `registerRoutes`. Most production files have a test file of the same name
+  beside them. Some test files hold one topic across many files, for example
+  `baseline_test.go`. Each test uses the package of its directory, so the tests
+  are white-box tests.
 * **Go is the one gate, and it is not the only language.**
   `backend/internal/repocheck/js_test.go` runs the JavaScript tests of
   `backend/frontend/test/` with `node --test`.

@@ -2,8 +2,8 @@
 
 * Status: accepted
 * Version: 26.09.102
-* Code: `registerRoutes`, `route` and `refuseMethod` in
-  `backend/internal/app/server.go`
+* Code: `registerRoutes` in `backend/internal/app/server.go`, `route` and
+  `refuseMethod` in `backend/internal/app/routes.go`
 
 ## Context
 

@@ -50,7 +50,7 @@ Routing uses the Go standard library `http.ServeMux`. This has four effects:
   `Method Not Allowed`, and the `Allow` header names the methods of the route.
   The router sends this answer before `authMiddleware` runs. `ServeMux` cannot
   send it alone, because the catch-all `/` takes each path. `route` in
-  `backend/internal/app/server.go` also registers the bare path with a handler
+  `backend/internal/app/routes.go` also registers the bare path with a handler
   that answers `405`.
 * **A `GET` writes nothing.** `r.FormValue` reads the URL query string
   *and* the form body. A write route takes `POST` only, thus a link or an
@@ -237,25 +237,28 @@ and a command-line client such as `curl` send none. See
 ## 3. Endpoint index
 
 The router refuses each method that the first column does not list, with
-`405`. A `GET` route also takes `HEAD`. The last three rows go through the
-catch-all and the asset trees, and these take each method. See §1.2.
+`405`. A `GET` route also takes `HEAD`. See §1.2.
 
-The page-access table, `systemPages` in `backend/internal/app/page_access.go`,
-registers the seven pages above the last three rows. Each row gives the address,
-the handler and the role. A caller without the role gets a refusal page with the
-code `200`.
+The rows of the first table come from `registerRoutes` in
+`backend/internal/app/server.go`. `TestAPIRouteTable` fails when the two
+differ. The last seven rows come from the page-access table, `systemPages` in
+`backend/internal/app/page_access.go`. A caller without the role of such a page
+gets a refusal page with the code `200`.
 
+<!-- The rows below come from registerRoutes. See TestAPIRouteTable. -->
 | Method(s) | URL | Auth | Response |
 | --- | --- | --- | --- |
+| GET | `/api/logs` | admin | SSE |
+| GET | `/api/logs/history` | admin | JSON |
 | POST | `/login` | none | text |
-| GET | `/api/note` | none | raw file |
-| GET | `/api/search` | **none — deliberately open** | JSON |
-| POST | `/api/save` | admin | text |
-| POST | `/api/newpage` | admin | text |
 | POST | `/api/quick` | admin | text |
 | POST | `/api/bookmark` | admin | text |
 | POST | `/api/upload` | admin | text (HTML fragment) |
 | POST | `/api/upload_json` | admin | text (Markdown fragment) |
+| GET | `/api/note` | none | raw file |
+| GET | `/api/search` | none | JSON |
+| POST | `/api/save` | admin | text |
+| POST | `/api/newpage` | admin | text |
 | GET, POST | `/api/config` | admin | JSON / text |
 | POST | `/api/restart` | admin | text |
 | POST | `/api/sql` | admin | JSON |
@@ -265,19 +268,24 @@ code `200`.
 | POST | `/api/sync` | admin | JSON |
 | GET | `/api/sync/preview` | admin | JSON |
 | POST | `/api/sync/trust-host-key` | admin | JSON |
+| GET | `/api/edit-external` | admin | HTML or 303 |
 | GET | `/api/export/note` | admin | Markdown download |
 | POST | `/api/import/note` | admin | JSON |
-| GET | `/api/edit-external` | admin | HTML or 303 |
-| GET | `/api/logs` | admin | SSE |
-| GET | `/api/logs/history` | admin | JSON |
 | GET | `/api/status` | admin | JSON / Markdown |
-| GET | `/db_backups` | admin | HTML (a page for a remote caller, not a 401) |
-| GET | `/OMNGoFiles.html` | admin | HTML (a page for a remote caller, not a 401) |
-| GET | `/OMNGoStatus.html` | admin | HTML (a page for a remote caller, not a 401) |
-| GET | `/OMNGoLogs.html` | admin | HTML (a page for a remote caller, not a 401) |
-| GET | `/Config.html` | admin | HTML (a page for a remote caller, not a 401) |
+| GET | `/Config.html` | admin (a page for a remote caller, not a 401) | HTML |
 | GET | `/OMNGoTags.html` | none | HTML |
-| GET | `/OMNGoSearch.html` | none | HTML (names the setting that enables global search, when it is off) |
+| GET | `/OMNGoSearch.html` | none | HTML |
+| GET | `/OMNGoFiles.html` | admin (a page for a remote caller, not a 401) | HTML |
+| GET | `/OMNGoStatus.html` | admin (a page for a remote caller, not a 401) | HTML |
+| GET | `/OMNGoLogs.html` | admin (a page for a remote caller, not a 401) | HTML |
+| GET | `/db_backups` | admin (a page for a remote caller, not a 401) | HTML |
+<!-- The end of the rows from registerRoutes. -->
+
+The catch-all and the asset trees are not in the table above. They take each
+method, and they need no role.
+
+| Method(s) | URL | Auth | Response |
+| --- | --- | --- | --- |
 | any | `/`, `/<name>.html`, `/<asset>` | none | HTML / asset |
 | any | `/js/…`, `/css/…`, `/json/…` | none | asset |
 | any | `/images/…`, `/user_json/…` | none | asset |
