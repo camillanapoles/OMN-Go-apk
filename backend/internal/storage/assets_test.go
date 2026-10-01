@@ -175,3 +175,29 @@ func TestUserFilesStayOutOfOMNGo(t *testing.T) {
 		}
 	}
 }
+
+// Each script and each style of an OMN-Go directory is app-owned, thus it
+// must be on the version list. A file that is not there reaches a device at
+// its first request. After that, an upgrade never replaces it, and the device
+// runs the old script with the new server. See the recipe of a new feature in
+// section 3 of CLAUDE.md.
+func TestEachAppScriptAndStyleIsVersionDependent(t *testing.T) {
+	listed := map[string]bool{}
+	for _, rel := range VersionDependentAssets {
+		listed[rel] = true
+	}
+	for _, dir := range []string{"html/js/OMN-Go", "html/css/OMN-Go"} {
+		entries, err := frontend.Static.ReadDir(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, e := range entries {
+			rel := dir + "/" + e.Name()
+			if e.IsDir() || listed[rel] {
+				continue
+			}
+			t.Errorf("%s is not in VersionDependentAssets. Add it there and to "+
+				"gitsync.GitignorePatterns.", rel)
+		}
+	}
+}

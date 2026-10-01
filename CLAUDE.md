@@ -250,6 +250,59 @@ update these files.
   the comment. `doc/decisions/README.md` gives the format.
   `TestNoVersionNumberInComments` counts the version numbers.
 
+### Add a feature
+
+A feature is a package with a page, its API routes, a script and a style. The
+Status page is the model: `backend/internal/status`, `status_app.go`,
+`status_page.html`, `omn-go-status.js` and `omn-go-status.css`. Do the steps
+in this order. The tests after the list hold steps 1, 8, 9 and 11, and the
+harness of step 12.
+
+1. Make the package `backend/internal/<name>/`. Give it a row in
+   `importLayers` in `backend/internal/repocheck/import_layers_test.go`. A
+   feature is in layer 4. A feature that reads another feature is in layer 5.
+2. Write a `Service` struct. It holds the values of the App that one request
+   needs. These are the `storage.Layout`, a copy of the settings or of one
+   setting, and the `Log` and `RenderPage` functions. The App makes one
+   Service for each request.
+3. Put the state that lives longer than one request, for example a lock or an
+   index, in a type of the package. The App holds a field of that type, and
+   the Service holds a pointer to it.
+4. Write the page in `backend/frontend/templates/<name>_page.html`. Load it one
+   time with `render.LoadTemplate`. Escape each value with `render.EscapeHTML`,
+   and put it in with `render.Fill`.
+5. Write `ServePage` on the Service. It calls `RenderPage` with
+   `render.PageHeader(title, "System")` and the filled page.
+6. Write each API handler on the Service. Answer a JSON value with
+   `render.WriteJSON`.
+7. Write `backend/frontend/html/js/OMN-Go/omn-go-<name>.js` and
+   `backend/frontend/html/css/OMN-Go/omn-go-<name>.css`. Load both with a
+   `<script src>` and a `<link>` at the end of the page. Put no style and no
+   script in the template.
+8. Add the two files to `storage.VersionDependentAssets` and to
+   `gitsync.GitignorePatterns`. Add the two lines to the text of
+   `TestEnsureGitignoreFreshInstall`.
+9. Write `backend/internal/app/<name>_app.go`. It holds one method that makes
+   the Service, and one method for each route. Give the file a group in
+   `fileGroups`, and give the group a layer in `groupLayers`. Both are in
+   `backend/internal/app/group_links_test.go`.
+10. Register the routes. The page is one row of `systemPages` in
+    `page_access.go`. Each API route is one `route` call in `registerRoutes`
+    in `server.go`. Give a route that writes, or that shows private data,
+    `authMiddleware`.
+11. Add each new route to `TestBaseline_RouteSet` in `baseline_test.go`.
+12. Write the tests of the package. The `testApp` in `harness_test.go` embeds
+    `testkit.App` and makes the Service. Test the routes and the role check
+    in `backend/internal/app`.
+13. Document each new endpoint in `doc/API.md`. Name the package in the
+    repository map of section 2.
+
+`TestImportLayers`, `TestEachFileHasAGroup`, `TestGroupsUseOnlyLowerLayers`,
+`TestEachAppScriptAndStyleIsVersionDependent`,
+`TestVersionDependentAssetsAreGitignored`, `TestEnsureGitignoreFreshInstall`,
+`TestBaseline_RouteSet` and `TestEachFeatureHasItsParts` fail when you skip
+one of these steps.
+
 ---
 
 ## 4. Frontend rules
