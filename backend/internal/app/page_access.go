@@ -8,23 +8,34 @@ import (
 
 // systemPage is one row of the page-access table: the address, the handler
 // and the role that a caller on another machine needs. A refused caller gets
-// a page, because a person can open the address from a link.
+// a page, because a person can open the address from a link. The table is
+// the registry of the system pages. registerRoutes and the Config page menu
+// read it.
 type systemPage struct {
 	path  string
-	title string // the title of the refusal page
+	title string // the title of the refusal page and of the menu line
 	admin bool   // a caller on another machine needs the admin role
 	serve http.HandlerFunc
+	menu  *pageMenu // the line of the Config page menu, or nil
+}
+
+// pageMenu is the icon and the description of a menu line.
+type pageMenu struct {
+	icon string // a name of the Material Icons font
+	desc string
 }
 
 func (a *App) systemPages() []systemPage {
 	return []systemPage{
-		{"/Config.html", "Config", true, a.serveConfigPage},
-		{"/OMNGoTags.html", "Tags", false, a.serveTagsPage},
-		{"/OMNGoSearch.html", "Search", false, a.serveSearchPage},
-		{"/OMNGoFiles.html", "Files", true, a.serveFilesPage},
-		{"/OMNGoStatus.html", "Status", true, a.serveStatusPage},
-		{"/OMNGoLogs.html", "Log", true, a.serveLogsPage},
-		{"/db_backups", "Database Backups", true, a.serveDBBackupsPage},
+		{"/Config.html", "Config", true, a.serveConfigPage, nil},
+		{"/OMNGoTags.html", "Tags", false, a.serveTagsPage, nil},
+		{"/OMNGoSearch.html", "Search", false, a.serveSearchPage, nil},
+		{"/OMNGoFiles.html", "Files", true, a.serveFilesPage, nil},
+		{"/OMNGoStatus.html", "Status", true, a.serveStatusPage,
+			&pageMenu{"monitor_heart", "Address, git commit, index, storage"}},
+		{"/OMNGoLogs.html", "Log", true, a.serveLogsPage,
+			&pageMenu{"subject", "What this device wrote, live and held"}},
+		{"/db_backups", "Database Backups", true, a.serveDBBackupsPage, nil},
 	}
 }
 

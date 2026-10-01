@@ -12,8 +12,9 @@ import (
 // --- The Config page ---
 
 var (
-	configPageTmpl    = render.LoadTemplate("config_page.html")
-	gitServerCardTmpl = render.LoadTemplate("git_server_card.html")
+	configPageTmpl     = render.LoadTemplate("config_page.html")
+	gitServerCardTmpl  = render.LoadTemplate("git_server_card.html")
+	configMenuLinkTmpl = render.LoadTemplate("config_menu_link.html")
 )
 
 // gitServerView is one git server slot on the Config page. It holds NO SSH
@@ -33,6 +34,7 @@ type configPageView struct {
 	Values            []config.PageValue
 	SearchIndexStatus string // human-readable line for the Search screen
 	GitServers        []gitServerView
+	SystemPages       []systemPage // the rows with a menu line give a link
 }
 
 // logTagLabels gives the text beside each log tag checkbox. A tag with no
@@ -114,5 +116,15 @@ func renderConfigPage(v configPageView) string {
 	values["SEARCH_INDEX_STATUS"] = render.EscapeHTML(v.SearchIndexStatus)
 	values["LOG_TAG_BOXES"] = renderLogTagBoxes(values)
 	values["GIT_SERVERS"] = cards.String()
+	var links strings.Builder
+	for _, p := range v.SystemPages {
+		if p.menu != nil {
+			links.WriteString(render.Fill(configMenuLinkTmpl, map[string]string{
+				"PATH": render.EscapeHTML(p.path), "ICON": render.EscapeHTML(p.menu.icon),
+				"NAME": render.EscapeHTML(p.title), "DESC": render.EscapeHTML(p.menu.desc),
+			}))
+		}
+	}
+	values["SYSTEM_PAGE_LINKS"] = links.String()
 	return render.Fill(configPageTmpl, values)
 }

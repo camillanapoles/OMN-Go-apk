@@ -232,7 +232,8 @@ update these files.
   handler. A protected route needs the admin role. Add a comment to any
   registration that differs from this form. Add a system page as a row of
   `systemPages` in `backend/internal/app/page_access.go`. Do not check the role
-  in a page handler.
+  in a page handler. A row with a `pageMenu` also gives a link in the Config
+  page menu. Do not write that link in `config_page.html`.
 * **Comments say what the code does now, and why, one time.** Many files start
   with a `// ---` banner. The banner gives the design decision and the rejected
   alternative. Write the same kind of justification for new code that is not
@@ -287,7 +288,8 @@ harness of step 12.
    `fileGroups`, and give the group a layer in `groupLayers`. Both are in
    `backend/internal/app/group_links_test.go`.
 10. Register the routes. The page is one row of `systemPages` in
-    `page_access.go`. Each API route is one `route` call in `registerRoutes`
+    `page_access.go`. Give the row a `pageMenu` when the Config page menu must
+    link to the page. Each API route is one `route` call in `registerRoutes`
     in `server.go`. Give a route that writes, or that shows private data,
     `authMiddleware`.
 11. Add each new route to `TestBaseline_RouteSet` in `baseline_test.go`.

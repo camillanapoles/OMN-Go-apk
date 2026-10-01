@@ -26,6 +26,7 @@ func (a *App) getConfigPageBody() string {
 	view := configPageView{
 		Values:            config.PageValues(cfg),
 		SearchIndexStatus: a.searchIndexStatus(),
+		SystemPages:       a.systemPages(),
 	}
 	gitFeature := a.gitSync()
 	for i, gs := range cfg.GitServers {

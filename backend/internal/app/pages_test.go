@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"net.basov.omngo/backend/frontend"
 	"net.basov.omngo/backend/internal/exchange"
 	"net.basov.omngo/backend/internal/render"
 )
@@ -89,4 +90,35 @@ func TestEachPageShowsTheValuesOfOtherGroups(t *testing.T) {
 func (a *App) testRenderer() *render.Renderer {
 	rd := a.renderer()
 	return &rd
+}
+
+// The Config page menu shows one link for each row of the page-access table
+// that has a menu line. It shows no other link of that kind.
+func TestEachMenuRowHasALinkOnTheConfigPage(t *testing.T) {
+	a := newTestApp(t)
+	body := a.getConfigPageBody()
+	rows := 0
+	for _, p := range a.systemPages() {
+		if p.menu == nil {
+			continue
+		}
+		rows++
+		if !strings.Contains(body, `<a class="config-menu-item" href="`+p.path+`">`) {
+			t.Errorf("the Config page menu has no link to %s", p.path)
+		}
+	}
+	if n := strings.Count(body, `<a class="config-menu-item" href=`); n != rows {
+		t.Errorf("the Config page menu has %d links, and the table has %d menu rows", n, rows)
+	}
+}
+
+// No bundled note may take the address of a system page. The route of the
+// system page wins, thus the note could never open.
+func TestNoBundledNoteTakesASystemPagePath(t *testing.T) {
+	for _, p := range newTestApp(t).systemPages() {
+		name := strings.TrimSuffix(strings.TrimPrefix(p.path, "/"), ".html")
+		if _, err := frontend.Static.ReadFile("md/" + name + ".md"); err == nil {
+			t.Errorf("md/%s.md has the address of the system page %s", name, p.path)
+		}
+	}
 }
