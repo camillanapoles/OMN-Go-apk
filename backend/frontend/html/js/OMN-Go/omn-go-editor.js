@@ -24,7 +24,7 @@
     var EXT = (typeof OMN_EDIT_EXT !== 'undefined' && OMN_EDIT_EXT) ? OMN_EDIT_EXT : '';
 
     // Optional jump target, set when arriving from a clicked console error
-    // (see omn-go-core.js). "find" matches by line CONTENT. That form holds
+    // (see omn-go-console.js). "find" matches by line CONTENT. That form holds
     // across the markdown to compiled-HTML line shift, because the <script>
     // body of a note is passed through verbatim. "line" is a direct 1-based
     // number, used for verbatim assets (.js/.css/.json) where lines map 1:1.

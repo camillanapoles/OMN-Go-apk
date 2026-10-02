@@ -4,6 +4,11 @@
 // its work in data-action, and ONE click listener of omn-go-core.js calls
 // the function of that name. See OMN.action in that file.
 //
+// EACH TEST LOADS THE SCRIPTS OF index.html, IN THE ORDER OF index.html. The
+// list comes from the template, thus a script that the shell gets later is
+// in these tests at once. A script that throws while it loads fails each
+// test.
+//
 // A FAULT HERE IS A DEAD BUTTON. Nothing throws, and no test of the server
 // sees it. These tests send a click to the real listener and read what it
 // called.
@@ -12,21 +17,38 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
+const fs = require('fs');
+const path = require('path');
 const { newPage, run, makeElement } = require('./page-stub.js');
 
-// loadPage answers a page with the two scripts of each note page, and the
+// shellScripts answers the application scripts that index.html names, in
+// its order. omn-go-compat.js is not in the list, because it is the notice
+// of an old browser and gives the page nothing. The vendored libraries and
+// the user file omn-go-custom.js are not in the list either.
+function shellScripts() {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'templates', 'index.html'), 'utf8');
+    const out = [];
+    const re = /js\/OMN-Go\/(omn-go-[a-z]+\.js)/g;
+    let m;
+    while ((m = re.exec(src)) !== null) {
+        if (m[1] !== 'omn-go-compat.js') out.push(m[1]);
+    }
+    return out;
+}
+
+// loadPage answers a page with the scripts of each note page, and the
 // click listeners that they gave to the document.
 function loadPage(protocol) {
     const page = newPage();
     if (protocol) page.location.protocol = protocol;
-    // A console of its own. omn-go-core.js puts a hook on each console
+    // A console of its own. omn-go-console.js puts a hook on each console
     // method, and the console of Node is one object for all the tests.
     page.console = { log() {}, info() {}, warn() {}, error() {}, debug() {} };
     const clicks = [];
     page.document.addEventListener = function (type, fn) {
         if (type === 'click') clicks.push(fn);
     };
-    for (const file of ['omn-go-core.js', 'omn-go-api.js']) {
+    for (const file of shellScripts()) {
         const err = run(page, file);
         assert.strictEqual(err, null, file + ' did not load: ' + (err && err.stack));
     }
@@ -132,8 +154,6 @@ test('a lazy file that gives no action writes a console fault', async () => {
 
 // shellActions answers each data-action of index.html and modals.html.
 function shellActions() {
-    const fs = require('fs');
-    const path = require('path');
     const names = {};
     for (const file of ['index.html', 'modals.html']) {
         const src = fs.readFileSync(path.join(__dirname, '..', 'templates', file), 'utf8');
@@ -271,4 +291,11 @@ test('replace-location opens the address of data-arg', () => {
     page.location.replace = function (url) { seen.push(url); };
     click(clicks, control('replace-location', '/Config.html'));
     assert.deepStrictEqual(seen, ['/Config.html']);
+});
+
+test('index.html names the six application scripts in their order', () => {
+    assert.deepStrictEqual(shellScripts(), [
+        'omn-go-console.js', 'omn-go-core.js', 'omn-go-highlight.js',
+        'omn-go-nav.js', 'omn-go-share.js', 'omn-go-api.js',
+    ]);
 });

@@ -490,7 +490,7 @@ a.taglink {
 
    #ff9800 is the orange of the console button, and it is a literal here
    for the same reason it is one there. updateConsoleFooterDot in
-   omn-go-core.js writes display: inline-block when a message arrives, thus
+   omn-go-console.js writes display: inline-block when a message arrives, thus
    the value below is the state before the first message only. */
 #omn-go-console-footer-dot {
     display: none;
@@ -580,7 +580,7 @@ a.taglink {
     font-size: 13px;
 }
 /* The two parts of the panel: the metadata at the left, the controls in a
-   column at the right (see the metadata panel builder in omn-go-core.js).
+   column at the right (see the metadata panel builder in omn-go-share.js).
    The column holds each control under the control before it, so a new control
    makes the column longer and leaves the width of the metadata alone. Until
    26.08.53 the controls were in the "File:" line, and each new control took
@@ -864,8 +864,8 @@ details.omn-incoming[open] > summary.omn-incoming-head {
     border: 1px solid var(--border);
 }
 
-/* -- Bookmark "Tags" autocomplete (see initBookmarkTagAutocomplete in
-   omn-go-core.js). The wrapper takes over the margin-bottom that
+/* -- Bookmark "Tags" autocomplete (see wireBookmarkTagAutocomplete in
+   omn-go-bookmark.js). The wrapper takes over the margin-bottom that
    ".panel input" normally provides, so #bmTags itself is zeroed out -
    otherwise the gap would be doubled. -- */
 .panel .tag-input-wrap {
@@ -1869,7 +1869,7 @@ mark.omn-search-hit.omn-search-hit-current {
 
 /* -- Screen switching: the root menu and each settings group are sibling
    .config-screen blocks; exactly one carries .active at a time (see the
-   hash-driven navigation in omn-go-core.js). -- */
+   hash-driven navigation in omn-go-config.js). -- */
 .config-screen {
     display: none;
 }

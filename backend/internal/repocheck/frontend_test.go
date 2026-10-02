@@ -18,13 +18,13 @@ import (
 // then behave differently: one copy works on Android 6 and the other does
 // not.
 //
-// Only omn-go-core.js can call execCommand('copy'). That file holds
+// Only omn-go-share.js can call execCommand('copy'). That file holds
 // omnGoCopyText, which each other caller uses. It also holds the
 // quick-note-copy action, which stays direct. The text of that action is
 // already in a textarea, and the focus must stay there for the typing that
 // follows.
 func TestClipboardHasOneAuthority(t *testing.T) {
-	const authority = "html/js/OMN-Go/omn-go-core.js"
+	const authority = "html/js/OMN-Go/omn-go-share.js"
 	for _, tree := range []struct {
 		name string
 		fs   fs.FS

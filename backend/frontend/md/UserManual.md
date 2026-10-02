@@ -950,9 +950,9 @@ The application scripts give your note script a set of ready functions. See [Use
 
 ## Useful functions of the application scripts
 
-Each page loads `js/OMN-Go/omn-go-core.js` and `js/OMN-Go/omn-go-api.js`. The functions below are ready before your note script starts. Call them from a note, from a button, or from `js/omn-go-custom.js`. Obey the four rules of [Raw HTML and JavaScript in pages](#raw-html-and-javascript-in-pages).
+Each page loads the application scripts of `js/OMN-Go/` before the body of your note. The functions below are ready before your note script starts. Call them from a note, from a button, or from `js/omn-go-custom.js`. Obey the four rules of [Raw HTML and JavaScript in pages](#raw-html-and-javascript-in-pages).
 
-### From `omn-go-core.js`
+### Functions that work on each page
 
 These functions work on a page from the server. They also work on a page that you export and open from disk.
 
@@ -983,7 +983,7 @@ window.omnCopyLink = async function () {
 </script>
 ```
 
-### From `omn-go-api.js`
+### Functions that need the server
 
 These functions speak to the server. On a page that you export and open from disk they do nothing. Each one writes a line to the browser console.
 

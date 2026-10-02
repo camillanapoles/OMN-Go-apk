@@ -262,7 +262,7 @@ public class MainActivity extends Activity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 // Sending a note out. The frontend's Send control navigates
-                // here (see omnGoSendNote in omn-go-core.js) because a
+                // here (see omnGoSendNote in omn-go-share.js) because a
                 // WebView cannot open a share sheet by itself.
                 if (url != null && url.startsWith("omngo://share")) {
                     MainActivity.this.handleShareOut(android.net.Uri.parse(url));

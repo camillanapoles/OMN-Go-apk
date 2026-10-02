@@ -166,7 +166,7 @@
     // Copy asks the server for the Markdown form of the sections that the
     // page holds. The text is therefore the same text that "Open as text"
     // gives, and a bug report gets each fact in one paste.
-    // omnGoCopyText in omn-go-core.js is the only clipboard writer of the
+    // omnGoCopyText in omn-go-share.js is the only clipboard writer of the
     // application. A second copy here would be a second path that must
     // agree about the Android WebView.
     document.getElementById('stCopy').addEventListener('click', async function () {

@@ -16,7 +16,7 @@
 // calls showBookmarkPanel last, which loads this file.
 if (window.location.protocol !== 'file:') {
 
-    // --- Bookmark capture UI (moved here from omn-go-core.js in Phase 5a) ---
+    // --- Bookmark capture UI ---
     //
     // handleShare is the Android share-to path. It, the URL drag-and-drop,
     // and the tag autocomplete all belong to the server-backed bookmark and

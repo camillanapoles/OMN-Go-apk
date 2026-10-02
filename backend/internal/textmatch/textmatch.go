@@ -100,7 +100,7 @@ const (
 // lowercases a rune. Each entry maps ONE rune to ONE rune, because a change
 // of length moves each span. An expanding fold, such as ß to ss, is absent on
 // purpose. ё maps to е, because a person often types е for ё. OMN_FOLD_TABLE
-// in omn-go-core.js is a copy, and TestFoldTableHasAFrontendCopy compares the
+// in omn-go-highlight.js is a copy, and TestFoldTableHasAFrontendCopy compares the
 // two.
 var FoldTable = map[rune]rune{
 	'à': 'a', 'á': 'a', 'â': 'a', 'ã': 'a', 'ä': 'a', 'å': 'a',

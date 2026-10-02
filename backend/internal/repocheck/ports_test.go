@@ -159,7 +159,7 @@ func TestHeaderRuleHasAFrontendCopy(t *testing.T) {
 // ----------------------------------------------------------------------
 
 // jsURISchemeRe reads the regular expression that the click interceptor
-// of omn-go-core.js uses.
+// of omn-go-nav.js uses.
 var jsURISchemeRe = regexp.MustCompile(`/\^\[a-zA-Z\]\[[^/]+\*:/`)
 
 // A link that carries a URI scheme is not a page of this application, and it
@@ -170,18 +170,18 @@ var jsURISchemeRe = regexp.MustCompile(`/\^\[a-zA-Z\]\[[^/]+\*:/`)
 // The two must agree. A link that the server leaves alone and the page
 // catches opens the wrong thing, and the reverse loses a link.
 func TestURISchemeRuleHasAFrontendCopy(t *testing.T) {
-	js := portsJS(t, "omn-go-core.js")
+	js := portsJS(t, "omn-go-nav.js")
 
 	found := jsURISchemeRe.FindString(js)
 	if found == "" {
-		t.Fatal("omn-go-core.js holds no URI-scheme regular expression. " +
+		t.Fatal("omn-go-nav.js holds no URI-scheme regular expression. " +
 			"setupPreviewLinkInterceptor then treats an external link as a page.")
 	}
 	// Strip the two slashes of the JavaScript literal.
 	jsPattern := strings.TrimSuffix(strings.TrimPrefix(found, "/"), "/")
 
 	if jsPattern != render.URISchemeRe.String() {
-		t.Errorf("the URI-scheme rule is %q in Go and %q in omn-go-core.js. "+
+		t.Errorf("the URI-scheme rule is %q in Go and %q in omn-go-nav.js. "+
 			"A link then behaves differently on the server and in the page.",
 			render.URISchemeRe.String(), jsPattern)
 	}

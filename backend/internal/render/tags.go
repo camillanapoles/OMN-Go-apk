@@ -200,7 +200,7 @@ func (rd *Renderer) GenerateTagsPage(log logx.Logger) error {
 	// From serveTagsPage, it runs inside a page navigation, where no progress
 	// UI of the page can run. The two log lines show the wait on /api/logs.
 	// The reader sees the ProgressBar of MainActivity and the delayed overlay
-	// of omn-go-core.js.
+	// of omn-go-nav.js.
 	log.Debugf("Rebuilding tags index")
 	started := time.Now()
 	index := rd.BuildTagIndex()

@@ -111,7 +111,7 @@ func parseQuery(q string) parsedQuery {
 	return out
 }
 
-// highlightMinRunes is the same as OMN_HL_MIN in omn-go-core.js. A term of
+// highlightMinRunes is the same as OMN_HL_MIN in omn-go-highlight.js. A term of
 // one character marks half the page, thus both ends drop it.
 const highlightMinRunes = 2
 
@@ -167,7 +167,7 @@ func highlightURL(base string, terms []string) string {
 // snippetURL makes the link for ONE matching line. It holds the terms as
 // ?hl=, the text of the line as ?hlt=, and the section as the fragment. The
 // link carries the TEXT, because a source line number does not match the
-// compiled HTML. omnMarkNear in omn-go-core.js finds the text. The fragment
+// compiled HTML. omnMarkNear in omn-go-highlight.js finds the text. The fragment
 // is the section of THIS line, not of the best hit.
 func snippetURL(base string, terms []string, m searchMatch) string {
 	if i := strings.IndexByte(base, '#'); i >= 0 {

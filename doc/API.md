@@ -956,10 +956,10 @@ therefore the plain one, and a refresh does not apply the highlight again.
 
 The parameter repeats instead of one comma-joined value, because a term can
 contain a comma. The client ignores a term shorter than 2 runes (`OMN_HL_MIN`
-in `omn-go-core.js`, `highlightMinRunes` in `internal/search/search.go` — the
+in `omn-go-highlight.js`, `highlightMinRunes` in `internal/search/search.go` — the
 two ends agree).
 
-`omn-go-core.js` handles all of this. The highlight therefore works on a page
+`omn-go-highlight.js` handles all of this. The highlight therefore works on a page
 opened from disk with no server running, and on a page that the search panel
 never loads.
 
@@ -976,7 +976,7 @@ The client does not use the line NUMBER for this. The number is a position in
 the Markdown source, and the page is compiled HTML: a `<script>` block is
 absent from it, a link URL is absent from it, and one paragraph can be several
 source lines. The client matches the line's TEXT instead (`omnMarkNear` in
-`omn-go-core.js`). The text can be a part of the line, because a snippet is a
+`omn-go-highlight.js`). The text can be a part of the line, because a snippet is a
 window of at most 160 runes around the first hit in the line.
 
 A line inside a `<script>` block gets no `hlt`. Its text is in the index but

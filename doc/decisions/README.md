@@ -92,3 +92,4 @@ the status of the old record to `replaced by NNNN`.
 | [0018](0018-keep-one-role.md) | Keep one role. | `session.go`, `omn-go-api.js` |
 | [0019](0019-trust-the-host-key-on-first-use.md) | Trust the host key on first use. | `internal/gitsync/host_keys.go`, `internal/gitsync/repo.go`, `omn-go-sync.js` |
 | [0020](0020-name-the-work-of-a-control-in-data-action.md) | Name the work of a control in data-action. | `omn-go-core.js`, `omn-go-api.js`, `omn-go-config.js`, `templates/` |
+| [0021](0021-divide-the-page-script-into-parts.md) | Divide the page script into parts. | `templates/index.html`, `omn-go-console.js`, `omn-go-core.js`, `omn-go-highlight.js`, `omn-go-nav.js`, `omn-go-share.js` |

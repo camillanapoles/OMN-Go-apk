@@ -24,7 +24,7 @@ var hrefRe = regexp.MustCompile(`href="([^"]*)"`)
 // URISchemeRe matches a URI scheme at the start of a link, as RFC 3986
 // defines it. A link with a scheme is not a page, and it must reach the
 // browser as the author wrote it. setupPreviewLinkInterceptor in
-// omn-go-core.js uses the same expression. Keep the two equal.
+// omn-go-nav.js uses the same expression. Keep the two equal.
 var URISchemeRe = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9+.-]*:`)
 
 var mdParser = goldmark.New(
@@ -150,7 +150,7 @@ func restorePlaceholders(s string, store map[string]string) string {
 //	whatsapp://send?phone=1555  ->  whatsapp://send.html?phone=1555
 //
 // The test is thus the scheme itself, URISchemeRe, the same as the click
-// interceptor of omn-go-core.js. This function decides what the page SAYS,
+// interceptor of omn-go-nav.js. This function decides what the page SAYS,
 // and the interceptor decides what a tap DOES.
 // MainActivity.shouldOverrideUrlLoading gives each unknown scheme to the OS.
 // TestRenderMarkdownToHTMLSchemeLinksUntouched holds the rule.

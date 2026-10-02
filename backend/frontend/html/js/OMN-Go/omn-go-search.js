@@ -13,7 +13,7 @@
 // omnSearchIsOpen and omnSearchClose for that listener to close the
 // overlay with.
 //
-// THE HIGHLIGHTING IS NOT HERE EITHER. omn-go-core.js holds it, because
+// THE HIGHLIGHTING IS NOT HERE EITHER. omn-go-highlight.js holds it, because
 // arriving at a page with a hl query needs it on each page, an exported
 // one included. This file is one of its callers.
 if (window.location.protocol !== 'file:') {
@@ -78,7 +78,7 @@ if (window.location.protocol !== 'file:') {
         // The page to search. index.html defines currentNote for every
         // rendered note; without it there is nothing to scope to.
         // The "on" parameter of a page-scope search. omnGoCurrentNoteName
-        // (omn-go-core.js) gives the form that the server resolves with no
+        // (omn-go-share.js) gives the form that the server resolves with no
         // guess. See its banner: a bare name that ends in a real file
         // extension reads as a file and not as the note.
         function pageName() {
@@ -255,7 +255,7 @@ if (window.location.protocol !== 'file:') {
             close();
             // The results page searches every note and renders the answer
             // server-side, so this wait is in the NAVIGATION, after this
-            // document is gone. The slow-navigation guard in omn-go-core.js
+            // document is gone. The slow-navigation guard in omn-go-nav.js
             // does not cover it: that one watches <a> clicks and this is an
             // assignment to location.
             //
@@ -574,7 +574,7 @@ if (window.location.protocol !== 'file:') {
         // highlightURL and snippetURL in internal/search/search.go. A result
         // thus behaves identically, whichever list it came from. The receiving
         // page strips them from the address bar once applied, see
-        // omn-go-core.js.
+        // omn-go-highlight.js.
         function withHighlight(url, m) {
             // The fragment stays last. A sectioned result arrives here as
             // "/Bookmarks.html#2026-06-15-200000". A blind append gives
@@ -787,7 +787,7 @@ if (window.location.protocol !== 'file:') {
 
         // --- highlighting inside the rendered page ---
         //
-        // The implementation lives in omn-go-core.js, and not here. An
+        // The implementation lives in omn-go-highlight.js, and not here. An
         // arrival at a page with ?hl= needs it on every page, and a page
         // opened from disk counts. The server half of this file never runs
         // there. This module is one of its callers.

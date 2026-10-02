@@ -63,7 +63,7 @@ func TestRewriteInternalLink(t *testing.T) {
 		{"bitcoin:1abc", "bitcoin:1abc"},
 		// The cost of the rule above. A page name that holds a ":" is a
 		// scheme to any URL parser, and the click interceptor in
-		// omn-go-core.js reads it the same way. Pinned, thus the trade-off
+		// omn-go-nav.js reads it the same way. Pinned, thus the trade-off
 		// is a decision and not a surprise.
 		{"Notes:Draft", "Notes:Draft"},
 		// A space before the ":" is not a scheme, so this stays a page.

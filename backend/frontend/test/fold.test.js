@@ -14,7 +14,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const { load } = require('./dom-stub.js');
 
-const core = load('omn-go-core.js');
+const core = load('omn-go-highlight.js');
 
 test('omnFold never changes the length of a string', () => {
     // The marks are placed by rune offset. A fold that adds or drops a

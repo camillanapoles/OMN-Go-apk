@@ -629,7 +629,7 @@ if (window.location.protocol !== 'file:') {
     // shortcut has to work before the overlay exists, thus the listener
     // cannot travel with the code that it opens.
     //
-    // The highlighting itself lives in omn-go-core.js. It runs on each
+    // The highlighting itself lives in omn-go-highlight.js. It runs on each
     // page, an exported one included, thus the alias needs no server half
     // and no lazy load.
     window.omnSearchClearHighlights = window.omnClearHighlights;
@@ -819,5 +819,5 @@ if (window.location.protocol !== 'file:') {
     // therefore already hidden here (applyOfflineUI) - these stubs cover a
     // note script or a stale keyboard shortcut calling in anyway.
     // omnSearchClearHighlights is NOT stubbed here: the highlighting lives in
-    // omn-go-core.js and works offline, so the real one is already defined.
+    // omn-go-highlight.js and works offline, so the real one is already defined.
 }

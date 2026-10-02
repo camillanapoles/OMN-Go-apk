@@ -320,7 +320,7 @@ func excerpt(page, needle string) string {
 // The frontend copy of the fold table
 //
 // The server folds before it matches, and it sends the UNFOLDED term in
-// ?hl= (see TestHighlightTermsAreNotFolded above). omn-go-core.js thus has
+// ?hl= (see TestHighlightTermsAreNotFolded above). omn-go-highlight.js thus has
 // to fold both sides itself, or a note titled "Ёлка" opens with nothing
 // marked after a search for "елка".
 //
@@ -329,7 +329,7 @@ func excerpt(page, needle string) string {
 // guard is a test that fails when one copy moves and the other does not.
 // ---------------------------------------------------------------------
 
-// jsFoldTableRe reads the body of OMN_FOLD_TABLE from omn-go-core.js.
+// jsFoldTableRe reads the body of OMN_FOLD_TABLE from omn-go-highlight.js.
 var jsFoldTableRe = regexp.MustCompile(`(?s)var OMN_FOLD_TABLE = \{(.*?)\n\};`)
 
 // jsFoldPairRe reads one row. Both sides are \u escapes or plain ASCII.
@@ -349,13 +349,13 @@ func jsFoldRune(t *testing.T, lit string) rune {
 }
 
 func TestFoldTableHasAFrontendCopy(t *testing.T) {
-	raw, err := frontend.Static.ReadFile("html/js/OMN-Go/omn-go-core.js")
+	raw, err := frontend.Static.ReadFile("html/js/OMN-Go/omn-go-highlight.js")
 	if err != nil {
-		t.Fatalf("omn-go-core.js is not embedded: %v", err)
+		t.Fatalf("omn-go-highlight.js is not embedded: %v", err)
 	}
 	body := jsFoldTableRe.FindStringSubmatch(string(raw))
 	if body == nil {
-		t.Fatal("omn-go-core.js holds no OMN_FOLD_TABLE. " +
+		t.Fatal("omn-go-highlight.js holds no OMN_FOLD_TABLE. " +
 			"The page highlight then misses every folded character, and a " +
 			"search for \"елка\" opens \"Ёлка\" with nothing marked.")
 	}
@@ -373,7 +373,7 @@ func TestFoldTableHasAFrontendCopy(t *testing.T) {
 		switch {
 		case !ok:
 			t.Errorf("textmatch.FoldTable maps %q to %q, and OMN_FOLD_TABLE has no row "+
-				"for it. Add '\\u%04x': '\\u%04x' to omn-go-core.js.", from, to, from, to)
+				"for it. Add '\\u%04x': '\\u%04x' to omn-go-highlight.js.", from, to, from, to)
 		case got != to:
 			t.Errorf("textmatch.FoldTable maps %q to %q, OMN_FOLD_TABLE maps it to %q", from, to, got)
 		}
@@ -404,7 +404,7 @@ func TestFoldTableHasAFrontendCopy(t *testing.T) {
 		"folded.indexOf(", // the search itself
 	} {
 		if !strings.Contains(string(raw), want) {
-			t.Errorf("omn-go-core.js does not hold %q. The fold table is "+
+			t.Errorf("omn-go-highlight.js does not hold %q. The fold table is "+
 				"then present and unused, which is worse than absent.", want)
 		}
 	}

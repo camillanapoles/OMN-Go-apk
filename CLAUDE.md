@@ -347,17 +347,28 @@ fail when you skip one of these steps.
   `TestTemplatesHoldNoInlineHandler` fails for an inline handler in a template.
   An action of one page goes into the script of that page, for example
   `omn-go-config.js`.
-* **A note page loads three scripts.** `templates/index.html` names
-  `omn-go-compat.js`, `omn-go-core.js` and `omn-go-api.js`, and then the three
-  vendored libraries and `omn-go-custom.js`. It names no other file of the
-  project. Four more files load on demand. See the lazy loading rule below.
+* **A note page loads seven application scripts, and the order is a rule.**
+  `templates/index.html` names `omn-go-compat.js`, `omn-go-console.js`,
+  `omn-go-core.js`, `omn-go-highlight.js`, `omn-go-nav.js`, `omn-go-share.js` and
+  `omn-go-api.js`. The three vendored libraries and `omn-go-custom.js` follow.
+  It names no other file of the project. The lazy files load on demand. See
+  the lazy loading rule below, and
+  `doc/decisions/0021-divide-the-page-script-into-parts.md`.
 * **A new name of an app script or style needs four lists.** Change the path in
   `storage.VersionDependentAssets` and in `gitsync.GitignorePatterns`. Add the old
   path to `storage.RetiredAssets` and to `storage.RenamedAssets`. `legacyAssetURL`
   then answers the old name, which a note of the user can hold.
 * File roles:
-  * `omn-go-core.js` holds the offline-safe part: render helpers, the KaTeX start
-    code, the progress API, link interception, and the version footer.
+  * `omn-go-console.js` holds the console of the page: the hooks of the console
+    methods and of the error events. It loads before each other modern script.
+  * `omn-go-core.js` holds what each other script uses: the KaTeX start code,
+    `OMN.action`, the progress API, the controls of the page header, the load
+    listener and the version footer.
+  * `omn-go-highlight.js` holds the marks of a search and the fold table.
+  * `omn-go-nav.js` holds link interception and the slow-navigation guard.
+  * `omn-go-share.js` holds send and copy of a note, the one clipboard writer,
+    the page link and the metadata panel.
+  * Each of these five files works on a page from disk too.
   * `omn-go-api.js` holds everything that calls the backend. The file body sits
     inside `if (window.location.protocol !== 'file:')`. The `else` branch replaces
     the same globals and actions with stubs, so an exported page degrades quietly. It also
@@ -397,7 +408,7 @@ fail when you skip one of these steps.
   action of each lazy file and fails on a free variable.
 * **The fold table has two implementations on purpose.** `textmatch.FoldTable` in
   `backend/internal/textmatch/textmatch.go` folds before the server matches.
-  `OMN_FOLD_TABLE` in `omn-go-core.js` folds again in the page. The server sends the term unfolded in
+  `OMN_FOLD_TABLE` in `omn-go-highlight.js` folds again in the page. The server sends the term unfolded in
   `?hl=`, because the reader has to see the word as typed, thus the page cannot
   match on a lowercase alone. `TestFoldTableHasAFrontendCopy` compares the two
   tables and checks that the three call sites use them. Each row maps one
@@ -443,7 +454,7 @@ fail when you skip one of these steps.
   * Send the `.md` form to `/api/note`, `/api/save`, `/api/export/note` and
     `/api/search` for the note on screen. A bare name is ambiguous when it
     ends in a real file extension. `renderInternalEditor` does this, and
-    `omnGoCurrentNoteName` in `omn-go-core.js` does it for the frontend.
+    `omnGoCurrentNoteName` in `omn-go-share.js` does it for the frontend.
 * `noteheader.Parse` in `backend/internal/noteheader/noteheader.go` is the only parser.
   A header block exists only if the first line holds a colon and does not start with a space, `#`,
   or `<`. The header block ends at the first empty line, which the parser drops. It

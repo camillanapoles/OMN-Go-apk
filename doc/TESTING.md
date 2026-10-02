@@ -111,8 +111,9 @@ a failure. A TypeError is not, because the page is a stub and not a browser.
 It also fails for an action that the list does not name. A function that a
 lazy file puts on `window` with no promise fails it too.
 
-`actions.test.js` uses the page stub. It loads `omn-go-core.js` and
-`omn-go-api.js`, and it sends a click to the real click listener. It checks
+`actions.test.js` uses the page stub. It loads each application script
+that `index.html` names, in the order of `index.html`. It sends a click to
+the real click listener. It checks
 that a control with `data-action` calls its function. It also checks that a
 page from disk does not throw. See
 `doc/decisions/0020-name-the-work-of-a-control-in-data-action.md`.

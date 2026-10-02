@@ -158,8 +158,10 @@ func TestRenderIndexPageLoadsCustomAssetsLast(t *testing.T) {
 		t.Fatal("page does not load js/omn-go-custom.js")
 	}
 	for _, script := range []string{
-		"js/OMN-Go/omn-go-core.js", "js/OMN-Go/omn-go-api.js", "js/OMN-Go/highlight.min.js",
-		"js/OMN-Go/katex.min.js", "js/OMN-Go/auto-render.min.js",
+		"js/OMN-Go/omn-go-console.js", "js/OMN-Go/omn-go-core.js",
+		"js/OMN-Go/omn-go-highlight.js", "js/OMN-Go/omn-go-nav.js",
+		"js/OMN-Go/omn-go-share.js", "js/OMN-Go/omn-go-api.js",
+		"js/OMN-Go/highlight.min.js", "js/OMN-Go/katex.min.js", "js/OMN-Go/auto-render.min.js",
 	} {
 		if i := strings.Index(out, script); i < 0 || i > customJS {
 			t.Errorf("%s must load BEFORE js/omn-go-custom.js", script)

@@ -205,7 +205,7 @@
 
     // Copy hands the SHOWN text over.
     //
-    // window.omnGoCopyText of omn-go-core.js is the only clipboard writer
+    // window.omnGoCopyText of omn-go-share.js is the only clipboard writer
     // of this application, and TestClipboardHasOneAuthority holds that
     // rule. It knows what the Android WebView does with the Clipboard API,
     // and this page must not learn that a second time.

@@ -56,7 +56,11 @@ var backupLabelSanitizer = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 // doc/decisions/0007-keep-the-application-files-in-omn-go-directories.md.
 var VersionDependentAssets = []string{
 	"html/js/OMN-Go/omn-go-compat.js",
+	"html/js/OMN-Go/omn-go-console.js",
 	"html/js/OMN-Go/omn-go-core.js",
+	"html/js/OMN-Go/omn-go-highlight.js",
+	"html/js/OMN-Go/omn-go-nav.js",
+	"html/js/OMN-Go/omn-go-share.js",
 	"html/js/OMN-Go/omn-go-editor.js",
 	"html/js/OMN-Go/omn-go-api.js",
 	"html/js/OMN-Go/omn-go-config.js",
