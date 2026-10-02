@@ -67,7 +67,10 @@ function shellScripts() {
 // opts.note is the name of the note, with no extension. The default is
 // "Note". The page gets the variables that the script block of index.html
 // sets: PageName, currentNote, Title, PAGE_EXT and IS_MARKDOWN.
+// opts.markdown is false for a page that is a file and not a note.
 // opts.path is the path of the page. The default comes from opts.note.
+// opts.meta gives the meta elements of the head, as {name: content}. The
+// server writes one for each line of the header block of a note.
 //
 // The answer holds:
 //
@@ -77,6 +80,10 @@ function shellScripts() {
 //	dialogs    Each alert, confirm and prompt: {kind, text}.
 //	loads      The src of each script element that a script added.
 //	streams    Each EventSource that a script opened.
+//	went       Each address that a script opened in place of this page.
+//	opened     Each call of window.open: {url, target}.
+//	clipboard  Each text that a script wrote with the Clipboard API.
+//	timers     The timers of the page, after h.holdTimers().
 //
 // A test sets h.server to answer a request, and h.confirm and h.prompt to
 // answer a dialog.
@@ -88,6 +95,12 @@ function newDomPage(opts) {
     const win = new EventTarget();
     doc.defaultView = win;
     doc.readyState = 'loading';
+    for (const name of Object.keys(opts.meta || {})) {
+        const meta = doc.createElement('meta');
+        meta.setAttribute('name', name);
+        meta.setAttribute('content', opts.meta[name]);
+        doc.head.appendChild(meta);
+    }
 
     page.document = doc;
     page.NodeFilter = NodeFilter;
@@ -101,12 +114,22 @@ function newDomPage(opts) {
     page.currentNote = note;
     page.Title = opts.title || note;
     page.PAGE_EXT = '.md';
-    page.IS_MARKDOWN = true;
+    page.IS_MARKDOWN = opts.markdown !== false;
     page.location.pathname = opts.path || '/' + note + '.html';
-    page.location.href = 'http://127.0.0.1:8080' + page.location.pathname;
     page.location.reloads = 0;
     page.location.reload = function () { page.location.reloads++; };
-    page.location.replace = function (url) { page.location.href = url; };
+    // A script that sets location.href leaves the page. The document of a
+    // test stays, thus href keeps the address of this page, and h.went
+    // gets each address that a script tried to open.
+    Object.defineProperty(page.location, 'href', {
+        get() {
+            return page.location.origin + page.location.pathname +
+                page.location.search + page.location.hash;
+        },
+        set(value) { h.went.push(String(value)); },
+    });
+    page.location.replace = function (url) { h.went.push(String(url)); };
+    page.location.assign = function (url) { h.went.push(String(url)); };
     // A new hash sends hashchange, the same as in a browser.
     let hash = '';
     Object.defineProperty(page.location, 'hash', {
@@ -120,6 +143,17 @@ function newDomPage(opts) {
     });
     page.FormData = FormData;
     page.scrollTo = function () {};
+    // window.open keeps each address, thus a test can read h.opened.
+    page.open = function (url, target) { h.opened.push({ url: String(url), target: target }); };
+    // The clipboard of the browser. A test reads h.clipboard, and it can
+    // set h.clipboardRefuses to model a browser that refuses the write.
+    page.isSecureContext = true;
+    page.navigator.clipboard = {
+        writeText: async function (text) {
+            if (h.clipboardRefuses) throw new Error('NotAllowedError');
+            h.clipboard.push(String(text));
+        },
+    };
     page.history.backs = 0;
     page.history.back = function () { page.history.backs++; };
 
@@ -129,6 +163,7 @@ function newDomPage(opts) {
 
     const h = {
         page: page, document: doc, requests: [], dialogs: [], loads: [], streams: [],
+        opened: [], clipboard: [], timers: [], went: [],
         // server answers one request. A test replaces it. The default is
         // a JSON success with no data.
         server: function () { return { status: 'success' }; },
@@ -257,6 +292,35 @@ function newDomPage(opts) {
         for (let i = 0; i < (rounds || 5); i++) {
             await new Promise(function (resolve) { setTimeout(resolve, 0); });
         }
+    };
+    // holdTimers takes the timers of the page away from the clock. Each
+    // setTimeout of a script goes to h.timers as {fn, ms, cleared}, and
+    // none runs until the test calls runTimers. A test of a wait of some
+    // seconds then ends at once.
+    h.holdTimers = function () {
+        page.setTimeout = function (fn, ms) {
+            const timer = { fn: fn, ms: ms || 0, cleared: false, ran: false };
+            h.timers.push(timer);
+            return timer;
+        };
+        page.clearTimeout = function (timer) {
+            if (timer && typeof timer === 'object') timer.cleared = true;
+        };
+        return h;
+    };
+    // pendingTimers answers the wait of each timer that can still run.
+    h.pendingTimers = function () {
+        return h.timers.filter(function (t) { return !t.cleared && !t.ran; })
+            .map(function (t) { return t.ms; });
+    };
+    // runTimers runs each timer that can still run.
+    h.runTimers = function () {
+        for (const t of h.timers.slice()) {
+            if (t.cleared || t.ran) continue;
+            t.ran = true;
+            t.fn();
+        }
+        return h;
     };
     // hidden tells whether the class "hidden" or the style hides an
     // element.

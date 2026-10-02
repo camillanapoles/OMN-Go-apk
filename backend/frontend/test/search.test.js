@@ -236,8 +236,7 @@ test('a row of another note opens that note with the words and the line', async 
     rows(h)[0].click();
     // hl is each word, hlt is the text of the line, and the fragment is
     // the section of the line.
-    assert.strictEqual(h.page.location.href,
-        '/dir/Note.html?hl=alpha&hlt=The%20alpha%20line#first');
+    assert.deepStrictEqual(h.went, ['/dir/Note.html?hl=alpha&hlt=The%20alpha%20line#first']);
     assert.strictEqual(h.$('.omn-search-overlay').hidden, true);
 });
 
@@ -247,7 +246,7 @@ test('a line of a script block gives no line text, and the fragment of the note 
     h.key('.omn-search-input', 'Enter');
     await h.settle();
     rows(h)[1].click();
-    assert.strictEqual(h.page.location.href, '/Other.html?hl=alpha#top');
+    assert.deepStrictEqual(h.went, ['/Other.html?hl=alpha#top']);
 });
 
 test('a press on the head of a note opens the note with the words alone', async () => {
@@ -256,7 +255,7 @@ test('a press on the head of a note opens the note with the words alone', async 
     h.key('.omn-search-input', 'Enter');
     await h.settle();
     h.document.querySelectorAll('.omn-search-doc')[0].click();
-    assert.strictEqual(h.page.location.href, '/dir/Note.html?hl=alpha');
+    assert.deepStrictEqual(h.went, ['/dir/Note.html?hl=alpha']);
 });
 
 test('the scope chips send the scope, and the same chip sends nothing', async () => {
@@ -289,7 +288,7 @@ test('"See all results" shows for all notes with a query, and opens the results 
     h.type('.omn-search-input', 'a b');
     assert.strictEqual(h.$('.omn-search-seeall').hidden, false);
     h.press('.omn-search-seeall');
-    assert.strictEqual(h.page.location.href, '/OMNGoSearch.html?q=a%20b');
+    assert.deepStrictEqual(h.went, ['/OMNGoSearch.html?q=a%20b']);
     assert.strictEqual(h.$('.omn-search-overlay').hidden, true);
     // The overlay of a slow page waits 300 ms, thus a fast page shows none.
     assert.deepStrictEqual(timers, [300]);

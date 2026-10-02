@@ -143,7 +143,7 @@ does.
 `editorPage(text)` builds the editor from `editor.html` and loads
 `omn-go-editor.js` with `text` as the note.
 
-Six test files use these pages:
+Eight test files use these pages:
 
 | File | What it holds |
 | --- | --- |
@@ -153,6 +153,14 @@ Six test files use these pages:
 | `search.test.js` | The dialog sends no request while the person types. The two scopes, the keys, and the address of a chosen line. |
 | `session.test.js` | The hint cookie, the answer 401 and the login box. |
 | `editor-view.test.js` | An expansion keeps the view of the editor, from the Tab key and from the toolbar button. |
+| `nav.test.js` | The four answers to a press on a link of a note. The overlay of a slow page shows after 300 ms, and only for a press that leaves the page. |
+| `share.test.js` | The metadata panel writes each value as text. Send, the two copy controls, and the two ways to the clipboard. |
+
+A script that sets `location.href` leaves the page in a browser. The
+document of a test stays, thus `location.href` keeps the address of the
+page, and `h.went` holds each address that a script opened. `h.holdTimers()`
+takes the timers of the page away from the clock, thus a test of a wait
+ends at once.
 
 **A test here proves what a script does with a document. It does not prove
 that a browser agrees.** Check a new control in a real browser too.

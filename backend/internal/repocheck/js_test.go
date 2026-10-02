@@ -187,17 +187,12 @@ const jsLineCoverageTarget = 60.0
 //
 // The floor is the measured number, rounded down. A change that takes a
 // test away, or that adds code with no test, fails here.
-//
-// Bookmarker.js and omn-go-editor.js stay in the list. The maintainer
-// decided that no step brings them to the target. Their floor still holds
-// what they have.
+
 var jsLineCoverageFloor = map[string]float64{
 	"Bookmarker.js":    0,
 	"omn-go-compat.js": 0,
 	"omn-go-editor.js": 54,
 	"omn-go-logs.js":   11,
-	"omn-go-nav.js":    37,
-	"omn-go-share.js":  50,
 	"omn-go-status.js": 0,
 }
 
