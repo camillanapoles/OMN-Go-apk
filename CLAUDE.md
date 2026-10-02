@@ -361,12 +361,14 @@ fail when you skip one of these steps.
   * `omn-go-api.js` holds everything that calls the backend. The file body sits
     inside `if (window.location.protocol !== 'file:')`. The `else` branch replaces
     the same globals and actions with stubs, so an exported page degrades quietly. It also
-    holds `omnLoadModule` and `omnLazy`, the two functions of the lazy loading.
+    holds `omnLoadModule`, `omnLazy` and `omnLazyActions`, the three functions of
+    the lazy loading.
   * `omn-go-sync.js`, `omn-go-bookmark.js` and `omn-go-search.js` hold the parts
-    that a tap starts. `omnLazy` writes a stub for each exported name. The first
-    call to a stub fetches the file one time and then calls the real function.
-    Each one puts its functions on `window` and needs no IIFE of its own. The
-    body of each file already sits inside the `file:` guard.
+    that a tap starts. `omnLazyActions` writes a stub for each action of such a
+    file, and `omnLazy` writes a stub for each exported name. The first call to a
+    stub fetches the file one time and then calls the real function. The body of
+    each file sits inside the `file:` guard. Write each function there as a
+    `const`. A `function` declaration of the block becomes a global name.
   * `omn-go-config.js` holds the whole Config page. Only
     `templates/config_page.html` names it. A note page never loads it.
   * `omn-go-editor.js` holds the standalone editor page. It uses `var` in an
@@ -378,18 +380,21 @@ fail when you skip one of these steps.
   * `omn-go-custom.js` and `omn-go-custom.css` are user files. They are empty on
     purpose. `omn-go-custom.js` stays independent. It keeps its own plain
     `<script>` element, and it loads last.
-* **A lazy file must export through `omnLazy`.** Add the file to the `omnLazy`
-  call in `omn-go-api.js` and name each function that the page calls. A name that
-  is absent from that list is undefined until something else loads the file.
-  `printDebug` sits above the `file:` guard, because a stub needs it.
+* **A lazy file gives its work through `omnLazyActions`.** Call `OMN.action` in
+  the lazy file. Add the action to the `omnLazyActions` call of that file in
+  `omn-go-api.js`, and to the stub list of the `else` branch. Use
+  `omnLazy` only for a name that Android, the User Manual or another script
+  calls. A name or an action that is absent from its list does nothing until
+  something else loads the file. `printDebug` sits above the `file:` guard,
+  because a stub needs it.
 * **A lazy file must read NO bare name of `omn-go-api.js`.** The body of that
   file sits inside an `if` block, thus a `const` of the block reaches no other
   file. A `function` of the block reaches one by accident, through Annex B of
   the standard. Both are traps. Put the value in the lazy file, or export it as
   a property of `window`. See
   `doc/decisions/0015-load-the-click-driven-scripts-on-demand.md`.
-  `backend/frontend/test/lazy.test.js` runs each exported function of each lazy
-  file and fails on a free variable.
+  `backend/frontend/test/lazy.test.js` runs each exported function and each
+  action of each lazy file and fails on a free variable.
 * **The fold table has two implementations on purpose.** `textmatch.FoldTable` in
   `backend/internal/textmatch/textmatch.go` folds before the server matches.
   `OMN_FOLD_TABLE` in `omn-go-core.js` folds again in the page. The server sends the term unfolded in

@@ -3,9 +3,10 @@
 // The capture of a shared link, the panel itself, and the autocomplete of
 // the Tags box.
 //
-// THIS FILE ARRIVES ON DEMAND. omn-go-api.js writes a stub for each name
-// below, and the first press of the bookmark button loads this file. See
-// omnLazy there.
+// THIS FILE ARRIVES ON DEMAND. omn-go-api.js writes a stub for
+// handleShare and showBookmarkPanel, and for the bookmark-panel action. The
+// first call of one of them loads this file. See omnLazy and omnLazyActions
+// there.
 //
 // TWO PARTS STAYED IN omn-go-api.js, and each one has a reason.
 // omnGoInsertCapture answers Android with a value that Android reads,
@@ -74,8 +75,8 @@ if (window.location.protocol !== 'file:') {
     // run the first time the Ingest Bookmark modal is opened, and not on
     // every page load. Most page views never touch this panel.
     //
-    // window.showBookmarkPanel() and toggleBookmarkPanel() below are the only
-    // places that reveal #bmPanel. The "add bookmark" button of the header,
+    // window.showBookmarkPanel() and the bookmark-panel action below are the
+    // only places that reveal #bmPanel. The "add bookmark" button of the header,
     // the URL drag-and-drop handler and window.handleShare all go through one
     // of them now. None pokes the classList of #bmPanel directly. "The modal
     // is opening" is thus caught in exactly one place.
@@ -108,9 +109,9 @@ if (window.location.protocol !== 'file:') {
         }
 
         // Attaches the input/keydown/click listeners to #bmTags exactly once.
-        // Called from showBookmarkPanel()/toggleBookmarkPanel() every time the
-        // modal opens; the `wired` guard makes repeat calls no-ops so reopening
-        // the panel never double-attaches listeners.
+        // showBookmarkPanel() and the bookmark-panel action call it each time
+        // the modal opens. The `wired` guard makes a repeat call do nothing,
+        // thus a second open of the panel attaches no second listener.
         function wireBookmarkTagAutocomplete() {
             if (wired) return;
             var input = document.getElementById('bmTags');
@@ -224,7 +225,8 @@ if (window.location.protocol !== 'file:') {
         // Toggles #bmPanel (used by the header's "add bookmark" button, which
         // both opens and closes it). Only prepares the autocomplete on the
         // transition into "visible" - closing the panel does nothing extra.
-        window.toggleBookmarkPanel = function () {
+        // See OMN.action in omn-go-core.js.
+        window.OMN.action('bookmark-panel', function () {
             var panel = document.getElementById('bmPanel');
             if (!panel) return;
             var opening = panel.classList.contains('hidden');
@@ -233,11 +235,10 @@ if (window.location.protocol !== 'file:') {
                 wireBookmarkTagAutocomplete();
                 ensureTagsLoaded();
             }
-        };
+        });
     })();
 
 } else {
     window.handleShare = function() { printDebug('handleShare'); };
     window.showBookmarkPanel = function() { printDebug('showBookmarkPanel'); };
-    window.toggleBookmarkPanel = function() { printDebug('toggleBookmarkPanel'); };
 }

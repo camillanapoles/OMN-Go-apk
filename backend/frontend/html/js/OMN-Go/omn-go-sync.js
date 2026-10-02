@@ -4,12 +4,16 @@
 // to /api/sync, the conflict modal, the force push, and the commit-message
 // modal that an upload opens first.
 //
-// THIS FILE ARRIVES ON DEMAND. omn-go-api.js writes a stub for each name
-// below, and the first press of a sync button loads this file. See omnLazy
-// in that file, and doc/decisions/0015-load-the-click-driven-scripts-on-demand.md.
+// THIS FILE ARRIVES ON DEMAND. omn-go-api.js gives each action at the end
+// of this file a stub, and the first press of a sync control loads this
+// file. See omnLazyActions in that file, and
+// doc/decisions/0015-load-the-click-driven-scripts-on-demand.md.
 //
-// The names must match the omnLazy list there. A name that this file does
-// not define writes a console fault at the first press.
+// The actions must match the omnLazyActions list there. An action that this
+// file does not give writes a console fault at the first press.
+//
+// A page from disk never loads this file. The else branch of omn-go-api.js
+// gives each action a stub there.
 if (window.location.protocol !== 'file:') {
 
     // The title of the progress overlay, for each action that runSync
@@ -30,9 +34,14 @@ if (window.location.protocol !== 'file:') {
         push: 'Upload', upload: 'Upload', push_force: 'Force upload'
     };
 
-    // The whole body of this file sits inside the protocol guard. A name here
-    // thus reaches no other file, unless the code puts it on window. An IIFE
-    // around the functions below would add a scope and hide nothing.
+    // The whole body of this file sits inside the protocol guard. A const
+    // here thus reaches no other file. No function of this file is on
+    // window. Each function is a const, and NOT a function declaration: a
+    // declaration in a block becomes a global name in sloppy mode.
+
+    // The commit message of a push that the remote refused. The force push
+    // of the push-conflict modal sends it again.
+    let retryPushMessage = null;
 
     // runSync is the one place that talks to /api/sync. It always POSTs
     // action, force and message together, and it always expects a JSON
@@ -40,7 +49,7 @@ if (window.location.protocol !== 'file:') {
     //
     // Both syncAction and the conflict modal handler, which is performSync
     // below, go through this one function. The two thus cannot drift apart.
-    window.runSync = async function(action, opts) {
+    const runSync = async function (action, opts) {
         opts = opts || {};
         const fd = new URLSearchParams();
         fd.append('action', action);
@@ -74,7 +83,7 @@ if (window.location.protocol !== 'file:') {
         switch (data.status) {
             case 'success':
                 if (modal) modal.classList.add('hidden');
-                window.hidePushConflictModal();
+                hidePushConflictModal();
                 return data;
             case 'conflict':
                 if (modal) {
@@ -84,8 +93,8 @@ if (window.location.protocol !== 'file:') {
                     const list = (data.files && data.files.length)
                         ? '\n\nFiles in contention:\n' + data.files.join('\n') : '';
                     const choice = confirm('Conflict!' + list + '\n\nOK to Force Pull (Keep Untracked), Cancel to Mark Files.');
-                    if (choice) window.runSync('pull_force');
-                    else window.runSync('pull_mark');
+                    if (choice) runSync('pull_force');
+                    else runSync('pull_mark');
                 }
                 return data;
             case 'push_conflict': {
@@ -95,13 +104,13 @@ if (window.location.protocol !== 'file:') {
                 // the choice in a modal, like the pull conflict one. A
                 // rejected push leaves local state untouched (see
                 // syncPush). Abort is a pure UI cancel.
-                window._retryPushMessage = opts.message || null;
+                retryPushMessage = opts.message || null;
                 const pModal = document.getElementById('push-conflict-modal');
                 if (pModal) {
                     pModal.classList.remove('hidden');
                 } else {
                     const choice = confirm('Push rejected: the remote has new commits.\n\nOK to Force Push (destructive), Cancel to Abort.');
-                    if (choice) window.performPushForce();
+                    if (choice) performPushForce();
                 }
                 return data;
             }
@@ -136,7 +145,7 @@ if (window.location.protocol !== 'file:') {
             alert('The server did not store the new key: ' + (err.message || res.status));
             return data;
         }
-        return window.runSync(action, opts);
+        return runSync(action, opts);
     }
 
     // populateConflictFiles fills the file list of the conflict modal. The
@@ -150,7 +159,7 @@ if (window.location.protocol !== 'file:') {
     //
     // Built with textContent, and never with innerHTML, thus a note filename
     // cannot inject markup.
-    function populateConflictFiles(files) {
+    const populateConflictFiles = function (files) {
         const box = document.getElementById('conflict-files');
         const list = document.getElementById('conflict-file-list');
         if (!box || !list) return;
@@ -169,14 +178,14 @@ if (window.location.protocol !== 'file:') {
             });
         }
         box.classList.remove('hidden');
-    }
+    };
 
     // performSync handles the three buttons on the conflict modal in
     // index.html. It moved here from an inline <script> in that file, thus
-    // all sync UI logic lives together. It goes through window.runSync
+    // all sync UI logic lives together. It uses runSync
     // above, thus the modal and the header sync buttons cannot disagree
     // about the wire format or the response handling.
-    window.performSync = async function(action) {
+    const performSync = async function (action) {
         const modal = document.getElementById('conflict-modal');
         if (action === 'abort') {
             // A plain "pull" never changes local state before it reports a
@@ -187,7 +196,7 @@ if (window.location.protocol !== 'file:') {
         }
         if (modal) modal.classList.add('hidden');
 
-        const data = await window.runSync(action);
+        const data = await runSync(action);
         if (data && data.status === 'success') {
             // pull_force and pull_mark both change what is on disk under
             // this page, thus reload to show it.
@@ -199,7 +208,7 @@ if (window.location.protocol !== 'file:') {
     // A rejected push never touches local state. The backend returns
     // push_conflict before any mutation. The Abort button only hides
     // this modal, like the pull modal's Abort button.
-    window.hidePushConflictModal = function() {
+    const hidePushConflictModal = function () {
         const modal = document.getElementById('push-conflict-modal');
         if (modal) modal.classList.add('hidden');
     };
@@ -211,10 +220,10 @@ if (window.location.protocol !== 'file:') {
     // message for a force push, even when there is nothing new to
     // commit. The message is a checkpoint before a destructive push
     // (see syncPush).
-    window.performPushForce = async function() {
-        window.hidePushConflictModal();
+    const performPushForce = async function () {
+        hidePushConflictModal();
 
-        let message = window._retryPushMessage || '';
+        let message = retryPushMessage || '';
         if (!message) {
             message = window.prompt
                 ? (window.prompt('Force push requires a commit message.\n\nDescribe what this push changes on the remote:') || '').trim()
@@ -225,7 +234,7 @@ if (window.location.protocol !== 'file:') {
             }
         }
 
-        const data = await window.runSync('push_force', { message });
+        const data = await runSync('push_force', { message });
         if (data && data.status === 'success') {
             if (confirm('Upload complete.\n\nWould you like to reload the page now to see updated content?')) {
                 window.location.reload();
@@ -233,7 +242,7 @@ if (window.location.protocol !== 'file:') {
         }
     };
 
-    window.syncAction = async function (action) {
+    const syncAction = async function (action) {
         if (action === 'upload') {
             // Uploads always go through the commit-message modal, which
             // also shows the file list and handles "nothing to commit".
@@ -241,15 +250,15 @@ if (window.location.protocol !== 'file:') {
             return;
         }
 
-        const data = await window.runSync(action);
+        const data = await runSync(action);
         if (data && data.status === 'success') {
             if (confirm('Sync complete.\n\nWould you like to reload the page now to see updated content?')) {
                 window.location.reload();
             }
         }
-    }
+    };
 
-    window.previewAndCommit = async function() {
+    const previewAndCommit = async function () {
         // To build the preview walks the whole worktree diff. That is the
         // slow half of an upload on a large note collection. Show progress
         // here too, and not during the commit and push alone.
@@ -288,7 +297,7 @@ if (window.location.protocol !== 'file:') {
                 // There is nothing to commit, so no commit message is asked
                 // for: the upload goes straight to the push.
                 if (preview.unpushed) {
-                    const data = await window.runSync('upload');
+                    const data = await runSync('upload');
                     if (data && data.status === 'success') {
                         if (confirm('Upload complete.\n\nWould you like to reload the page now to see updated content?')) {
                             window.location.reload();
@@ -317,7 +326,7 @@ if (window.location.protocol !== 'file:') {
         }
     };
 
-    window.commitAndUpload = async function() {
+    const commitAndUpload = async function () {
         const message = document.getElementById('commitMessage').value.trim();
         if (!message) {
             alert('Please enter a commit message.');
@@ -325,7 +334,7 @@ if (window.location.protocol !== 'file:') {
         }
         hideCommitModal();
 
-        const data = await window.runSync('upload', { message });
+        const data = await runSync('upload', { message });
         if (data && data.status === 'success') {
             if (confirm('Upload complete.\n\nWould you like to reload the page now to see updated content?')) {
                 window.location.reload();
@@ -333,18 +342,18 @@ if (window.location.protocol !== 'file:') {
         }
     };
 
-    window.hideCommitModal = function() {
+    const hideCommitModal = function () {
         document.getElementById('commitModal').style.display = 'none';
         document.getElementById('commitMessage').value = '';
     };
 
-} else {
-    window.runSync = function() { printDebug('runSync'); };
-    window.syncAction = function() { printDebug('syncAction'); };
-    window.performSync = function() { printDebug('performSync'); };
-    window.performPushForce = function() { printDebug('performPushForce'); };
-    window.hidePushConflictModal = function() { printDebug('hidePushConflictModal'); };
-    window.previewAndCommit = function() { printDebug('previewAndCommit'); };
-    window.commitAndUpload = function() { printDebug('commitAndUpload'); };
-    window.hideCommitModal = function() { printDebug('hideCommitModal'); };
+    // The actions of the sync controls. See OMN.action in omn-go-core.js.
+    // data-arg of sync is "download" or "upload". data-arg of sync-resolve
+    // is "pull_force", "pull_mark" or "abort".
+    window.OMN.action('sync', function (el) { return syncAction(el.getAttribute('data-arg')); });
+    window.OMN.action('sync-resolve', function (el) { return performSync(el.getAttribute('data-arg')); });
+    window.OMN.action('push-force', function () { return performPushForce(); });
+    window.OMN.action('push-cancel', function () { hidePushConflictModal(); });
+    window.OMN.action('commit-upload', function () { return commitAndUpload(); });
+    window.OMN.action('commit-cancel', function () { hideCommitModal(); });
 }

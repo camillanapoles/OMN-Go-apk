@@ -15,8 +15,9 @@
 //	omn-go-bookmark.js  the bookmark panel and the tag autocomplete
 //	omn-go-search.js    the search overlay
 //
-// omnLoadModule below fetches one of them, and omnLazy writes a stub for
-// each global that it holds. The stub loads the file, then calls the real
+// omnLoadModule below fetches one of them. omnLazy writes a stub for each
+// global that the file holds, and omnLazyActions writes a stub for each
+// action that it gives. The stub loads the file, then calls the real
 // function with the same arguments.
 //
 // WHAT CANNOT BE LAZY, AND WHY.
@@ -256,15 +257,36 @@ if (window.location.protocol !== 'file:') {
         });
     }
 
-    omnLazy('omn-go-sync.js', [
-        'runSync', 'syncAction', 'performSync', 'performPushForce',
-        'hidePushConflictModal', 'previewAndCommit', 'commitAndUpload',
-        'hideCommitModal',
+    // omnLazyActions gives each action a stub. The stub loads the file, and
+    // the file calls OMN.action for the same name. The stub then calls the
+    // function that the file gave. See OMN.action in omn-go-core.js.
+    //
+    // A lazy file that only a control starts needs no name on window.
+    function omnLazyActions(file, names) {
+        names.forEach(function (name) {
+            const stub = function (el, event) {
+                return omnLoadModule(file).then(function () {
+                    const fn = window.OMN.action(name);
+                    if (fn === stub) {
+                        console.error('OMN-Go: ' + file + ' gives no action ' + name);
+                        return;
+                    }
+                    return fn(el, event);
+                });
+            };
+            window.OMN.action(name, stub);
+        });
+    }
+
+    omnLazyActions('omn-go-sync.js', [
+        'sync', 'sync-resolve', 'push-force', 'push-cancel',
+        'commit-upload', 'commit-cancel',
     ]);
-    omnLazy('omn-go-bookmark.js', [
-        'handleShare', 'showBookmarkPanel', 'toggleBookmarkPanel',
-    ]);
+    omnLazy('omn-go-bookmark.js', ['handleShare', 'showBookmarkPanel']);
+    omnLazyActions('omn-go-bookmark.js', ['bookmark-panel']);
     omnLazy('omn-go-search.js', ['omnSearchOpen']);
+    // omnSearchOpen keeps its name, because the User Manual promises it.
+    window.OMN.action('search', function () { window.omnSearchOpen(); });
 
     // The actions of this block need the server. The else branch at the end
     // of this file gives each one a stub for a page from disk.
@@ -779,8 +801,14 @@ if (window.location.protocol !== 'file:') {
     console.warn("OMN-Go: Page opened locally. Server Extensions (Sync/SSE) safely disabled.");
 
     // The actions of the guarded block above. A control that needs the
-    // server is hidden on such a page, thus a stub is enough.
-    ['login', 'new-page', 'quick-note-save', 'bookmark-save'].forEach(function (name) {
+    // server is hidden on such a page, thus a stub is enough. The last seven
+    // names are the actions of the lazy files. A page from disk never loads
+    // such a file.
+    [
+        'login', 'new-page', 'quick-note-save', 'bookmark-save', 'search',
+        'bookmark-panel', 'sync', 'sync-resolve', 'push-force', 'push-cancel',
+        'commit-upload', 'commit-cancel',
+    ].forEach(function (name) {
         window.OMN.action(name, function () { printDebug(name); });
     });
     window.checkSession = function() { printDebug('checkSession'); };
@@ -793,33 +821,3 @@ if (window.location.protocol !== 'file:') {
     // omnSearchClearHighlights is NOT stubbed here: the highlighting lives in
     // omn-go-core.js and works offline, so the real one is already defined.
 }
-
-// --- The actions of the lazy files ---
-// A control of index.html or modals.html names one of these in data-action.
-// See OMN.action in omn-go-core.js. Each action calls a global function of a
-// lazy file, and the stub of omnLazy loads that file at the first call.
-//
-// This block is OUTSIDE the guard above, thus a page from disk has the same
-// actions. On such a page a lazy file never loads, and its function is
-// absent.
-(function () {
-    // run calls one global function with the arguments that follow its name.
-    function run(name) {
-        if (typeof window[name] !== 'function') {
-            window.printDebug(name);
-            return;
-        }
-        return window[name].apply(window, Array.prototype.slice.call(arguments, 1));
-    }
-    const action = window.OMN.action;
-    action('bookmark-panel', function () { run('toggleBookmarkPanel'); });
-    action('search', function () { run('omnSearchOpen'); });
-    // data-arg is "download" or "upload".
-    action('sync', function (el) { run('syncAction', el.getAttribute('data-arg')); });
-    action('commit-upload', function () { run('commitAndUpload'); });
-    action('commit-cancel', function () { run('hideCommitModal'); });
-    // data-arg is "pull_force", "pull_mark" or "abort".
-    action('sync-resolve', function (el) { run('performSync', el.getAttribute('data-arg')); });
-    action('push-force', function () { run('performPushForce'); });
-    action('push-cancel', function () { run('hidePushConflictModal'); });
-})();

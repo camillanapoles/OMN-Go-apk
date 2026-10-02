@@ -1,8 +1,8 @@
 # 0015. Load the click-driven scripts on demand
 
 * Status: accepted
-* Version: 26.09.24, 26.09.41
-* Code: `omnLoadModule` and `omnLazy` in
+* Version: 26.09.24, 26.09.41, 26.10.10
+* Code: `omnLoadModule`, `omnLazy` and `omnLazyActions` in
   `backend/frontend/html/js/OMN-Go/omn-go-api.js`, `omn-go-sync.js`,
   `omn-go-bookmark.js`, `omn-go-search.js`,
   `backend/frontend/test/lazy.test.js`
@@ -23,6 +23,11 @@ presses a control: a sync button, the bookmark button or the magnifier.
   name of such a file. The first call of a stub loads the file with
   `omnLoadModule`, and then calls the real function with the same
   arguments.
+* `omnLazyActions` writes a stub for each action of such a file. See
+  `doc/decisions/0020-name-the-work-of-a-control-in-data-action.md`. The
+  first press of a control loads the file. The file calls `OMN.action` for
+  the same name, and the stub then calls that function. A file that only
+  a control starts thus puts no name on `window`.
 * Five parts stay in `omn-go-api.js`, because a stub cannot do their
   work:
   1. `omnGoOpenDatabase`. A plain `<script>` in a note calls it while the
@@ -46,9 +51,14 @@ presses a control: a sync button, the bookmark button or the magnifier.
 * Put a function that another file calls on `window`, by name. Annex B
   of JavaScript lifts a function of an `if` block to the global scope,
   but a `const` stays in the block. Do not depend on that difference.
+* A function of `omn-go-sync.js` is a `const` of the guard block. A
+  `function` declaration there becomes a global name. `lazy.test.js` found
+  `populateConflictFiles` on `window` for that reason, and 26.10.10 made it
+  a `const`.
 * `lazy.test.js` runs each lazy file alone in `page-stub.js`, where
   `window` is the global object, the same as in a browser. It calls each
-  promised name, and a ReferenceError fails the test. `dom-stub.js`
+  promised name and each action, and a ReferenceError fails the test. It
+  also fails when a file and its list in `omn-go-api.js` do not agree. `dom-stub.js`
   loads a file as a Node module. That gives the file its own scope, which
   hides this fault.
 * `TestJavaScriptUnitTests` in `backend/internal/repocheck/js_test.go` runs that

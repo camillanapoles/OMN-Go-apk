@@ -93,13 +93,67 @@ test('a link with an action does not follow its href', () => {
     assert.strictEqual(click(clicks, control('probe')).defaultPrevented, false);
 });
 
-test('the sync control gives its data-arg to syncAction', () => {
+test('a lazy action loads its file one time and then calls the action of the file', async () => {
     const { page, clicks } = loadPage();
+    // The script element that omnLoadModule adds to the head. The test
+    // gives the action in place of the real file, and then reports the load.
+    const loads = [];
     const seen = [];
-    page.syncAction = function (action) { seen.push(action); };
+    page.document.head.appendChild = function (el) {
+        loads.push(el.src);
+        setTimeout(function () {
+            page.OMN.action('sync', function (control) {
+                seen.push(control.getAttribute('data-arg'));
+            });
+            el.onload();
+        }, 0);
+    };
     click(clicks, control('sync', 'download'));
     click(clicks, control('sync', 'upload'));
+    await new Promise(function (resolve) { setTimeout(resolve, 20); });
+    assert.deepStrictEqual(loads, ['/js/OMN-Go/omn-go-sync.js']);
     assert.deepStrictEqual(seen, ['download', 'upload']);
+    // The third click finds the action of the file, and no stub.
+    click(clicks, control('sync', 'download'));
+    assert.deepStrictEqual(seen, ['download', 'upload', 'download']);
+    assert.strictEqual(loads.length, 1);
+});
+
+test('a lazy file that gives no action writes a console fault', async () => {
+    const { page, clicks } = loadPage();
+    const faults = [];
+    page.console.error = function (m) { faults.push(m); };
+    page.document.head.appendChild = function (el) { setTimeout(el.onload, 0); };
+    click(clicks, control('bookmark-panel'));
+    await new Promise(function (resolve) { setTimeout(resolve, 20); });
+    assert.strictEqual(faults.length, 1);
+    assert.ok(faults[0].indexOf('bookmark-panel') >= 0, faults[0]);
+});
+
+// shellActions answers each data-action of index.html and modals.html.
+function shellActions() {
+    const fs = require('fs');
+    const path = require('path');
+    const names = {};
+    for (const file of ['index.html', 'modals.html']) {
+        const src = fs.readFileSync(path.join(__dirname, '..', 'templates', file), 'utf8');
+        const re = /data-action="([^"]+)"/g;
+        let m;
+        while ((m = re.exec(src)) !== null) names[m[1]] = true;
+    }
+    return Object.keys(names);
+}
+
+test('each control of the page shell has an action, from the server and from disk', () => {
+    const names = shellActions();
+    assert.ok(names.length >= 15, 'the scan found ' + names.length + ' actions in the shell');
+    for (const protocol of ['http:', 'file:']) {
+        const { page } = loadPage(protocol);
+        for (const name of names) {
+            assert.strictEqual(typeof page.OMN.action(name), 'function',
+                'a page of ' + protocol + ' has no action ' + name);
+        }
+    }
 });
 
 test('the copy control copies the quick note and writes the result on itself', () => {
@@ -173,7 +227,10 @@ test('no internal function of a control is a name of window', () => {
     const { page } = loadPage();
     for (const name of ['toggleHeader', 'toggleQuickPanel', 'copyQuickNote',
         'createNoteShortcut', 'updateArrow', 'login', 'createNewPage',
-        'submitQuickNote', 'submitBookmark']) {
+        'submitQuickNote', 'submitBookmark', 'runSync', 'syncAction',
+        'performSync', 'performPushForce', 'hidePushConflictModal',
+        'previewAndCommit', 'commitAndUpload', 'hideCommitModal',
+        'toggleBookmarkPanel']) {
         assert.strictEqual(typeof page[name], 'undefined', 'window.' + name + ' is back');
     }
 });
@@ -199,10 +256,13 @@ test('on a page from disk a server action does not throw', () => {
     const { page, clicks } = loadPage('file:');
     const debug = [];
     page.printDebug = function (name) { debug.push(name); };
-    // No lazy file loads on such a page, thus window.syncAction is absent.
+    const loads = [];
+    page.document.head.appendChild = function (el) { loads.push(el.src); };
     click(clicks, control('sync', 'download'));
     click(clicks, control('new-page'));
-    assert.deepStrictEqual(debug, ['syncAction', 'new-page']);
+    assert.deepStrictEqual(debug, ['sync', 'new-page']);
+    // No lazy file loads on such a page.
+    assert.deepStrictEqual(loads, []);
 });
 
 test('replace-location opens the address of data-arg', () => {

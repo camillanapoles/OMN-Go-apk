@@ -59,10 +59,10 @@ text, and no editor checked it.
   listener.
 * A handler that stops the propagation of a click also stops the action.
   No script of the application does that.
-* The function of an action has no name on `window`. The actions of the
-  lazy files are the exception: `omnLazy` needs a global name for each
-  function that it loads. A later change gives the lazy files actions of
-  their own.
+* The function of an action has no name on `window`. A lazy file gives
+  its actions itself, and `omnLazyActions` in `omn-go-api.js` gives each
+  one a stub that loads the file. See
+  `doc/decisions/0015-load-the-click-driven-scripts-on-demand.md`.
 * The names of the User Manual stay on `window`. `window.refreshPage` also
   stays, because the bundled note `AppApiTest` calls it.
 * A note of the user can still use an inline `onclick`. This rule is for

@@ -52,7 +52,9 @@ window.omnGoRenderMath = omnGoRenderMath;
 window.OMN = window.OMN || {};
 (function () {
     const actions = {};
+    // With a name alone, OMN.action answers the function of that action.
     window.OMN.action = function (name, fn) {
+        if (arguments.length < 2) return actions[name];
         actions[name] = fn;
     };
     document.addEventListener('click', function (event) {

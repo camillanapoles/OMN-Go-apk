@@ -104,10 +104,12 @@ against the same object.
 In a Node module, the fault did not show. See
 `doc/decisions/0015-load-the-click-driven-scripts-on-demand.md`.
 
-`lazy.test.js` uses the page stub. It reads the `omnLazy` call of
-`omn-go-api.js`, loads each lazy file ALONE, and calls each name that the
-call promises. A ReferenceError is a failure. A TypeError is not, because
-the page is a stub and not a browser.
+`lazy.test.js` uses the page stub. It reads the `omnLazy` and
+`omnLazyActions` calls of `omn-go-api.js`, loads each lazy file ALONE, and
+calls each name and each action that the calls promise. A ReferenceError is
+a failure. A TypeError is not, because the page is a stub and not a browser.
+It also fails for an action that the list does not name. A function that a
+lazy file puts on `window` with no promise fails it too.
 
 `actions.test.js` uses the page stub. It loads `omn-go-core.js` and
 `omn-go-api.js`, and it sends a click to the real click listener. It checks
