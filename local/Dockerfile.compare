@@ -1,0 +1,13 @@
+# syntax=docker/dockerfile:1
+FROM omn-go-base:latest
+COPY . .
+RUN cp /root/lockfiles/go.mod /root/lockfiles/go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked go mod tidy
+ARG SIZE_BASE=
+ARG RUN_ID=
+RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
+    --mount=type=cache,target=/root/.cache/go-build,sharing=locked \
+    echo "size run $RUN_ID" && \
+    git config --global --add safe.directory "$(pwd)" && \
+    OMN_BINARY_SIZE=1 OMN_BINARY_SIZE_BASE="$SIZE_BASE" \
+    go test -v -run 'TestBinarySize$' -timeout 30m ./backend/internal/repocheck/
