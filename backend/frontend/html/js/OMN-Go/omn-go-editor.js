@@ -633,12 +633,40 @@
         var b = lineBounds(ta.value, caret);
         var res = expandMarkdownAbbr(ta.value.substring(b.start, caret));
         if (!res) return false;
-        ta.value = ta.value.substring(0, b.start) + res.text + ta.value.substring(caret);
-        var pos = b.start + res.caret;
-        ta.focus();
-        ta.setSelectionRange(pos, pos);
-        markDirty();
+        writeExpansion(ta.value.substring(0, b.start) + res.text + ta.value.substring(caret),
+            b.start + res.caret);
         return true;
+    }
+
+    // writeExpansion puts the text of an expansion into the textarea and the
+    // caret at pos. The view stays where it was.
+    //
+    // THE ORDER OF THE THREE STEPS IS THE POINT. An assignment to .value
+    // moves the caret to the end of the text. A focus of a textarea that
+    // does not have it scrolls to the caret. The toolbar button takes the
+    // focus away, thus a focus before the caret is in place scrolled the
+    // view to the end of the note. The caret was correct, and the person
+    // saw the last lines of the file.
+    //
+    //   1. Write the text and put the caret in place.
+    //   2. Put the scroll position back. Chromium does not move it at the
+    //      write. This step is for a browser that does.
+    //   3. Give the textarea the focus. The browser then scrolls only when
+    //      the caret is outside the view.
+    function writeExpansion(text, pos) {
+        writeKeepingView(text, pos);
+        ta.focus();
+        markDirty();
+    }
+
+    // writeKeepingView writes the whole text, puts the caret at pos and
+    // puts the scroll position back. It does not move the focus.
+    function writeKeepingView(text, pos) {
+        var top = ta.scrollTop, left = ta.scrollLeft;
+        ta.value = text;
+        ta.setSelectionRange(pos, pos);
+        ta.scrollTop = top;
+        ta.scrollLeft = left;
     }
 
     // Expand the abbreviation on the current line (from first non-space to
@@ -660,10 +688,9 @@
         }).join('\n');
         var before = ta.value.substring(0, b.start) + lead;
         var after = ta.value.substring(caret);
-        ta.value = before + indented.slice(lead.length) + after;
+        var full = before + indented.slice(lead.length) + after;
         // Place the caret at the first empty ></ pair, else after insertion.
         var insertedAt = b.start;
-        var full = ta.value;
         var emptyPair = full.indexOf('></', insertedAt);
         var caretPos;
         if (emptyPair !== -1 && emptyPair < insertedAt + lead.length + indented.length) {
@@ -671,9 +698,7 @@
         } else {
             caretPos = insertedAt + indented.length;
         }
-        ta.focus();
-        ta.setSelectionRange(caretPos, caretPos);
-        markDirty();
+        writeExpansion(full, caretPos);
         return true;
     }
 
@@ -1531,9 +1556,7 @@
 
     function insertAtCaret(text) {
         var s = ta.selectionStart, en = ta.selectionEnd;
-        ta.value = ta.value.substring(0, s) + text + ta.value.substring(en);
-        var caret = s + text.length;
-        ta.setSelectionRange(caret, caret);
+        writeKeepingView(ta.value.substring(0, s) + text + ta.value.substring(en), s + text.length);
         markDirty();
     }
 

@@ -286,4 +286,30 @@ function configPage(values) {
         .load(shellScripts().concat(['omn-go-config.js'])).ready();
 }
 
-module.exports = { newDomPage, notePage, configPage, shellBody, shellScripts, template };
+// editorPage answers the editor page with text as the note, after the load
+// events and the load of the note. The editor is a page of its own: it has
+// the markup of editor.html and the script omn-go-editor.js, and no other
+// script of the application.
+async function editorPage(text) {
+    const html = template('editor.html');
+    const open = html.indexOf('<body');
+    const start = html.indexOf('>', open) + 1;
+    const close = html.indexOf('</body>');
+    assert.ok(open >= 0 && close > start, 'editor.html has no body element');
+    const h = newDomPage({ body: html.slice(start, close), path: '/Note.md' });
+    h.page.OMN_EDIT_NAME = 'Note';
+    h.page.OMN_EDIT_EXT = '.md';
+    h.page.OMN_EDIT_VIEW = '/Note.html';
+    h.page.getComputedStyle = function () { return { lineHeight: '18px', fontSize: '14px' }; };
+    h.server = function (request) {
+        if (request.url.indexOf('/api/note') === 0 && request.method === 'GET') {
+            return { httpStatus: 200, text: text };
+        }
+        return { status: 'success' };
+    };
+    h.load(['omn-go-editor.js']).ready();
+    await h.settle();
+    return h;
+}
+
+module.exports = { newDomPage, notePage, configPage, editorPage, shellBody, shellScripts, template };

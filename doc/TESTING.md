@@ -140,7 +140,10 @@ server cards, and it also loads `omn-go-config.js`. `mini-dom.js` has
 `FormData`, thus a test reads the body of a save the same as the server
 does.
 
-Five test files use these pages:
+`editorPage(text)` builds the editor from `editor.html` and loads
+`omn-go-editor.js` with `text` as the note.
+
+Six test files use these pages:
 
 | File | What it holds |
 | --- | --- |
@@ -149,6 +152,7 @@ Five test files use these pages:
 | `config.test.js` | A save sends no secret that the person did not type. A reveal alone changes nothing. The menu, the Back control and the mark of a change. |
 | `search.test.js` | The dialog sends no request while the person types. The two scopes, the keys, and the address of a chosen line. |
 | `session.test.js` | The hint cookie, the answer 401 and the login box. |
+| `editor-view.test.js` | An expansion keeps the view of the editor, from the Tab key and from the toolbar button. |
 
 **A test here proves what a script does with a document. It does not prove
 that a browser agrees.** Check a new control in a real browser too.

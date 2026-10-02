@@ -296,7 +296,13 @@ class Element extends Node {
         }
         return this.getAttribute('value') || '';
     }
-    set value(v) { this._value = String(v); }
+    // A write of value moves the caret to the end of the text, the same as
+    // in a browser.
+    set value(v) {
+        this._value = String(v);
+        this.selectionStart = this._value.length;
+        this.selectionEnd = this._value.length;
+    }
     get checked() { return this._checked !== undefined ? this._checked : this.hasAttribute('checked'); }
     set checked(v) { this._checked = !!v; }
     get form() { return this.closest('form'); }
