@@ -82,7 +82,8 @@ const UI = (function() {
                 });
             }
 
-    // Export to global scope to preserve HTML onclick attributes
+    // ScriptRules.md names executeScripts as a helper of a note script, thus
+    // the export stays.
     window.executeScripts = executeScripts;
     return { executeScripts };
 })();
@@ -970,7 +971,7 @@ if (typeof currentNote === 'undefined') {
 
         // Refresh. Online, ask the server to recompile the page with
         // ?refresh=1. Offline there is no server to recompile, thus reload
-        // the file. Wired to the refresh button of the header (onclick).
+        // the file. The refresh-page action of the header button calls it.
         window.refreshPage = function () {
             if (window.location.protocol === 'file:') {
                 window.location.reload();
@@ -979,26 +980,17 @@ if (typeof currentNote === 'undefined') {
             }
         };
 
-        // Null-safe toggle for the quick-note panel. #quickPanel is a
-        // server-injected modal (see injectRuntimeVars), so it is absent on an
-        // exported/offline page - guard against that instead of throwing.
-        // Wired to the header's quick-note button (onclick).
-        window.toggleQuickPanel = function () {
-            var p = document.getElementById('quickPanel');
-            if (p) p.classList.toggle('hidden');
-        };
-
         // Copies the Quick Note text to the clipboard WITHOUT saving it. The
         // captured snippet can then be pasted somewhere else. A person types
         // that snippet, or shares it in from another Android app, or pushes
         // it in with a barcode scan. See omnGoInsertCapture in omn-go-api.js.
-        // Wired to the Copy button of the panel, which passes itself as btn,
-        // thus the label can report the outcome.
+        // btn is the Copy button of the panel, thus the label can report the
+        // outcome.
         //
-        // It lives here rather than beside submitQuickNote in omn-go-api.js,
-        // because it never talks to the backend. The no-server branch of that
-        // file replaces every handler with a printDebug stub. That is right
-        // for /api/quick and wrong for a pure clipboard action.
+        // It lives here rather than beside the quick-note-save action in
+        // omn-go-api.js, because it never talks to the backend. The no-server
+        // branch of that file gives each of its actions a printDebug stub.
+        // That is right for /api/quick and wrong for a pure clipboard action.
         //
         // This function uses select and execCommand('copy') on purpose. It
         // does not use the Clipboard API. The Clipboard API is the modern
@@ -1014,13 +1006,13 @@ if (typeof currentNote === 'undefined') {
         // the Clipboard API is absent there. One path serves all three.
         //
         // omnGoCopyText below is the general form. It tries the Clipboard
-        // API first. This function stays direct, because its text is
+        // API first. This action stays direct, because its text is
         // already in a textarea. The focus must stay in that textarea for
         // the typing that follows.
         //
         // No scratch element is needed: the text already sits in a <textarea>,
         // which is exactly what select() wants.
-        window.copyQuickNote = function (btn) {
+        window.OMN.action('quick-note-copy', function (btn) {
             var q = document.getElementById('quickText');
             if (!q) return;
 
@@ -1064,7 +1056,7 @@ if (typeof currentNote === 'undefined') {
             } catch (e) { /* element does not support selection ranges */ }
 
             feedback(ok ? 'Copied!' : 'Copy failed');
-        };
+        });
 
         // Asks the native shell (MainActivity.shouldOverrideUrlLoading, see
         // the omngo://edit precedent) to pin a home-screen shortcut to the
@@ -1075,42 +1067,35 @@ if (typeof currentNote === 'undefined') {
         // Title: header of the note, already exposed as the global `Title`
         // var, see index.html. The label uses "title" alone, thus a
         // shortcut reads "Grocery List" and not "note-42".
-        window.createNoteShortcut = function() {
+        window.OMN.action('add-shortcut', function () {
             if (typeof currentNote === 'undefined' || !currentNote) return;
             var label = (typeof Title !== 'undefined' && Title) ? Title : currentNote;
             window.location.href = 'omngo://shortcut?name=' + encodeURIComponent(currentNote) +
                 '&title=' + encodeURIComponent(label);
-        };
+        });
 
-        window.toggleHeader = function() {
+// The title of the page opens and closes the header. The arrow beside the
+// title shows the state.
+window.OMN.action('toggle-header', function () {
     var header = document.getElementById('hidable_header');
     var arrow = document.getElementById('title_arrow');
-    if (header) {
-        if (header.classList.contains('hidden')) {
-            header.classList.remove('hidden');
-            if (arrow) arrow.textContent = '\u2212';
-        } else {
-            header.classList.add('hidden');
-            if (arrow) arrow.textContent = '+';
-        }
+    if (!header) return;
+    if (header.classList.contains('hidden')) {
+        header.classList.remove('hidden');
+        if (arrow) arrow.textContent = '\u2212';
+    } else {
+        header.classList.add('hidden');
+        if (arrow) arrow.textContent = '+';
     }
-};
-window.updateArrow = function() {
-    var header = document.getElementById('hidable_header');
-    var arrow = document.getElementById('title_arrow');
-    if (header && arrow) {
-        arrow.textContent = header.classList.contains('hidden') ? '+' : '\u2212';
-    }
-};
+});
 
-// The actions of this file. Each one works on a page from disk too. See
-// OMN.action at the top of this file. The actions that need the server are
-// at the end of omn-go-api.js.
-window.OMN.action('toggle-header', function () { window.toggleHeader(); });
+// The other actions of this file. Each action of this file works on a page
+// from disk too. See OMN.action at the top of this file. The actions that
+// need the server are in omn-go-api.js.
+//
+// window.refreshPage keeps its name, because the bundled note AppApiTest
+// calls it.
 window.OMN.action('refresh-page', function () { window.refreshPage(); });
-window.OMN.action('quick-note-panel', function () { window.toggleQuickPanel(); });
-window.OMN.action('quick-note-copy', function (el) { window.copyQuickNote(el); });
-window.OMN.action('add-shortcut', function () { window.createNoteShortcut(); });
 // replace-location opens the address of data-arg in place of this page. The
 // Back button then does not return to this page.
 window.OMN.action('replace-location', function (el) {
@@ -1119,7 +1104,9 @@ window.OMN.action('replace-location', function (el) {
 window.OMN.action('edit-page', function () {
     window.location.href = window.location.pathname + '?edit=true';
 });
-// toggle-panel and hide-panel take the id of the panel in data-arg.
+// toggle-panel and hide-panel take the id of the panel in data-arg. The
+// panel can be absent. An exported page has no modal, because the server
+// adds each modal when it serves a page.
 window.OMN.action('toggle-panel', function (el) {
     var p = document.getElementById(el.getAttribute('data-arg'));
     if (p) p.classList.toggle('hidden');
@@ -1368,9 +1355,9 @@ function omnGoSendNote(note) {
 // The second way uses a scratch textarea and execCommand. It is
 // synchronous. It needs no permission. It works in the Android WebView, on
 // a plain-http LAN page and in a desktop browser. A LAN page is not a
-// secure context, thus the Clipboard API is absent there. copyQuickNote
-// above uses the second way direct, because its text is already in a
-// textarea.
+// secure context, thus the Clipboard API is absent there. The
+// quick-note-copy action above uses the second way direct, because its text
+// is already in a textarea.
 //
 // This function throws an error when both ways fail. Each caller writes
 // the failure in the status text beside the button.
@@ -1390,7 +1377,7 @@ async function omnGoCopyText(text) {
     ta.style.position = 'fixed';
     ta.style.opacity = '0';
     document.body.appendChild(ta);
-    // Call focus before select. copyQuickNote and the Status page do the
+    // Call focus before select. quick-note-copy and the Status page do the
     // same, and a test on Android 6 shows that both work. execCommand can
     // refuse a selection in an element that does not have the focus.
     ta.focus();

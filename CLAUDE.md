@@ -360,7 +360,7 @@ fail when you skip one of these steps.
     code, the progress API, link interception, and the version footer.
   * `omn-go-api.js` holds everything that calls the backend. The file body sits
     inside `if (window.location.protocol !== 'file:')`. The `else` branch replaces
-    the same globals with stubs, so an exported page degrades quietly. It also
+    the same globals and actions with stubs, so an exported page degrades quietly. It also
     holds `omnLoadModule` and `omnLazy`, the two functions of the lazy loading.
   * `omn-go-sync.js`, `omn-go-bookmark.js` and `omn-go-search.js` hold the parts
     that a tap starts. `omnLazy` writes a stub for each exported name. The first

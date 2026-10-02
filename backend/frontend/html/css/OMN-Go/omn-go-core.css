@@ -1632,7 +1632,7 @@ mark.omn-search-hit.omn-search-hit-current {
 /* The bare .android-only rule above is specificity 0-1-0, and every control
    in the header bar is also matched by ".header-actions a, .header-actions
    button" (0-1-1), which sets display:flex - so "Add to home screen" was
-   visible in the DESKTOP header too, where createNoteShortcut() has no
+   visible in the DESKTOP header too, where the add-shortcut action has no
    native shell to ask. This selector restores "hidden by default" for the
    header case. On Android, applyPlatformUI (omn-go-core.js) sets an
    explicit inline display on the element, which beats both rules. */

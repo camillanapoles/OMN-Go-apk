@@ -266,7 +266,9 @@ if (window.location.protocol !== 'file:') {
     ]);
     omnLazy('omn-go-search.js', ['omnSearchOpen']);
 
-    window.login = async function() {
+    // The actions of this block need the server. The else branch at the end
+    // of this file gives each one a stub for a page from disk.
+    window.OMN.action('login', async function () {
         const pwd = document.getElementById('pwdInput').value;
         const res = await fetch('/login', {
             method: 'POST',
@@ -279,14 +281,14 @@ if (window.location.protocol !== 'file:') {
         } else {
             alert('Invalid Password');
         }
-    };
+    });
 
     function toCamelCase(str) {
         let words = str.split(/[-_\s]+/);
         return words.map(w => w ? w.charAt(0).toUpperCase() + w.slice(1) : '').join('');
     }
 
-    window.createNewPage = async function() {
+    window.OMN.action('new-page', async function () {
         let title = prompt("Enter New Page Title:");
         if (!title) return;
         let camel = toCamelCase(title);
@@ -312,10 +314,10 @@ if (window.location.protocol !== 'file:') {
         } else {
             alert("Failed to create new page!");
         }
-    };
+    });
 
 
-    window.submitQuickNote = async function() {
+    window.OMN.action('quick-note-save', async function () {
         const fd = new URLSearchParams();
         fd.append('note', document.getElementById('quickText').value);
         const res = await fetch('/api/quick', { method: 'POST', body: fd });
@@ -325,9 +327,9 @@ if (window.location.protocol !== 'file:') {
             alert('Saved!');
             window.location.reload();
         }
-    };
+    });
 
-    window.submitBookmark = async function() {
+    window.OMN.action('bookmark-save', async function () {
         const fd = new URLSearchParams();
         fd.append('url', document.getElementById('bmUrl').value);
         fd.append('title', document.getElementById('bmTitle').value);
@@ -340,7 +342,7 @@ if (window.location.protocol !== 'file:') {
             alert('Saved!');
             window.location.reload();
         }
-    };
+    });
 
 
     // Called from Android, in MainActivity.insertCapturedText, to pre-fill
@@ -776,10 +778,11 @@ if (window.location.protocol !== 'file:') {
 } else {
     console.warn("OMN-Go: Page opened locally. Server Extensions (Sync/SSE) safely disabled.");
 
-    window.login = function() { printDebug('login'); };
-    window.createNewPage = function() { printDebug('createNewPage'); };
-    window.submitQuickNote = function() { printDebug('submitQuickNote'); };
-    window.submitBookmark = function() { printDebug('submitBookmark'); };
+    // The actions of the guarded block above. A control that needs the
+    // server is hidden on such a page, thus a stub is enough.
+    ['login', 'new-page', 'quick-note-save', 'bookmark-save'].forEach(function (name) {
+        window.OMN.action(name, function () { printDebug(name); });
+    });
     window.checkSession = function() { printDebug('checkSession'); };
     window.omnGoOpenDatabase = function() { printDebug('omnGoOpenDatabase'); };
     window.openDatabase = function() { printDebug('openDatabase'); };
@@ -791,11 +794,14 @@ if (window.location.protocol !== 'file:') {
     // omn-go-core.js and works offline, so the real one is already defined.
 }
 
-// --- The actions that need the server ---
+// --- The actions of the lazy files ---
 // A control of index.html or modals.html names one of these in data-action.
-// See OMN.action in omn-go-core.js. This block is OUTSIDE the guard above,
-// thus a page from disk has the same actions. On such a page a lazy file
-// never loads, and its function can be absent.
+// See OMN.action in omn-go-core.js. Each action calls a global function of a
+// lazy file, and the stub of omnLazy loads that file at the first call.
+//
+// This block is OUTSIDE the guard above, thus a page from disk has the same
+// actions. On such a page a lazy file never loads, and its function is
+// absent.
 (function () {
     // run calls one global function with the arguments that follow its name.
     function run(name) {
@@ -806,11 +812,7 @@ if (window.location.protocol !== 'file:') {
         return window[name].apply(window, Array.prototype.slice.call(arguments, 1));
     }
     const action = window.OMN.action;
-    action('login', function () { run('login'); });
-    action('new-page', function () { run('createNewPage'); });
-    action('quick-note-save', function () { run('submitQuickNote'); });
     action('bookmark-panel', function () { run('toggleBookmarkPanel'); });
-    action('bookmark-save', function () { run('submitBookmark'); });
     action('search', function () { run('omnSearchOpen'); });
     // data-arg is "download" or "upload".
     action('sync', function (el) { run('syncAction', el.getAttribute('data-arg')); });

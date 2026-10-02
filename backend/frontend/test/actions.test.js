@@ -102,13 +102,80 @@ test('the sync control gives its data-arg to syncAction', () => {
     assert.deepStrictEqual(seen, ['download', 'upload']);
 });
 
-test('the copy control gives itself to copyQuickNote', () => {
+test('the copy control copies the quick note and writes the result on itself', () => {
     const { page, clicks } = loadPage();
-    let got = null;
-    page.copyQuickNote = function (btn) { got = btn; };
+    const text = makeElement();
+    text.value = 'a quick note';
+    let selected = false;
+    text.select = function () { selected = true; };
+    text.setSelectionRange = function () {};
+    page.document.getElementById = function (id) { return id === 'quickText' ? text : null; };
+    const commands = [];
+    page.document.execCommand = function (name) { commands.push(name); return true; };
     const el = control('quick-note-copy');
+    el.textContent = 'Copy';
     click(clicks, el);
-    assert.strictEqual(got, el);
+    assert.strictEqual(selected, true, 'the text was not selected');
+    assert.deepStrictEqual(commands, ['copy']);
+    assert.strictEqual(el.textContent, 'Copied!');
+    // The timer that puts the label back must not keep the test process
+    // alive.
+    clearTimeout(el._omnCopyTimer);
+
+    // An empty note copies nothing.
+    text.value = '';
+    click(clicks, el);
+    assert.deepStrictEqual(commands, ['copy']);
+    assert.strictEqual(el.textContent, 'Empty');
+    clearTimeout(el._omnCopyTimer);
+});
+
+test('the title opens and closes the header', () => {
+    const { page, clicks } = loadPage();
+    const classes = { hidden: true };
+    const header = makeElement();
+    header.classList = {
+        contains: function (c) { return !!classes[c]; },
+        add: function (c) { classes[c] = true; },
+        remove: function (c) { delete classes[c]; },
+    };
+    const arrow = makeElement();
+    page.document.getElementById = function (id) {
+        return id === 'hidable_header' ? header : id === 'title_arrow' ? arrow : null;
+    };
+    click(clicks, control('toggle-header'));
+    assert.strictEqual(classes.hidden, undefined, 'the first click did not open the header');
+    assert.strictEqual(arrow.textContent, '\u2212');
+    click(clicks, control('toggle-header'));
+    assert.strictEqual(classes.hidden, true, 'the second click did not close the header');
+    assert.strictEqual(arrow.textContent, '+');
+});
+
+test('the new page control sends the name to /api/newpage', async () => {
+    const { page, clicks } = loadPage();
+    const answers = ['my new note', 'MyNewNote'];
+    page.prompt = function () { return answers.shift(); };
+    page.currentNote = 'dir/Here';
+    const requests = [];
+    page.fetch = async function (url, opts) {
+        requests.push([url, opts.method, String(opts.body)]);
+        return { ok: true, text: async function () { return 'dir/MyNewNote'; } };
+    };
+    click(clicks, control('new-page'));
+    await new Promise(function (resolve) { setTimeout(resolve, 10); });
+    assert.deepStrictEqual(requests, [[
+        '/api/newpage', 'POST', 'source=dir%2FHere&target=MyNewNote&title=my+new+note',
+    ]]);
+    assert.strictEqual(page.location.href, '/dir/MyNewNote.html?edit=true');
+});
+
+test('no internal function of a control is a name of window', () => {
+    const { page } = loadPage();
+    for (const name of ['toggleHeader', 'toggleQuickPanel', 'copyQuickNote',
+        'createNoteShortcut', 'updateArrow', 'login', 'createNewPage',
+        'submitQuickNote', 'submitBookmark']) {
+        assert.strictEqual(typeof page[name], 'undefined', 'window.' + name + ' is back');
+    }
 });
 
 test('hide-panel and toggle-panel work on the panel of data-arg', () => {
@@ -135,7 +202,7 @@ test('on a page from disk a server action does not throw', () => {
     // No lazy file loads on such a page, thus window.syncAction is absent.
     click(clicks, control('sync', 'download'));
     click(clicks, control('new-page'));
-    assert.deepStrictEqual(debug, ['syncAction', 'createNewPage']);
+    assert.deepStrictEqual(debug, ['syncAction', 'new-page']);
 });
 
 test('replace-location opens the address of data-arg', () => {

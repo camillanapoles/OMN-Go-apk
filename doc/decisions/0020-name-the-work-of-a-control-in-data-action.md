@@ -59,9 +59,11 @@ text, and no editor checked it.
   listener.
 * A handler that stops the propagation of a click also stops the action.
   No script of the application does that.
-* The functions of the note page actions are still on `window`. A later
-  change moves each one behind its action. The names of the User Manual
-  stay. The functions of the Config page and of the backup page are
-  already behind their actions.
+* The function of an action has no name on `window`. The actions of the
+  lazy files are the exception: `omnLazy` needs a global name for each
+  function that it loads. A later change gives the lazy files actions of
+  their own.
+* The names of the User Manual stay on `window`. `window.refreshPage` also
+  stays, because the bundled note `AppApiTest` calls it.
 * A note of the user can still use an inline `onclick`. This rule is for
   the templates of the application.
