@@ -7,7 +7,7 @@ package repocheck
 // doc/API.md names a function and the file that holds it in nine places.
 // It writes the claim as a fixed shape:
 //
-//	`omnGoRevealSecrets` in `omn-go-config.js`
+//	`config-reveal` in `omn-go-config.js`
 //
 // A claim of that shape goes stale each time a function moves. A person
 // moves code, runs the gate, and the gate says nothing about a document.

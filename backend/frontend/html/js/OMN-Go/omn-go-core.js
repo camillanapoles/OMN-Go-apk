@@ -1111,8 +1111,10 @@ window.OMN.action('refresh-page', function () { window.refreshPage(); });
 window.OMN.action('quick-note-panel', function () { window.toggleQuickPanel(); });
 window.OMN.action('quick-note-copy', function (el) { window.copyQuickNote(el); });
 window.OMN.action('add-shortcut', function () { window.createNoteShortcut(); });
-window.OMN.action('open-config', function () {
-    window.location.replace('/Config.html');
+// replace-location opens the address of data-arg in place of this page. The
+// Back button then does not return to this page.
+window.OMN.action('replace-location', function (el) {
+    window.location.replace(el.getAttribute('data-arg'));
 });
 window.OMN.action('edit-page', function () {
     window.location.href = window.location.pathname + '?edit=true';

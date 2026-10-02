@@ -4,8 +4,8 @@
 * Version: 26.10.7
 * Code: `OMN.action` and the click listener in
   `backend/frontend/html/js/OMN-Go/omn-go-core.js`, the action blocks of
-  `omn-go-core.js` and `omn-go-api.js`, `templates/index.html`,
-  `templates/modals.html`
+  `omn-go-core.js`, `omn-go-api.js` and `omn-go-config.js`, each template
+  of `backend/frontend/templates`
 
 ## Context
 
@@ -31,6 +31,12 @@ text, and no editor checked it.
   table at the click, thus the order of the scripts does not matter.
 * The actions that need the server are at the end of `omn-go-api.js`,
   outside the `file:` guard. A page from disk thus has the same actions.
+* An action of one page is in the script of that page. The Config page
+  has its actions in `omn-go-config.js`, and the backup page has them in
+  the script block of `db_backups.html`.
+* A value from the server goes into `data-arg` as text, with the HTML
+  escape alone. No template puts a value into JavaScript text of an
+  attribute.
 * `window.OMN` is the one namespace of the application scripts.
 
 ## Rejected alternatives
@@ -47,13 +53,15 @@ text, and no editor checked it.
 * An action with no function is a dead control, and the only report is a
   console warning. `TestEachDataActionHasAFunction` in
   `backend/internal/repocheck/frontend_test.go` finds it in the source.
-* `TestTemplatesHoldNoInlineHandler` keeps a new inline handler out of
-  a template. Its list of the templates that still hold one only shrinks.
+* `TestTemplatesHoldNoInlineHandler` keeps an inline handler out of each
+  template.
 * `backend/frontend/test/actions.test.js` sends a click to the real
   listener.
 * A handler that stops the propagation of a click also stops the action.
   No script of the application does that.
-* The functions of the actions are still on `window`. A later change
-  moves each one behind its action. The names of the User Manual stay.
+* The functions of the note page actions are still on `window`. A later
+  change moves each one behind its action. The names of the User Manual
+  stay. The functions of the Config page and of the backup page are
+  already behind their actions.
 * A note of the user can still use an inline `onclick`. This rule is for
   the templates of the application.

@@ -1088,7 +1088,7 @@ every git server slot, all in cleartext.**
 The Config page reads this endpoint for that reason. Since 26.09.7 the page
 renders each password box and each SSH key box empty, thus the HTML of the
 page holds no secret. The **Show passwords** button calls this endpoint and
-fills the boxes. See `omnGoRevealSecrets` in `omn-go-config.js`.
+fills the boxes. See `config-reveal` in `omn-go-config.js`.
 
 **Response** `200`, `application/json`:
 

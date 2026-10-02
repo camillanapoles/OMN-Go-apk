@@ -11,7 +11,7 @@
         <h3 id="dbbModalTitle" class="dbb-modal-title"></h3>
         <div id="dbbModalBody" class="dbb-modal-body"></div>
         <div class="dbb-modal-actions">
-            <button type="button" class="dbb-btn" onclick="dbbCloseModal()">Cancel</button>
+            <button type="button" class="dbb-btn" data-action="dbb-cancel">Cancel</button>
             <button type="button" id="dbbModalOk" class="dbb-btn dbb-btn-primary"></button>
         </div>
     </div>
@@ -175,9 +175,9 @@
         // overlay's scroll position from the previous one. Start at the top.
         overlay.scrollTop = 0;
     }
-    window.dbbCloseModal = function() {
+    function dbbCloseModal() {
         document.getElementById('dbbModal').classList.remove('dbb-open');
-    };
+    }
 
     async function api(url, opts) {
         var res = await fetch(url, opts || {});
@@ -186,7 +186,7 @@
         return data;
     }
 
-    window.dbbBackupNow = function(name) {
+    function dbbBackupNow(name) {
         var db = (lastData.databases || []).find(function(d) { return d.name === name; });
         var willPrune = db && db.backups.length >= lastData.prune_depth;
         var body = '<p>Create a new backup of <b>' + esc(name) + '</b>?</p>';
@@ -216,9 +216,9 @@
             if (err) { alert('Backup failed: ' + err.message); return; }
             load();
         });
-    };
+    }
 
-    window.dbbRestore = function(name, file) {
+    function dbbRestore(name, file) {
         var db = (lastData.databases || []).find(function(d) { return d.name === name; });
         var bk = db.backups.find(function(b) { return b.file === file; });
         var cur = db.sqlite_exists
@@ -246,12 +246,21 @@
             if (err) { alert('Restore failed: ' + err.message); return; }
             load();
         }, true);
-    };
+    }
 
-    window.dbbToggle = function(name) {
+    function dbbToggle(name) {
         var el = document.getElementById('dbb-details-' + name);
         el.style.display = el.style.display === 'none' ? 'block' : 'none';
-    };
+    }
+
+    // The actions of this page. See OMN.action in omn-go-core.js. data-arg
+    // holds the name of the database, and data-file holds the backup file.
+    window.OMN.action('dbb-cancel', function() { dbbCloseModal(); });
+    window.OMN.action('dbb-details', function(el) { dbbToggle(el.getAttribute('data-arg')); });
+    window.OMN.action('dbb-backup', function(el) { dbbBackupNow(el.getAttribute('data-arg')); });
+    window.OMN.action('dbb-restore', function(el) {
+        dbbRestore(el.getAttribute('data-arg'), el.getAttribute('data-file'));
+    });
 
     function render(data) {
         lastData = data;
@@ -272,10 +281,10 @@
                 '<span class="dbb-meta">' + (db.sqlite_exists ? kb(db.size) + ' · ' + ts(db.mtime) : 'no .sqlite file') +
                 ' · ' + db.backups.length + ' backup(s)</span>' +
                 '<span style="flex:1"></span>' +
-                '<button type="button" class="dbb-btn" onclick="dbbToggle(\'' + db.name + '\')">Details</button>' +
-                (db.sqlite_exists ? '<button type="button" class="dbb-btn" onclick="dbbBackupNow(\'' + db.name + '\')">Backup now</button>' : '') +
+                '<button type="button" class="dbb-btn" data-action="dbb-details" data-arg="' + esc(db.name) + '">Details</button>' +
+                (db.sqlite_exists ? '<button type="button" class="dbb-btn" data-action="dbb-backup" data-arg="' + esc(db.name) + '">Backup now</button>' : '') +
                 '</div>');
-            var det = ['<div class="dbb-details" id="dbb-details-' + db.name + '" style="display:none;">'];
+            var det = ['<div class="dbb-details" id="dbb-details-' + esc(db.name) + '" style="display:none;">'];
             if (db.backups.length === 0) det.push('<div class="dbb-meta">No backups.</div>');
             db.backups.forEach(function(bk) {
                 det.push('<div class="dbb-bk">' +
@@ -285,7 +294,7 @@
                           ' · ' + bk.objects + ' obj · ' + bk.rows + ' rows · ' + kb(bk.size) + '</span>'
                         : '<span class="dbb-meta dbb-error">invalid: ' + esc(bk.error || '?') + '</span>') +
                     '<span style="flex:1"></span>' +
-                    (bk.valid ? '<button type="button" class="dbb-btn" onclick="dbbRestore(\'' + db.name + '\',\'' + bk.file + '\')">Restore</button>' : '') +
+                    (bk.valid ? '<button type="button" class="dbb-btn" data-action="dbb-restore" data-arg="' + esc(db.name) + '" data-file="' + esc(bk.file) + '">Restore</button>' : '') +
                     '<a href="/db_backup/' + encodeURIComponent(db.name) + '/' + encodeURIComponent(bk.file) +
                     '" class="dbb-meta">view</a>' +
                     '</div>');

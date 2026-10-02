@@ -91,4 +91,4 @@ the status of the old record to `replaced by NNNN`.
 | [0017](0017-refuse-a-request-that-another-site-sends.md) | Refuse a request that another site sends. | `request_guard.go`, `middleware.go` |
 | [0018](0018-keep-one-role.md) | Keep one role. | `session.go`, `omn-go-api.js` |
 | [0019](0019-trust-the-host-key-on-first-use.md) | Trust the host key on first use. | `internal/gitsync/host_keys.go`, `internal/gitsync/repo.go`, `omn-go-sync.js` |
-| [0020](0020-name-the-work-of-a-control-in-data-action.md) | Name the work of a control in data-action. | `omn-go-core.js`, `omn-go-api.js`, `templates/index.html`, `templates/modals.html` |
+| [0020](0020-name-the-work-of-a-control-in-data-action.md) | Name the work of a control in data-action. | `omn-go-core.js`, `omn-go-api.js`, `omn-go-config.js`, `templates/` |

@@ -103,8 +103,8 @@ func (a *App) handleConfigPost(w http.ResponseWriter, r *http.Request) {
 	a.applyConfigChange(prev, next)
 
 	if next.ShareLAN != prev.ShareLAN {
-		// saveConfig in omn-go-config.js reads this exact word and then
-		// calls /api/restart.
+		// The config-save action of omn-go-config.js reads this exact word
+		// and then calls /api/restart.
 		w.Write([]byte("RestartRequired"))
 		return
 	}

@@ -22,7 +22,7 @@
 //
 // The config form itself is untouched. Each settings group is a show and
 // hide .config-screen block inside the ONE <form>. FormData(form) in
-// saveConfig(), in omn-go-api.js, thus still collects every field, whatever
+// the config-save action below thus still collects every field, whatever
 // screen is open. A no-op on a page with no #configForm.
 document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById('configForm');
@@ -88,8 +88,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // and a tab closed.
     //
     // A move between sub-screens changes the hash alone, thus it never
-    // triggers the prompt. saveConfig() calls window.configMarkClean()
-    // before its reload paths, thus a successful save does not prompt.
+    // triggers the prompt. The config-save action calls
+    // window.configMarkClean() before its reload paths, thus a successful
+    // save does not prompt.
     const dots = panel.querySelectorAll('.config-dirty-dot');
     const labels = panel.querySelectorAll('.config-dirty-indicator .config-dirty-label');
     const menuBanner = document.getElementById('configMenuDirty');
@@ -129,15 +130,15 @@ document.addEventListener("DOMContentLoaded", () => {
 //
 //   1. A box that carries data-secret gets data-dirty="1" when the
 //      reader types in it.
-//   2. saveConfig removes each data-secret box that is not dirty from
-//      the FormData. handleConfig then sees no such field and keeps
-//      the stored value. See configFieldSent.
+//   2. The config-save action removes each data-secret box that is not
+//      dirty from the FormData. handleConfig then sees no such field and
+//      keeps the stored value. See configFieldSent.
 //
 // A reader who empties a box by hand makes it dirty, thus an empty
 // value reaches the server and clears the stored value. That is the
 // behavior that a person expects.
 //
-// revealSecrets fills each box from GET /api/config, which is admin
+// The config-reveal action fills each box from GET /api/config, which is admin
 // only. It sets no dirty flag, thus a reveal alone changes nothing.
 
 function secretFields(form) {
@@ -158,7 +159,8 @@ function secretValue(cfg, name) {
     return '';
 }
 
-window.omnGoRevealSecrets = async function (btn) {
+// The reveal button of a settings screen. See OMN.action in omn-go-core.js.
+window.OMN.action('config-reveal', async function (btn) {
     const form = document.getElementById('configForm');
     if (!form || !btn) return;
     const label = btn.querySelector('[data-reveal-label]');
@@ -192,7 +194,7 @@ window.omnGoRevealSecrets = async function (btn) {
     }
 
     // Filling a box with JavaScript raises no input event, thus this
-    // marks nothing dirty and saveConfig still sends nothing.
+    // marks nothing dirty and config-save still sends nothing.
     boxes.forEach(function (el) {
         if (el.dataset.dirty === '1') return;
         el.value = secretValue(cfg, el.dataset.secret);
@@ -204,7 +206,7 @@ window.omnGoRevealSecrets = async function (btn) {
         btn.dataset.showLabel = label.textContent;
         label.textContent = 'Hide';
     }
-};
+});
 
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('configForm');
@@ -214,7 +216,8 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 
-window.saveConfig = async function() {
+// Each Save button of the page. See OMN.action in omn-go-core.js.
+window.OMN.action('config-save', async function () {
     const form = document.getElementById('configForm');
     if (!form) { alert('Config form not found'); return; }
     const fd = new FormData(form);
@@ -252,4 +255,4 @@ window.saveConfig = async function() {
     } catch (e) {
         alert('Network error: ' + e);
     }
-};
+});

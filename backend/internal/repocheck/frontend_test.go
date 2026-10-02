@@ -198,16 +198,8 @@ var dataActionRe = regexp.MustCompile(`data-action="([^"]+)"`)
 // action.
 var actionCallRe = regexp.MustCompile(`\baction\('([a-z0-9-]+)'`)
 
-// templatesWithInlineHandlers lists the templates that still hold an inline
-// handler, with the count of each. THE LIST ONLY SHRINKS. Change a template
-// to data-action, and then remove its row.
-var templatesWithInlineHandlers = map[string]int{
-	"templates/config_page.html":   10,
-	"templates/db_backups.html":    4,
-	"templates/external_edit.html": 1,
-}
-
-// Each data-action of a template has a function in a shipped script.
+// Each data-action of a template has a function. A shipped script gives it,
+// or the script block of a template does.
 func TestEachDataActionHasAFunction(t *testing.T) {
 	registered := map[string]bool{}
 	scripts, err := frontend.Static.ReadDir("html/js/OMN-Go")
@@ -240,6 +232,15 @@ func TestEachDataActionHasAFunction(t *testing.T) {
 		if rerr != nil {
 			t.Fatal(rerr)
 		}
+		for _, m := range actionCallRe.FindAllStringSubmatch(string(src), -1) {
+			registered[m[1]] = true
+		}
+	}
+	for _, e := range templates {
+		src, rerr := frontend.Templates.ReadFile("templates/" + e.Name())
+		if rerr != nil {
+			t.Fatal(rerr)
+		}
 		for _, m := range dataActionRe.FindAllStringSubmatch(string(src), -1) {
 			used[m[1]] = true
 			if !registered[m[1]] {
@@ -259,39 +260,25 @@ func TestEachDataActionHasAFunction(t *testing.T) {
 	}
 }
 
-// A template holds no inline handler, except the templates of
-// templatesWithInlineHandlers.
+// No template holds an inline handler. This is also true for the markup
+// that the script block of a template writes.
 func TestTemplatesHoldNoInlineHandler(t *testing.T) {
 	templates, err := frontend.Templates.ReadDir("templates")
 	if err != nil {
 		t.Fatal(err)
 	}
-	seen := map[string]bool{}
+	if len(templates) == 0 {
+		t.Fatal("no template was read, thus this test proves nothing")
+	}
 	for _, e := range templates {
 		name := "templates/" + e.Name()
 		src, rerr := frontend.Templates.ReadFile(name)
 		if rerr != nil {
 			t.Fatal(rerr)
 		}
-		got := len(inlineHandlerRe.FindAllString(string(src), -1))
-		want, listed := templatesWithInlineHandlers[name]
-		seen[name] = true
-		switch {
-		case !listed && got > 0:
-			t.Errorf("%s holds %d inline handlers. Give each control a "+
-				"data-action, and call OMN.action in a script.", name, got)
-		case listed && got > want:
-			t.Errorf("%s holds %d inline handlers, and the list allows %d. "+
-				"Give the new control a data-action.", name, got, want)
-		case listed && got < want:
-			t.Errorf("%s holds %d inline handlers, and the list says %d. "+
-				"Lower the number of templatesWithInlineHandlers, or remove the row at 0.",
-				name, got, want)
-		}
-	}
-	for name := range templatesWithInlineHandlers {
-		if !seen[name] {
-			t.Errorf("templatesWithInlineHandlers names %s, and no such template exists", name)
+		for _, found := range inlineHandlerRe.FindAllString(string(src), -1) {
+			t.Errorf("%s holds the inline handler %q. Give the control a "+
+				"data-action, and call OMN.action in a script.", name, strings.TrimSpace(found))
 		}
 	}
 }

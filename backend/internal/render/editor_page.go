@@ -40,8 +40,8 @@ func RenderExternalEditPage(v ExternalEditView) string {
 	return Fill(externalEditTmpl, map[string]string{
 		"CMD":       EscapeHTML(v.Cmd),
 		"FILE_NAME": EscapeHTML(v.FileName),
-		// ViewURL is in a JS string, inside an HTML onclick attribute. Escape
-		// for JS first, and then for HTML: the inner context first.
-		"VIEW_URL_ATTR_JS": EscapeHTML(EscapeJS(v.ViewURL)),
+		// ViewURL is in the data-arg attribute of the button. The
+		// replace-location action of omn-go-core.js reads it as text.
+		"VIEW_URL_ATTR": EscapeHTML(v.ViewURL),
 	})
 }

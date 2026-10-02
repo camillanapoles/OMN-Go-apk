@@ -199,11 +199,11 @@ func TestSecretAttributeHasAFrontendReader(t *testing.T) {
 				"an empty password on each save, and each save clears it.", want)
 		}
 	}
-	if !strings.Contains(configPageTmpl, "omnGoRevealSecrets") {
+	if !strings.Contains(configPageTmpl, `data-action="config-reveal"`) {
 		t.Error("the Config page has no button that reads the passwords back")
 	}
-	if !strings.Contains(script, "window.omnGoRevealSecrets") {
-		t.Error("omn-go-config.js exports no omnGoRevealSecrets, thus the button does nothing")
+	if !strings.Contains(script, "action('config-reveal'") {
+		t.Error("omn-go-config.js gives the config-reveal action no function, thus the button does nothing")
 	}
 
 	// The page must LOAD the file. The two checks above pass on a file
@@ -219,7 +219,7 @@ func TestSecretAttributeHasAFrontendReader(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, gone := range []string{"omnGoRevealSecrets", "window.saveConfig"} {
+	for _, gone := range []string{"config-reveal", "config-save"} {
 		if strings.Contains(string(api), gone) {
 			t.Errorf("omn-go-api.js still holds %q. Every note carries that file, "+
 				"and only the Config page runs this code.", gone)

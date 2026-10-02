@@ -209,9 +209,9 @@ func TestRenderExternalEditPage(t *testing.T) {
 	v := ExternalEditView{
 		Cmd:      "subl",
 		FileName: `note "x".md`,
-		// A hostile ViewURL that tries to leave the JS string and the
-		// onclick attribute at the same time.
-		ViewURL: `x');alert("pwn`,
+		// A hostile ViewURL that tries to leave the data-arg attribute and
+		// to start an attribute of its own.
+		ViewURL: `x" onclick="alert('pwn')`,
 	}
 	out := RenderExternalEditPage(v)
 
@@ -222,12 +222,14 @@ func TestRenderExternalEditPage(t *testing.T) {
 		t.Error("file name not HTML-escaped")
 	}
 	// The raw payload must not survive into the attribute.
-	if strings.Contains(out, `x');alert("pwn`) {
-		t.Error("hostile ViewURL not escaped in onclick attribute")
+	if strings.Contains(out, `x" onclick=`) {
+		t.Error("hostile ViewURL not escaped in the data-arg attribute")
 	}
-	// JS-escaped then HTML-escaped: ' -> \' -> \&#39;
-	if !strings.Contains(out, `x\&#39;)`) {
+	if !strings.Contains(out, `data-arg="/x&quot; onclick=&quot;alert(&#39;pwn&#39;)"`) {
 		t.Errorf("ViewURL escaping unexpected, got:\n%s", out)
+	}
+	if strings.Contains(out, `onclick="`) {
+		t.Errorf("the page holds an inline handler:\n%s", out)
 	}
 }
 

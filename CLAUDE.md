@@ -344,9 +344,9 @@ fail when you skip one of these steps.
   template. Call `OMN.action('name', fn)` in a script, and put
   `data-action="name"` on the control. `data-arg` gives one value. See
   `doc/decisions/0020-name-the-work-of-a-control-in-data-action.md`.
-  `config_page.html`, `db_backups.html` and `external_edit.html` still hold
-  inline handlers. `TestTemplatesHoldNoInlineHandler` lists them, and the list
-  only shrinks.
+  `TestTemplatesHoldNoInlineHandler` fails for an inline handler in a template.
+  An action of one page goes into the script of that page, for example
+  `omn-go-config.js`.
 * **A note page loads three scripts.** `templates/index.html` names
   `omn-go-compat.js`, `omn-go-core.js` and `omn-go-api.js`, and then the three
   vendored libraries and `omn-go-custom.js`. It names no other file of the

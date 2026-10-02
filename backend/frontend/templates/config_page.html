@@ -13,7 +13,7 @@
         <div id="configMenuDirty" class="config-menu-dirty" hidden>
             <span class="config-dirty-dot dirty"></span>
             <span class="config-dirty-label">You have unsaved changes</span>
-            <button type="button" class="config-menu-dirty-save" onclick="saveConfig()">Save</button>
+            <button type="button" class="config-menu-dirty-save" data-action="config-save">Save</button>
         </div>
 
         <nav class="config-menu">
@@ -80,7 +80,7 @@
     </div>
 
     <!-- Every field stays inside this one form on every sub-screen, so
-         FormData(form) in saveConfig() keeps collecting the whole config
+         FormData(form) in the config-save action keeps collecting the whole config
          regardless of which screen is open. -->
     <form id="configForm" class="config-form">
         <!--
@@ -126,7 +126,7 @@
             </div>
             <div class="config-field config-save-row">
                 <span class="config-dirty-indicator"><span class="config-dirty-dot clean"></span><span class="config-dirty-label"></span></span>
-                <button type="button" class="config-save-btn" onclick="saveConfig()">Save Configuration</button>
+                <button type="button" class="config-save-btn" data-action="config-save">Save Configuration</button>
             </div>
         </div>
 
@@ -143,13 +143,13 @@
                  no value attribute. The page source thus holds no password.
                  data-secret marks the box for omn-go-config.js: an empty box
                  that the reader did not touch leaves the stored password as
-                 it is. See revealSecrets and saveConfig. -->
+                 it is. See the config-reveal and config-save actions. -->
             <div class="config-field">
                 <label class="config-label">Admin Password</label>
                 <input type="password" id="cfgAdminPwd" name="admin_password" value="" data-secret="admin_password" autocomplete="new-password" placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;&#9679; unchanged" class="config-input" />
             </div>
             <div class="config-field">
-                <button type="button" class="config-link-btn" data-reveal onclick="omnGoRevealSecrets(this)">
+                <button type="button" class="config-link-btn" data-reveal data-action="config-reveal">
                     <i class="material-icons">visibility</i>
                     <span data-reveal-label>Show passwords</span>
                 </button>
@@ -164,7 +164,7 @@
             </div>
             <div class="config-field config-save-row">
                 <span class="config-dirty-indicator"><span class="config-dirty-dot clean"></span><span class="config-dirty-label"></span></span>
-                <button type="button" class="config-save-btn" onclick="saveConfig()">Save Configuration</button>
+                <button type="button" class="config-save-btn" data-action="config-save">Save Configuration</button>
             </div>
         </div>
 
@@ -208,7 +208,7 @@
             </div>
             <div class="config-field config-save-row">
                 <span class="config-dirty-indicator"><span class="config-dirty-dot clean"></span><span class="config-dirty-label"></span></span>
-                <button type="button" class="config-save-btn" onclick="saveConfig()">Save Configuration</button>
+                <button type="button" class="config-save-btn" data-action="config-save">Save Configuration</button>
             </div>
         </div>
 
@@ -242,7 +242,7 @@
             </div>
             <div class="config-field config-save-row">
                 <span class="config-dirty-indicator"><span class="config-dirty-dot clean"></span><span class="config-dirty-label"></span></span>
-                <button type="button" class="config-save-btn" onclick="saveConfig()">Save Configuration</button>
+                <button type="button" class="config-save-btn" data-action="config-save">Save Configuration</button>
             </div>
         </div>
 
@@ -317,7 +317,7 @@
 
             <div class="config-field config-save-row">
                 <span class="config-dirty-indicator"><span class="config-dirty-dot clean"></span><span class="config-dirty-label"></span></span>
-                <button type="button" class="config-save-btn" onclick="saveConfig()">Save Configuration</button>
+                <button type="button" class="config-save-btn" data-action="config-save">Save Configuration</button>
             </div>
         </div>
 
@@ -356,7 +356,7 @@
 
             <div class="config-field config-save-row">
                 <span class="config-dirty-indicator"><span class="config-dirty-dot clean"></span><span class="config-dirty-label"></span></span>
-                <button type="button" class="config-save-btn" onclick="saveConfig()">Save Configuration</button>
+                <button type="button" class="config-save-btn" data-action="config-save">Save Configuration</button>
             </div>
         </div>
 
@@ -369,7 +369,7 @@
                  empty for the same reason as the two password boxes of the
                  Network screen. See the note there. -->
             <div class="config-field">
-                <button type="button" class="config-link-btn" data-reveal onclick="omnGoRevealSecrets(this)">
+                <button type="button" class="config-link-btn" data-reveal data-action="config-reveal">
                     <i class="material-icons">visibility</i>
                     <span data-reveal-label>Show keys and passwords</span>
                 </button>
@@ -378,7 +378,7 @@
 %%GIT_SERVERS%%
             <div class="config-field config-save-row">
                 <span class="config-dirty-indicator"><span class="config-dirty-dot clean"></span><span class="config-dirty-label"></span></span>
-                <button type="button" class="config-save-btn" onclick="saveConfig()">Save Configuration</button>
+                <button type="button" class="config-save-btn" data-action="config-save">Save Configuration</button>
             </div>
         </div>
     </form>

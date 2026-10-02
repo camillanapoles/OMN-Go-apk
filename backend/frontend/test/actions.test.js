@@ -137,3 +137,11 @@ test('on a page from disk a server action does not throw', () => {
     click(clicks, control('new-page'));
     assert.deepStrictEqual(debug, ['syncAction', 'createNewPage']);
 });
+
+test('replace-location opens the address of data-arg', () => {
+    const { page, clicks } = loadPage();
+    const seen = [];
+    page.location.replace = function (url) { seen.push(url); };
+    click(clicks, control('replace-location', '/Config.html'));
+    assert.deepStrictEqual(seen, ['/Config.html']);
+});
