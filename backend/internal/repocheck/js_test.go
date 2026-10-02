@@ -188,17 +188,13 @@ const jsLineCoverageTarget = 60.0
 // The floor is the measured number, rounded down. A change that takes a
 // test away, or that adds code with no test, fails here.
 var jsLineCoverageFloor = map[string]float64{
-	"Bookmarker.js":       0,
-	"omn-go-api.js":       58,
-	"omn-go-compat.js":    0,
-	"omn-go-config.js":    0,
-	"omn-go-editor.js":    30,
-	"omn-go-highlight.js": 25,
-	"omn-go-logs.js":      11,
-	"omn-go-nav.js":       37,
-	"omn-go-search.js":    28,
-	"omn-go-share.js":     44,
-	"omn-go-status.js":    0,
+	"Bookmarker.js":    0,
+	"omn-go-compat.js": 0,
+	"omn-go-editor.js": 30,
+	"omn-go-logs.js":   11,
+	"omn-go-nav.js":    37,
+	"omn-go-share.js":  50,
+	"omn-go-status.js": 0,
 }
 
 // jsCoverageSlack is the count of percent points that a script can be above

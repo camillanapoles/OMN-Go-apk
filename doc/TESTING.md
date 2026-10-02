@@ -135,9 +135,20 @@ loads the scripts that `index.html` names and sends the load events. The
 test then sets a server function, presses a control with `h.press(selector)`
 and reads `h.requests`, `h.dialogs` and the page.
 
-`sync.test.js` and `bookmark.test.js` use it. `sync.test.js` holds three
-rules. Abort and Cancel send nothing. Each force push has a commit message.
-A new host key is stored only after OK.
+`configPage()` builds the Config page from `config_page.html` and two git
+server cards, and it also loads `omn-go-config.js`. `mini-dom.js` has
+`FormData`, thus a test reads the body of a save the same as the server
+does.
+
+Five test files use these pages:
+
+| File | What it holds |
+| --- | --- |
+| `sync.test.js` | Abort and Cancel send nothing. Each force push has a commit message. A new host key is stored only after OK. |
+| `bookmark.test.js` | The panel, the tag list, Save, the share from Android and `omnGoInsertCapture`. |
+| `config.test.js` | A save sends no secret that the person did not type. A reveal alone changes nothing. The menu, the Back control and the mark of a change. |
+| `search.test.js` | The dialog sends no request while the person types. The two scopes, the keys, and the address of a chosen line. |
+| `session.test.js` | The hint cookie, the answer 401 and the login box. |
 
 **A test here proves what a script does with a document. It does not prove
 that a browser agrees.** Check a new control in a real browser too.

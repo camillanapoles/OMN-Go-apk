@@ -19,19 +19,25 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('node:assert');
 const { newPage, run } = require('./page-stub.js');
-const { newDocument, Event, EventTarget, NodeFilter } = require('./mini-dom.js');
+const { newDocument, Event, EventTarget, NodeFilter, FormData } = require('./mini-dom.js');
 
 const templateDir = path.join(__dirname, '..', 'templates');
 
-// template answers the text of one template with each placeholder empty.
-function template(name) {
-    return fs.readFileSync(path.join(templateDir, name), 'utf8').replace(/%%[A-Z0-9_]+%%/g, '');
+// template answers the text of one template. values gives the text of a
+// placeholder by its name, and each other placeholder is empty.
+function template(name, values) {
+    values = values || {};
+    return fs.readFileSync(path.join(templateDir, name), 'utf8')
+        .replace(/%%([A-Z0-9_]+)%%/g, function (all, key) {
+            return Object.prototype.hasOwnProperty.call(values, key) ? values[key] : '';
+        });
 }
 
 // shellBody answers the body of a note page: the body of index.html and
-// the modals that the server adds when it serves the page.
-function shellBody() {
-    const index = template('index.html');
+// the modals that the server adds when it serves the page. values fills
+// the placeholders of index.html, for example PREVIEW_BODY.
+function shellBody(values) {
+    const index = template('index.html', values);
     const open = index.indexOf('<body>');
     const close = index.indexOf('</body>');
     assert.ok(open >= 0 && close > open, 'index.html has no body element');
@@ -56,8 +62,12 @@ function shellScripts() {
 // newDomPage answers a page that is ready for a test.
 //
 // opts.body is the markup of the body. The default is shellBody().
+// opts.preview is the markup of the note, inside #preview.
 // opts.protocol is "http:" or "file:". The default is "http:".
-// opts.path is the path of the page. The default is "/Note.html".
+// opts.note is the name of the note, with no extension. The default is
+// "Note". The page gets the variables that the script block of index.html
+// sets: PageName, currentNote, Title, PAGE_EXT and IS_MARKDOWN.
+// opts.path is the path of the page. The default comes from opts.note.
 //
 // The answer holds:
 //
@@ -65,7 +75,6 @@ function shellScripts() {
 //	document   The document of mini-dom.js.
 //	requests   Each call of fetch: {url, method, body}.
 //	dialogs    Each alert, confirm and prompt: {kind, text}.
-//	logs       The subscribers of window.omnGoOnServerLog.
 //	loads      The src of each script element that a script added.
 //	streams    Each EventSource that a script opened.
 //
@@ -74,7 +83,8 @@ function shellScripts() {
 function newDomPage(opts) {
     opts = opts || {};
     const page = newPage();
-    const doc = newDocument(opts.body === undefined ? shellBody() : opts.body);
+    const doc = newDocument(opts.body === undefined
+        ? shellBody({ PREVIEW_BODY: opts.preview || '' }) : opts.body);
     const win = new EventTarget();
     doc.defaultView = win;
     doc.readyState = 'loading';
@@ -86,11 +96,32 @@ function newDomPage(opts) {
     page.removeEventListener = win.removeEventListener.bind(win);
     page.dispatchEvent = win.dispatchEvent.bind(win);
     page.location.protocol = opts.protocol || 'http:';
-    page.location.pathname = opts.path || '/Note.html';
+    const note = opts.note || 'Note';
+    page.PageName = note;
+    page.currentNote = note;
+    page.Title = opts.title || note;
+    page.PAGE_EXT = '.md';
+    page.IS_MARKDOWN = true;
+    page.location.pathname = opts.path || '/' + note + '.html';
     page.location.href = 'http://127.0.0.1:8080' + page.location.pathname;
     page.location.reloads = 0;
     page.location.reload = function () { page.location.reloads++; };
     page.location.replace = function (url) { page.location.href = url; };
+    // A new hash sends hashchange, the same as in a browser.
+    let hash = '';
+    Object.defineProperty(page.location, 'hash', {
+        get() { return hash; },
+        set(value) {
+            const next = value && value[0] !== '#' ? '#' + value : (value || '');
+            if (next === hash) return;
+            hash = next;
+            win.dispatchEvent(new Event('hashchange'));
+        },
+    });
+    page.FormData = FormData;
+    page.scrollTo = function () {};
+    page.history.backs = 0;
+    page.history.back = function () { page.history.backs++; };
 
     // A console of its own. omn-go-console.js puts a hook on each console
     // method, and the console of Node is one object for all the tests.
@@ -110,6 +141,8 @@ function newDomPage(opts) {
     // Error for a request that the network refused.
     page.fetch = async function (url, init) {
         init = init || {};
+        // The body is text. URLSearchParams and FormData both give the
+        // form of a query.
         const request = {
             url: String(url),
             method: init.method || 'GET',
@@ -198,6 +231,21 @@ function newDomPage(opts) {
         assert.ok(el, 'the page has no element for ' + selector);
         return el;
     };
+    // type puts a value into a box and sends the input event, the same as
+    // a key press does.
+    h.type = function (selector, value) {
+        const el = h.$(selector);
+        el.value = value;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        return h;
+    };
+    // key sends a keydown to the one element of a selector and answers the
+    // event. init can hold ctrlKey and the other fields of a key event.
+    h.key = function (selector, name, init) {
+        const event = new Event('keydown', Object.assign({ bubbles: true, key: name }, init || {}));
+        h.$(selector).dispatchEvent(event);
+        return event;
+    };
     // press sends a click to the one element of a selector.
     h.press = function (selector) {
         h.$(selector).click();
@@ -226,4 +274,16 @@ function notePage(opts) {
     return newDomPage(opts).load(shellScripts()).ready();
 }
 
-module.exports = { newDomPage, notePage, shellBody, shellScripts, template };
+// configPage answers the Config page after the load events. The page has
+// two git server cards, with the slot numbers 0 and 1. values fills the
+// placeholders of config_page.html.
+function configPage(values) {
+    const cards = [0, 1].map(function (i) {
+        return template('git_server_card.html', { INDEX: String(i), SLOT: String(i + 1) });
+    }).join('');
+    const body = shellBody() + template('config_page.html', Object.assign({ GIT_SERVERS: cards }, values || {}));
+    return newDomPage({ body: body, path: '/Config.html' })
+        .load(shellScripts().concat(['omn-go-config.js'])).ready();
+}
+
+module.exports = { newDomPage, notePage, configPage, shellBody, shellScripts, template };

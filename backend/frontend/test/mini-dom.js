@@ -18,6 +18,7 @@
 //	querySelector with tag, id, class and attribute selectors.
 //	Events with the capture phase and the bubble phase.
 //	A TreeWalker for text nodes.
+//	FormData, which reads the controls of a form.
 //
 // WHAT IT DOES NOT HOLD. It has no layout, no CSS and no network. A method
 // such as scrollIntoView does nothing. A test that needs a size or a
@@ -649,6 +650,47 @@ class Document extends Node {
     }
 }
 
+// ---------------------------------------------------------------------
+// The data of a form
+// ---------------------------------------------------------------------
+
+// FormData reads the controls of a form the same way as a browser. A
+// control with no name and a disabled control give nothing. A checkbox and
+// a radio button give their value only when they are checked.
+class FormData {
+    constructor(form) {
+        this._pairs = [];
+        if (!form) return;
+        for (const el of form.querySelectorAll('input, select, textarea')) {
+            const name = el.getAttribute('name');
+            if (!name || el.disabled) continue;
+            const type = (el.getAttribute('type') || '').toLowerCase();
+            if (type === 'file' || type === 'submit' || type === 'button') continue;
+            if (type === 'checkbox' || type === 'radio') {
+                if (el.checked) this._pairs.push([name, el.getAttribute('value') === null ? 'on' : el.value]);
+                continue;
+            }
+            this._pairs.push([name, el.value]);
+        }
+    }
+    append(name, value) { this._pairs.push([name, String(value)]); }
+    delete(name) { this._pairs = this._pairs.filter(function (p) { return p[0] !== name; }); }
+    has(name) { return this._pairs.some(function (p) { return p[0] === name; }); }
+    get(name) {
+        const pair = this._pairs.find(function (p) { return p[0] === name; });
+        return pair ? pair[1] : null;
+    }
+    getAll(name) {
+        return this._pairs.filter(function (p) { return p[0] === name; }).map(function (p) { return p[1]; });
+    }
+    set(name, value) { this.delete(name); this.append(name, value); }
+    entries() { return this._pairs.map(function (p) { return p.slice(); })[Symbol.iterator](); }
+    [Symbol.iterator]() { return this.entries(); }
+    // toString gives the pairs in the form of a query, thus a test can
+    // compare the whole body with one string.
+    toString() { return new URLSearchParams(this._pairs).toString(); }
+}
+
 const NodeFilter = { SHOW_TEXT: 4, SHOW_ELEMENT: 1, FILTER_ACCEPT: 1, FILTER_REJECT: 2, FILTER_SKIP: 3 };
 
 // newDocument answers a document whose body holds bodyHTML.
@@ -658,4 +700,4 @@ function newDocument(bodyHTML) {
     return doc;
 }
 
-module.exports = { newDocument, Event, EventTarget, NodeFilter, Element, Text };
+module.exports = { newDocument, Event, EventTarget, NodeFilter, FormData, Element, Text };
