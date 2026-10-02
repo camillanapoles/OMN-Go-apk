@@ -350,6 +350,16 @@ function configPage(values) {
         .load(shellScripts().concat(['omn-go-config.js'])).ready();
 }
 
+// systemPage answers a system page after the load events: the shell of
+// index.html with one template as its body, and the script of that page.
+// The script of such a page asks the server while it loads, thus the
+// server function is an argument. See the Status page and the Log page.
+function systemPage(templateName, script, server, opts) {
+    const h = newDomPage(Object.assign({ preview: template(templateName), markdown: false }, opts || {}));
+    if (server) h.server = server;
+    return h.load(shellScripts().concat([script])).ready();
+}
+
 // editorPage answers the editor page with text as the note, after the load
 // events and the load of the note. The editor is a page of its own: it has
 // the markup of editor.html and the script omn-go-editor.js, and no other
@@ -376,4 +386,6 @@ async function editorPage(text) {
     return h;
 }
 
-module.exports = { newDomPage, notePage, configPage, editorPage, shellBody, shellScripts, template };
+module.exports = {
+    newDomPage, notePage, configPage, systemPage, editorPage, shellBody, shellScripts, template,
+};

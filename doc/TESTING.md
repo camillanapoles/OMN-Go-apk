@@ -143,7 +143,10 @@ does.
 `editorPage(text)` builds the editor from `editor.html` and loads
 `omn-go-editor.js` with `text` as the note.
 
-Eight test files use these pages:
+`systemPage(template, script, server)` builds a system page: the shell
+with one template as its body, and the script of that page.
+
+Eleven test files use these pages:
 
 | File | What it holds |
 | --- | --- |
@@ -155,6 +158,9 @@ Eight test files use these pages:
 | `editor-view.test.js` | An expansion keeps the view of the editor, from the Tab key and from the toolbar button. |
 | `nav.test.js` | The four answers to a press on a link of a note. The overlay of a slow page shows after 300 ms, and only for a press that leaves the page. |
 | `share.test.js` | The metadata panel writes each value as text. Send, the two copy controls, and the two ways to the clipboard. |
+| `status.test.js` | The Status page asks for a slow section only on a press. Each kind of value has its form, and each value is text. |
+| `logs-page.test.js` | The Log page: the history, the new lines, the boxes of the filter, and a copy of the lines that show. |
+| `compat.test.js` | The notice of an old browser: the limit of 85, one notice, and the close mark. |
 
 A script that sets `location.href` leaves the page in a browser. The
 document of a test stays, thus `location.href` keeps the address of the
