@@ -982,7 +982,7 @@
     // ==================================================================
     //
     // Exact matching, deliberately. This has nothing to do with the fuzzy
-    // search in omn-go-sse.js. That one answers "where did I write about
+    // search in omn-go-api.js. That one answers "where did I write about
     // this". This one has to answer "which characters am I about to
     // overwrite", and a fuzzy match has no defensible replacement.
     //

@@ -6,9 +6,9 @@
 // THIS FILE ARRIVES ON DEMAND, and it is the largest of the three. Each
 // note page would otherwise parse about 34 kilobytes of it to show
 // nothing. The first press of the magnifier,
-// of Ctrl-K, or of the slash key loads it. See omnLazy in omn-go-sse.js.
+// of Ctrl-K, or of the slash key loads it. See omnLazy in omn-go-api.js.
 //
-// THE SHORTCUTS ARE NOT HERE. They are in omn-go-sse.js, because a
+// THE SHORTCUTS ARE NOT HERE. They are in omn-go-api.js, because a
 // shortcut must answer before this file exists. This file exports
 // omnSearchIsOpen and omnSearchClose for that listener to close the
 // overlay with.
@@ -804,7 +804,7 @@ if (window.location.protocol !== 'file:') {
         };
 
 
-        // omn-go-sse.js holds the keyboard shortcuts, because Ctrl-K and
+        // omn-go-api.js holds the keyboard shortcuts, because Ctrl-K and
         // the slash key must work before this file loads. That listener
         // asks these two whether an overlay is on screen, and closes it.
         window.omnSearchIsOpen = isOpen;

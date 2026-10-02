@@ -58,7 +58,7 @@ var VersionDependentAssets = []string{
 	"html/js/OMN-Go/omn-go-compat.js",
 	"html/js/OMN-Go/omn-go-core.js",
 	"html/js/OMN-Go/omn-go-editor.js",
-	"html/js/OMN-Go/omn-go-sse.js",
+	"html/js/OMN-Go/omn-go-api.js",
 	"html/js/OMN-Go/omn-go-config.js",
 	"html/js/OMN-Go/omn-go-sync.js",
 	"html/js/OMN-Go/omn-go-bookmark.js",
@@ -106,6 +106,16 @@ var RetiredAssets = []string{
 	"html/css/highlight.default.min.css",
 	"html/css/katex.min.css",
 	"html/css/markdown.css",
+	"html/js/OMN-Go/omn-go-sse.js",
+}
+
+// RenamedAssets gives the current path for each app asset that got a new
+// name inside its OMN-Go directory. Each key is also in RetiredAssets.
+// legacyAssetPaths in backend/internal/app/serving.go reads this map, because
+// a page in an open browser and a note of the user can name the old file.
+// THE MAP ONLY GROWS.
+var RenamedAssets = map[string]string{
+	"html/js/OMN-Go/omn-go-sse.js": "html/js/OMN-Go/omn-go-api.js",
 }
 
 // RetiredFonts adds the old place of each web font to RetiredAssets. A font is

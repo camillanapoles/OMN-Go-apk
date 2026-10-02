@@ -2,8 +2,9 @@
 
 * Status: accepted
 * Version: 26.09.12
-* Code: `storage.VersionDependentAssets`, `storage.RetiredAssets` and
-  `removeRetiredAssets` in `backend/internal/storage/assets.go`,
+* Code: `storage.VersionDependentAssets`, `storage.RetiredAssets`,
+  `storage.RenamedAssets` and `removeRetiredAssets` in
+  `backend/internal/storage/assets.go`,
   `legacyAssetURL` in `backend/internal/app/serving.go`,
   `gitsync.GitignorePatterns` in `backend/internal/gitsync/repo.go`
 
@@ -27,6 +28,11 @@ directory could not tell which file belongs to whom.
 * At the first start of a new version, `removeRetiredAssets` deletes the
   old copy of each moved file. It first moves a copy that a person changed
   to `asset_backups`.
+* A file can also get a new name inside its `OMN-Go` directory.
+  `storage.RenamedAssets` gives the new name for each old name. The first
+  entry is `omn-go-sse.js`, which is `omn-go-api.js` from version 26.10.6.
+  `legacyAssetURL` answers the old name at both places. A page in an open
+  browser and a note of the user can name the old file.
 * The build does not ship `html/css/markdown.css`. No template and no note
   loaded it.
 
@@ -36,7 +42,10 @@ directory could not tell which file belongs to whom.
   on disk would become a tracked file at the next commit, and the sync
   would copy it to each device. That is why `removeRetiredAssets` must
   delete it.
-* `storage.RetiredAssets` only grows. An install can skip any number of
-  versions.
+* `.gitignore` keeps the line of the old name `omn-go-sse.js`. A device
+  with an older version adds that line again when it is absent. A delete
+  would thus change the file back and forth.
+* `storage.RetiredAssets` and `storage.RenamedAssets` only grow. An
+  install can skip any number of versions.
 * `TestEveryAppAssetIsUnderOMNGo` in
   `backend/internal/storage/assets_test.go` holds the rule for each new file.

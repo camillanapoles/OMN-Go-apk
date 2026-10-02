@@ -7,7 +7,7 @@
 // IT READS TWO ADDRESSES. /api/logs/history answers the lines that the
 // ring holds, oldest first. /api/logs carries each new line as the server
 // writes it. This file reaches the second one through
-// window.omnGoOnServerLog of omn-go-sse.js, thus the page opens NO second
+// window.omnGoOnServerLog of omn-go-api.js, thus the page opens NO second
 // connection to the stream.
 //
 // Both addresses are admin only. The page-access table answers a caller
@@ -24,7 +24,7 @@
 // the banner of backend/internal/logx/hub.go.
 //
 // A line reads "<stamp> [tag] (level) message". window.omnParseLogLine in
-// omn-go-sse.js splits it, and that function is the one authority for the
+// omn-go-api.js splits it, and that function is the one authority for the
 // shape of a line. See rule 7 of CLAUDE.md section 1.
 
 'use strict';

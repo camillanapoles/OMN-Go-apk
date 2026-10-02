@@ -86,8 +86,8 @@ the status of the old record to `replaced by NNNN`.
 | [0012](0012-keep-one-remote-for-each-git-server-slot.md) | Keep one remote for each git server slot. | `internal/gitsync/repo.go` |
 | [0013](0013-send-each-log-line-to-three-places-and-to-the-admin-only.md) | Send each log line to three places, and to the admin only. | `internal/logx/levels.go`, `internal/logx/hub.go`, `log_handlers.go` |
 | [0014](0014-change-only-the-settings-that-a-request-names.md) | Change only the settings that a request names. | `config_handlers.go`, `internal/config/fields.go` |
-| [0015](0015-load-the-click-driven-scripts-on-demand.md) | Load the click-driven scripts on demand. | `omn-go-sse.js`, `omn-go-sync.js`, `omn-go-bookmark.js`, `omn-go-search.js` |
+| [0015](0015-load-the-click-driven-scripts-on-demand.md) | Load the click-driven scripts on demand. | `omn-go-api.js`, `omn-go-sync.js`, `omn-go-bookmark.js`, `omn-go-search.js` |
 | [0016](0016-give-each-route-one-method.md) | Give each route one method. | `server.go`, `routes.go` |
 | [0017](0017-refuse-a-request-that-another-site-sends.md) | Refuse a request that another site sends. | `request_guard.go`, `middleware.go` |
-| [0018](0018-keep-one-role.md) | Keep one role. | `session.go`, `omn-go-sse.js` |
+| [0018](0018-keep-one-role.md) | Keep one role. | `session.go`, `omn-go-api.js` |
 | [0019](0019-trust-the-host-key-on-first-use.md) | Trust the host key on first use. | `internal/gitsync/host_keys.go`, `internal/gitsync/repo.go`, `omn-go-sync.js` |

@@ -71,7 +71,7 @@ func TestConfigPageCarriesNoSecret(t *testing.T) {
 	}
 }
 
-// Each secret box carries data-secret. omn-go-sse.js reads that attribute
+// Each secret box carries data-secret. omn-go-api.js reads that attribute
 // to find the boxes that it must remove from a save. A box that loses the
 // attribute silently clears its value at the next save.
 func TestEverySecretBoxIsMarked(t *testing.T) {
@@ -122,7 +122,7 @@ func TestConfigPostKeepsAnUnsentGitSecret(t *testing.T) {
 }
 
 // A reader who empties a revealed box asks for an empty value. The box is
-// then dirty, thus omn-go-sse.js sends it, thus the server must write it.
+// then dirty, thus omn-go-api.js sends it, thus the server must write it.
 func TestConfigPostClearsASentGitSecret(t *testing.T) {
 	a := secretsApp(t)
 
@@ -183,7 +183,7 @@ func TestConfigPostPasswordFollowsTheSentRule(t *testing.T) {
 // agree on the attribute name. This test reads both files and compares
 // them, the same as TestFoldTableHasAFrontendCopy.
 //
-// The code is in omn-go-config.js, and not in omn-go-sse.js, which every
+// The code is in omn-go-config.js, and not in omn-go-api.js, which every
 // note loads. The Config page is the only reader of this code.
 func TestSecretAttributeHasAFrontendReader(t *testing.T) {
 	const scriptPath = "html/js/OMN-Go/omn-go-config.js"
@@ -215,13 +215,13 @@ func TestSecretAttributeHasAFrontendReader(t *testing.T) {
 
 	// And the code must be gone from the file that every note loads.
 	// Leaving a copy there is how two implementations of one rule start.
-	sse, err := frontend.Static.ReadFile("html/js/OMN-Go/omn-go-sse.js")
+	api, err := frontend.Static.ReadFile("html/js/OMN-Go/omn-go-api.js")
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, gone := range []string{"omnGoRevealSecrets", "window.saveConfig"} {
-		if strings.Contains(string(sse), gone) {
-			t.Errorf("omn-go-sse.js still holds %q. Every note carries that file, "+
+		if strings.Contains(string(api), gone) {
+			t.Errorf("omn-go-api.js still holds %q. Every note carries that file, "+
 				"and only the Config page runs this code.", gone)
 		}
 	}

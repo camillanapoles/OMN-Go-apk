@@ -98,14 +98,14 @@ That is how a browser works: `window` IS the global object, thus
 against the same object.
 
 **A Node module has its own scope, and that difference hid a real fault.**
-`SYNC_TITLES` sat in the `if` block of `omn-go-sse.js` while
+`SYNC_TITLES` sat in the `if` block of `omn-go-api.js` while
 `omn-go-sync.js` read it as a bare name. In a browser, each upload threw
 "SYNC_TITLES is not defined", and the "Commit & Push" button did nothing.
 In a Node module, the fault did not show. See
 `doc/decisions/0015-load-the-click-driven-scripts-on-demand.md`.
 
 `lazy.test.js` uses the page stub. It reads the `omnLazy` call of
-`omn-go-sse.js`, loads each lazy file ALONE, and calls each name that the
+`omn-go-api.js`, loads each lazy file ALONE, and calls each name that the
 call promises. A ReferenceError is a failure. A TypeError is not, because
 the page is a stub and not a browser.
 
@@ -120,7 +120,7 @@ overlay fails quietly, thus nothing else would report it.
 
 `TestLogFilterPortAgreesWithTheRealJavaScript` in
 `backend/internal/app/js_port_test.go` compares `logLineEnabled` in
-`backend/internal/app/log_app.go` with `logLinePrints` in `omn-go-sse.js` over
+`backend/internal/app/log_app.go` with `logLinePrints` in `omn-go-api.js` over
 120 states. It builds the value of `OMN_LOG_TAGS` the way
 `render.Renderer.InjectRuntimeVars` does. A test that builds it another way
 compares a state that no page ever holds.

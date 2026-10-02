@@ -26,7 +26,7 @@ const backendDir = "../.."
 // ----------------------------------------------------------------------
 //
 // One decision has two implementations. logLineEnabled in log_app.go says
-// whether a line reaches stdout. logLinePrints in omn-go-sse.js says
+// whether a line reaches stdout. logLinePrints in omn-go-api.js says
 // whether the same line reaches the browser console.
 //
 // Rule 7 of CLAUDE.md section 1 asks for one authority. This pair is an
@@ -125,7 +125,7 @@ for (const c of JSON.parse(fs.readFileSync(process.argv[1], 'utf8'))) {
     page.OMN_LOG_INFO = c.info;
     page.OMN_LOG_TAGS = c.tags;
     run(page, 'omn-go-core.js');
-    run(page, 'omn-go-sse.js');
+    run(page, 'omn-go-api.js');
     if (typeof page.logLinePrints !== 'function') {
         process.stdout.write(JSON.stringify({ missing: true }));
         process.exit(0);
@@ -148,7 +148,7 @@ process.stdout.write(JSON.stringify({ got: out }));
 		t.Fatalf("node did not answer JSON: %v\n%s", err, out)
 	}
 	if answer.Missing {
-		t.Fatal("omn-go-sse.js does not export logLinePrints, thus this test " +
+		t.Fatal("omn-go-api.js does not export logLinePrints, thus this test " +
 			"cannot compare the two implementations.")
 	}
 	if len(answer.Got) != len(want) {
@@ -161,7 +161,7 @@ process.stdout.write(JSON.stringify({ got: out }));
 		}
 		t.Errorf("the two sides disagree for level %q, tag %q, debug=%v, info=%v, tags=%q.\n"+
 			"  logLineEnabled in log_app.go says %v\n"+
-			"  logLinePrints in omn-go-sse.js says %v\n"+
+			"  logLinePrints in omn-go-api.js says %v\n"+
 			"  A person then sees a quiet stdout and a loud console, or the reverse.",
 			c.Level, c.Tag, c.Debug, c.Info, c.Tags, want[i], answer.Got[i])
 	}

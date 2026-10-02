@@ -40,7 +40,7 @@ import (
 // ring holds the last HistoryCap lines, and /api/logs/history answers with
 // them.
 //
-// THE RING DOES NOT REPLAY ON THE STREAM. applySyncLogLine in omn-go-sse.js
+// THE RING DOES NOT REPLAY ON THE STREAM. applySyncLogLine in omn-go-api.js
 // reads the "[sync] (debug)" lines of the stream. A replay would show an old
 // sync on each page load.
 //

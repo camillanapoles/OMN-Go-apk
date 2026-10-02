@@ -3,11 +3,11 @@
 // The capture of a shared link, the panel itself, and the autocomplete of
 // the Tags box.
 //
-// THIS FILE ARRIVES ON DEMAND. omn-go-sse.js writes a stub for each name
+// THIS FILE ARRIVES ON DEMAND. omn-go-api.js writes a stub for each name
 // below, and the first press of the bookmark button loads this file. See
 // omnLazy there.
 //
-// TWO PARTS STAYED IN omn-go-sse.js, and each one has a reason.
+// TWO PARTS STAYED IN omn-go-api.js, and each one has a reason.
 // omnGoInsertCapture answers Android with a value that Android reads,
 // thus it can never be a stub that answers with a Promise. The drag and
 // drop listener has to listen before a person drops a link, thus it
@@ -65,7 +65,7 @@ if (window.location.protocol !== 'file:') {
     // typed right away.
     //
     // This is plain same-origin UI sugar, and not a "server extension". The
-    // sync and login calls in omn-go-sse.js need a protocol guard, and this
+    // sync and login calls in omn-go-api.js need a protocol guard, and this
     // does not. A failed fetch, for example on a page opened offline, is
     // read as "no suggestions" and not as an error. The field still works as
     // a plain comma-separated text input either way.

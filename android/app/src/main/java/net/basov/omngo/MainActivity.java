@@ -1576,7 +1576,7 @@ public class MainActivity extends Activity {
     // (window.omnGoInsertCapture) for the user to review and save. When
     // that panel is not available on the current page, it falls back to a
     // native dialog with the text pre-filled and editable. A page mid-edit
-    // on editor.html is such a page, because it loads no omn-go-sse.js.
+    // on editor.html is such a page, because it loads no omn-go-api.js.
     private void insertCapturedText(final String text, final String label) {
         runOnUiThread(new Runnable() {
             @Override

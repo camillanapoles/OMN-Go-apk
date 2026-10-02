@@ -3,7 +3,7 @@
 * Status: accepted
 * Version: 26.09.107
 * Code: `roleAdmin`, `readSessionRole` and `handleLogin` in
-  `backend/internal/app/session.go`, `checkSession` in `omn-go-sse.js`
+  `backend/internal/app/session.go`, `checkSession` in `omn-go-api.js`
 
 ## Context
 

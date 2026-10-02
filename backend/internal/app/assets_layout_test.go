@@ -60,6 +60,59 @@ func TestLegacyAssetURLWritesNoOldFile(t *testing.T) {
 	}
 }
 
+// The old name of omn-go-api.js is omn-go-sse.js. A page that a browser holds
+// from an older version still asks for the old name, and a note of the user
+// can name it. See storage.RenamedAssets.
+func TestLegacyAssetURLKnowsTheOldNameOfTheAPIScript(t *testing.T) {
+	a := newTestApp(t)
+	want, err := frontend.Static.ReadFile("html/js/OMN-Go/omn-go-api.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, urlPath := range []string{"/js/OMN-Go/omn-go-sse.js", "/js/omn-go-sse.js"} {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, urlPath, nil)
+		a.serveEmbeddableAsset(rec, req, req.URL.Path)
+		if rec.Code != http.StatusOK {
+			t.Errorf("%s answers %d, want 200", urlPath, rec.Code)
+			continue
+		}
+		if rec.Body.String() != string(want) {
+			t.Errorf("%s does not answer omn-go-api.js", urlPath)
+		}
+	}
+	for _, old := range []string{
+		filepath.Join("html", "js", "OMN-Go", "omn-go-sse.js"),
+		filepath.Join("html", "js", "omn-go-sse.js"),
+	} {
+		if _, err := os.Stat(filepath.Join(a.StorageDir, old)); err == nil {
+			t.Errorf("the alias wrote %s, thus the next commit can track it", old)
+		}
+	}
+}
+
+// storage.RetiredAssets must hold each old name of storage.RenamedAssets, and
+// this build must ship each new name. If not, the old copy stays on the
+// device, or the alias answers 404.
+func TestEachRenamedAssetIsRetiredAndShipped(t *testing.T) {
+	retired := map[string]bool{}
+	for _, rel := range storage.RetiredAssets {
+		retired[rel] = true
+	}
+	shipped := map[string]bool{}
+	for _, rel := range storage.VersionDependentAssets {
+		shipped[rel] = true
+	}
+	for relOld, relNew := range storage.RenamedAssets {
+		if !retired[relOld] {
+			t.Errorf("%s has a new name and is not in storage.RetiredAssets", relOld)
+		}
+		if !shipped[relNew] {
+			t.Errorf("%s is the new name of %s and is not in storage.VersionDependentAssets", relNew, relOld)
+		}
+	}
+}
+
 // The alias covers the moved files alone. A name that nobody shipped must
 // still answer 404, or a fault of a name reads as a working link.
 func TestLegacyAssetURLIgnoresAUserFile(t *testing.T) {

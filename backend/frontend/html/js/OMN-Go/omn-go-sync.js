@@ -4,7 +4,7 @@
 // to /api/sync, the conflict modal, the force push, and the commit-message
 // modal that an upload opens first.
 //
-// THIS FILE ARRIVES ON DEMAND. omn-go-sse.js writes a stub for each name
+// THIS FILE ARRIVES ON DEMAND. omn-go-api.js writes a stub for each name
 // below, and the first press of a sync button loads this file. See omnLazy
 // in that file, and doc/decisions/0015-load-the-click-driven-scripts-on-demand.md.
 //
@@ -15,7 +15,7 @@ if (window.location.protocol !== 'file:') {
     // The title of the progress overlay, for each action that runSync
     // takes.
     //
-    // IT MUST BE IN THIS FILE. The body of omn-go-sse.js sits inside an if
+    // IT MUST BE IN THIS FILE. The body of omn-go-api.js sits inside an if
     // block, thus a const of that block reaches no other file. A map
     // there would make each press of "Commit & Push" throw "SYNC_TITLES is
     // not defined".

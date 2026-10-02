@@ -76,7 +76,7 @@ var GitignorePatterns = []string{
 	"/html/css/OMN-Go/katex.min.css",
 	"/html/js/OMN-Go/omn-go-compat.js",
 	"/html/js/OMN-Go/omn-go-core.js",
-	"/html/js/OMN-Go/omn-go-sse.js",
+	"/html/js/OMN-Go/omn-go-api.js",
 	"/html/js/OMN-Go/omn-go-config.js",
 	"/html/js/OMN-Go/omn-go-sync.js",
 	"/html/js/OMN-Go/omn-go-bookmark.js",
@@ -132,6 +132,9 @@ var obsoleteGitignoreLines = map[string]bool{
 	"/html/js/katex.min.js":               true,
 	"/html/js/highlight.min.js":           true,
 	"/html/js/Bookmarker.js":              true,
+	// NOT HERE: /html/js/OMN-Go/omn-go-sse.js, the old name of omn-go-api.js.
+	// A device with an older version adds that line again when it is absent,
+	// thus a delete here would change .gitignore back and forth.
 }
 
 func (svc Service) EnsureGitignore() {

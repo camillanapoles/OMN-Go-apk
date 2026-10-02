@@ -189,19 +189,19 @@ update these files.
     library and no structured logger.
   * `backend/internal/logx/hub.go` sends each line to stdout and to the SSE
     subscribers on `/api/logs`. **The SSE stream always carries every line.** The switches
-    control stdout, and they control what `omn-go-sse.js` mirrors into the
+    control stdout, and they control what `omn-go-api.js` mirrors into the
     browser console. The sync progress overlay reads `[sync] (debug)` lines off
     the raw stream, and it must work when debug is off.
   * **`/api/logs` is admin only**, the same as `/api/logs/history`, and the
     local bypass applies. A remote caller with no admin cookie reads no log
     line, live or held. See `doc/decisions/0013-send-each-log-line-to-three-places-and-to-the-admin-only.md`.
-  * `applySyncLogLine` in `omn-go-sse.js` removes the level word before it
+  * `applySyncLogLine` in `omn-go-api.js` removes the level word before it
     matches a sync stage. Keep the two in agreement, or the progress overlay
     loses a stage. That file exports it as `window.applySyncLogLine`, because
     `omn-go-sync.js` is the only caller and it is a separate file.
     `TestEverySyncLineReachesTheOverlay` runs a whole sync and sends each
     line that it wrote through the real JavaScript.
-  * `logLinePrints` in `omn-go-sse.js` and `logLineEnabled` in `log_app.go`
+  * `logLinePrints` in `omn-go-api.js` and `logLineEnabled` in `log_app.go`
     are two implementations of one decision. The page needs the answer
     without the server, thus rule 7 of section 1 allows the pair with a test.
     `TestLogFilterPortAgreesWithTheRealJavaScript` compares them.
@@ -342,13 +342,17 @@ fail when you skip one of these steps.
 * **Module pattern.** Use an IIFE with an explicit `window.*` export. Attach anything
   that an inline `onclick=` calls to `window`.
 * **A note page loads three scripts.** `templates/index.html` names
-  `omn-go-compat.js`, `omn-go-core.js` and `omn-go-sse.js`, and then the three
+  `omn-go-compat.js`, `omn-go-core.js` and `omn-go-api.js`, and then the three
   vendored libraries and `omn-go-custom.js`. It names no other file of the
   project. Four more files load on demand. See the lazy loading rule below.
+* **A new name of an app script or style needs four lists.** Change the path in
+  `storage.VersionDependentAssets` and in `gitsync.GitignorePatterns`. Add the old
+  path to `storage.RetiredAssets` and to `storage.RenamedAssets`. `legacyAssetURL`
+  then answers the old name, which a note of the user can hold.
 * File roles:
   * `omn-go-core.js` holds the offline-safe part: render helpers, the KaTeX start
     code, the progress API, link interception, and the version footer.
-  * `omn-go-sse.js` holds everything that calls the backend. The file body sits
+  * `omn-go-api.js` holds everything that calls the backend. The file body sits
     inside `if (window.location.protocol !== 'file:')`. The `else` branch replaces
     the same globals with stubs, so an exported page degrades quietly. It also
     holds `omnLoadModule` and `omnLazy`, the two functions of the lazy loading.
@@ -369,10 +373,10 @@ fail when you skip one of these steps.
     purpose. `omn-go-custom.js` stays independent. It keeps its own plain
     `<script>` element, and it loads last.
 * **A lazy file must export through `omnLazy`.** Add the file to the `omnLazy`
-  call in `omn-go-sse.js` and name each function that the page calls. A name that
+  call in `omn-go-api.js` and name each function that the page calls. A name that
   is absent from that list is undefined until something else loads the file.
   `printDebug` sits above the `file:` guard, because a stub needs it.
-* **A lazy file must read NO bare name of `omn-go-sse.js`.** The body of that
+* **A lazy file must read NO bare name of `omn-go-api.js`.** The body of that
   file sits inside an `if` block, thus a `const` of the block reaches no other
   file. A `function` of the block reaches one by accident, through Annex B of
   the standard. Both are traps. Put the value in the lazy file, or export it as

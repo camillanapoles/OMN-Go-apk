@@ -176,7 +176,7 @@ The cookie lasts **30 days**. It is `HttpOnly` and `SameSite=Lax`. It is not
 `Secure`, because this server speaks HTTP.
 
 `session_role_hint` carries the plain role for the page alone.
-`checkSession` in `omn-go-sse.js` reads it. The page shows the notes when
+`checkSession` in `omn-go-api.js` reads it. The page shows the notes when
 the hint says `admin`, and the login box in each other case. **The server
 never reads it.** A client that changes the hint changes
 what its own page shows and gets no permission.
@@ -1308,7 +1308,7 @@ failure to start the editor. It still returns the wait page with `200`.
 #### `GET /api/logs`
 
 Server-Sent Events stream of every log line the backend writes. The
-progress overlay of the frontend (`omn-go-sse.js`) reads this stream, so the
+progress overlay of the frontend (`omn-go-api.js`) reads this stream, so the
 sync progress shows the real stages of the backend.
 
 No parameters. **Admin only since 26.09.59**, and the local bypass applies. It
@@ -1319,7 +1319,7 @@ nothing. A remote caller now gets `401`.
 
 **The stream always carries every line.** The `log_debug`, `log_info` and
 `log_tags` settings of `config.json` control what the server prints to
-stdout. They also control what `omn-go-sse.js` prints to the browser
+stdout. They also control what `omn-go-api.js` prints to the browser
 console. They do not control this stream. The sync overlay is built on `[sync] (debug)` lines,
 and it must work when a reader asks for less noise.
 
@@ -1379,7 +1379,7 @@ person arrived, which is the shape a reader on the LAN would want. See
 `handleLogHistory` in `backend/internal/app/log_handlers.go`.
 
 **The ring never replays on the stream.** `applySyncLogLine` in
-`omn-go-sse.js` reads `[sync] (debug)` lines off the raw stream to drive
+`omn-go-api.js` reads `[sync] (debug)` lines off the raw stream to drive
 the sync progress overlay. A replay on connect would show a sync that is
 not running.
 
@@ -1411,7 +1411,7 @@ can tell a full ring from a short session.
 Run one atomic batch of SQL statements against one named SQLite database on
 the server. The server stores the database at `<storage>/db/<name>.sqlite`.
 This endpoint replaces the removed WebSQL API. The wrapper in the browser is
-`omnGoOpenDatabase()` in `omn-go-sse.js`.
+`omnGoOpenDatabase()` in `omn-go-api.js`.
 
 **Headers**: `Content-Type: application/json`
 
@@ -2022,6 +2022,11 @@ place. See `legacyAssetURL` in `backend/internal/app/serving.go`. That rule
 keeps a note working when it names `/js/Bookmarker.js`, which `md/Bookmarks.md`
 does. The rule covers the moved files alone, thus `/js/mine.js` still answers
 `404`.
+
+A file with a new name also answers for its old name. `omn-go-api.js` had the
+name `omn-go-sse.js` until 26.10.5. `/js/OMN-Go/omn-go-sse.js` and
+`/js/omn-go-sse.js` thus answer with `omn-go-api.js`. A page in an open
+browser and a note of the user can name the old file.
 | root catch-all (`/favicon.ico`, `/robots.txt`, …) | `html/` | Same lazy extraction |
 | `/images/` | `html/images/` | Pure user content, never embedded |
 | `/user_json/` | `html/user_json/` | Pure user content, never embedded |

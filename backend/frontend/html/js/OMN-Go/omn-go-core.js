@@ -55,7 +55,7 @@ const UI = (function() {
 
 // --- Progress overlay ---
 // One shared indicator that says that the server is busy. Three parts
-// use it: the git sync of omn-go-sse.js, the database backup page, and
+// use it: the git sync of omn-go-api.js, the database backup page, and
 // the slow-navigation guard further down this file. The style lives in
 // omn-go-core.css, under the .omn-progress- names.
 //
@@ -156,7 +156,7 @@ window.OMNProgress = (function() {
 // Marking query terms inside the rendered page. Two callers, and they are why
 // this lives here rather than beside the search dialog:
 //
-//   - the dialog (omn-go-sse.js), when a page-scope result is chosen,
+//   - the dialog (omn-go-api.js), when a page-scope result is chosen,
 //   - a page opened with ?hl=<term> on the URL, which a search result
 //     links to. It has to work on any page, including one opened from
 //     disk, where the server half of the application never loads.
@@ -957,11 +957,11 @@ if (typeof currentNote === 'undefined') {
         // Copies the Quick Note text to the clipboard WITHOUT saving it. The
         // captured snippet can then be pasted somewhere else. A person types
         // that snippet, or shares it in from another Android app, or pushes
-        // it in with a barcode scan. See omnGoInsertCapture in omn-go-sse.js.
+        // it in with a barcode scan. See omnGoInsertCapture in omn-go-api.js.
         // Wired to the Copy button of the panel, which passes itself as btn,
         // thus the label can report the outcome.
         //
-        // It lives here rather than beside submitQuickNote in omn-go-sse.js,
+        // It lives here rather than beside submitQuickNote in omn-go-api.js,
         // because it never talks to the backend. The no-server branch of that
         // file replaces every handler with a printDebug stub. That is right
         // for /api/quick and wrong for a pure clipboard action.

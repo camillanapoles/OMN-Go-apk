@@ -23,12 +23,12 @@ const backendDir = "../.."
 //
 // Section 3 of CLAUDE.md holds this rule:
 //
-//	"applySyncLogLine in omn-go-sse.js removes the level word before it
+//	"applySyncLogLine in omn-go-api.js removes the level word before it
 //	 matches a sync stage. Keep the two in agreement, or the progress
 //	 overlay loses a stage."
 //
 // Nothing held it. internal/repocheck/ports_test.go reads the level
-// pattern out of the SOURCE of omn-go-sse.js and compiles it. That proves
+// pattern out of the SOURCE of omn-go-api.js and compiles it. That proves
 // that the pattern exists. It says nothing about the lines that the Go side
 // writes.
 //
@@ -117,7 +117,7 @@ const fs = require('fs');
 const { newPage, run } = require('./frontend/test/page-stub.js');
 const page = newPage();
 run(page, 'omn-go-core.js');
-run(page, 'omn-go-sse.js');
+run(page, 'omn-go-api.js');
 if (typeof page.applySyncLogLine !== 'function') {
     process.stdout.write(JSON.stringify({ missing: true }));
     process.exit(0);
@@ -147,14 +147,14 @@ process.stdout.write(JSON.stringify({ quiet: quiet, stages: stages }));
 		t.Fatalf("node did not answer JSON: %v\n%s", err, out)
 	}
 	if answer.Missing {
-		t.Fatal("omn-go-sse.js does not export applySyncLogLine. " +
+		t.Fatal("omn-go-api.js does not export applySyncLogLine. " +
 			"omn-go-sync.js then reads a bare name, and 26.09.41 says why " +
 			"that is a trap.")
 	}
 	if len(answer.Quiet) > 0 {
 		t.Errorf("%d of %d lines of a real sync moved no stage of the overlay.\n"+
 			"  A person then watches a bar that stands still, and no fault is logged.\n"+
-			"  Add a prefix to SYNC_STAGES in omn-go-sse.js, or repair the message.\n"+
+			"  Add a prefix to SYNC_STAGES in omn-go-api.js, or repair the message.\n"+
 			"  The first three are:\n    %s",
 			len(answer.Quiet), len(lines),
 			strings.Join(answer.Quiet[:min(3, len(answer.Quiet))], "\n    "))

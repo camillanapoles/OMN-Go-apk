@@ -21,7 +21,7 @@ import (
 	"net.basov.omngo/backend/internal/logx"
 )
 
-// TestEmitLogLineShape pins the text the browser parses. omn-go-sse.js reads
+// TestEmitLogLineShape pins the text the browser parses. omn-go-api.js reads
 // the tag and the level out of each line, and applySyncLogLine skips the
 // level word before it matches a sync stage. A change here breaks both.
 func TestEmitLogLineShape(t *testing.T) {

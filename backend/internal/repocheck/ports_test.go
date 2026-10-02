@@ -224,10 +224,10 @@ var jsLevelStripRe = regexp.MustCompile(`replace\(/\^\\\(([^)]+)\\\)\\s\*/, ''\)
 // a level name can hold. A change of the emitted shape leaves the overlay
 // with no stage and no detail, and nothing else reports that.
 func TestSyncLogShapeHasAFrontendCopy(t *testing.T) {
-	js := portsJS(t, "omn-go-sse.js")
+	js := portsJS(t, "omn-go-api.js")
 
 	if !strings.Contains(js, "'[sync]'") {
-		t.Errorf("omn-go-sse.js no longer looks for '[sync]'. logx.Logger.emit writes "+
+		t.Errorf("omn-go-api.js no longer looks for '[sync]'. logx.Logger.emit writes "+
 			"[%s], thus the progress overlay finds no line.", logx.Sync)
 	}
 

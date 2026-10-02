@@ -153,7 +153,7 @@ func TestHintCookieIsReadableAndSignedCookieIsNot(t *testing.T) {
 		t.Error("the signed cookie is not HttpOnly, thus a note script can read it and send it away")
 	}
 	if hint.HttpOnly {
-		t.Error("the hint cookie is HttpOnly, thus checkSession in omn-go-sse.js cannot see the login")
+		t.Error("the hint cookie is HttpOnly, thus checkSession in omn-go-api.js cannot see the login")
 	}
 	if hint.Value != roleAdmin {
 		t.Errorf("the hint cookie holds %q, want %q", hint.Value, roleAdmin)

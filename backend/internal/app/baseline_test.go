@@ -1058,10 +1058,10 @@ func TestBaseline_InjectedRuntimeVarSet(t *testing.T) {
 	// must thus reach an already-cached page, the same way the theme does.
 	//
 	// OMN_INCOMING_PAGE: the receive box lives in the modals block.
-	// omn-go-sse.js must know which page the box belongs on, and it must keep
+	// omn-go-api.js must know which page the box belongs on, and it must keep
 	// no second copy of the name of the note.
 	//
-	// The three log switches: the console mirror in omn-go-sse.js reads them
+	// The three log switches: the console mirror in omn-go-api.js reads them
 	// to decide what it prints. A page compiled before a switch changed must
 	// still get the new answer.
 	want := []string{

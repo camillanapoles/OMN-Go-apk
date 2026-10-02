@@ -4,17 +4,17 @@
 // unsaved-changes mark, the reveal of each secret, and the save.
 //
 // WHY IT IS A FILE OF ITS OWN. Each note carries a copy of the shell of
-// index.html. Code in omn-go-core.js or omn-go-sse.js would thus reach each
+// index.html. Code in omn-go-core.js or omn-go-api.js would thus reach each
 // note, and only ONE page runs this code. config_page.html
 // loads this file, and no other page does.
 //
-// IT NEEDS NO file: GUARD, unlike omn-go-sse.js. The Config page is
+// IT NEEDS NO file: GUARD, unlike omn-go-api.js. The Config page is
 // dynamic. serveConfigPage renders it for each request and writes no
 // html/Config.html, thus no export and no git sync ever carries it.
 // TestBaseline_ServeHTMLPageDispatch holds that rule. A page opened from
 // disk therefore never loads this file.
 //
-// IT LOADS AFTER omn-go-core.js AND omn-go-sse.js. The script element is
+// IT LOADS AFTER omn-go-core.js AND omn-go-api.js. The script element is
 // in the body of config_page.html, and those two are in the head of the
 // shell. The globals of both are there before the first line below runs.
 
@@ -22,7 +22,7 @@
 //
 // The config form itself is untouched. Each settings group is a show and
 // hide .config-screen block inside the ONE <form>. FormData(form) in
-// saveConfig(), in omn-go-sse.js, thus still collects every field, whatever
+// saveConfig(), in omn-go-api.js, thus still collects every field, whatever
 // screen is open. A no-op on a page with no #configForm.
 document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById('configForm');

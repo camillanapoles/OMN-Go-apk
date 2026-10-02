@@ -1,7 +1,7 @@
-// Each lazy file must define every name that omn-go-sse.js promises, and
+// Each lazy file must define every name that omn-go-api.js promises, and
 // it must read no name that nothing defines.
 //
-// THE FAULT THIS FILE EXISTS TO FIND. The body of omn-go-sse.js sits inside
+// THE FAULT THIS FILE EXISTS TO FIND. The body of omn-go-api.js sits inside
 // an `if (protocol !== 'file:')` BLOCK, thus a `const` of that block reaches
 // no other file. A lazy file that reads such a name throws a ReferenceError,
 // for example "SYNC_TITLES is not defined" at each press of "Commit & Push".
@@ -20,13 +20,13 @@
 // A SIBLING FAULT THAT THIS FILE ALSO COVERS. `applySyncLogLine` is a
 // FUNCTION of the same block. Annex B of the standard hoists a function
 // declared in a block of sloppy mode, thus omn-go-sync.js found it by
-// accident for those same 17 versions. omn-go-sse.js now exports it by
+// accident for those same 17 versions. omn-go-api.js now exports it by
 // hand. The test below cannot tell the two apart, and it does not need
 // to: it fails on either one.
 //
 // WHAT A FAILURE MEANS. A ReferenceError names a variable that the lazy
 // file reads and nothing defines. Move the definition into the lazy file,
-// or export it from omn-go-sse.js by hand.
+// or export it from omn-go-api.js by hand.
 //
 // A TypeError is NOT a failure. The page here is a stub, and a missing
 // element or method of the stub is a gap in the stub.
@@ -37,14 +37,14 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { newPage, run, source } = require('./page-stub.js');
 
-// lazyMap reads the omnLazy calls of omn-go-sse.js and answers
+// lazyMap reads the omnLazy calls of omn-go-api.js and answers
 // {file: [name, ...]}.
 //
 // It parses the REAL call and holds no copy of the list. A name added to
-// omn-go-sse.js is therefore covered by this test at once, and a hand
+// omn-go-api.js is therefore covered by this test at once, and a hand
 // written copy here would drift from it.
 function lazyMap() {
-    const src = source('omn-go-sse.js');
+    const src = source('omn-go-api.js');
     const out = {};
     const call = /omnLazy\(\s*'([^']+)'\s*,\s*\[([^\]]*)\]/g;
     let m;
@@ -57,20 +57,20 @@ function lazyMap() {
     return out;
 }
 
-test('omn-go-sse.js declares at least one lazy file', () => {
+test('omn-go-api.js declares at least one lazy file', () => {
     const map = lazyMap();
     const files = Object.keys(map);
     assert.ok(files.length >= 3,
         'omnLazy declares ' + files.length + ' files. The parse of the call ' +
-        'in omn-go-sse.js is wrong, or the lazy loading went away.');
+        'in omn-go-api.js is wrong, or the lazy loading went away.');
     for (const f of files) {
         assert.ok(map[f].length > 0, f + ' is declared lazy with no name');
     }
 });
 
-test('each lazy file defines every name that omn-go-sse.js promises', () => {
+test('each lazy file defines every name that omn-go-api.js promises', () => {
     for (const [file, names] of Object.entries(lazyMap())) {
-        // NO omn-go-sse.js HERE, and that is the point. omnLazy writes a
+        // NO omn-go-api.js HERE, and that is the point. omnLazy writes a
         // stub for each name, thus a page that loaded it answers
         // "function" for a name that the lazy file never defines. The
         // first draft of this test loaded it, and a renamed function
@@ -83,26 +83,26 @@ test('each lazy file defines every name that omn-go-sse.js promises', () => {
         for (const name of names) {
             assert.equal(typeof page[name], 'function',
                 file + ' does not define ' + name + ', and omnLazy promises it. ' +
-                'The stub of omn-go-sse.js then calls itself and the control is dead.');
+                'The stub of omn-go-api.js then calls itself and the control is dead.');
         }
     }
 });
 
 test('no lazy file reads a name that nothing defines', async () => {
     for (const [file, names] of Object.entries(lazyMap())) {
-        // AGAIN WITHOUT omn-go-sse.js. A lazy file may read a global
+        // AGAIN WITHOUT omn-go-api.js. A lazy file may read a global
         // through window, which is a property of an object that exists.
         // A BARE name is a free variable, and it resolves only because
         // some other file put it in the scope by accident.
         //
-        // Loading omn-go-sse.js here hides exactly that. Its body sits
+        // Loading omn-go-api.js here hides exactly that. Its body sits
         // in an if block. Annex B of the standard hoists a FUNCTION of a
         // block to the global scope of sloppy mode. omn-go-sync.js read
         // applySyncLogLine that way for 17 versions. A const of the same
         // block does not hoist, and SYNC_TITLES broke the upload.
         const page = newPage();
         run(page, file);
-        // What a real page has from omn-go-core.js and omn-go-sse.js, as
+        // What a real page has from omn-go-core.js and omn-go-api.js, as
         // properties of window. A lazy file may use each one.
         // ONLY these two, and each one for a reason. A function of a
         // lazy file opens the progress overlay and subscribes to the log
@@ -135,10 +135,10 @@ test('no lazy file reads a name that nothing defines', async () => {
             if (err && err.name === 'ReferenceError') {
                 assert.fail(file + ': ' + name + ' reads a bare name that ' +
                     'nothing defines: ' + err.message + '\n' +
-                    '  A const of the if block of omn-go-sse.js reaches no other ' +
+                    '  A const of the if block of omn-go-api.js reaches no other ' +
                     'file, and a function of it reaches one by accident.\n' +
                     '  Move the definition into ' + file + ', or export it from ' +
-                    'omn-go-sse.js as a property of window.');
+                    'omn-go-api.js as a property of window.');
             }
         }
     }

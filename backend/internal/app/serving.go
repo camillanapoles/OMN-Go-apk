@@ -30,21 +30,25 @@ import (
 // See doc/decisions/0003-use-one-table-for-each-content-type.md.
 
 // legacyAssetPaths maps the old URL of each app asset to its place under
-// OMN-Go/. It comes from storage.VersionDependentAssets and
-// storage.RetiredFonts, thus it follows each move. Each key and value starts
-// with a slash, the same as in materializeAsset.
+// OMN-Go/. It comes from storage.VersionDependentAssets, storage.RenamedAssets
+// and storage.RetiredFonts, thus it follows each move and each new name. Each
+// key and value starts with a slash, the same as in materializeAsset.
 var legacyAssetPaths = func() map[string]string {
 	out := map[string]string{}
-	add := func(rel string) {
-		urlNew := strings.TrimPrefix(rel, "html")
-		dir, name := path.Split(urlNew)
-		oldDir := strings.TrimSuffix(dir, "OMN-Go/")
-		out[oldDir+name] = urlNew
+	// add maps the URL of relOld before the OMN-Go directories to relNew.
+	add := func(relOld, relNew string) {
+		dir, name := path.Split(strings.TrimPrefix(relOld, "html"))
+		out[strings.TrimSuffix(dir, "OMN-Go/")+name] = strings.TrimPrefix(relNew, "html")
 	}
 	for _, rel := range storage.VersionDependentAssets {
 		if strings.HasPrefix(rel, "html/") {
-			add(rel)
+			add(rel, rel)
 		}
+	}
+	// A file with a new name answers for its old name at both places.
+	for relOld, relNew := range storage.RenamedAssets {
+		add(relOld, relNew)
+		out[strings.TrimPrefix(relOld, "html")] = strings.TrimPrefix(relNew, "html")
 	}
 	for _, rel := range storage.RetiredFonts {
 		name := path.Base(rel)

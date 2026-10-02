@@ -767,7 +767,7 @@ details.omn-incoming[open] > summary.omn-incoming-head {
 }
 
 /* Conflict modal file list: the files in contention (populated by
-   populateConflictFiles in omn-go-sse.js) - exactly what "Mark Conflicts"
+   populateConflictFiles in omn-go-api.js) - exactly what "Mark Conflicts"
    would inject markers into. Scrolls when there are many. */
 .conflict-files {
     text-align: left;
@@ -900,7 +900,7 @@ details.omn-incoming[open] > summary.omn-incoming-head {
     background: var(--bg-hover);
 }
 
-/* -- Search overlay (omnSearchOpen in omn-go-sse.js) --
+/* -- Search overlay (omnSearchOpen in omn-go-api.js) --
    Anchored to the top of the viewport rather than centred: results grow
    downwards, and a panel that re-centres itself as the list changes length is
    unusable to type into. */

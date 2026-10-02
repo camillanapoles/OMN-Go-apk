@@ -19,7 +19,7 @@ package app
 //	session_role_hint  readable, NOT signed, display only
 //
 // A note can hold a script, and a script that reads session_role could send
-// it to another machine. checkSession in omn-go-sse.js needs to know about
+// it to another machine. checkSession in omn-go-api.js needs to know about
 // the login, thus it reads the hint. A client that changes the hint changes
 // only its own page.
 

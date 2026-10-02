@@ -839,7 +839,7 @@ func TestIsNonFastForward(t *testing.T) {
 
 // The whole chain must end at the word that the frontend reads. syncPush
 // answers ErrPushConflict, SyncErrorStatus turns that into
-// "push_conflict", and omn-go-sse.js opens the modal on that word.
+// "push_conflict", and omn-go-api.js opens the modal on that word.
 func TestNonFastForwardReachesThePushConflictStatus(t *testing.T) {
 	remote := gsRemote(t)
 	gsSeedRemote(t, remote, "first", map[string]string{"md/One.md": "one\n"})

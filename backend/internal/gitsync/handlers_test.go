@@ -221,7 +221,7 @@ func TestHandleSyncDefaultsToPull(t *testing.T) {
 
 // The handler reads a query string as well as a body.
 //
-// The conflict buttons of the page use a query string, and omn-go-sse.js
+// The conflict buttons of the page use a query string, and omn-go-api.js
 // posts a body. handleSync calls ParseForm first for that reason. A
 // change to FormValue alone would break one of the two callers quietly.
 func TestHandleSyncReadsTheQueryString(t *testing.T) {

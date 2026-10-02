@@ -43,7 +43,7 @@ FILES=(
     "backend/frontend/templates/index.html"
     "backend/frontend/html/css/OMN-Go/omn-go-core.css"
     "backend/frontend/html/js/OMN-Go/omn-go-core.js"
-    "backend/frontend/html/js/OMN-Go/omn-go-sse.js"
+    "backend/frontend/html/js/OMN-Go/omn-go-api.js"
     "android/build.gradle"
     "android/settings.gradle"
     "android/app/build.gradle"
