@@ -339,8 +339,14 @@ fail when you skip one of these steps.
 * Write CSS by hand. `css/OMN-Go/omn-go-core.css` declares the design tokens as `:root`
   custom properties. The theme is CSS only. It uses `data-theme` on `<html>` with a
   `prefers-color-scheme` fallback.
-* **Module pattern.** Use an IIFE with an explicit `window.*` export. Attach anything
-  that an inline `onclick=` calls to `window`.
+* **Module pattern.** Use an IIFE with an explicit `window.*` export.
+* **A control names its work in `data-action`.** Write no inline `onclick` in a
+  template. Call `OMN.action('name', fn)` in a script, and put
+  `data-action="name"` on the control. `data-arg` gives one value. See
+  `doc/decisions/0020-name-the-work-of-a-control-in-data-action.md`.
+  `config_page.html`, `db_backups.html` and `external_edit.html` still hold
+  inline handlers. `TestTemplatesHoldNoInlineHandler` lists them, and the list
+  only shrinks.
 * **A note page loads three scripts.** `templates/index.html` names
   `omn-go-compat.js`, `omn-go-core.js` and `omn-go-api.js`, and then the three
   vendored libraries and `omn-go-custom.js`. It names no other file of the

@@ -174,3 +174,124 @@ func TestAnOverlayHiddenByClassCanBeShownAgain(t *testing.T) {
 			"holds two. The pattern no longer matches the markup.", checked)
 	}
 }
+
+// ----------------------------------------------------------------------
+// A control names its work in data-action
+// ----------------------------------------------------------------------
+//
+// A control of a template has no inline handler such as onclick. It holds
+// data-action="name", and OMN.action("name", fn) in a script gives the name
+// its function. One click listener of omn-go-core.js joins the two.
+//
+// A name with no function is a dead button. Nothing throws, and the only
+// report is one console warning at the click. The first test below finds
+// such a name in the source.
+
+// inlineHandlerRe finds an inline event handler in markup: a space, then
+// "on", a name and "=". The space keeps "content=" out.
+var inlineHandlerRe = regexp.MustCompile(`\son[a-z]+\s*=\s*["']`)
+
+// dataActionRe finds the name of a data-action attribute.
+var dataActionRe = regexp.MustCompile(`data-action="([^"]+)"`)
+
+// actionCallRe finds the name in a call of OMN.action or of its local name
+// action.
+var actionCallRe = regexp.MustCompile(`\baction\('([a-z0-9-]+)'`)
+
+// templatesWithInlineHandlers lists the templates that still hold an inline
+// handler, with the count of each. THE LIST ONLY SHRINKS. Change a template
+// to data-action, and then remove its row.
+var templatesWithInlineHandlers = map[string]int{
+	"templates/config_page.html":   10,
+	"templates/db_backups.html":    4,
+	"templates/external_edit.html": 1,
+}
+
+// Each data-action of a template has a function in a shipped script.
+func TestEachDataActionHasAFunction(t *testing.T) {
+	registered := map[string]bool{}
+	scripts, err := frontend.Static.ReadDir("html/js/OMN-Go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range scripts {
+		if e.IsDir() || !strings.HasPrefix(e.Name(), "omn-go-") {
+			continue
+		}
+		src, rerr := frontend.Static.ReadFile("html/js/OMN-Go/" + e.Name())
+		if rerr != nil {
+			t.Fatal(rerr)
+		}
+		for _, m := range actionCallRe.FindAllStringSubmatch(string(src), -1) {
+			registered[m[1]] = true
+		}
+	}
+	if len(registered) == 0 {
+		t.Fatal("the scan found no OMN.action call, thus this test proves nothing")
+	}
+
+	used := map[string]bool{}
+	templates, err := frontend.Templates.ReadDir("templates")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range templates {
+		src, rerr := frontend.Templates.ReadFile("templates/" + e.Name())
+		if rerr != nil {
+			t.Fatal(rerr)
+		}
+		for _, m := range dataActionRe.FindAllStringSubmatch(string(src), -1) {
+			used[m[1]] = true
+			if !registered[m[1]] {
+				t.Errorf("templates/%s has data-action=%q, and no script calls "+
+					"OMN.action('%s', ...). The control does nothing.", e.Name(), m[1], m[1])
+			}
+		}
+	}
+	if len(used) == 0 {
+		t.Fatal("the scan found no data-action in the templates, thus this test proves nothing")
+	}
+	for name := range registered {
+		if !used[name] {
+			t.Errorf("a script calls OMN.action('%s', ...), and no template has a "+
+				"control with that data-action. Remove the action.", name)
+		}
+	}
+}
+
+// A template holds no inline handler, except the templates of
+// templatesWithInlineHandlers.
+func TestTemplatesHoldNoInlineHandler(t *testing.T) {
+	templates, err := frontend.Templates.ReadDir("templates")
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]bool{}
+	for _, e := range templates {
+		name := "templates/" + e.Name()
+		src, rerr := frontend.Templates.ReadFile(name)
+		if rerr != nil {
+			t.Fatal(rerr)
+		}
+		got := len(inlineHandlerRe.FindAllString(string(src), -1))
+		want, listed := templatesWithInlineHandlers[name]
+		seen[name] = true
+		switch {
+		case !listed && got > 0:
+			t.Errorf("%s holds %d inline handlers. Give each control a "+
+				"data-action, and call OMN.action in a script.", name, got)
+		case listed && got > want:
+			t.Errorf("%s holds %d inline handlers, and the list allows %d. "+
+				"Give the new control a data-action.", name, got, want)
+		case listed && got < want:
+			t.Errorf("%s holds %d inline handlers, and the list says %d. "+
+				"Lower the number of templatesWithInlineHandlers, or remove the row at 0.",
+				name, got, want)
+		}
+	}
+	for name := range templatesWithInlineHandlers {
+		if !seen[name] {
+			t.Errorf("templatesWithInlineHandlers names %s, and no such template exists", name)
+		}
+	}
+}

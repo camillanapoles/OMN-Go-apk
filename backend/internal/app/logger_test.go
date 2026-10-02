@@ -325,10 +325,10 @@ func TestLogsPageIsAReaderOfTheTwoAddresses(t *testing.T) {
 	// The two sync buttons of the shell are what lets a reader start a
 	// sync here and watch it. On Android there is one screen, thus a
 	// second page is not an answer. See the banner of omn-go-logs.js.
-	if !strings.Contains(body, "syncAction('upload')") {
+	if !strings.Contains(body, `data-action="sync" data-arg="upload"`) {
 		t.Error("the page lost the Upload button of the shell")
 	}
-	if !strings.Contains(body, "syncAction('download')") {
+	if !strings.Contains(body, `data-action="sync" data-arg="download"`) {
 		t.Error("the page lost the Download button of the shell")
 	}
 	// The script and the stylesheet are files. An inline script or an

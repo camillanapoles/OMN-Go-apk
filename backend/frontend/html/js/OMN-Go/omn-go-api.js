@@ -790,3 +790,34 @@ if (window.location.protocol !== 'file:') {
     // omnSearchClearHighlights is NOT stubbed here: the highlighting lives in
     // omn-go-core.js and works offline, so the real one is already defined.
 }
+
+// --- The actions that need the server ---
+// A control of index.html or modals.html names one of these in data-action.
+// See OMN.action in omn-go-core.js. This block is OUTSIDE the guard above,
+// thus a page from disk has the same actions. On such a page a lazy file
+// never loads, and its function can be absent.
+(function () {
+    // run calls one global function with the arguments that follow its name.
+    function run(name) {
+        if (typeof window[name] !== 'function') {
+            window.printDebug(name);
+            return;
+        }
+        return window[name].apply(window, Array.prototype.slice.call(arguments, 1));
+    }
+    const action = window.OMN.action;
+    action('login', function () { run('login'); });
+    action('new-page', function () { run('createNewPage'); });
+    action('quick-note-save', function () { run('submitQuickNote'); });
+    action('bookmark-panel', function () { run('toggleBookmarkPanel'); });
+    action('bookmark-save', function () { run('submitBookmark'); });
+    action('search', function () { run('omnSearchOpen'); });
+    // data-arg is "download" or "upload".
+    action('sync', function (el) { run('syncAction', el.getAttribute('data-arg')); });
+    action('commit-upload', function () { run('commitAndUpload'); });
+    action('commit-cancel', function () { run('hideCommitModal'); });
+    // data-arg is "pull_force", "pull_mark" or "abort".
+    action('sync-resolve', function (el) { run('performSync', el.getAttribute('data-arg')); });
+    action('push-force', function () { run('performPushForce'); });
+    action('push-cancel', function () { run('hidePushConflictModal'); });
+})();

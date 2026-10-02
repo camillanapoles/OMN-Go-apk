@@ -109,6 +109,12 @@ In a Node module, the fault did not show. See
 call promises. A ReferenceError is a failure. A TypeError is not, because
 the page is a stub and not a browser.
 
+`actions.test.js` uses the page stub. It loads `omn-go-core.js` and
+`omn-go-api.js`, and it sends a click to the real click listener. It checks
+that a control with `data-action` calls its function. It also checks that a
+page from disk does not throw. See
+`doc/decisions/0020-name-the-work-of-a-control-in-data-action.md`.
+
 Two tests run BOTH languages against one another. Each one starts on the Go
 side, because the Go side is what writes the input.
 

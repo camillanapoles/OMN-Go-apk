@@ -464,13 +464,13 @@ func TestSearchButtonIsInTheRenderedPage(t *testing.T) {
 	a := newTestApp(t)
 	page := string(a.Renderer().CompilePage("Note", []byte("Title: A Note\n\nbody")))
 
-	if !strings.Contains(page, "omnSearchOpen()") {
+	if !strings.Contains(page, `data-action="search"`) {
 		t.Fatal("rendered page has no search button")
 	}
 
 	line := ""
 	for _, l := range strings.Split(page, "\n") {
-		if strings.Contains(l, "omnSearchOpen()") {
+		if strings.Contains(l, `data-action="search"`) {
 			line = l
 			break
 		}

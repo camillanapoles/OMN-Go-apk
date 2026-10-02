@@ -2,16 +2,16 @@
     <div class="modal">
         <h2>OMN-Go Login</h2>
         <input type="password" id="pwdInput" placeholder="Admin Password">
-        <button onclick="login()">Enter</button>
+        <button data-action="login">Enter</button>
     </div>
 </div>
 <div id="quickPanel" class="panel hidden">
     <h3>Quick Note</h3>
     <textarea id="quickText" rows="4"></textarea>
     <div class="modal-buttons-row">
-        <button onclick="submitQuickNote()">Save</button>
-        <button onclick="copyQuickNote(this)" title="Copy the text to the clipboard without saving">Copy</button>
-        <button onclick="document.getElementById('quickPanel').classList.add('hidden')" class="btn-cancel">Cancel</button>
+        <button data-action="quick-note-save">Save</button>
+        <button data-action="quick-note-copy" title="Copy the text to the clipboard without saving">Copy</button>
+        <button data-action="hide-panel" data-arg="quickPanel" class="btn-cancel">Cancel</button>
     </div>
 </div>
 <div id="bmPanel" class="panel hidden">
@@ -24,8 +24,8 @@
     </div>
     <textarea id="bmNotes" rows="2" placeholder="Notes (semicolon separated)"></textarea>
     <div class="modal-buttons-row">
-        <button onclick="submitBookmark()">Save</button>
-        <button onclick="document.getElementById('bmPanel').classList.add('hidden')" class="btn-cancel">Cancel</button>
+        <button data-action="bookmark-save">Save</button>
+        <button data-action="hide-panel" data-arg="bmPanel" class="btn-cancel">Cancel</button>
     </div>
 </div>
 <div id="commitModal" class="overlay" style="display:none;">
@@ -35,8 +35,8 @@
         <pre id="commitFileList" style="background: var(--bg-inset); color: var(--text); border: 1px solid var(--border); padding:10px; max-height:200px; overflow-y:auto; white-space:pre-wrap;"></pre>
         <textarea id="commitMessage" placeholder="Enter commit message..." style="width:100%; height:80px; margin-top:10px;"></textarea>
         <div class="modal-buttons-row" style="margin-top:10px;">
-            <button onclick="commitAndUpload()" class="admin-only">Commit &amp; Push</button>
-            <button onclick="hideCommitModal()" class="btn-cancel">Cancel</button>
+            <button data-action="commit-upload" class="admin-only">Commit &amp; Push</button>
+            <button data-action="commit-cancel" class="btn-cancel">Cancel</button>
         </div>
     </div>
 </div>
@@ -48,17 +48,17 @@
             <p class="conflict-files-title">Files in contention:</p>
             <ul id="conflict-file-list"></ul>
         </div>
-        <button onclick="window.performSync('pull_force')">Force Pull (Reset to Remote)<br><small>Overwrites tracked files; also deletes local files that are neither tracked nor in .gitignore</small></button>
-        <button onclick="window.performSync('pull_mark')">Mark Conflicts in Files<br><small>Injects &lt;&lt;&lt; ==== &gt;&gt;&gt; conflict markers for manual fixing</small></button>
-        <button onclick="window.performSync('abort')" class="btn-cancel">Abort Operation</button>
+        <button data-action="sync-resolve" data-arg="pull_force">Force Pull (Reset to Remote)<br><small>Overwrites tracked files; also deletes local files that are neither tracked nor in .gitignore</small></button>
+        <button data-action="sync-resolve" data-arg="pull_mark">Mark Conflicts in Files<br><small>Injects &lt;&lt;&lt; ==== &gt;&gt;&gt; conflict markers for manual fixing</small></button>
+        <button data-action="sync-resolve" data-arg="abort" class="btn-cancel">Abort Operation</button>
     </div>
 </div>
 <div id="push-conflict-modal" class="overlay hidden">
     <div class="modal">
         <h2>Push Rejected</h2>
         <p>The remote has newer commits and rejected the push. Pull the remote changes first, or overwrite the remote:</p>
-        <button onclick="window.performPushForce()">Force Push<br><small>Overwrites the history on the remote to match this device — destructive. Prefer pulling the remote changes first.</small></button>
-        <button onclick="window.hidePushConflictModal()" class="btn-cancel">Abort</button>
+        <button data-action="push-force">Force Push<br><small>Overwrites the history on the remote to match this device — destructive. Prefer pulling the remote changes first.</small></button>
+        <button data-action="push-cancel" class="btn-cancel">Abort</button>
     </div>
 </div>
 <!--

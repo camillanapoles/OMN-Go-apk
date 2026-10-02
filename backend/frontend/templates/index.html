@@ -29,21 +29,21 @@
             <div id="hidable_header" class="collapsible-header hidden">
                 <div class="header-actions">
                     <a href="%%ASSET_PREFIX%%Welcome.html"><i class="material-icons">home</i></a>
-                    <button onclick="createNewPage()" class="admin-only server-only btn-create-page"><i class="material-icons">note_add</i></button>
-                    <button onclick="toggleQuickPanel()" class="admin-only server-only btn-quick-note"><i class="material-icons">insert_comment</i></button>
-                    <button onclick="toggleBookmarkPanel()" class="admin-only server-only btn-add-bookmark"><i class="material-icons">bookmark_add</i></button>
-                    <button onclick="createNoteShortcut()" class="android-only btn-add-shortcut" title="Add to home screen"><i class="material-icons">add_to_home_screen</i></button>
-                    <button onclick="refreshPage()" class="admin-only btn-refresh"><i class="material-icons">refresh</i></button>
-                    <a href="#" onclick="window.location.replace('/Config.html'); return false;" class="btn-settings server-only"><i class="material-icons">settings</i></a>
-                    <button onclick="syncAction('download')" class="admin-only server-only" title="Download (Pull)"><i class="material-icons">cloud_download</i></button>
-                    <button onclick="syncAction('upload')" class="admin-only server-only" title="Upload (Push)"><i class="material-icons">cloud_upload</i></button>
-                    <button onclick="omnSearchOpen()" class="server-only btn-search" title="Search this page (Ctrl-K or /)"><i class="material-icons">search</i></button>
-                    <button id="metaToggleBtn" onclick="var p=document.getElementById('metadataPanel');p.classList.toggle('hidden');" class="btn-metadata-toggle" title="Toggle metadata"><i class="material-icons">info</i></button>
-                    <button id="toggleBtn" onclick="window.location.href = window.location.pathname + '?edit=true'" class="admin-only server-only" title="Edit"><i class="material-icons">edit</i></button>
+                    <button data-action="new-page" class="admin-only server-only btn-create-page"><i class="material-icons">note_add</i></button>
+                    <button data-action="quick-note-panel" class="admin-only server-only btn-quick-note"><i class="material-icons">insert_comment</i></button>
+                    <button data-action="bookmark-panel" class="admin-only server-only btn-add-bookmark"><i class="material-icons">bookmark_add</i></button>
+                    <button data-action="add-shortcut" class="android-only btn-add-shortcut" title="Add to home screen"><i class="material-icons">add_to_home_screen</i></button>
+                    <button data-action="refresh-page" class="admin-only btn-refresh"><i class="material-icons">refresh</i></button>
+                    <a href="#" data-action="open-config" class="btn-settings server-only"><i class="material-icons">settings</i></a>
+                    <button data-action="sync" data-arg="download" class="admin-only server-only" title="Download (Pull)"><i class="material-icons">cloud_download</i></button>
+                    <button data-action="sync" data-arg="upload" class="admin-only server-only" title="Upload (Push)"><i class="material-icons">cloud_upload</i></button>
+                    <button data-action="search" class="server-only btn-search" title="Search this page (Ctrl-K or /)"><i class="material-icons">search</i></button>
+                    <button id="metaToggleBtn" data-action="toggle-panel" data-arg="metadataPanel" class="btn-metadata-toggle" title="Toggle metadata"><i class="material-icons">info</i></button>
+                    <button id="toggleBtn" data-action="edit-page" class="admin-only server-only" title="Edit"><i class="material-icons">edit</i></button>
                 </div>
                 <div id="headerTags">%%TAGS_HTML%%</div>
             </div>
-            <h4 id="pageTitle" class="page-title" onclick="toggleHeader()">
+            <h4 id="pageTitle" class="page-title" data-action="toggle-header">
                 %%TITLE_HTML%%
                 <span id="title_arrow" class="title-arrow">+</span>
             </h4>

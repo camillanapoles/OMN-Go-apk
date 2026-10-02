@@ -36,6 +36,40 @@ function omnGoRenderMath(container) {
 // section.
 window.omnGoRenderMath = omnGoRenderMath;
 
+// --- The actions of the controls ---
+// A control names its work in a data-action attribute, and it has no
+// inline onclick. OMN.action(name, fn) gives the name its function. ONE
+// click listener on the document finds the control and calls fn(control,
+// event). The control can give one value in data-arg.
+//
+// A file registers its actions when it loads, and the listener reads the
+// table at the click. The order of the script elements thus does not
+// matter. A click on a name that no file registered writes a console
+// warning.
+//
+// The listener also stops the default work of a link, because a link with
+// an action has href="#".
+window.OMN = window.OMN || {};
+(function () {
+    const actions = {};
+    window.OMN.action = function (name, fn) {
+        actions[name] = fn;
+    };
+    document.addEventListener('click', function (event) {
+        const target = event.target;
+        const el = target && target.closest ? target.closest('[data-action]') : null;
+        if (!el) return;
+        const name = el.getAttribute('data-action');
+        const fn = actions[name];
+        if (typeof fn !== 'function') {
+            console.warn('OMN-Go: no action "' + name + '"');
+            return;
+        }
+        if (el.tagName === 'A') event.preventDefault();
+        fn(el, event);
+    });
+})();
+
 const UI = (function() {
     function executeScripts(container) {
                 const scripts = container.querySelectorAll('script');
@@ -1068,6 +1102,30 @@ window.updateArrow = function() {
         arrow.textContent = header.classList.contains('hidden') ? '+' : '\u2212';
     }
 };
+
+// The actions of this file. Each one works on a page from disk too. See
+// OMN.action at the top of this file. The actions that need the server are
+// at the end of omn-go-api.js.
+window.OMN.action('toggle-header', function () { window.toggleHeader(); });
+window.OMN.action('refresh-page', function () { window.refreshPage(); });
+window.OMN.action('quick-note-panel', function () { window.toggleQuickPanel(); });
+window.OMN.action('quick-note-copy', function (el) { window.copyQuickNote(el); });
+window.OMN.action('add-shortcut', function () { window.createNoteShortcut(); });
+window.OMN.action('open-config', function () {
+    window.location.replace('/Config.html');
+});
+window.OMN.action('edit-page', function () {
+    window.location.href = window.location.pathname + '?edit=true';
+});
+// toggle-panel and hide-panel take the id of the panel in data-arg.
+window.OMN.action('toggle-panel', function (el) {
+    var p = document.getElementById(el.getAttribute('data-arg'));
+    if (p) p.classList.toggle('hidden');
+});
+window.OMN.action('hide-panel', function (el) {
+    var p = document.getElementById(el.getAttribute('data-arg'));
+    if (p) p.classList.add('hidden');
+});
 
 // addEventListener, and NOT "window.onload = ...". A classic OMN note
 // often assigns window.onload itself, for example
