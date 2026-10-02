@@ -99,7 +99,7 @@ Do not remove a constraint without an instruction from the maintainer.
 | `local/` | Maintainer scripts. The Docker context excludes this directory. The build never ships it. |
 | `fastlane/metadata/android/en-US/` | Store metadata and `changelogs/<versionCode>.txt`. Each changelog line starts with `•`. |
 | `metadata/` | `net.basov.omngo.fdroid.yml`, the F-Droid build recipe. |
-| `backend/frontend/test/` | The JavaScript unit tests, the DOM stub and the page stub. Embedded by no `go:embed`, thus no device receives them. |
+| `backend/frontend/test/` | The JavaScript tests, the DOM stub, the page stub, the small document `mini-dom.js` and the coverage program. Embedded by no `go:embed`, thus no device receives them. |
 | `android/test/` | The Java unit test. It sits OUTSIDE the Gradle project on purpose. See `doc/TESTING.md`. |
 | `doc/` | Maintainer documents. `API.md` holds the endpoint reference. `TERMINOLOGY.md` holds the controlled vocabulary. `TESTING.md` holds the map of the test set. `decisions/` holds the decision records. `initial_prompt.md` holds the historical origin prompt. The Docker context excludes `doc/`, except `decisions/`. |
 | `CLAUDE.md` | This document. The Docker context excludes it. |
@@ -573,7 +573,12 @@ subject line, also when it has no list.
   are white-box tests.
 * **Go is the one gate, and it is not the only language.**
   `backend/internal/repocheck/js_test.go` runs the JavaScript tests of
-  `backend/frontend/test/` with `node --test`.
+  `backend/frontend/test/` with `node --test`. It also measures the lines of each
+  script that the tests ran. **A new script, or new code in a script, needs a
+  test that runs it.** The target is 60 percent of the code lines.
+  `jsLineCoverageFloor` holds the scripts that are below it. For a control, write
+  a test with `notePage()` of `dom-page.js`, which presses the control on the
+  markup of the real templates.
   `backend/internal/repocheck/java_test.go` compiles and runs `android/test/`
   with `javac` and `java`. Each one skips when the tool is absent, and the build
   image holds both. `doc/TESTING.md` maps the whole set.

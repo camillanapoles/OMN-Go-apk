@@ -27,6 +27,7 @@
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const url = require('url');
 
 const scriptDir = path.join(__dirname, '..', 'html', 'js', 'OMN-Go');
 
@@ -103,8 +104,9 @@ function newPage() {
 // element does. It answers the error of a load that failed, or null.
 function run(page, file) {
     try {
-        vm.runInContext(fs.readFileSync(path.join(scriptDir, file), 'utf8'),
-            page, { filename: file });
+        const full = path.join(scriptDir, file);
+        vm.runInContext(fs.readFileSync(full, 'utf8'),
+            page, { filename: url.pathToFileURL(full).href });
         return null;
     } catch (e) {
         return e;

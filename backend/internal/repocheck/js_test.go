@@ -32,6 +32,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -134,11 +135,17 @@ process.stdout.write(JSON.stringify(out));
 	}
 }
 
-// TestJavaScriptUnitTests runs every test file under frontend/test.
+// TestJavaScriptUnitTests runs every test file under frontend/test, and it
+// measures the lines of each shipped script that the tests ran.
 //
 // It skips with no node, the same as the Java test skips with no JDK. The
 // Docker gate has both, thus the whole set runs before any artifact is
 // built.
+//
+// THE MEASURE. The run has NODE_V8_COVERAGE set, thus each node process
+// writes what it ran. frontend/test/coverage.js makes one number for each
+// script from these files. See the banner of that file for what counts as
+// a line.
 func TestJavaScriptUnitTests(t *testing.T) {
 	node, err := exec.LookPath("node")
 	if err != nil {
@@ -151,8 +158,11 @@ func TestJavaScriptUnitTests(t *testing.T) {
 
 	// The file list and not the directory. A directory argument needs a
 	// newer node than Debian bookworm carries.
+	coverDir := t.TempDir()
 	args := append([]string{"--test"}, files...)
-	out, runErr := exec.Command(node, args...).CombinedOutput()
+	cmd := exec.Command(node, args...)
+	cmd.Env = append(os.Environ(), "NODE_V8_COVERAGE="+coverDir)
+	out, runErr := cmd.CombinedOutput()
 	if runErr != nil {
 		t.Errorf("the JavaScript tests failed: %v\n%s", runErr, out)
 		return
@@ -160,6 +170,99 @@ func TestJavaScriptUnitTests(t *testing.T) {
 	for _, line := range strings.Split(string(out), "\n") {
 		if strings.HasPrefix(line, "# pass") || strings.HasPrefix(line, "# fail") {
 			t.Log(strings.TrimSpace(line))
+		}
+	}
+
+	checkJavaScriptLineCoverage(t, node, coverDir)
+}
+
+// jsLineCoverageTarget is the share of the code lines of each script that
+// the tests must run, in percent. It is the target of step 6.4 of the plan.
+const jsLineCoverageTarget = 60.0
+
+// jsLineCoverageFloor holds the scripts that are below the target, with the
+// share that each one has today. THE LIST ONLY SHRINKS, AND A NUMBER ONLY
+// RISES. A script that reaches the target leaves the list. A script that is
+// not in the list must be at the target or above it.
+//
+// The floor is the measured number, rounded down. A change that takes a
+// test away, or that adds code with no test, fails here.
+var jsLineCoverageFloor = map[string]float64{
+	"Bookmarker.js":       0,
+	"omn-go-api.js":       58,
+	"omn-go-compat.js":    0,
+	"omn-go-config.js":    0,
+	"omn-go-editor.js":    30,
+	"omn-go-highlight.js": 25,
+	"omn-go-logs.js":      11,
+	"omn-go-nav.js":       37,
+	"omn-go-search.js":    28,
+	"omn-go-share.js":     44,
+	"omn-go-status.js":    0,
+}
+
+// jsCoverageSlack is the count of percent points that a script can be above
+// its floor before the test asks for a higher floor. Without it a floor
+// stays low after new tests, and it then guards nothing.
+const jsCoverageSlack = 5.0
+
+// checkJavaScriptLineCoverage compares the measure of each shipped script
+// with the target and with its floor.
+func checkJavaScriptLineCoverage(t *testing.T, node, coverDir string) {
+	t.Helper()
+	out, err := exec.Command(node, backendPath("frontend/test/coverage.js"), coverDir).Output()
+	if err != nil {
+		t.Fatalf("frontend/test/coverage.js failed: %v", err)
+	}
+	var report map[string]struct {
+		Lines   int     `json:"lines"`
+		Covered int     `json:"covered"`
+		Percent float64 `json:"percent"`
+	}
+	if err := json.Unmarshal(out, &report); err != nil {
+		t.Fatalf("the answer of coverage.js is not JSON: %v\n%s", err, out)
+	}
+	if len(report) == 0 {
+		t.Fatal("coverage.js found no script, thus this test proves nothing")
+	}
+
+	names := make([]string, 0, len(report))
+	measured := 0
+	for name, r := range report {
+		names = append(names, name)
+		if r.Covered > 0 {
+			measured++
+		}
+	}
+	sort.Strings(names)
+	// A node that writes no coverage file gives 0 for each script. That is
+	// a fault of the measure, and not of the tests.
+	if measured == 0 {
+		t.Fatal("no script has a line that ran. NODE_V8_COVERAGE gave no data.")
+	}
+
+	for _, name := range names {
+		r := report[name]
+		t.Logf("%-22s %5.1f%%  %4d of %4d lines", name, r.Percent, r.Covered, r.Lines)
+		floor, listed := jsLineCoverageFloor[name]
+		switch {
+		case !listed && r.Percent < jsLineCoverageTarget:
+			t.Errorf("the tests run %.1f%% of the lines of %s, and the target is %.0f%%. "+
+				"Add a test under frontend/test.", r.Percent, name, jsLineCoverageTarget)
+		case listed && r.Percent < floor:
+			t.Errorf("the tests run %.1f%% of the lines of %s, and its floor is %.0f%%. "+
+				"A test went away, or new code has no test.", r.Percent, name, floor)
+		case listed && r.Percent >= jsLineCoverageTarget:
+			t.Errorf("%s is at %.1f%%, which is the target. Remove its row from "+
+				"jsLineCoverageFloor.", name, r.Percent)
+		case listed && r.Percent >= floor+jsCoverageSlack:
+			t.Errorf("%s is at %.1f%%, and its floor is %.0f%%. Raise the floor in "+
+				"jsLineCoverageFloor.", name, r.Percent, floor)
+		}
+	}
+	for name := range jsLineCoverageFloor {
+		if _, ok := report[name]; !ok {
+			t.Errorf("jsLineCoverageFloor names %s, and no such script exists", name)
 		}
 	}
 }

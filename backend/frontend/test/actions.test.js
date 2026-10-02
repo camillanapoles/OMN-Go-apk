@@ -20,21 +20,7 @@ const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
 const { newPage, run, makeElement } = require('./page-stub.js');
-
-// shellScripts answers the application scripts that index.html names, in
-// its order. omn-go-compat.js is not in the list, because it is the notice
-// of an old browser and gives the page nothing. The vendored libraries and
-// the user file omn-go-custom.js are not in the list either.
-function shellScripts() {
-    const src = fs.readFileSync(path.join(__dirname, '..', 'templates', 'index.html'), 'utf8');
-    const out = [];
-    const re = /js\/OMN-Go\/(omn-go-[a-z]+\.js)/g;
-    let m;
-    while ((m = re.exec(src)) !== null) {
-        if (m[1] !== 'omn-go-compat.js') out.push(m[1]);
-    }
-    return out;
-}
+const { shellScripts } = require('./dom-page.js');
 
 // loadPage answers a page with the scripts of each note page, and the
 // click listeners that they gave to the document.

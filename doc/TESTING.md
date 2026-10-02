@@ -83,7 +83,9 @@ test of it. See the banner of that file.
 
 ### The JavaScript under test runs in a stub of a browser
 
-There are TWO stubs, and the difference between them found a fault.
+There are TWO stubs, and the difference between them found a fault. A
+third file, `mini-dom.js`, gives the page stub a real document. See "The
+tests that press a control" below.
 
 `backend/frontend/test/dom-stub.js` makes the `window` and the `document`
 that a shipped script touches WHILE IT LOADS, and nothing more. It loads
@@ -117,6 +119,52 @@ the real click listener. It checks
 that a control with `data-action` calls its function. It also checks that a
 page from disk does not throw. See
 `doc/decisions/0020-name-the-work-of-a-control-in-data-action.md`.
+
+### The tests that press a control
+
+`backend/frontend/test/mini-dom.js` is a small document. It holds elements,
+attributes, `classList`, `innerHTML`, `querySelector` and events with the
+capture phase and the bubble phase. It has no layout, no CSS and no
+network. The project has no `node_modules`, thus no test can use a DOM
+library.
+
+`backend/frontend/test/dom-page.js` builds a page from that document and
+from the REAL templates: the body of `index.html` and `modals.html`. A
+control that a template loses is thus absent in the test too. `notePage()`
+loads the scripts that `index.html` names and sends the load events. The
+test then sets a server function, presses a control with `h.press(selector)`
+and reads `h.requests`, `h.dialogs` and the page.
+
+`sync.test.js` and `bookmark.test.js` use it. `sync.test.js` holds three
+rules. Abort and Cancel send nothing. Each force push has a commit message.
+A new host key is stored only after OK.
+
+**A test here proves what a script does with a document. It does not prove
+that a browser agrees.** Check a new control in a real browser too.
+
+### The line coverage of the scripts
+
+`TestJavaScriptUnitTests` runs the tests with `NODE_V8_COVERAGE`, and
+`backend/frontend/test/coverage.js` makes one number for each shipped
+script. A line with only a comment and an empty line do not count, thus the
+numbers are lower than the report of `node --experimental-test-coverage`.
+
+The target is 60 percent of the code lines of each script.
+`jsLineCoverageFloor` in `backend/internal/repocheck/js_test.go` lists the
+scripts below the target, with the number of each. The list only shrinks,
+and a number only rises. The test fails in four cases:
+
+1. A script that is not in the list is below the target.
+2. A script is below its floor.
+3. A script is 5 points or more above its floor. Raise the floor.
+4. A script of the list is at the target. Remove its row.
+
+Run the measure by hand:
+
+```sh
+NODE_V8_COVERAGE=/tmp/cov node --test backend/frontend/test/*.test.js
+node backend/frontend/test/coverage.js /tmp/cov
+```
 
 Two tests run BOTH languages against one another. Each one starts on the Go
 side, because the Go side is what writes the input.
