@@ -95,7 +95,7 @@ Do not remove a constraint without an instruction from the maintainer.
 | `backend/frontend/templates/` | Server-side page fragments. Embedded as `frontend.Templates`. Never extracted to disk. |
 | `backend/frontend/html/` | `js/`, `css/`, `css/fonts/`, `json/`, `favicon.ico`. Embedded as `frontend.Static`. Extracted to the storage directory on demand. The user can edit these files with `?edit=true`. |
 | `backend/frontend/md/` | The bundled system notes. Examples: `Welcome.md`, `UserManual.md`, `Database.md`, `ScriptRules.md`. Also a `Test/OMN-Go/` demonstration tree. |
-| `android/` | Hand-written Gradle files and plain Java: `MainActivity.java`, `ServerService.java`, `ExportProvider.java`. The build generates `android/app/libs/omngo.aar` with `gomobile bind`. |
+| `android/` | Hand-written Gradle files and plain Java. The three components are `MainActivity.java`, `ServerService.java` and `ExportProvider.java`. `MainActivity` holds the life cycle and stays below 800 lines. Each other task is a plain class beside it: `WebViewSetup`, `Fullscreen`, `ShareIn`, `ShareOut`, `IntentBridge` and `Shortcuts`. `OmnConfig` and `OmnText` import no Android package, and `android/test/` holds a test of each. See `doc/decisions/0022-divide-main-activity-into-plain-classes.md`. The build generates `android/app/libs/omngo.aar` with `gomobile bind`. |
 | `local/` | Maintainer scripts. The Docker context excludes this directory. The build never ships it. |
 | `fastlane/metadata/android/en-US/` | Store metadata and `changelogs/<versionCode>.txt`. Each changelog line starts with `•`. |
 | `metadata/` | `net.basov.omngo.fdroid.yml`, the F-Droid build recipe. |

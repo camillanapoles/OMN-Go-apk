@@ -26,7 +26,7 @@
 //     that calls omnGoOpenDatabase while the page parses. A script that
 //     this file injects runs after the parser, thus the note would find
 //     no function. omnGoOpenDatabase stays in this file.
-//  2. omnGoInsertCapture. MainActivity compares the answer of this
+//  2. omnGoInsertCapture. IntentBridge compares the answer of this
 //     function against true, with three equal signs. A stub answers with
 //     a Promise, which is not true, thus Android would show its own
 //     dialog in place of the panel that opened.
@@ -367,7 +367,7 @@ if (window.location.protocol !== 'file:') {
     });
 
 
-    // Called from Android, in MainActivity.insertCapturedText, to pre-fill
+    // Called from Android, in IntentBridge.insertCapturedText, to pre-fill
     // the Quick Note panel with a captured result. That result is a scanned
     // barcode, or the output of a Termux command. The user reviews it and
     // saves it.

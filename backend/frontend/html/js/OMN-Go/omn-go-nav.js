@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', setupPreviewLinkInterceptor);
 // quick navigation never flashes. The overlay dies with the document, thus
 // there is nothing to clean up on the way out.
 //
-// On Android the native ProgressBar in MainActivity covers the same gap
+// On Android the native ProgressBar in WebViewSetup covers the same gap
 // (onPageStarted/onPageFinished) including back/forward and direct URL
 // loads, which a click handler cannot see. This is the desktop counterpart.
 document.addEventListener("DOMContentLoaded", () => {

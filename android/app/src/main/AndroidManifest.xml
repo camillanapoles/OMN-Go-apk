@@ -21,7 +21,7 @@
 
     <!--
       Pre-Oreo (API 24-25) home-screen shortcut fallback - see
-      MainActivity.createNoteShortcut(). ShortcutManager.requestPinShortcut
+      Shortcuts.createNoteShortcut(). ShortcutManager.requestPinShortcut
       (used on API 26+) needs no permission, but the classic
       ACTION_INSTALL_SHORTCUT broadcast some older launchers still expect
       was historically gated on this permission. Harmless to declare even
@@ -30,7 +30,7 @@
     <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />
 
     <!--
-      Termux RUN_COMMAND integration (see MainActivity.launchTermuxIntent).
+      Termux RUN_COMMAND integration (see IntentBridge.launchTermuxIntent).
       A note may launch an "intent:" link targeting
       com.termux/.app.RunCommandService to run a shell command; this dangerous
       permission (declared by Termux itself) is what lets that service accept
@@ -43,7 +43,7 @@
 
     <!--
       Android 11+ (API 30+) hides other apps' components by default
-      (package visibility). MainActivity's shouldOverrideUrlLoading hands
+      (package visibility). WebViewSetup's shouldOverrideUrlLoading hands
       off non-http(s) links (tel:, geo:, mailto:, sms:, market:, intent:,
       ...) to the OS via an implicit ACTION_VIEW intent (or, for the
       "intent:" scheme, Intent.parseUri - see handleIntentUri). Without
@@ -117,7 +117,7 @@
             </intent-filter>
             <!--
               Shared images/JSON land in Quick Notes, not the editor - see
-              the block comment above MainActivity.handleSharedFile() for
+              the block comment above ShareIn.handleSharedFile() for
               why. Two filters (Android matches SEND by declared mime type,
               not actual content) rather than one combined filter, mirroring
               the text/plain filter above; only image/* and
@@ -137,7 +137,7 @@
             </intent-filter>
             <!--
               A NOTE arriving from another device (note exchange, phase 5).
-              MainActivity.isSharedNoteIntent sorts these from the image and
+              ShareIn.isSharedNoteIntent sorts these from the image and
               JSON shares above, by the declared type or, when that says
               nothing useful, by the file's own name.
 
@@ -213,7 +213,7 @@
 
         <!--
           Hands ONE exported note to the application the user picks from the
-          share sheet (see ExportProvider.java and MainActivity.handleShareOut).
+          share sheet (see ExportProvider.java and ShareOut.handleShareOut).
 
           Written by hand rather than taken from AndroidX: FileProvider lives
           there, and this application has no dependencies at all - the whole
@@ -222,7 +222,7 @@
           exported="false" with grantUriPermissions="true" is the pair
           FileProvider itself is declared with. Nothing reaches the provider
           on its own; a receiving application gets in only through the
-          temporary read grant MainActivity puts on the intent, and only for
+          temporary read grant ShareOut puts on the intent, and only for
           the one URI named there.
 
           The authority follows ${applicationId}, so the standard build and

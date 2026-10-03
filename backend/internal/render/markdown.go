@@ -152,7 +152,7 @@ func restorePlaceholders(s string, store map[string]string) string {
 // The test is thus the scheme itself, URISchemeRe, the same as the click
 // interceptor of omn-go-nav.js. This function decides what the page SAYS,
 // and the interceptor decides what a tap DOES.
-// MainActivity.shouldOverrideUrlLoading gives each unknown scheme to the OS.
+// WebViewSetup.shouldOverrideUrlLoading gives each unknown scheme to the OS.
 // TestRenderMarkdownToHTMLSchemeLinksUntouched holds the rule.
 //
 // This rule has a cost. A page name with ":" before each "/", for example

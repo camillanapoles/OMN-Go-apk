@@ -108,10 +108,25 @@ func TestFdroidFlavorStillExists(t *testing.T) {
 // The test itself
 // ----------------------------------------------------------------------
 
-// OmnConfig must import no Android package.
+// pureJavaSources lists the classes of the Android layer that a plain JVM
+// can load. Each one has a test under android/test/, and TestJavaUnitTests
+// runs those tests. A new class of this kind needs a row here and a test
+// there.
+var pureJavaSources = []string{
+	"android/app/src/main/java/net/basov/omngo/OmnConfig.java",
+	"android/app/src/main/java/net/basov/omngo/OmnText.java",
+}
+
+// pureJavaTests lists the test of each class above.
+var pureJavaTests = []string{
+	"android/test/java/net/basov/omngo/OmnConfigTest.java",
+	"android/test/java/net/basov/omngo/OmnTextTest.java",
+}
+
+// A class of pureJavaSources must import no Android package.
 //
 // org.json is part of the Android framework, and a plain Java virtual
-// machine cannot load it. One such import makes this class untestable
+// machine cannot load it. One such import makes the class untestable
 // outside an emulator, and TestJavaUnitTests below then fails to compile
 // it. That failure would read as a broken test and not as a broken rule,
 // thus this test names the rule.
@@ -121,47 +136,50 @@ func TestFdroidFlavorStillExists(t *testing.T) {
 // modes and TestUploadLimitHasAJavaCopy for the upload cap. A second
 // comparison would be a second authority. See rule 7 of CLAUDE.md
 // section 1.
-func TestOmnConfigImportsNoAndroidPackage(t *testing.T) {
-	src, err := readRepoFile("android/app/src/main/java/net/basov/omngo/OmnConfig.java")
-	if err != nil {
-		t.Skipf("OmnConfig.java is not in this tree: %v", err)
-	}
-	bad := regexp.MustCompile(`(?m)^import\s+(android|androidx|org\.json)[.;]`).
-		FindAllString(src, -1)
-	for _, line := range bad {
-		t.Errorf("OmnConfig.java holds %q. A plain JVM cannot load it, thus the "+
-			"test below cannot run and the Android layer loses its only test.",
-			strings.TrimSpace(line))
-	}
-	// It must also stay off the Android classes by their full name, which
-	// needs no import line.
-	//
-	// The scan reads the CODE and not the comments. The banner of that
-	// file names org.json to say why the file avoids it. A scan of the
-	// whole text would read that sentence as the fault that it warns of.
-	for _, line := range strings.Split(src, "\n") {
-		code := line
-		if at := strings.Index(code, "//"); at >= 0 {
-			code = code[:at]
+func TestPureJavaClassesImportNoAndroidPackage(t *testing.T) {
+	for _, rel := range pureJavaSources {
+		name := filepath.Base(rel)
+		src, err := readRepoFile(rel)
+		if err != nil {
+			t.Skipf("%s is not in this tree: %v", name, err)
 		}
-		for _, name := range []string{"org.json.", "android.content.", "android.os.", "android.view."} {
-			if strings.Contains(code, name) {
-				t.Errorf("OmnConfig.java names %s in code: %s\n"+
-					"Keep the class free of the Android framework.",
-					name, strings.TrimSpace(line))
+		bad := regexp.MustCompile(`(?m)^import\s+(android|androidx|org\.json)[.;]`).
+			FindAllString(src, -1)
+		for _, line := range bad {
+			t.Errorf("%s holds %q. A plain JVM cannot load it, thus its test "+
+				"cannot run and the Android layer loses a test.",
+				name, strings.TrimSpace(line))
+		}
+		// It must also stay off the Android classes by their full name,
+		// which needs no import line.
+		//
+		// The scan reads the CODE and not the comments. The banner of each
+		// file names org.json to say why the file avoids it. A scan of the
+		// whole text would read that sentence as the fault that it warns of.
+		for _, line := range strings.Split(src, "\n") {
+			code := line
+			if at := strings.Index(code, "//"); at >= 0 {
+				code = code[:at]
+			}
+			for _, pkg := range []string{"org.json.", "android."} {
+				if strings.Contains(code, pkg) {
+					t.Errorf("%s names %s in code: %s\n"+
+						"Keep the class free of the Android framework.",
+						name, pkg, strings.TrimSpace(line))
+				}
 			}
 		}
 	}
 }
 
-// TestJavaUnitTests compiles OmnConfig.java together with its test and
-// runs the test.
+// TestJavaUnitTests compiles each class of pureJavaSources together with
+// each test of pureJavaTests, and it runs each test.
 //
 // It SKIPS on a machine with no JDK. The Docker image of the gate has one,
 // because the Gradle build needs it, thus this test runs there. The image
 // needs no change and no Dockerfile changes.
 //
-// The test class is a plain main method with its own check helpers. No
+// A test class is a plain main method with its own check helpers. No
 // JUnit, thus no Gradle dependency. See the banner of OmnConfigTest.java.
 func TestJavaUnitTests(t *testing.T) {
 	javac, err := exec.LookPath("javac")
@@ -173,41 +191,42 @@ func TestJavaUnitTests(t *testing.T) {
 		t.Skip("no java on this machine")
 	}
 
-	const (
-		mainSrc = "android/app/src/main/java/net/basov/omngo/OmnConfig.java"
-		testSrc = "android/test/java/net/basov/omngo/OmnConfigTest.java"
-	)
-	for _, rel := range []string{mainSrc, testSrc} {
-		if _, sErr := os.Stat(filepath.Join(repoRoot, filepath.FromSlash(rel))); sErr != nil {
-			t.Fatalf("%s is missing: %v", rel, sErr)
-		}
+	if len(pureJavaSources) != len(pureJavaTests) {
+		t.Fatalf("%d pure classes and %d tests. Each class needs one test.",
+			len(pureJavaSources), len(pureJavaTests))
 	}
-
 	// -encoding UTF-8, because a raw javac reads a source file in the
 	// encoding of the PLATFORM. The build image of the gate has no UTF-8
 	// locale, thus its javac reads the file as US-ASCII and refuses each
 	// byte above 127.
 	//
 	// The Android Gradle Plugin sets options.encoding to UTF-8 for each
-	// JavaCompile task, and MainActivity.java carries a character above
+	// JavaCompile task, and ShareOut.java carries a character above
 	// 127 in a comment. This line makes the two compilers agree.
 	out := t.TempDir()
-	build := exec.Command(javac, "-encoding", "UTF-8", "-d", out,
-		filepath.Join(repoRoot, filepath.FromSlash(mainSrc)),
-		filepath.Join(repoRoot, filepath.FromSlash(testSrc)))
-	if compiled, cErr := build.CombinedOutput(); cErr != nil {
+	args := []string{"-encoding", "UTF-8", "-d", out}
+	for _, rel := range append(append([]string{}, pureJavaSources...), pureJavaTests...) {
+		full := filepath.Join(repoRoot, filepath.FromSlash(rel))
+		if _, sErr := os.Stat(full); sErr != nil {
+			t.Fatalf("%s is missing: %v", rel, sErr)
+		}
+		args = append(args, full)
+	}
+	if compiled, cErr := exec.Command(javac, args...).CombinedOutput(); cErr != nil {
 		t.Fatalf("javac failed: %v\n%s", cErr, compiled)
 	}
 
-	run := exec.Command(java, "-cp", out, "net.basov.omngo.OmnConfigTest")
-	result, runErr := run.CombinedOutput()
-	// javac and java write a line about JAVA_TOOL_OPTIONS on some
-	// machines. It is not a fault, and the exit code is the answer.
-	if runErr != nil {
-		t.Errorf("the Java test failed: %v\n%s", runErr, result)
-		return
+	for _, rel := range pureJavaTests {
+		class := "net.basov.omngo." + strings.TrimSuffix(filepath.Base(rel), ".java")
+		result, runErr := exec.Command(java, "-cp", out, class).CombinedOutput()
+		// javac and java write a line about JAVA_TOOL_OPTIONS on some
+		// machines. It is not a fault, and the exit code is the answer.
+		if runErr != nil {
+			t.Errorf("%s failed: %v\n%s", class, runErr, result)
+			continue
+		}
+		t.Logf("%s", strings.TrimSpace(string(result)))
 	}
-	t.Logf("%s", strings.TrimSpace(string(result)))
 }
 
 // THE CALL SITES OF MainActivity MUST TYPE-CHECK AGAINST OmnConfig.
@@ -240,7 +259,9 @@ func TestAndroidConfigCallSitesTypeCheck(t *testing.T) {
 	}
 
 	// The return type of the helper that each call site passes.
-	sd := regexp.MustCompile(`(?m)^\s*private\s+(\w+)\s+storageDir\(\)`).FindStringSubmatch(main)
+	// storageDir is not private, because the classes beside MainActivity
+	// call it.
+	sd := regexp.MustCompile(`(?m)^\s*(?:private\s+)?(\w+)\s+storageDir\(\)`).FindStringSubmatch(main)
 	if sd == nil {
 		t.Fatal("MainActivity.java declares no storageDir(). This test reads its " +
 			"return type, thus it cannot check the call sites without it.")
@@ -288,25 +309,22 @@ func TestAndroidConfigCallSitesTypeCheck(t *testing.T) {
 	}
 }
 
-// The two files that a raw javac reads must hold no byte above 127.
+// The files that a raw javac reads must hold no byte above 127.
 //
 // TestJavaUnitTests passes -encoding UTF-8, thus a byte above 127 would
 // compile today. This test is the second lock, and it exists because the
 // first one already failed once.
 //
 // Each other Java file of this project is compiled by Gradle alone, and
-// the Android Gradle Plugin fixes the encoding for those. MainActivity
-// holds an ellipsis in a comment for that reason. The two files below are
+// the Android Gradle Plugin fixes the encoding for those. ShareOut
+// holds an ellipsis in a comment for that reason. The files below are
 // compiled by BOTH, thus they must satisfy the stricter of the two.
 //
 // A character above 127 has a plain replacement in Java source: the
 // escape \uXXXX. OmnConfigTest uses it for the value it expects, which is
 // also the shape that json.MarshalIndent writes.
 func TestCompiledJavaSourcesAreASCII(t *testing.T) {
-	for _, rel := range []string{
-		"android/app/src/main/java/net/basov/omngo/OmnConfig.java",
-		"android/test/java/net/basov/omngo/OmnConfigTest.java",
-	} {
+	for _, rel := range append(append([]string{}, pureJavaSources...), pureJavaTests...) {
 		src, err := readRepoFile(rel)
 		if err != nil {
 			t.Skipf("%s is not in this tree: %v", rel, err)
@@ -319,6 +337,79 @@ func TestCompiledJavaSourcesAreASCII(t *testing.T) {
 						rel, i+1, r, r)
 					break
 				}
+			}
+		}
+	}
+}
+
+// ----------------------------------------------------------------------
+// The division of the Android layer
+// ----------------------------------------------------------------------
+
+// mainActivityMaxLines is the limit of step 6.5 of the plan.
+const mainActivityMaxLines = 800
+
+// MainActivity was one file of more than 2200 lines. It holds the life
+// cycle now, and each other task is in a class of its own. See
+// doc/decisions/0022-divide-main-activity-into-plain-classes.md.
+//
+// This test holds two halves of that decision. The file stays small, and
+// each class of the list exists. A task that returns to MainActivity makes
+// the file grow past the limit.
+func TestMainActivityIsDivided(t *testing.T) {
+	const dir = "android/app/src/main/java/net/basov/omngo/"
+	main, err := readRepoFile(dir + "MainActivity.java")
+	if err != nil {
+		t.Skipf("MainActivity.java is not in this tree: %v", err)
+	}
+	if n := strings.Count(main, "\n"); n > mainActivityMaxLines {
+		t.Errorf("MainActivity.java has %d lines, and the limit is %d. Put the new "+
+			"task into the class that owns it, or into a new class.", n, mainActivityMaxLines)
+	}
+	for _, name := range []string{
+		"WebViewSetup", "Fullscreen", "ShareIn", "ShareOut", "IntentBridge", "Shortcuts", "OmnText",
+	} {
+		src, rErr := readRepoFile(dir + name + ".java")
+		if rErr != nil {
+			t.Errorf("%s.java is missing: %v", name, rErr)
+			continue
+		}
+		if !strings.Contains(src, "final class "+name+" {") {
+			t.Errorf("%s.java does not declare the final class %s", name, name)
+		}
+		// A class of this list is a plain class. A class that extends a
+		// class of the framework is a component, and the manifest must
+		// name a component.
+		if regexp.MustCompile(`final class ` + name + ` (extends|implements)`).MatchString(src) {
+			t.Errorf("%s is not a plain class. Keep each component in MainActivity, "+
+				"ServerService or ExportProvider.", name)
+		}
+	}
+}
+
+// No Java file of the application imports AndroidX. Rule 1 of CLAUDE.md
+// section 1 allows one dependency, and AndroidX is a second one.
+func TestNoJavaFileImportsAndroidX(t *testing.T) {
+	files, err := filepath.Glob(filepath.Join(repoRoot, "android", "app", "src", "main", "java",
+		"net", "basov", "omngo", "*.java"))
+	if err != nil || len(files) == 0 {
+		t.Skipf("no Java source in this tree: %v", err)
+	}
+	for _, f := range files {
+		raw, rErr := os.ReadFile(f)
+		if rErr != nil {
+			t.Fatal(rErr)
+		}
+		for _, line := range strings.Split(string(raw), "\n") {
+			code := line
+			if at := strings.Index(code, "//"); at >= 0 {
+				code = code[:at]
+			}
+			if trimmed := strings.TrimSpace(code); strings.HasPrefix(trimmed, "*") || strings.HasPrefix(trimmed, "/*") {
+				continue
+			}
+			if strings.Contains(code, "androidx.") {
+				t.Errorf("%s names AndroidX in code: %s", filepath.Base(f), strings.TrimSpace(line))
 			}
 		}
 	}

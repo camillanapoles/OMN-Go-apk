@@ -45,8 +45,9 @@ App.
 The Java and the JavaScript tests are started BY a Go test. There is no
 second command and no second gate.
 
-* `backend/internal/repocheck/java_test.go` compiles and runs
-  `android/test/java/net/basov/omngo/OmnConfigTest.java`.
+* `backend/internal/repocheck/java_test.go` compiles and runs the two
+  files of `android/test/java/net/basov/omngo/`: `OmnConfigTest.java` and
+  `OmnTextTest.java`.
 * `backend/internal/repocheck/js_test.go` runs `node --test` over
   `backend/frontend/test/*.test.js`.
 
@@ -63,6 +64,7 @@ tools, thus the full set runs there.
 The Android build has ONE Gradle dependency, and rule 1 of `CLAUDE.md`
 section 1 says why. JUnit would be a second one. `OmnConfigTest.java` is
 therefore a plain `main` method with three check helpers of ten lines.
+`OmnTextTest.java` has the same form.
 
 The frontend has no build step, and rule 4 of `CLAUDE.md` says why. A test
 runner from npm would be the first `package.json` of this project.
@@ -80,6 +82,12 @@ cannot load it, thus a test of a class that uses it needs an emulator.
 `OmnConfig.java` therefore reads `config.json` with `java.io` and parses
 it with a small parser of its own. `javac` and `java` alone then run a
 test of it. See the banner of that file.
+
+`OmnText.java` holds the text rules of the Android layer, for example the
+safe name of a shared file. It reads JSON with `OmnConfig.parseFlat`.
+`TestPureJavaClassesImportNoAndroidPackage` holds the rule for the two
+classes. Each other class of the layer uses the framework, and only the
+Gradle build compiles it.
 
 ### The JavaScript under test runs in a stub of a browser
 
@@ -257,8 +265,9 @@ compiles this directory and the F-Droid build cannot see it.
 the GitHub artifacts. The F-Droid build server installs what the recipe
 names, and the recipe names no Node.
 
-`OmnConfig.java` IS in `src/main`, thus F-Droid compiles it. It adds no
-dependency and no import outside `java.io` and `java.util`.
+`OmnConfig.java` and `OmnText.java` ARE in `src/main`, thus F-Droid
+compiles them. They add no dependency and no import outside `java.io` and
+`java.util`.
 
 ---
 

@@ -32,7 +32,7 @@ presses a control: a sync button, the bookmark button or the magnifier.
   work:
   1. `omnGoOpenDatabase`. A plain `<script>` in a note calls it while the
      page parses.
-  2. `omnGoInsertCapture`. `MainActivity` compares its answer with
+  2. `omnGoInsertCapture`. `IntentBridge` compares its answer with
      `true`, and a stub answers with a Promise.
   3. The drag and drop listener. It must listen before a person drops a
      link.

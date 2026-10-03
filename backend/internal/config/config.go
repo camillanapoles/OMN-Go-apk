@@ -269,7 +269,7 @@ type Config struct {
 	// EnableIntentURI is the main switch for an Android "intent:" link in a
 	// note, for example
 	// [Wi-Fi](intent:#Intent;action=android.settings.WIRELESS_SETTINGS;end;).
-	// The default is false, and MainActivity.shouldOverrideUrlLoading then
+	// The default is false, and IntentBridge.handleIntentUri then
 	// refuses each intent URI. MainActivity reads the value from config.json
 	// at each tap, thus a change needs no restart. The desktop ignores it.
 	EnableIntentURI bool `json:"enable_intent_uri"`

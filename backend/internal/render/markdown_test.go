@@ -73,7 +73,7 @@ func TestRewriteInternalLink(t *testing.T) {
 		// ".html" must not be appended to the "intent:" segment. That would
 		// produce the broken "intent:.html#Intent;...". The "intent://" form
 		// is left alone as well. See
-		// MainActivity.shouldOverrideUrlLoading().
+		// WebViewSetup.shouldOverrideUrlLoading().
 		{"intent:#Intent;action=android.settings.WIRELESS_SETTINGS;end;", "intent:#Intent;action=android.settings.WIRELESS_SETTINGS;end;"},
 		{"intent:#Intent;action=android.settings.DEVICE_INFO_SETTINGS;end;", "intent:#Intent;action=android.settings.DEVICE_INFO_SETTINGS;end;"},
 		{"intent://scan/#Intent;scheme=zxing;package=com.google.zxing.client.android;end", "intent://scan/#Intent;scheme=zxing;package=com.google.zxing.client.android;end"},
@@ -220,7 +220,7 @@ func TestRenderMarkdownToHTMLIntentLinkUntouched(t *testing.T) {
 
 // The same for each other scheme. An "sms:" link arrived as
 // "sms:+15551234.html", which the Messaging app cannot use: the number
-// carried a file extension. MainActivity.shouldOverrideUrlLoading passes
+// carried a file extension. WebViewSetup.shouldOverrideUrlLoading passes
 // every scheme it does not serve itself to the OS, so the one thing that has
 // to be right here is the href.
 //

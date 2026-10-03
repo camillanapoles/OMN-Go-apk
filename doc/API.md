@@ -1291,7 +1291,7 @@ Open a file in the external editor of the platform. When
 
 | Platform | Status | Body / headers |
 | --- | --- | --- |
-| Android | `303 See Other` | `Location: omngo://edit?name=<name>` — the name is normalized to `<base>.md` for a real page, left untouched for a plain asset, so `MainActivity` opens the markdown source rather than the compiled HTML |
+| Android | `303 See Other` | `Location: omngo://edit?name=<name>` — the name is normalized to `<base>.md` for a real page, left untouched for a plain asset, so `WebViewSetup` opens the markdown source rather than the compiled HTML |
 | Desktop | `200`, `text/html` | A full "editing externally" wait page pointing back at the view URL (`<base>.html` for a page, the raw name otherwise) |
 | any | `400` | `Missing name` |
 

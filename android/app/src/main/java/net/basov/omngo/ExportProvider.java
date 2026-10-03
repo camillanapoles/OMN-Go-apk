@@ -11,7 +11,7 @@ package net.basov.omngo;
  * one screen's worth of behavior, this is the part of it the share sheet
  * needs: read one file, say what it is called and how large it is.
  *
- * WHY NOT A file:// URI. MainActivity clears the StrictMode VM policy for
+ * WHY NOT A file:// URI. IntentBridge clears the StrictMode VM policy for
  * the external-editor path, so a file:// URI would not throw
  * FileUriExposedException here either. It would still be the wrong answer: a
  * receiving application on a modern Android cannot READ a path under another

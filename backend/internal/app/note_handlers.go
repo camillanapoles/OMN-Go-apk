@@ -30,7 +30,7 @@ func (a *App) getExternalEditPageBody(fileName string, viewURL string) string {
 }
 
 // resolveAndroidEditName makes the name for the omngo://edit intent.
-// MainActivity picks md/ or html/ by the ".md" suffix alone, thus a page must
+// WebViewSetup picks md/ or html/ by the ".md" suffix alone, thus a page must
 // become baseName + ".md". A file that is not a page keeps its name. It has
 // no runtime.GOOS test, thus each platform can test it.
 func resolveAndroidEditName(name, baseName string, isPage bool) string {

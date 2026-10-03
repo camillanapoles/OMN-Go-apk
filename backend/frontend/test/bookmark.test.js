@@ -243,7 +243,7 @@ test('a shared text with no address opens the Quick Note panel with the whole te
 
 test('omnGoInsertCapture answers true at once and opens the Quick Note panel', () => {
     const h = notePage();
-    // MainActivity compares the answer with true. A promise is not true.
+    // IntentBridge compares the answer with true. A promise is not true.
     const answer = h.page.omnGoInsertCapture('4006381333931', 'EAN-13');
     assert.strictEqual(answer, true);
     assert.strictEqual(h.$('#quickText').value, 'EAN-13\n\n4006381333931');

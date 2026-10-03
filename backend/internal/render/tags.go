@@ -199,7 +199,7 @@ func (rd *Renderer) GenerateTagsPage(log logx.Logger) error {
 	// A rebuild reads each note, and on a large collection that takes time.
 	// From serveTagsPage, it runs inside a page navigation, where no progress
 	// UI of the page can run. The two log lines show the wait on /api/logs.
-	// The reader sees the ProgressBar of MainActivity and the delayed overlay
+	// The reader sees the ProgressBar of WebViewSetup and the delayed overlay
 	// of omn-go-nav.js.
 	log.Debugf("Rebuilding tags index")
 	started := time.Now()

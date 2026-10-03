@@ -14,7 +14,7 @@ import (
 )
 
 // imageUploadExtensions and jsonUploadExtensions list what saveUploadedFile
-// accepts. MainActivity.java has a copy of both lists for its share path.
+// accepts. ShareIn.java has a copy of both lists for its share path.
 // Keep the copies the same.
 var (
 	imageUploadExtensions = []string{".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}

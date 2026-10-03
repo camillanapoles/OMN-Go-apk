@@ -266,7 +266,7 @@ if (typeof currentNote === 'undefined') {
             }
         };
 
-        // Asks the native shell (MainActivity.shouldOverrideUrlLoading, see
+        // Asks the native shell (WebViewSetup.shouldOverrideUrlLoading, see
         // the omngo://edit precedent) to pin a home-screen shortcut to the
         // current note. The .android-only button is the only way in, and
         // applyPlatformUI() reveals it inside the Android app only. There

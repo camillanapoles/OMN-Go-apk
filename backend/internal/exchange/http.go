@@ -21,7 +21,7 @@ import (
 // reads an error answer as a toast on Android or as a line on the incoming page.
 
 // HandleExportNote answers GET /api/export/note?name=<note> with the Markdown
-// of the note, FileName: set, as a download. MainActivity gives the bytes to
+// of the note, FileName: set, as a download. ShareOut.java gives the bytes to
 // the share sheet.
 func (svc Service) HandleExportNote(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")

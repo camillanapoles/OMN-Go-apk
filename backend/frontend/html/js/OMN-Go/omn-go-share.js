@@ -6,7 +6,7 @@
 //
 // index.html loads it after omn-go-core.js. The User Manual promises
 // omnGoCopyText, omnGoPageTitle and omnGoPageLink to a note script.
-// MainActivity.java names omnGoSendNote.
+// WebViewSetup.java names omnGoSendNote.
 
 // --- Sending this note to someone ---
 //
@@ -20,7 +20,7 @@
 // change, because an export is a read.
 
 // omnGoExportURL is the one address both controls use, and the one
-// MainActivity fetches for the Android share sheet.
+// ShareOut.java fetches for the Android share sheet.
 // omnGoCurrentNoteName gives the name of the note on screen in the form
 // that the server resolves with no guess.
 //
@@ -50,7 +50,7 @@ function omnGoExportURL(note) {
 // omnGoSendNote hands the note to whatever can carry it.
 //
 // On Android that is the share sheet, which reaches Telegram, e-mail,
-// LocalSend and everything else installed. MainActivity answers the
+// LocalSend and everything else installed. WebViewSetup answers the
 // omngo:// scheme, as it already does for omngo://edit and
 // omngo://shortcut. There is no share sheet elsewhere. The browser
 // downloads the file, and the user attaches it where they want.
@@ -74,7 +74,7 @@ function omnGoSendNote(note) {
 // WebView. Presence is not permission. The Android WebView refuses the
 // clipboard-write permission. The method writeText then rejects with
 // "NotAllowedError: Write permission denied". The refusal does not go to
-// WebChromeClient.onPermissionRequest. No override in MainActivity can
+// WebChromeClient.onPermissionRequest. No override in WebViewSetup can
 // grant it.
 //
 // The refusal comes from an old WebView. A new WebView does the write.
@@ -154,7 +154,7 @@ async function omnGoCopyNote(note, say) {
 // spelling, but an old Android WebView refuses it. The method
 // writeText needs a clipboard-write permission, and the WebView
 // refuses that permission. The refusal does not go to
-// WebChromeClient.onPermissionRequest. No override in MainActivity
+// WebChromeClient.onPermissionRequest. No override in WebViewSetup
 // can grant it. A test on the device shows this.
 //
 // execCommand is deprecated, but it is synchronous and needs no
