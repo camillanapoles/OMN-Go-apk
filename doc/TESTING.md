@@ -140,13 +140,16 @@ server cards, and it also loads `omn-go-config.js`. `mini-dom.js` has
 `FormData`, thus a test reads the body of a save the same as the server
 does.
 
-`editorPage(text)` builds the editor from `editor.html` and loads
-`omn-go-editor.js` with `text` as the note.
+`editorPage(text, opts)` builds the editor from `editor.html` and loads
+`omn-go-editor.js` with `text` as the note. `opts.search` is the query of
+the address, `opts.storage` fills `localStorage`, and `opts.server` answers
+the requests. The page has the `insertText` command of a browser, and
+`opts.noInsertText` takes it away.
 
 `systemPage(template, script, server)` builds a system page: the shell
 with one template as its body, and the script of that page.
 
-Eleven test files use these pages:
+Thirteen test files use these pages:
 
 | File | What it holds |
 | --- | --- |
@@ -156,6 +159,8 @@ Eleven test files use these pages:
 | `search.test.js` | The dialog sends no request while the person types. The two scopes, the keys, and the address of a chosen line. |
 | `session.test.js` | The hint cookie, the answer 401 and the login box. |
 | `editor-view.test.js` | An expansion keeps the view of the editor, from the Tab key and from the toolbar button. |
+| `editor-page.test.js` | A load that failed switches the save off. The save, Cancel, the jump to a line, the selection cycle, the two view toggles and a dropped file. |
+| `editor-find.test.js` | The find bar: the count, the steps, the three modes, and the text after Replace and Replace all. |
 | `nav.test.js` | The four answers to a press on a link of a note. The overlay of a slow page shows after 300 ms, and only for a press that leaves the page. |
 | `share.test.js` | The metadata panel writes each value as text. Send, the two copy controls, and the two ways to the clipboard. |
 | `status.test.js` | The Status page asks for a slow section only on a press. Each kind of value has its form, and each value is text. |
@@ -164,7 +169,8 @@ Eleven test files use these pages:
 
 A script that sets `location.href` leaves the page in a browser. The
 document of a test stays, thus `location.href` keeps the address of the
-page, and `h.went` holds each address that a script opened. `h.holdTimers()`
+page, and `h.went` holds each address that a script opened. `h.replaced`
+holds each address that also took the page out of the history. `h.holdTimers()`
 takes the timers of the page away from the clock, thus a test of a wait
 ends at once.
 

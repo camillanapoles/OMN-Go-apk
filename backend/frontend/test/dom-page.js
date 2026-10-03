@@ -81,6 +81,7 @@ function shellScripts() {
 //	loads      The src of each script element that a script added.
 //	streams    Each EventSource that a script opened.
 //	went       Each address that a script opened in place of this page.
+//	replaced   Each address of went that took this page out of the history.
 //	opened     Each call of window.open: {url, target}.
 //	clipboard  Each text that a script wrote with the Clipboard API.
 //	timers     The timers of the page, after h.holdTimers().
@@ -128,7 +129,12 @@ function newDomPage(opts) {
         },
         set(value) { h.went.push(String(value)); },
     });
-    page.location.replace = function (url) { h.went.push(String(url)); };
+    // replace also takes this page out of the history, thus the Back key
+    // does not open it again. h.replaced gets each such address.
+    page.location.replace = function (url) {
+        h.went.push(String(url));
+        h.replaced.push(String(url));
+    };
     page.location.assign = function (url) { h.went.push(String(url)); };
     // A new hash sends hashchange, the same as in a browser.
     let hash = '';
@@ -163,7 +169,7 @@ function newDomPage(opts) {
 
     const h = {
         page: page, document: doc, requests: [], dialogs: [], loads: [], streams: [],
-        opened: [], clipboard: [], timers: [], went: [],
+        opened: [], clipboard: [], timers: [], went: [], replaced: [],
         // server answers one request. A test replaces it. The default is
         // a JSON success with no data.
         server: function () { return { status: 'success' }; },
@@ -364,7 +370,16 @@ function systemPage(templateName, script, server, opts) {
 // events and the load of the note. The editor is a page of its own: it has
 // the markup of editor.html and the script omn-go-editor.js, and no other
 // script of the application.
-async function editorPage(text) {
+//
+// opts.search is the query of the address, for example "?line=3".
+// opts.storage gives the values that localStorage holds before the load.
+// opts.server answers a request, the same as h.server. The default gives
+// text for the note and a success for each other request.
+// opts.noInsertText is true for a browser with no insertText command.
+//
+// h.storage is the localStorage of the page, as a plain object.
+async function editorPage(text, opts) {
+    opts = opts || {};
     const html = template('editor.html');
     const open = html.indexOf('<body');
     const start = html.indexOf('>', open) + 1;
@@ -374,8 +389,34 @@ async function editorPage(text) {
     h.page.OMN_EDIT_NAME = 'Note';
     h.page.OMN_EDIT_EXT = '.md';
     h.page.OMN_EDIT_VIEW = '/Note.html';
+    h.page.location.search = opts.search || '';
     h.page.getComputedStyle = function () { return { lineHeight: '18px', fontSize: '14px' }; };
-    h.server = function (request) {
+
+    h.storage = Object.assign({}, opts.storage || {});
+    h.page.localStorage = {
+        getItem: function (key) {
+            return Object.prototype.hasOwnProperty.call(h.storage, key) ? h.storage[key] : null;
+        },
+        setItem: function (key, value) { h.storage[key] = String(value); },
+        removeItem: function (key) { delete h.storage[key]; },
+    };
+
+    // The insertText command of a browser. It puts the text in place of
+    // the selection of the control that has the focus. It then puts the
+    // caret behind the text. The editor uses it to keep the undo history.
+    h.document.execCommand = function (name, _, value) {
+        h.document.commands.push(name);
+        const el = h.document.activeElement;
+        if (opts.noInsertText || name !== 'insertText' || !el || el.selectionStart === undefined) {
+            return false;
+        }
+        const from = el.selectionStart, to = el.selectionEnd;
+        el.value = el.value.slice(0, from) + value + el.value.slice(to);
+        el.setSelectionRange(from + value.length, from + value.length);
+        return true;
+    };
+
+    h.server = opts.server || function (request) {
         if (request.url.indexOf('/api/note') === 0 && request.method === 'GET') {
             return { httpStatus: 200, text: text };
         }

@@ -189,8 +189,7 @@ const jsLineCoverageTarget = 60.0
 // test away, or that adds code with no test, fails here.
 
 var jsLineCoverageFloor = map[string]float64{
-	"Bookmarker.js":    0,
-	"omn-go-editor.js": 54,
+	"Bookmarker.js": 0,
 }
 
 // jsCoverageSlack is the count of percent points that a script can be above
