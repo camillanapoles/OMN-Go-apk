@@ -310,7 +310,7 @@ func RelPrefix(name string) string {
 // author.
 func EnsureHeaderModified(content, defaultTitle, author string) string {
 	content = strings.ReplaceAll(content, "\r\n", "\n")
-	now := time.Now().Format("2006-01-02 15:04:05")
+	now := noteheader.Stamp(time.Now())
 
 	// Use the one header split. See package noteheader.
 	hb := noteheader.Parse(content)

@@ -11,6 +11,7 @@ import (
 
 	"net.basov.omngo/backend/frontend"
 	"net.basov.omngo/backend/internal/logx"
+	"net.basov.omngo/backend/internal/noteheader"
 	"net.basov.omngo/backend/internal/render"
 )
 
@@ -68,7 +69,7 @@ func (a *App) recompileMarkdownPage(name, mdPath string, errMd error) {
 			os.MkdirAll(filepath.Dir(mdPath), 0755)
 			os.WriteFile(mdPath, embedData, 0644)
 		} else {
-			timestamp := time.Now().Format("2006-01-02 15:04:05")
+			timestamp := noteheader.Stamp(time.Now())
 			authorLine := ""
 			if a.config.Get().Author != "" {
 				authorLine = fmt.Sprintf("\nAuthor: %s", a.config.Get().Author)

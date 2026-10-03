@@ -91,7 +91,7 @@ Do not put an empty line in the block. An empty line ends a raw HTML block. The 
 
 ## Quick notes
 
-A quick note is one short text with a timestamp. OMN-Go puts every quick note on the [QuickNotes](QuickNotes) page. The newest note is at the top. OMN-Go writes over no note, and you give no name to a note.
+A quick note is one short text with a timestamp. Each time that OMN-Go writes is UTC, on the desktop and on Android. OMN-Go puts every quick note on the [QuickNotes](QuickNotes) page. The newest note is at the top. OMN-Go writes over no note, and you give no name to a note.
 
 **With the Android icon.** The Android application installs a second icon, *OMN-Go Quick Note*. This icon opens the start page with the note box open.
 
@@ -235,7 +235,7 @@ Every page starts with a header block. The header block contains `Key: value` li
 ```
 Title: Shopping list
 Date: 2026-07-07 10:00:00
-Modified: 2026-07-07 12:30:00
+Modified: 2026-10-03 12:00:00
 Author: Me
 Category: Home
 Tags: shopping, home
@@ -845,7 +845,7 @@ The colour is a help only. Each row that the next version replaces also shows th
 
 Press **What the words mean** below the trail to see the words that the directory on the screen uses. The list is closed at the start, and it gives only those words. A directory that uses no word has no such list.
 
-The date is on the row of a file that is on the device. The date says when OMN-Go last wrote the file. Point at a date to see the time also.
+The date is on the row of a file that is on the device. The date says when OMN-Go last wrote the file. Point at a date to see the time also. The date and the time are UTC.
 
 A row of the **Source** tree shows **local only** when the file stays on this device. See [Files that stay on this device](#files-that-stay-on-this-device).
 

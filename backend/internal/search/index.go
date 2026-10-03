@@ -342,7 +342,7 @@ func fmtIndexStatus(docs, lines int, mb, residentMB float64, built time.Time) st
 	b.WriteString(" MB in memory")
 	if !built.IsZero() {
 		b.WriteString(", built ")
-		b.WriteString(built.Format("15:04:05"))
+		b.WriteString(built.UTC().Format("15:04:05 UTC"))
 	}
 	b.WriteString(".")
 	return b.String()

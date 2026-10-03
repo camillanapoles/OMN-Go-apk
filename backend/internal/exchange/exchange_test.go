@@ -955,3 +955,31 @@ func TestIncomingTemplateCarriesItsMarkers(t *testing.T) {
 		t.Errorf("the starter body is not just the marker:\n%q", hb.Body)
 	}
 }
+
+// An import writes its times in UTC. The caller can give a time of each
+// zone, and the note gets the same text.
+func TestImportTimesAreUTC(t *testing.T) {
+	a := newTestApp(t)
+	// The same moment as testNow, in a zone five hours in front of UTC.
+	far := testNow.In(time.FixedZone("far", 5*60*60))
+
+	// A note with no name gets a name from the time.
+	res, err := a.importNote([]byte("plain text, no header\n"), "", far)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Base != "note-2026-08-09-123456" {
+		t.Errorf("the name is %q, want the UTC time note-2026-08-09-123456", res.Base)
+	}
+	note := incomingFile(t, a, res.Rel+".md")
+	if !strings.Contains(note, "Imported: 2026-08-09 12:34:56\n") {
+		t.Errorf("the Imported line is not the UTC time:\n%s", note)
+	}
+	index := incomingFile(t, a, "incoming.md")
+	if !strings.Contains(index, `<span class="omn-incoming-when">2026-08-09 12:34</span>`) {
+		t.Errorf("the line of the incoming index is not the UTC time:\n%s", index)
+	}
+	if !strings.Contains(index, "Date: 2026-08-09 12:34:56\n") {
+		t.Errorf("the Date line of the incoming index is not the UTC time:\n%s", index)
+	}
+}

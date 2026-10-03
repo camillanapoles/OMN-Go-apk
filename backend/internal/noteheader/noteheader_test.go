@@ -1,6 +1,9 @@
 package noteheader
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 // TestParseHeaderBlock pins the behavior of the one header-block parser in
 // noteheader.go. It is the one authority that every Go caller shares.
@@ -162,6 +165,24 @@ func TestIsHeaderFirstLine(t *testing.T) {
 	for _, s := range no {
 		if IsFirstLine(s) {
 			t.Errorf("isHeaderFirstLine(%q) = true, want false", s)
+		}
+	}
+}
+
+// Stamp writes the same text for one moment in each zone. A note that a
+// sync moves between two devices then keeps the order of its times.
+func TestStampIsUTC(t *testing.T) {
+	utc := time.Date(2026, 10, 3, 22, 30, 5, 0, time.UTC)
+	const want = "2026-10-03 22:30:05"
+	for _, zone := range []*time.Location{
+		time.UTC,
+		time.FixedZone("east", 3*60*60),
+		time.FixedZone("west", -8*60*60),
+		time.FixedZone("far", 11*60*60),
+	} {
+		// In the zone "far" the local date is already the next day.
+		if got := Stamp(utc.In(zone)); got != want {
+			t.Errorf("Stamp in the zone %s = %q, want %q", zone, got, want)
 		}
 	}
 }

@@ -457,14 +457,15 @@
 
     function mdTwoDigits(n) { return (n < 10 ? '0' : '') + n; }
 
-    // mdStamp gives the local date and time of the divider heading, as
-    // "YYYY-MM-DD HH:MM:SS". The date comes from the device, thus it
-    // agrees with the clock the person reads.
+    // mdStamp gives the date and time of the divider heading in UTC, as
+    // "YYYY-MM-DD HH:MM:SS". It is the same text that noteheader.Stamp of
+    // the server writes for a quick note. Each time in a note is UTC, thus
+    // a note has one kind of time on each device.
     function mdStamp(now) {
         var d = now || new Date();
-        return d.getFullYear() + '-' + mdTwoDigits(d.getMonth() + 1) + '-' +
-            mdTwoDigits(d.getDate()) + ' ' + mdTwoDigits(d.getHours()) + ':' +
-            mdTwoDigits(d.getMinutes()) + ':' + mdTwoDigits(d.getSeconds());
+        return d.getUTCFullYear() + '-' + mdTwoDigits(d.getUTCMonth() + 1) + '-' +
+            mdTwoDigits(d.getUTCDate()) + ' ' + mdTwoDigits(d.getUTCHours()) + ':' +
+            mdTwoDigits(d.getUTCMinutes()) + ':' + mdTwoDigits(d.getUTCSeconds());
     }
 
     // expandMarkdownAbbr takes the text of the line up to the caret. It

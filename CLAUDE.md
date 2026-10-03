@@ -79,6 +79,12 @@ Do not remove a constraint without an instruction from the maintainer.
 11. **Intent URIs and Termux intents are off by default.** Each one needs
     `enable_intent_uri` or `enable_termux_intent`, a runtime permission, and a
     confirmation for each tap.
+12. **Each time is UTC.** Go on Android finds no zone file, thus the zone of the
+    computer makes the desktop and Android write different text. Use
+    `noteheader.Stamp` for a time in a note, and `.UTC().Format` for each other
+    time. In a script, use the UTC methods of `Date`.
+    `TestEachFormattedTimeIsUTC` reads the Go source. See
+    `doc/decisions/0023-write-each-time-in-utc.md`.
 
 ---
 

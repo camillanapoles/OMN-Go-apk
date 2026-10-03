@@ -122,7 +122,7 @@ There must be no space between the marker and the `[`. A space makes `* [text` a
 ##### 2026-08-22 10:37:31
 ```
 
-The cursor goes to the empty line below the heading. The date and the time come from your device. This is the divider of a quick note.
+The cursor goes to the empty line below the heading. The date and the time are UTC, the same as each time that OMN-Go writes into a note. This is the divider of a quick note.
 
 **A table.** A line with `!!!` and nothing else becomes an empty table:
 

@@ -186,7 +186,7 @@ func (svc Service) ImportNote(content []byte, displayName string, now time.Time)
 		rel = sanitizeImportPath(title)
 	}
 	if rel == "" {
-		rel = "note-" + now.Format("2006-01-02-150405")
+		rel = "note-" + now.UTC().Format("2006-01-02-150405")
 	}
 
 	dir, base := path.Split(rel)
@@ -214,7 +214,7 @@ func (svc Service) ImportNote(content []byte, displayName string, now time.Time)
 
 	// Record when the note arrived. Date: and Modified: are facts of the
 	// sender, and they stay as they are.
-	src = noteheader.SetKey(src, headerKeyImported, now.Format("2006-01-02 15:04:05"))
+	src = noteheader.SetKey(src, headerKeyImported, noteheader.Stamp(now))
 
 	if err := os.WriteFile(filepath.Join(fullDir, base+".md"), []byte(src), 0644); err != nil {
 		return importResult{}, err
@@ -446,7 +446,7 @@ func (svc Service) addIncomingIndexLine(res importResult, now time.Time) error {
 	}
 	// incomingLabel already cleaned the label. hrefEscapePath encodes the
 	// target, because a note name can hold a space.
-	line := "* <span class=\"omn-incoming-when\">" + now.Format("2006-01-02 15:04") +
+	line := "* <span class=\"omn-incoming-when\">" + now.UTC().Format("2006-01-02 15:04") +
 		"</span> · [" + label + "](" + hrefEscapePath(res.Rel) + ")"
 
 	header, sep, body := noteheader.SplitRegion(content)
@@ -483,7 +483,7 @@ var incomingIndexTmpl = render.LoadTemplate("incoming_index.md")
 // The app writes it one time, and then it belongs to the user.
 func incomingIndexStarter(now time.Time) string {
 	return normalizeNewlines(render.Fill(incomingIndexTmpl, map[string]string{
-		"DATE": now.Format("2006-01-02 15:04:05"),
+		"DATE": noteheader.Stamp(now),
 	}))
 }
 

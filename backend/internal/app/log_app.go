@@ -24,4 +24,5 @@ func (a *App) logLineEnabled(lvl logx.Level, tag logx.Tag) bool {
 // exported. See section 3 of CLAUDE.md for the exported names.
 func (a *App) initLogger() {
 	log.SetOutput(a.logs.StdWriter())
+	log.SetFlags(log.LstdFlags | log.LUTC)
 }

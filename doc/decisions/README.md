@@ -94,3 +94,4 @@ the status of the old record to `replaced by NNNN`.
 | [0020](0020-name-the-work-of-a-control-in-data-action.md) | Name the work of a control in data-action. | `omn-go-core.js`, `omn-go-api.js`, `omn-go-config.js`, `templates/` |
 | [0021](0021-divide-the-page-script-into-parts.md) | Divide the page script into parts. | `templates/index.html`, `omn-go-console.js`, `omn-go-core.js`, `omn-go-highlight.js`, `omn-go-nav.js`, `omn-go-share.js` |
 | [0022](0022-divide-main-activity-into-plain-classes.md) | Divide MainActivity into plain classes. | `MainActivity.java`, `WebViewSetup.java`, `Fullscreen.java`, `ShareIn.java`, `ShareOut.java`, `IntentBridge.java`, `Shortcuts.java`, `OmnText.java` |
+| [0023](0023-write-each-time-in-utc.md) | Write each time in UTC. | `internal/noteheader/noteheader.go`, `internal/logx/hub.go`, `log_app.go`, `omn-go-editor.js` |

@@ -104,7 +104,7 @@ func (a *App) handleEditExternal(w http.ResponseWriter, r *http.Request) {
 		viewURL = baseName + ".html"
 	}
 	header := fmt.Appendf(nil, "Title: Refresh %s\nDate: %s\nCategory: Action\n\n",
-		name, time.Now().Format("2006-01-02 15:04:05"))
+		name, noteheader.Stamp(time.Now()))
 	a.renderPage(w, http.StatusOK, name, header, a.getExternalEditPageBody(name, viewURL))
 }
 
@@ -155,7 +155,7 @@ func (a *App) handleQuickNote(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	timestamp := noteheader.Stamp(time.Now())
 	entry := fmt.Sprintf("\n---\n##### %s\n%s\n", timestamp, note)
 
 	newContent := append(lines[:insertIdx], append([]string{entry}, lines[insertIdx:]...)...)
@@ -179,7 +179,7 @@ func (a *App) handleBookmark(w http.ResponseWriter, r *http.Request) {
 	notes := r.FormValue("notes")
 
 	path := a.layout().MD("Bookmarks.md")
-	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	timestamp := noteheader.Stamp(time.Now())
 
 	tagsList := []string{}
 	for t := range strings.SplitSeq(tags, ",") {
@@ -272,7 +272,7 @@ func (a *App) handleGetNote(w http.ResponseWriter, r *http.Request) {
 	if embedData, embedErr := frontend.Static.ReadFile(embedPath); embedErr == nil {
 		data = embedData
 	} else {
-		timestamp := time.Now().Format("2006-01-02 15:04:05")
+		timestamp := noteheader.Stamp(time.Now())
 		authorLine := ""
 		if a.config.Get().Author != "" {
 			authorLine = fmt.Sprintf("\nAuthor: %s", a.config.Get().Author)
@@ -308,7 +308,7 @@ func (a *App) handleNewPage(w http.ResponseWriter, r *http.Request) {
 	target = storage.ContainedName(a.resolveNewPageTarget(source, target))
 	source = storage.ContainedName(source)
 
-	now := time.Now().Format("2006-01-02 15:04:05")
+	now := noteheader.Stamp(time.Now())
 
 	targetMdPath := a.layout().MD(target + ".md")
 	if _, err := os.Stat(targetMdPath); os.IsNotExist(err) {

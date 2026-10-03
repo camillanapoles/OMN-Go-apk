@@ -12,6 +12,7 @@ import (
 
 	"net.basov.omngo/backend/frontend"
 	"net.basov.omngo/backend/internal/logx"
+	"net.basov.omngo/backend/internal/noteheader"
 	"net.basov.omngo/backend/internal/render"
 	"net.basov.omngo/backend/internal/storage"
 )
@@ -205,7 +206,7 @@ func (a *App) serveNotFound(w http.ResponseWriter, r *http.Request) {
 	view := notFoundView{
 		URL:       requested,
 		Method:    r.Method,
-		Time:      time.Now().Format("2006-01-02 15:04:05"),
+		Time:      noteheader.Stamp(time.Now()),
 		Referer:   referer,
 		Suggested: a.notFoundSuggestion(r.URL.Path),
 	}

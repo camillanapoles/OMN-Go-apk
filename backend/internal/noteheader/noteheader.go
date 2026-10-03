@@ -1,7 +1,10 @@
 // Package noteheader parses the header block at the start of a note.
 package noteheader
 
-import "strings"
+import (
+	"strings"
+	"time"
+)
 
 // ----------------------------------------------------------------------
 // The one header block parser
@@ -180,4 +183,14 @@ func SetKey(content, key, value string) string {
 		}
 	}
 	return header + "\n" + line + sep + body
+}
+
+// StampLayout is the form of each time that the application writes in a note.
+const StampLayout = "2006-01-02 15:04:05"
+
+// Stamp answers t in UTC, in StampLayout. The desktop and Android then
+// write the same text for one moment. See
+// doc/decisions/0023-write-each-time-in-utc.md.
+func Stamp(t time.Time) string {
+	return t.UTC().Format(StampLayout)
 }

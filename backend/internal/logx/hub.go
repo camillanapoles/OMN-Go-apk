@@ -90,7 +90,8 @@ func (h *Hub) Snapshot() []string {
 
 // TimeLayout is the time prefix of the standard log package with
 // log.LstdFlags. Logger.emit writes the stamp itself. Both sources must look
-// the same, or the page must parse two shapes.
+// the same, or the page must parse two shapes. Both are UTC: emit converts
+// the time, and initLogger of package app sets log.LUTC.
 const TimeLayout = "2006/01/02 15:04:05 "
 
 // Broadcast sends one line to each stream client and to the ring, and to
@@ -153,7 +154,7 @@ func (w stdWriter) Write(p []byte) (n int, err error) {
 // emit makes one line "[tag] (level) message", stamps it, and gives it to
 // the hub. It is the only writer of a line with a level.
 func (l Logger) emit(lvl Level, format string, args ...any) {
-	line := time.Now().Format(TimeLayout) +
+	line := time.Now().UTC().Format(TimeLayout) +
 		"[" + string(l.tag) + "] (" + string(lvl) + ") " +
 		fmt.Sprintf(format, args...) + "\n"
 	l.hub.Broadcast(line, l.Enabled(lvl))

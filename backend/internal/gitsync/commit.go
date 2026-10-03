@@ -169,7 +169,7 @@ func (svc Service) CommitLocalChanges(repo *git.Repository, wTree *git.Worktree,
 	sig := &object.Signature{
 		Name:  authorName,
 		Email: authorEmail,
-		When:  time.Now(),
+		When:  time.Now().UTC(),
 	}
 
 	commitOpts := &git.CommitOptions{

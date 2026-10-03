@@ -203,8 +203,8 @@ test('a damaged abbreviation never throws out of expandEmmet', () => {
 
 // "A line with --- and nothing else becomes three lines."
 //
-// The note prints the shape. The date and the time come from the device,
-// thus the test reads the shape and not the stamp.
+// The note prints the shape. This test reads the shape. The next test
+// reads the stamp.
 test('the divider of Editor.md', () => {
     const got = editor.expandMarkdownAbbr('---');
     assert.ok(got !== null, '--- did not expand');
@@ -212,6 +212,18 @@ test('the divider of Editor.md', () => {
     assert.ok(/^---\n##### \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\n/.test(text),
         'the divider gave ' + JSON.stringify(text) + '. Editor.md promises ' +
         '--- then a level five heading with the date and the time.');
+});
+
+// The stamp of the divider is UTC, the same as each time that the server
+// writes into a note. The moment below is 23:30 on October 3 in UTC. It is
+// already October 4 in each zone to the east, and a stamp from the clock of
+// the device would then show a different day.
+test('the divider writes the date and the time in UTC', () => {
+    const moment = new Date(Date.UTC(2026, 9, 3, 23, 30, 5));
+    const got = editor.expandMarkdownAbbr('---', moment);
+    const text = typeof got === 'string' ? got : got.text;
+    assert.ok(text.indexOf('##### 2026-10-03 23:30:05\n') >= 0,
+        'the divider gave ' + JSON.stringify(text) + ' for 2026-10-03 23:30:05 UTC');
 });
 
 // "A line with !!! and nothing else becomes an empty table."

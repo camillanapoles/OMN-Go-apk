@@ -207,8 +207,8 @@ func filesEmbeddedPath(tree, logical string) string {
 // Here most rows get no word at all.
 func (svc Service) filesState(tree string, e filesEntry, row *filesFileRow) {
 	if e.device != nil {
-		row.Mod = e.device.mod.Format("2006-01-02")
-		row.ModFull = e.device.mod.Format("2006-01-02 15:04")
+		row.Mod = e.device.mod.UTC().Format("2006-01-02")
+		row.ModFull = e.device.mod.UTC().Format("2006-01-02 15:04 UTC")
 	}
 	row.OwnerColor = filesColorApp
 
