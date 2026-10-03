@@ -149,7 +149,12 @@ the requests. The page has the `insertText` command of a browser, and
 `systemPage(template, script, server)` builds a system page: the shell
 with one template as its body, and the script of that page.
 
-Thirteen test files use these pages:
+`bookmarkPage(bookmarks, opts)` builds the bookmark page: a note page that
+loads `Bookmarker.js` after the scripts of `index.html`, with `bookmarks`
+as the list of the note. `opts.search` and `opts.hash` are the query and
+the fragment of the address, and `opts.storage` fills `localStorage`.
+
+Fourteen test files use these pages:
 
 | File | What it holds |
 | --- | --- |
@@ -161,6 +166,7 @@ Thirteen test files use these pages:
 | `editor-view.test.js` | An expansion keeps the view of the editor, from the Tab key and from the toolbar button. |
 | `editor-page.test.js` | A load that failed switches the save off. The save, Cancel, the jump to a line, the selection cycle, the two view toggles and a dropped file. |
 | `editor-find.test.js` | The find bar: the count, the steps, the three modes, and the text after Replace and Replace all. |
+| `bookmarker.test.js` | The bookmark page of `Bookmarker.js`: the list, the tags, the search, the address of the page and the options of the device. |
 | `nav.test.js` | The four answers to a press on a link of a note. The overlay of a slow page shows after 300 ms, and only for a press that leaves the page. |
 | `share.test.js` | The metadata panel writes each value as text. Send, the two copy controls, and the two ways to the clipboard. |
 | `status.test.js` | The Status page asks for a slow section only on a press. Each kind of value has its form, and each value is text. |
@@ -187,7 +193,9 @@ numbers are lower than the report of `node --experimental-test-coverage`.
 The target is 60 percent of the code lines of each script.
 `jsLineCoverageFloor` in `backend/internal/repocheck/js_test.go` lists the
 scripts below the target, with the number of each. The list only shrinks,
-and a number only rises. The test fails in four cases:
+and a number only rises. **The list is empty: each script is at the target.**
+Do not add a row for a new script. Write its tests. The test fails in four
+cases:
 
 1. A script that is not in the list is below the target.
 2. A script is below its floor.

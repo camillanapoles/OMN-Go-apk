@@ -576,9 +576,9 @@ subject line, also when it has no list.
   `backend/frontend/test/` with `node --test`. It also measures the lines of each
   script that the tests ran. **A new script, or new code in a script, needs a
   test that runs it.** The target is 60 percent of the code lines.
-  `jsLineCoverageFloor` holds the scripts that are below it. For a control, write
-  a test with `notePage()` of `dom-page.js`, which presses the control on the
-  markup of the real templates.
+  Each script is at the target, and `jsLineCoverageFloor` is empty. For a
+  control, write a test with `notePage()` of `dom-page.js`, which presses the
+  control on the markup of the real templates.
   `backend/internal/repocheck/java_test.go` compiles and runs `android/test/`
   with `javac` and `java`. Each one skips when the tool is absent, and the build
   image holds both. `doc/TESTING.md` maps the whole set.

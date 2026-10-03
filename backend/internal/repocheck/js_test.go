@@ -187,10 +187,11 @@ const jsLineCoverageTarget = 60.0
 //
 // The floor is the measured number, rounded down. A change that takes a
 // test away, or that adds code with no test, fails here.
+//
+// THE LIST IS EMPTY. Each shipped script is at the target. Do not put a
+// row here for a new script. Write the tests of that script.
 
-var jsLineCoverageFloor = map[string]float64{
-	"Bookmarker.js": 0,
-}
+var jsLineCoverageFloor = map[string]float64{}
 
 // jsCoverageSlack is the count of percent points that a script can be above
 // its floor before the test asks for a higher floor. Without it a floor

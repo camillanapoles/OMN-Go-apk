@@ -188,6 +188,16 @@ class Node extends EventTarget {
         return old;
     }
     remove() { if (this.parentNode) this.parentNode.removeChild(this); }
+    // replaceChildren takes each child away and adds the new nodes.
+    replaceChildren() {
+        for (const c of this.childNodes.slice()) this.removeChild(c);
+        for (const c of arguments) this.appendChild(c);
+    }
+    // after puts the new nodes behind this node, in their order.
+    after() {
+        const before = this.nextSibling;
+        for (const c of arguments) this.parentNode.insertBefore(c, before);
+    }
     get textContent() {
         return this.childNodes.map(function (c) { return c.textContent; }).join('');
     }
@@ -348,7 +358,12 @@ class Element extends Node {
     blur() { if (this.ownerDocument.activeElement === this) this.ownerDocument.activeElement = this.ownerDocument.body; }
     select() { this._selected = true; }
     setSelectionRange(a, b) { this.selectionStart = a; this.selectionEnd = b; }
-    scrollIntoView() { this._scrolledIntoView = true; }
+    // scrollIntoView keeps the options of each call in _scrolls, thus a
+    // test can tell a scroll to the center from a plain scroll.
+    scrollIntoView(options) {
+        this._scrolledIntoView = true;
+        this._scrolls = (this._scrolls || []).concat([options || null]);
+    }
     getBoundingClientRect() { return { top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 }; }
     // offsetParent is null for an element that a class or a style hides.
     // The scripts use it as "is this element on screen".

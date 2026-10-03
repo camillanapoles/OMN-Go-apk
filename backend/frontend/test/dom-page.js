@@ -427,6 +427,36 @@ async function editorPage(text, opts) {
     return h;
 }
 
+// bookmarkPage answers the bookmark page after the load of its script.
+// The page is a note page: the scripts of index.html load first, and the
+// note then loads Bookmarker.js, the same as md/Bookmarks.md does.
+//
+// bookmarks is the list that the script block of the note sets. The page
+// gets a copy, because the script sorts the list in place.
+//
+// opts.search is the query of the address, and opts.hash is its fragment.
+// opts.storage gives the values that localStorage holds before the load.
+// opts.preview is the markup that the note has before the script runs.
+//
+// h.storage is the localStorage of the page, as a plain object. The
+// script reads and writes it with an index, and a plain object allows
+// that.
+function bookmarkPage(bookmarks, opts) {
+    opts = opts || {};
+    const h = newDomPage({ note: 'Bookmarks', preview: opts.preview || '' });
+    h.page.bookmarks = JSON.parse(JSON.stringify(bookmarks));
+    h.page.location.search = opts.search || '';
+    if (opts.hash) h.page.location.hash = opts.hash;
+    h.storage = Object.assign({}, opts.storage || {});
+    h.page.localStorage = h.storage;
+    // Bookmarker.css hides the tag cloud until a style shows it.
+    h.page.getComputedStyle = function (el) {
+        return { display: el.style.display || (el.id === 'tagsCloud' ? 'none' : 'block') };
+    };
+    return h.load(shellScripts().concat(['Bookmarker.js'])).ready();
+}
+
 module.exports = {
-    newDomPage, notePage, configPage, systemPage, editorPage, shellBody, shellScripts, template,
+    newDomPage, notePage, configPage, systemPage, editorPage, bookmarkPage,
+    shellBody, shellScripts, template,
 };
