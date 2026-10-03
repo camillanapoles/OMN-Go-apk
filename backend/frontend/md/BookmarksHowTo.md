@@ -1,6 +1,6 @@
 Title: How to use Bookmarks
 Date: 2026-08-03 12:00:00
-Modified: 2026-09-03 12:00:00
+Modified: 2026-10-03 12:00:00
 Category: System
 Author: Mikhail Basov
 Tags: Bookmarks, OMN-Go, OMN-Go app
@@ -226,6 +226,12 @@ These lines must stand at the end of the note.
 ```
 
 The two paths point to the files of the application. Change them when you export the note to a different directory.
+
+### The values are text
+
+The page shows the title, the address, each tag and each note as plain text. HTML in a value does not work: the page shows the characters and makes no element.
+
+An address that starts with `javascript:`, `data:` or `vbscript:` gets no link. The item still shows the text of that address.
 
 ### One limit
 

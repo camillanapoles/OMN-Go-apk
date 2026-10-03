@@ -141,6 +141,81 @@ test('a rest of the pointer on a link copies the address after 500 ms', async ()
 });
 
 // ---------------------------------------------------------------------
+// The values of a bookmark are text
+// ---------------------------------------------------------------------
+//
+// THE FAULT THAT THIS PART HOLDS. The page wrote the title, the address and
+// the tags with innerHTML. The title of a bookmark is the title of a page
+// of a different site. A title with markup thus ran a script on this page,
+// with the session of the reader. A check in Chromium saw the script run.
+
+const MARKUP = {
+    date: '2026-06-01 10:00:00',
+    url: 'https://m.example/?q=<s>1</s>',
+    title: '<img src=x onerror="window.ran=1"> <b>bold</b> &amp;',
+    tags: ['<i>tag</i>', '!<em>mark</em>'],
+    notes: ['<u>note</u>'],
+};
+
+test('markup in a value of a bookmark shows as text and makes no element', () => {
+    const h = bookmarkPage([MARKUP, { date: '2026-06-02 10:00:00', url: MARKUP.url, title: '' }]);
+    for (const tag of ['img', 'b', 'i', 'u', 's', 'em']) {
+        assert.strictEqual(h.$('#preview').querySelectorAll(tag).length, 0,
+            'a value of a bookmark made the element <' + tag + '>');
+    }
+    // The second bookmark has no title, thus its link shows the address.
+    assert.deepStrictEqual(shown(h), [MARKUP.url, MARKUP.title]);
+    const li = entry(h, MARKUP);
+    assert.ok(li.querySelector('span').textContent.indexOf(MARKUP.url) >= 0);
+    assert.strictEqual(li.querySelectorAll('span br').length, 1, 'the address is not on a line of its own');
+    assert.ok(li.textContent.indexOf('"<u>note</u>"') >= 0);
+
+    // A tag with markup is still a tag: the cloud shows it and filters by it.
+    const cloud = h.$('#tagsCloud').querySelectorAll('button').map((b) => b.textContent);
+    assert.deepStrictEqual(cloud, ['NoTag', 'Duplicates', '<em>mark</em>', '<i>tag</i>']);
+    button(h, '#tagsCloud', '<i>tag</i>').click();
+    assert.deepStrictEqual(shown(h), [MARKUP.title]);
+    button(h, '#bmlist', '<i>tag</i>').click();
+    assert.deepStrictEqual(shown(h), [MARKUP.title]);
+});
+
+test('an address that would run a script gets no link', () => {
+    const scripts = [
+        'javascript:alert(1)',
+        ' JaVaScRiPt:alert(1)',
+        'java\tscript:alert(1)',
+        '\u0001javascript:alert(1)',
+        'data:text/html,<script>alert(1)</script>',
+        'vbscript:msgbox(1)',
+    ];
+    const list = scripts.map(function (url, i) {
+        return { date: '2026-07-0' + (i + 1) + ' 10:00:00', url: url, title: 'script ' + i };
+    });
+    const h = bookmarkPage(list);
+    assert.strictEqual(shown(h).length, scripts.length, 'the page hides the bookmark, and the person cannot see it');
+    for (const bm of list) {
+        const li = entry(h, bm);
+        assert.strictEqual(li.querySelector('a').hasAttribute('href'), false,
+            'a press on the link runs ' + JSON.stringify(bm.url));
+        assert.ok(li.textContent.indexOf(bm.url) >= 0, 'the item does not show its address');
+    }
+});
+
+test('each other address keeps its link', () => {
+    const addresses = [
+        'https://a.example/page', 'http://a.example/', '/BookmarksHowTo.html', 'Welcome.html',
+        'mailto:a@a.example', 'ftp://a.example/file', 'https://a.example/?next=javascript:x',
+    ];
+    const list = addresses.map(function (url, i) {
+        return { date: '2026-08-0' + (i + 1) + ' 10:00:00', url: url, title: 'address ' + i };
+    });
+    const h = bookmarkPage(list);
+    for (const bm of list) {
+        assert.strictEqual(entry(h, bm).querySelector('a').getAttribute('href'), bm.url);
+    }
+});
+
+// ---------------------------------------------------------------------
 // The tags
 // ---------------------------------------------------------------------
 

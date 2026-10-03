@@ -387,7 +387,9 @@ fail when you skip one of these steps.
   * `omn-go-compat.js` holds the too-old-WebView notice, and nothing else. It is
     the only ES5 file. See section 1, rule 5.
   * `Bookmarker.js` holds the bookmark page of the bundled note. See
-    `frontend/md/BookmarksHowTo.md`.
+    `frontend/md/BookmarksHowTo.md`. **A value of a bookmark is text from a
+    foreign page.** Write it with `textContent`, and never with `innerHTML`.
+    `TestBookmarkerWritesNoValueAsHTML` holds the rule.
   * `omn-go-custom.js` and `omn-go-custom.css` are user files. They are empty on
     purpose. `omn-go-custom.js` stays independent. It keeps its own plain
     `<script>` element, and it loads last.

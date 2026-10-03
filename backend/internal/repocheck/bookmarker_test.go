@@ -93,6 +93,40 @@ func TestBookmarkerConfigKeyIsWellFormed(t *testing.T) {
 	}
 }
 
+// bookmarkerHTMLWriteRe reads the right side of each write of innerHTML.
+var bookmarkerHTMLWriteRe = regexp.MustCompile(`\.innerHTML\s*\+?=\s*([^;\n]*)`)
+
+// bookmarkerFixedHTMLRe matches a right side that holds no value of a
+// bookmark: one text literal, the count of the list, or the version.
+var bookmarkerFixedHTMLRe = regexp.MustCompile(`^('[^'+]*'|"[^"+]*"|counter|bVersion)$`)
+
+// A value of a bookmark is text from a foreign place: the title of a page
+// of a different site, an address from a share. innerHTML runs the markup
+// of such a value with the session of the reader. Each write of innerHTML
+// in Bookmarker.js must thus hold a fixed text. bookmarker.test.js loads
+// a list with markup in each value and reads the page.
+func TestBookmarkerWritesNoValueAsHTML(t *testing.T) {
+	js := jsWithoutComments(bookmarkerJS(t))
+
+	writes := bookmarkerHTMLWriteRe.FindAllStringSubmatch(js, -1)
+	if len(writes) == 0 {
+		t.Fatal("Bookmarker.js has no write of innerHTML, thus this test reads nothing. " +
+			"Delete the test, or correct its pattern.")
+	}
+	for _, m := range writes {
+		if right := strings.TrimSpace(m[1]); !bookmarkerFixedHTMLRe.MatchString(right) {
+			t.Errorf("Bookmarker.js gives %q to innerHTML. Only a fixed text can go "+
+				"there. Write a value of a bookmark with textContent.", right)
+		}
+	}
+	for _, bad := range []string{"insertAdjacentHTML", "outerHTML", "document.write"} {
+		if strings.Contains(js, bad) {
+			t.Errorf("Bookmarker.js uses %s, which runs the markup of its text. "+
+				"Build the elements with createElement and textContent.", bad)
+		}
+	}
+}
+
 // Code that makes a prefix from an application id must not return.
 // Each name below is a silent fault: a test of an undefined name is always
 // false, thus no reader and no console reports it.

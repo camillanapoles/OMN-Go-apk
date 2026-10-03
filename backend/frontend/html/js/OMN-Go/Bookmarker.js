@@ -48,6 +48,24 @@ function compactDuplicates(){
   }
   durls = Object.keys(index);
 }
+// linkAddress answers the address that the link of a bookmark can open, or
+// an empty text for an address that would run a script.
+//
+// A VALUE OF A BOOKMARK IS TEXT FROM A FOREIGN PLACE. The title is the title
+// of a page of a different site, and the address comes from a share. This
+// page thus writes each value as text, with textContent. It never gives one
+// to innerHTML, which would run the markup of that value with the session of
+// the reader.
+//
+// The address also goes to the href of a link. A press on a link of the
+// scheme "javascript:" runs its text as a script. A browser drops each space
+// and each control character of a scheme, thus this function drops them
+// first. The item of such a bookmark keeps its text and gets no link.
+function linkAddress(url) {
+  const compact = String(url).replace(/[\u0000-\u0020]/g, '');
+  if (/^(javascript|data|vbscript):/i.test(compact)) return '';
+  return url;
+}
 function showBookmarks(onlyTag = '', search = '', duplicates = false) {
   // sort bookmarks by date (newest upper)
   bookmarks.sort((a, b) => { if (a.date > b.date) { return -1; } });
@@ -69,16 +87,18 @@ function showBookmarks(onlyTag = '', search = '', duplicates = false) {
       analyzeDuplicates(bm);
       let li = document.createElement('li');
       let a = document.createElement('a');
-      a.setAttribute('href',bm.url);
+      const href = linkAddress(bm.url);
+      if (href !== '') a.setAttribute('href', href);
       // Set title or url as title if empty
       if (bm.title && bm.title !== '')
-        a.innerHTML = bm.title;
+        a.textContent = bm.title;
       else
-        a.innerHTML = bm.url;
+        a.textContent = bm.url;
       a.onmouseover = () => {setTimeout( () => { navigator.clipboard.writeText(bm.url); }, 500 );};
       li.appendChild(a);
       let span = document.createElement('span');
-      span.innerHTML = '<br/>' + bm.url;
+      span.appendChild(document.createElement('br'));
+      span.appendChild(document.createTextNode(bm.url));
       li.appendChild(span);
       if (bm.date && bm.date !== '') {
         li.setAttribute('id', bm.date.replaceAll(':','').replaceAll(' ','-'));
@@ -169,10 +189,10 @@ function showBookmarks(onlyTag = '', search = '', duplicates = false) {
       if (tagC == onlyTag)
         tagB.disabled = true;
       if (tagC.startsWith('!')) {
-        tagB.innerHTML = tagC.substring(1);
+        tagB.textContent = tagC.substring(1);
         tagB.classList.add('tagSpecial');
       } else {
-        tagB.innerHTML = tagC;
+        tagB.textContent = tagC;
       }
       tagB.classList.add('tag');
       var tagHandler = function(){showBookmarks(tagC);};
