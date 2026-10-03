@@ -365,6 +365,33 @@ test('a dropped JSON file goes to the JSON upload, by its name or by its type', 
     }
 });
 
+// A contact and a calendar have an upload of their own, the same as a JSON
+// file. A wrong route here gives "file type is not allowed" for a good file.
+test('a dropped contact or calendar goes to the upload of its tree', async () => {
+    const cases = [
+        ['log.jsonl', '', '/api/upload_json'],
+        ['AnnLee.VCF', '', '/api/upload_contacts'],
+        ['AnnLee', 'text/x-vcard', '/api/upload_contacts'],
+        ['card', 'text/vcard', '/api/upload_contacts'],
+        ['invite.ics', 'application/octet-stream', '/api/upload_calendars'],
+        ['old.vcs', '', '/api/upload_calendars'],
+        ['event', 'text/calendar', '/api/upload_calendars'],
+        // The name decides before the type.
+        ['invite.ics', 'application/json', '/api/upload_calendars'],
+        // Each other file is an image for the server to accept or refuse.
+        ['notes.txt', 'text/plain', '/api/upload'],
+    ];
+    for (const c of cases) {
+        const h = await editorPage(NOTE);
+        h.server = function () { return { httpStatus: 200, text: '[x](/user_contacts/x.vcf)' }; };
+        drop(h, c[0], c[1]);
+        await h.settle();
+        const sent = h.requests[h.requests.length - 1];
+        assert.strictEqual(sent.url, c[2], c[0] + ' (' + c[1] + ')');
+        assert.strictEqual(sent.body, (c[2] === '/api/upload' ? 'image=' : 'file=') + c[0]);
+    }
+});
+
 test('an upload that the server refused shows the cause and changes no text', async () => {
     const h = await editorPage(NOTE);
     h.server = function () { return { httpStatus: 413, text: ' file too large \n' }; };

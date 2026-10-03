@@ -35,11 +35,13 @@ func searchKindLabel(kind string) string {
 		return "Scripts"
 	case config.SearchKindJSON:
 		return "JSON"
-	case config.SearchKindUserJSON:
-		return "Uploaded JSON"
-	default:
-		return kind
 	}
+	for _, tree := range config.UserFileTrees {
+		if kind == tree.Dir {
+			return tree.Label
+		}
+	}
+	return kind
 }
 
 // renderSnippetHTML puts <mark> around each span. The spans are RUNE offsets,

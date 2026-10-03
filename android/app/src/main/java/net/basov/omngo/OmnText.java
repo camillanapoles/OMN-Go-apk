@@ -79,19 +79,106 @@ final class OmnText {
         return false;
     }
 
+    /** One tree of files that the user uploads or shares. */
+    static final class UserFileTree {
+        /** The directory below html/, and the first segment of the URL. */
+        final String dir;
+        /** The name of one file of the tree in a message. */
+        final String word;
+        /** The extensions that the tree takes. The first one is the default. */
+        final String[] exts;
+        /** The types that a sender can give such a file. */
+        final String[] types;
+
+        UserFileTree(String dir, String word, String[] exts, String[] types) {
+            this.dir = dir;
+            this.word = word;
+            this.exts = exts;
+            this.types = types;
+        }
+
+        boolean hasExtension(String ext) {
+            return Arrays.asList(exts).contains(ext);
+        }
+    }
+
+    // USER_FILE_TREES is the copy of config.UserFileTrees in
+    // backend/internal/config/user_files.go. The share path writes a file
+    // without the Go server, thus it cannot read that table.
+    // TestUserFileTreesHaveTheirCopies in backend/internal/repocheck
+    // compares the rows with the Go table.
+    static final UserFileTree[] USER_FILE_TREES = {
+        new UserFileTree("user_json", "JSON file",
+            new String[]{".json", ".jsonl"},
+            new String[]{"application/json", "application/jsonl"}),
+        new UserFileTree("user_contacts", "Contact file",
+            new String[]{".vcf"},
+            new String[]{"text/vcard", "text/x-vcard"}),
+        new UserFileTree("user_calendars", "Calendar file",
+            new String[]{".ics", ".vcs"},
+            new String[]{"text/calendar", "text/x-vcalendar"}),
+    };
+
+    // Answers the tree of a shared file, or null for each other file. The
+    // extension of the name decides before the declared type. Many senders
+    // give a generic type or a wrong one.
+    static UserFileTree userFileTree(String mimeType, String displayName) {
+        String ext = "";
+        if (displayName != null) {
+            String lower = displayName.toLowerCase(Locale.ROOT);
+            int dot = lower.lastIndexOf('.');
+            if (dot >= 0) ext = lower.substring(dot);
+        }
+        for (UserFileTree tree : USER_FILE_TREES) {
+            if (tree.hasExtension(ext)) return tree;
+        }
+        if (mimeType == null) return null;
+        for (UserFileTree tree : USER_FILE_TREES) {
+            if (Arrays.asList(tree.types).contains(mimeType)) return tree;
+        }
+        return null;
+    }
+
+    // Answers the Markdown link of a file in a tree. The text is the same
+    // as the answer of handleUploadUserFile in
+    // backend/internal/app/upload_handlers.go. The target has each byte
+    // escaped that url.PathEscape of Go escapes. A contact file often has a
+    // space in its name, and a space ends the target of a Markdown link.
+    static String userFileLink(String dir, String filename) {
+        StringBuilder target = new StringBuilder();
+        byte[] bytes;
+        try {
+            bytes = filename.getBytes("UTF-8");
+        } catch (java.io.UnsupportedEncodingException e) {
+            bytes = filename.getBytes();
+        }
+        for (byte b : bytes) {
+            int c = b & 0xff;
+            boolean plain = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+                || "-_.~$&+=:@".indexOf(c) >= 0;
+            if (plain) {
+                target.append((char) c);
+            } else {
+                target.append('%').append("0123456789ABCDEF".charAt(c >> 4)).append("0123456789ABCDEF".charAt(c & 15));
+            }
+        }
+        return "\n[" + filename + "](/" + dir + "/" + target + ")\n";
+    }
+
     // Falls back to a generated name when the content provider supplies
     // none. It also strips each path separator that a provider can smuggle
     // into DISPLAY_NAME, thus this can never write outside destDir.
-    static String sanitizeSharedFilename(String displayName, boolean isJson) {
+    // defaultExt is the extension of a name that has none.
+    static String sanitizeSharedFilename(String displayName, String defaultExt) {
         String name = displayName;
         if (name == null || name.trim().isEmpty()) {
-            name = "shared_" + System.currentTimeMillis() + (isJson ? ".json" : ".png");
+            name = "shared_" + System.currentTimeMillis() + defaultExt;
         }
         name = name.replace('\\', '/');
         int slash = name.lastIndexOf('/');
         if (slash >= 0) name = name.substring(slash + 1);
         if (name.isEmpty() || name.lastIndexOf('.') <= 0) {
-            name = name + (isJson ? ".json" : ".png");
+            name = name + defaultExt;
         }
         return name;
     }

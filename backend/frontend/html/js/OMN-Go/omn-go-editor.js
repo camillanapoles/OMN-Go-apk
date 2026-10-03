@@ -1561,21 +1561,47 @@
         markDirty();
     }
 
+    // USER_FILE_UPLOADS is the copy of config.UserFileTrees in
+    // backend/internal/config/user_files.go. A row gives the upload route
+    // of one tree, its extensions and the types that a browser can give.
+    // TestUserFileTreesHaveTheirCopies compares the rows with the Go table.
+    var USER_FILE_UPLOADS = [
+        { url: '/api/upload_json', exts: ['.json', '.jsonl'], types: ['application/json'] },
+        { url: '/api/upload_contacts', exts: ['.vcf'], types: ['text/vcard', 'text/x-vcard'] },
+        { url: '/api/upload_calendars', exts: ['.ics', '.vcs'], types: ['text/calendar', 'text/x-vcalendar'] }
+    ];
+
+    // userFileUpload answers the upload route of the tree that takes file.
+    // It answers '' for each other file, and that file goes to the image
+    // upload. The extension decides before the type. Some OS file managers
+    // hand the browser an empty or generic type for a dragged file.
+    function userFileUpload(file) {
+        var name = String(file.name || '').toLowerCase();
+        var dot = name.lastIndexOf('.');
+        var ext = dot >= 0 ? name.substring(dot) : '';
+        var i;
+        for (i = 0; i < USER_FILE_UPLOADS.length; i++) {
+            if (USER_FILE_UPLOADS[i].exts.indexOf(ext) >= 0) return USER_FILE_UPLOADS[i].url;
+        }
+        for (i = 0; i < USER_FILE_UPLOADS.length; i++) {
+            if (file.type && USER_FILE_UPLOADS[i].types.indexOf(file.type) >= 0) return USER_FILE_UPLOADS[i].url;
+        }
+        return '';
+    }
+
     async function setupDragDrop() {
         ta.addEventListener('dragover', function (e) { e.preventDefault(); });
         ta.addEventListener('drop', async function (e) {
             if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
             e.preventDefault();
             var file = e.dataTransfer.files[0];
-            // .json files go through the dedicated JSON upload endpoint. It
-            // lands them in user_json/ and not in images/, and it returns a
-            // plain "[name](/user_json/name)" link and not an image embed.
-            // The test reads the extension and the MIME type. Some OS file
-            // managers hand the browser an empty or generic type for a
-            // dragged file.
-            var isJSON = /\.json$/i.test(file.name) || file.type === 'application/json';
-            var uploadURL = isJSON ? '/api/upload_json' : '/api/upload';
-            var fieldName = isJSON ? 'file' : 'image';
+            // A JSON file, a contact and a calendar go to the upload of
+            // their tree. It puts the file in that tree and not in images/,
+            // and it answers a plain "[name](/user_json/name)" link and not
+            // an image embed.
+            var userURL = userFileUpload(file);
+            var uploadURL = userURL || '/api/upload';
+            var fieldName = userURL ? 'file' : 'image';
             var fd = new FormData();
             fd.append(fieldName, file);
             // Uploads can take a while on a phone, up to Max Upload Size,
@@ -1671,6 +1697,8 @@
             parseAbbr: parseAbbr,
             expandEmmet: expandEmmet,
             expandMarkdownAbbr: expandMarkdownAbbr,
+            userFileUploads: USER_FILE_UPLOADS,
+            userFileUpload: userFileUpload,
         };
     }
 })();

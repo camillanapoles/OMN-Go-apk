@@ -38,7 +38,7 @@ OMN-Go replaces the original [mvbasov/OMN](https://github.com/mvbasov/OMN) proje
 
 * **Image Uploads:** Paste or drag an image into the editor. OMN-Go saves the image on the device and adds a link to it in your Markdown source.
 
-* **Android "Share To" Integration:** OMN-Go handles Android intents. You can share a URL or text from another application into the Bookmarks page or the Quick Notes page.
+* **Android "Share To" Integration:** OMN-Go handles Android intents. You can share a URL or text from another application into the Bookmarks page or the Quick Notes page. You can also share an image, a JSON file, a contact (vCard) or a calendar (iCalendar, vCalendar).
 
 * **Optional Git Sync:** OMN-Go can synchronize your whole storage directory across devices over SSH. It shows each conflict clearly. You can then do a manual merge, or a safe force pull or push.
 

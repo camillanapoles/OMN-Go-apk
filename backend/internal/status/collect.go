@@ -270,6 +270,10 @@ func (svc Service) statusStorageSection() (*statusStorage, error) {
 			add(&out.Images, size)
 		case strings.HasPrefix(rel, "html/user_json/"):
 			add(&out.UserJSON, size)
+		case strings.HasPrefix(rel, "html/user_contacts/"):
+			add(&out.UserContacts, size)
+		case strings.HasPrefix(rel, "html/user_calendars/"):
+			add(&out.UserCalendars, size)
 		case strings.HasPrefix(rel, "html/") && strings.HasSuffix(name, ".html"):
 			add(&out.Pages, size)
 		case strings.HasPrefix(rel, "db/") && strings.HasSuffix(name, ".sqlite"):

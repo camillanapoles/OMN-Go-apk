@@ -61,19 +61,20 @@ func NormalizeFullscreen(s string) string {
 
 // These are the search kinds of Config.SearchKinds. They tell what the GLOBAL
 // index covers. Page search ignores this setting, and it reads the open file.
-// The default is notes and bookmarks. Scripts and JSON are optional, because
-// each kind costs memory for the life of the process.
+// The default is notes and bookmarks. Scripts, JSON and each tree of
+// UserFileTrees are optional, because each kind costs memory for the life of
+// the process.
 const (
 	SearchKindMD        = "md"
 	SearchKindBookmarks = "bookmarks"
 	SearchKindJS        = "js"
 	SearchKindJSON      = "json"
-	SearchKindUserJSON  = "user_json"
 )
 
-var SearchKindsAll = []string{
-	SearchKindMD, SearchKindBookmarks, SearchKindJS, SearchKindJSON, SearchKindUserJSON,
-}
+// SearchKindsAll ends with one kind for each tree of UserFileTrees.
+var SearchKindsAll = append([]string{
+	SearchKindMD, SearchKindBookmarks, SearchKindJS, SearchKindJSON,
+}, userFileKinds()...)
 
 var searchKindsDefault = []string{SearchKindMD, SearchKindBookmarks}
 
@@ -224,7 +225,7 @@ type GitServer struct {
 }
 
 // DefaultMaxUploadSizeMB is the default limit, in MB, for an uploaded image
-// or JSON file. saveUploadedFile in upload_handlers.go applies it. The Android
+// or a file of UserFileTrees. saveUploadedFile in upload_handlers.go applies it. The Android
 // "share to OMN-Go" path writes the file without the Go server, thus
 // MainActivity.java reads the same value from config.json. See
 // Config.MaxUploadSizeMB.
@@ -263,7 +264,7 @@ type Config struct {
 	SearchBundled bool `json:"search_bundled"`
 	// SearchScope is where a search starts: "all" or "page".
 	SearchScope string `json:"search_scope"`
-	// MaxUploadSizeMB limits an uploaded image or JSON file, in MB. See
+	// MaxUploadSizeMB limits an uploaded image or user file, in MB. See
 	// DefaultMaxUploadSizeMB.
 	MaxUploadSizeMB int `json:"max_upload_size_mb"`
 	// EnableIntentURI is the main switch for an Android "intent:" link in a

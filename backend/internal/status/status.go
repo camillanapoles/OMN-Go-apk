@@ -224,15 +224,17 @@ type statusGroup struct {
 }
 
 type statusStorage struct {
-	Dir          string      `json:"dir"`
-	Notes        statusGroup `json:"notes"`
-	Pages        statusGroup `json:"pages"`
-	Images       statusGroup `json:"images"`
-	UserJSON     statusGroup `json:"user_json"`
-	Databases    statusGroup `json:"databases"`
-	Backups      statusGroup `json:"backups"`
-	AssetBackups statusGroup `json:"asset_backups"`
-	Total        statusGroup `json:"total"`
+	Dir           string      `json:"dir"`
+	Notes         statusGroup `json:"notes"`
+	Pages         statusGroup `json:"pages"`
+	Images        statusGroup `json:"images"`
+	UserJSON      statusGroup `json:"user_json"`
+	UserContacts  statusGroup `json:"user_contacts"`
+	UserCalendars statusGroup `json:"user_calendars"`
+	Databases     statusGroup `json:"databases"`
+	Backups       statusGroup `json:"backups"`
+	AssetBackups  statusGroup `json:"asset_backups"`
+	Total         statusGroup `json:"total"`
 }
 
 // ----------------------------------------------------------------------

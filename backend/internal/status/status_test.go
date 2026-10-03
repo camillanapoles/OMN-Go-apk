@@ -221,6 +221,51 @@ func TestStatusStorageCounts(t *testing.T) {
 
 // An install that never synced has no repository, and status must report
 // that instead of creating one.
+// The storage section has one group for each tree of config.UserFileTrees,
+// in the JSON answer and in the Markdown answer. The group has the name of
+// the directory. This test fails for a new tree with no group, because its
+// files then count in the total only.
+func TestStatusStorageHasAGroupForEachUserFileTree(t *testing.T) {
+	a := newTestApp(t)
+	for _, tree := range config.UserFileTrees {
+		for i, ext := range tree.Exts {
+			p := filepath.Join(a.StorageDir, "html", tree.Dir, "f"+ext)
+			if i == 0 {
+				if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := os.WriteFile(p, []byte("data"), 0644); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	_, rec := getStatus(t, a, "sections=storage")
+	var raw struct {
+		Storage map[string]json.RawMessage `json:"storage"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &raw); err != nil {
+		t.Fatal(err)
+	}
+	md := httptest.NewRecorder()
+	a.handleStatus(md, httptest.NewRequest(http.MethodGet, "/api/status?sections=storage&format=md", nil))
+	for _, tree := range config.UserFileTrees {
+		var group statusGroup
+		if err := json.Unmarshal(raw.Storage[tree.Dir], &group); err != nil {
+			t.Errorf("the storage section has no group %q: %v", tree.Dir, err)
+			continue
+		}
+		if group.Files != len(tree.Exts) || group.Bytes != int64(4*len(tree.Exts)) {
+			t.Errorf("%s: %+v, want %d file(s) of 4 bytes", tree.Dir, group, len(tree.Exts))
+		}
+		row := "| " + tree.Dir + " | "
+		if !strings.Contains(md.Body.String(), row) {
+			t.Errorf("the Markdown answer has no row for %s", tree.Dir)
+		}
+	}
+}
+
 func TestStatusGitCreatesNothing(t *testing.T) {
 	a := newTestApp(t)
 

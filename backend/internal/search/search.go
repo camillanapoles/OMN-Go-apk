@@ -18,6 +18,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/textmatch"
 )
 
@@ -49,15 +50,20 @@ const (
 	weightContent = 10
 )
 
-// The kind weights are times 100. A note wins against a JSON file at an equal
-// score.
-var kindWeight = map[string]int{
-	"md":        100,
-	"bookmarks": 100,
-	"json":      90,
-	"user_json": 90,
-	"js":        85,
-}
+// The kind weights are times 100. A note wins against a JSON file or a file
+// of config.UserFileTrees at an equal score.
+var kindWeight = func() map[string]int {
+	weights := map[string]int{
+		"md":        100,
+		"bookmarks": 100,
+		"json":      90,
+		"js":        85,
+	}
+	for _, tree := range config.UserFileTrees {
+		weights[tree.Dir] = 90
+	}
+	return weights
+}()
 
 // queryTerm is one folded term of the query, with its character mask and its
 // field.
@@ -243,11 +249,14 @@ func isBinary(data []byte) bool {
 
 // assetKind maps a storage-relative html/ path to its search kind.
 func assetKind(rel string) string {
+	for _, tree := range config.UserFileTrees {
+		if strings.HasPrefix(rel, tree.Dir+"/") {
+			return tree.Dir
+		}
+	}
 	switch {
 	case strings.HasPrefix(rel, "js/"):
 		return "js"
-	case strings.HasPrefix(rel, "user_json/"):
-		return "user_json"
 	case strings.HasPrefix(rel, "json/"):
 		return "json"
 	default:

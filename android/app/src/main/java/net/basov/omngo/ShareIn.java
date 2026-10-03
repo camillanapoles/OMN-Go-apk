@@ -1,7 +1,8 @@
 package net.basov.omngo;
 
-// ShareIn takes what another application gives to OMN-Go: a note, an image
-// or a JSON file. MainActivity reads the intent and calls a method here.
+// ShareIn takes what another application gives to OMN-Go: a note, an image,
+// a JSON file, a contact or a calendar. MainActivity reads the intent and
+// calls a method here.
 // See onCreate and onNewIntent of MainActivity.
 //
 // The text rules are in OmnText, where a plain JVM can test them.
@@ -35,16 +36,19 @@ final class ShareIn {
     // whatever the WebView does.
     //   1. Validate the shared file and copy it straight onto the same
     //      on-disk tree that the Go server serves from, which is
-    //      storageDir()/html/images or .../user_json. It enforces the same
+    //      storageDir()/html/images or .../user_json. A contact and a
+    //      calendar have a tree each. See OmnText.USER_FILE_TREES. It
+    //      enforces the same
     //      extension whitelist and max-size limit that saveUploadedFile
     //      enforces on the server for the own drag-and-drop upload of the
     //      editor. The limit comes from max_upload_size_mb in config.json.
     //      See backend/internal/app/upload_handlers.go. If
-    //      imageUploadExtensions or jsonUploadExtensions changes there,
-    //      change the whitelist here too.
+    //      imageUploadExtensions changes there, change the whitelist here
+    //      too. OmnText.USER_FILE_TREES holds each other list.
     //   2. Build the same snippet format that those Go handlers return.
-    //      An image gets an HTML <img class="omn-imported-image"> tag, and
-    //      JSON gets [name](/user_json/name) markdown link syntax. POST it
+    //      An image gets an HTML <img class="omn-imported-image"> tag. A
+    //      JSON file, a contact and a calendar get a markdown link, for
+    //      example [name](/user_json/name). POST it
     //      as a Quick Note with the existing /api/quick endpoint. The
     //      QuickNotes.md append and compile logic of the server is thus
     //      reused and not duplicated here. See handleQuickNote. A loopback
@@ -56,13 +60,12 @@ final class ShareIn {
     // handled, which is ACTION_SEND and not ACTION_SEND_MULTIPLE. That
     // matches the scope of the text/plain share handling of MainActivity.
 
-    // JSON and image extensions this app accepts via share - kept in sync
-    // with jsonUploadExtensions / imageUploadExtensions in
-    // backend/internal/app/upload_handlers.go. These two sets are the one
-    // source in this file. isSharedFileIntent and handleSharedFile both use
-    // them, thus no other line types the lists again.
-    static final java.util.Set<String> SHARED_JSON_EXT =
-        new java.util.HashSet<>(java.util.Arrays.asList(".json", ".jsonl"));
+    // The image extensions that this app accepts through a share. Keep the
+    // set the same as imageUploadExtensions in
+    // backend/internal/app/upload_handlers.go. This set is the one source
+    // in this file. isSharedFileIntent and handleSharedFile both use it.
+    // OmnText.USER_FILE_TREES holds the extensions of a JSON file, of a
+    // contact and of a calendar.
     static final java.util.Set<String> SHARED_IMAGE_EXT =
         new java.util.HashSet<>(java.util.Arrays.asList(".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"));
 
@@ -267,7 +270,7 @@ final class ShareIn {
         android.net.Uri stream = intent.getParcelableExtra(android.content.Intent.EXTRA_STREAM);
         if (stream == null) return false;
         String type = intent.getType();
-        if (type != null && (type.startsWith("image/") || "application/json".equals(type))) {
+        if (type != null && (type.startsWith("image/") || OmnText.userFileTree(type, null) != null)) {
             return true;
         }
         // Many senders hand a JSON share over with a generic or wrong MIME
@@ -282,13 +285,11 @@ final class ShareIn {
         // and do not trust the declared type.
         String name = queryDisplayName(stream);
         if (name != null) {
+            if (OmnText.userFileTree(null, name) != null) return true;
             String lower = name.toLowerCase(java.util.Locale.ROOT);
             int dot = lower.lastIndexOf('.');
-            if (dot >= 0) {
-                String ext = lower.substring(dot);
-                if (SHARED_JSON_EXT.contains(ext) || SHARED_IMAGE_EXT.contains(ext)) {
-                    return true;
-                }
+            if (dot >= 0 && SHARED_IMAGE_EXT.contains(lower.substring(dot))) {
+                return true;
             }
         }
         return false;
@@ -300,22 +301,20 @@ final class ShareIn {
             public void run() {
                 try {
                     String displayName = queryDisplayName(uri);
-                    String lowerName = displayName == null ? "" : displayName.toLowerCase(java.util.Locale.ROOT);
-                    boolean isJson = "application/json".equals(mimeType) || "application/jsonl".equals(mimeType)
-                        || lowerName.endsWith(".json") || lowerName.endsWith(".jsonl");
+                    // tree is null for an image.
+                    OmnText.UserFileTree tree = OmnText.userFileTree(mimeType, displayName);
 
-                    java.util.Set<String> allowedExt = isJson ? SHARED_JSON_EXT : SHARED_IMAGE_EXT;
-
-                    String filename = OmnText.sanitizeSharedFilename(displayName, isJson);
+                    String filename = OmnText.sanitizeSharedFilename(displayName, tree != null ? tree.exts[0] : ".png");
                     String ext = filename.substring(filename.lastIndexOf('.')).toLowerCase(java.util.Locale.ROOT);
-                    if (!allowedExt.contains(ext)) {
-                        a.showToast("Not saved: only images, .json or .jsonl files can be shared into OMN-Go.");
+                    boolean allowed = tree != null ? tree.hasExtension(ext) : SHARED_IMAGE_EXT.contains(ext);
+                    if (!allowed) {
+                        a.showToast("Not saved: only images, .json, .jsonl, .vcf, .ics or .vcs files can be shared into OMN-Go.");
                         return;
                     }
 
                     long maxBytes = (long) a.readMaxUploadSizeMB() * 1024 * 1024;
 
-                    String subDir = isJson ? "user_json" : "images";
+                    String subDir = tree != null ? tree.dir : "images";
                     java.io.File destDir = new java.io.File(a.storageDir() + "/html/" + subDir);
                     destDir.mkdirs();
                     java.io.File destFile = new java.io.File(destDir, filename);
@@ -328,7 +327,7 @@ final class ShareIn {
                     }
 
                     // This is the format that handleUpload and
-                    // handleUploadJSON in
+                    // handleUploadUserFile in
                     // backend/internal/app/upload_handlers.go make.
                     // If either one changes, change this code by hand.
                     //
@@ -343,13 +342,11 @@ final class ShareIn {
                     // then rendered without the class that desktop
                     // drag-and-drop already got.
                     //
-                    // JSON stays markdown link syntax. It now carries the
-                    // same leading and trailing newline that
-                    // handleUploadJSON wraps it in, thus a shared file
-                    // lands on its own line.
+                    // A file of a tree gets a markdown link. See
+                    // OmnText.userFileLink.
                     String snippet;
-                    if (isJson) {
-                        snippet = "\n[" + filename + "](/user_json/" + filename + ")\n";
+                    if (tree != null) {
+                        snippet = OmnText.userFileLink(tree.dir, filename);
                     } else {
                         String escapedName = android.text.Html.escapeHtml(filename);
                         snippet = "\n<img src=\"/images/" + escapedName + "\" alt=\"" + escapedName
@@ -357,7 +354,7 @@ final class ShareIn {
                     }
 
                     postQuickNoteWithRetry(snippet);
-                    a.showToast(isJson ? "JSON file added to Quick Notes" : "Image added to Quick Notes");
+                    a.showToast((tree != null ? tree.word : "Image") + " added to Quick Notes");
                 } catch (Exception e) {
                     e.printStackTrace();
                     a.showToast("Failed to save shared file: " + e.getMessage());

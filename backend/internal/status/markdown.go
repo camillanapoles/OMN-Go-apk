@@ -130,7 +130,8 @@ func renderStatusMarkdown(res *statusResponse) string {
 		fmt.Fprintf(&b, "\n## Storage\n\nDirectory: `%s`\n\n| Group | Files | Bytes |\n| --- | --- | --- |\n", st.Dir)
 		for _, g := range [][2]any{
 			{"notes", st.Notes}, {"pages", st.Pages}, {"images", st.Images},
-			{"user_json", st.UserJSON}, {"databases", st.Databases},
+			{"user_json", st.UserJSON}, {"user_contacts", st.UserContacts},
+			{"user_calendars", st.UserCalendars}, {"databases", st.Databases},
 			{"backups", st.Backups}, {"asset_backups", st.AssetBackups},
 			{"total", st.Total},
 		} {

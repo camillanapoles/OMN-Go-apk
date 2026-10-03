@@ -56,6 +56,10 @@ func filesKindIcon(name string, isDir bool) string {
 		return "css"
 	case ".json", ".jsonl":
 		return "data_object"
+	case ".vcf":
+		return "contacts"
+	case ".ics", ".vcs":
+		return "event"
 	case ".txt":
 		return "subject"
 	case ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp":

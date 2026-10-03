@@ -6,20 +6,19 @@ import (
 	"html"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
 )
 
-// imageUploadExtensions and jsonUploadExtensions list what saveUploadedFile
-// accepts. ShareIn.java has a copy of both lists for its share path.
-// Keep the copies the same.
-var (
-	imageUploadExtensions = []string{".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
-	jsonUploadExtensions  = []string{".json", ".jsonl"}
-)
+// imageUploadExtensions lists what handleUpload accepts. ShareIn.java has a
+// copy of the list for its share path. Keep the copies the same.
+// config.UserFileTrees holds the lists of each other upload.
+var imageUploadExtensions = []string{".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
 
 // uploadRejected marks a failure that the file itself causes: a wrong type or
 // too large a size. The handlers answer it with 400, and not with 500.
@@ -27,7 +26,8 @@ type uploadRejected struct{ msg string }
 
 func (e *uploadRejected) Error() string { return e.msg }
 
-// saveUploadedFile does the shared work of handleUpload and handleUploadJSON.
+// saveUploadedFile does the shared work of handleUpload and
+// handleUploadUserFile.
 // It checks the file field against allowedExt and maxBytes, and copies it to
 // destDir. It returns each failure, thus a full disk is not a success. An
 // empty allowedExt, or maxBytes <= 0, skips that check, for the tests.
@@ -102,12 +102,18 @@ func (a *App) handleUpload(w http.ResponseWriter, r *http.Request) {
 	w.Write(fmt.Appendf(nil, "\n<img src=\"/images/%s\" alt=\"%s\" class=\"omn-imported-image\" />\n", escaped, escaped))
 }
 
-func (a *App) handleUploadJSON(w http.ResponseWriter, r *http.Request) {
-	jsonDir := a.layout().HTML("user_json")
-	filename, err := a.saveUploadedFile(r, "file", jsonDir, jsonUploadExtensions, a.maxUploadBytes())
-	if err != nil {
-		a.writeUploadError(w, "handleUploadJSON", err)
-		return
+// handleUploadUserFile answers the upload handler of one tree of
+// config.UserFileTrees. The answer is a Markdown link. The target of the
+// link holds the name with escapes. A contact file often has a space in its
+// name, and a space ends the target of a Markdown link.
+func (a *App) handleUploadUserFile(tree config.UserFileTree) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		dir := a.layout().HTML(tree.Dir)
+		filename, err := a.saveUploadedFile(r, "file", dir, tree.Exts, a.maxUploadBytes())
+		if err != nil {
+			a.writeUploadError(w, "handleUploadUserFile "+tree.Dir, err)
+			return
+		}
+		w.Write(fmt.Appendf(nil, "\n[%s](/%s/%s)\n", filename, tree.Dir, url.PathEscape(filename)))
 	}
-	w.Write(fmt.Appendf(nil, "\n[%s](/user_json/%s)\n", filename, filename))
 }

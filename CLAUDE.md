@@ -59,6 +59,7 @@ Do not remove a constraint without an instruction from the maintainer.
    `storage.RelInside` is the only test that a path stays inside a directory.
    `renderPage` is the only shell of a page that the server makes.
    `config.ResolveContentType` is the only MIME resolver.
+   `config.UserFileTrees` is the only table of the trees of uploaded files.
    `config.HasKnownAssetExtension` is the only note-or-file test.
    Do not add a second implementation. Extend the first one.
 8. **An upgrade never overwrites a user-owned asset.** A version change replaces the

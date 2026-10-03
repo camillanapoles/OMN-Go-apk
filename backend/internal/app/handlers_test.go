@@ -511,7 +511,7 @@ func TestSaveUploadedFileRejectsDisallowedExtension(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/upload_json", &buf)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 
-	if _, err := a.saveUploadedFile(req, "file", t.TempDir(), jsonUploadExtensions, 10<<20); err == nil {
+	if _, err := a.saveUploadedFile(req, "file", t.TempDir(), config.UserFileTrees[0].Exts, 10<<20); err == nil {
 		t.Error("expected error for disallowed extension, got nil")
 	} else {
 		var rejected *uploadRejected

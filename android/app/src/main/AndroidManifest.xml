@@ -136,6 +136,20 @@
                 <data android:mimeType="application/json" />
             </intent-filter>
             <!--
+              A shared contact or calendar goes the same way as a shared
+              JSON file. Each type here is a type of
+              OmnText.USER_FILE_TREES. The contacts application of Android
+              sends text/x-vcard.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/vcard" />
+                <data android:mimeType="text/x-vcard" />
+                <data android:mimeType="text/calendar" />
+                <data android:mimeType="text/x-vcalendar" />
+            </intent-filter>
+            <!--
               A NOTE arriving from another device (note exchange, phase 5).
               ShareIn.isSharedNoteIntent sorts these from the image and
               JSON shares above, by the declared type or, when that says

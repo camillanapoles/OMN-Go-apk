@@ -71,6 +71,9 @@ func TestFreshInstallServesTheCharset(t *testing.T) {
 		{"x.md", "text/markdown; charset=utf-8"},
 		{"x.txt", "text/plain; charset=utf-8"},
 		{"x.jsonl", "text/plain; charset=utf-8"},
+		{"x.vcf", "text/plain; charset=utf-8"},
+		{"x.ics", "text/plain; charset=utf-8"},
+		{"x.vcs", "text/plain; charset=utf-8"},
 	} {
 		if got := a.resolveContentType(c.name); got != c.want {
 			t.Errorf("a fresh install answers %q for %s, want %q", got, c.name, c.want)

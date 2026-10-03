@@ -46,12 +46,14 @@ func (svc Service) searchRoots(kinds []string) []searchRoot {
 			exts: []string{".json"},
 		})
 	}
-	if want[config.SearchKindUserJSON] {
-		roots = append(roots, searchRoot{
-			kind: config.SearchKindUserJSON,
-			dir:  svc.Layout.HTML("user_json"),
-			exts: []string{".json", ".jsonl"},
-		})
+	for _, tree := range config.UserFileTrees {
+		if want[tree.Dir] {
+			roots = append(roots, searchRoot{
+				kind: tree.Dir,
+				dir:  svc.Layout.HTML(tree.Dir),
+				exts: tree.Exts,
+			})
+		}
 	}
 	return roots
 }

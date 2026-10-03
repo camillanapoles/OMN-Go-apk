@@ -292,6 +292,14 @@ The cases live in `backend/frontend/test/header-cases.json`, and both
 languages read that one file. Add a case there when you find a note shape
 that the two might read differently.
 
+**The table of user files is tested the same way.** `config.UserFileTrees`
+in `backend/internal/config/user_files.go` names each tree of uploaded
+files: `user_json`, `user_contacts` and `user_calendars`. `omn-go-editor.js`
+and `OmnText.java` hold a copy each. The two tests
+`TestUserFileTreesHaveTheirCopies` in
+`backend/internal/repocheck/user_files_test.go` run the real JavaScript and
+the real Java, and compare each answer with the Go table.
+
 A copy of a rule that no test runs drifts from the original. This pair
 drifted. Before this test existed, the two read four of eight note shapes
 differently.

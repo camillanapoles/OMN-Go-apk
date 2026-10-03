@@ -161,7 +161,7 @@ OMN-Go keeps everything in one storage directory:
 Inside it:
 
 - `md/` — your notes as Markdown files. **This is the source of truth.** You back up this directory, and git synchronizes it.
-- `html/` — compiled pages plus static assets (`css/`, `js/`, `images/`, `user_json/`). The compiled `.html` files are the HTML cache. OMN-Go rebuilds a page when the matching `.md` file is newer.
+- `html/` — compiled pages plus static assets (`css/`, `js/`, `images/`, `user_json/`, `user_contacts/`, `user_calendars/`). The compiled `.html` files are the HTML cache. OMN-Go rebuilds a page when the matching `.md` file is newer.
 - `config.json` — the settings of this device (see [Configuration reference](#configuration-reference)). The file stays local to the device. Git never synchronizes it.
 
 On first start, OMN-Go creates the storage directory, a default `config.json`, and a few starter pages ([Welcome](Welcome), [QuickNotes](QuickNotes), [Bookmarks](Bookmarks), [BookmarksHowTo](BookmarksHowTo), [ScriptRules](ScriptRules), [Editor](Editor)).
@@ -172,7 +172,7 @@ You set the **admin password** on the [Config](Config) page. The admin can edit 
 
 A local connection (`127.0.0.1` or `localhost`) skips the login. The WebView of the Android application also makes a local connection. The password applies when you enable [LAN sharing](#sharing-on-the-lan) and a caller connects from another device.
 
-On another device, a page shows the login box until you log in with the admin password. The login box does not protect the notes. Without a password, a program on your network can read each note, the search, the images and the JSON files. Each write, each setting, each database, the sync and each system page need the admin password.
+On another device, a page shows the login box until you log in with the admin password. The login box does not protect the notes. Without a password, a program on your network can read each note, the search, the images, the JSON files, the contacts and the calendars. Each write, each setting, each database, the sync and each system page need the admin password.
 
 **Change the default password before you enable LAN sharing.** A new install has the password `admin_secret_changeme`. Anyone on your network who read this manual knows this password.
 
@@ -221,6 +221,13 @@ When you save, OMN-Go updates the `Modified:` header line and recompiles the pag
 **Internal vs. external editor.** If you disable *Use Internal Editor* on the [Config](Config) page, the edit button sends the file to an external editor. On the desktop application, OMN-Go runs the command from *Desktop External Cmd*, for example `subl`. On the Android application, OMN-Go opens the system app-chooser. When you come back, the page reloads with your changes.
 
 **Images.** Drag an image file onto the editor area. OMN-Go uploads the file to `images/`. OMN-Go then puts a Markdown image reference at the cursor.
+
+**Contacts and calendars.** OMN-Go keeps a vCard file (`.vcf`) in `user_contacts/`. It keeps an iCalendar file (`.ics`) and a vCalendar file (`.vcs`) in `user_calendars/`. A JSON file (`.json`, `.jsonl`) goes to `user_json/`. There are two ways to add such a file:
+
+- On Android, share the file from the contacts application, the calendar application or a file manager into OMN-Go. OMN-Go saves the file and adds a link to the Quick Notes page.
+- On each device, drag the file onto the editor area. OMN-Go uploads the file and puts a Markdown link at the cursor.
+
+Press the link to read the file as text. Add `?edit=true` to the link to change the file in the editor. Git sync carries these files to your other devices. To keep a file on this device only, start its name with `local-`.
 
 **Find and replace.** Press <i class="material-icons">search</i> in the editor toolbar, or press **Ctrl-F**. To start with the replace field shown, press **Ctrl-H**. The find bar opens between the toolbar and the text. It pushes the note down and does not cover it.
 
@@ -302,6 +309,7 @@ To open any file that OMN-Go serves in the editor, add `?edit=true` to its URL. 
 ```
 [Edit my stylesheet](/css/custom.css?edit=true)
 [Edit shared data](/user_json/inventory.json?edit=true)
+[Edit a contact](/user_contacts/Ann%20Lee.vcf?edit=true)
 ```
 
 The link opens the raw file in the internal editor. If you configured an external editor, the link opens the file there. When you save, OMN-Go writes the file back in place. A file that comes with OMN-Go opens with its content, also when the storage directory does not hold that file yet. If the file does not exist, the editor opens an empty page. Your first save makes the file.
@@ -570,7 +578,7 @@ The [Config](Config) page edits `config.json`. The page puts the settings into s
 |---------|---------|
 | Hostname (device label) | Device label in the database backup filenames (see [Database backups](#database-backups)). The default is the OS hostname. On Android, set a short name like `phone`. |
 | Backup Prune Depth | How many backups to keep per database (default `3`). When you create a backup, OMN-Go deletes the oldest backups above this count. |
-| Max Upload Size (MB) | Largest image or JSON file that you can drag into the editor or share into the Quick Notes page (default `3`). |
+| Max Upload Size (MB) | Largest image, JSON file, contact file or calendar file that you can drag into the editor or share into the Quick Notes page (default `3`). |
 
 ### Android Integration
 
@@ -589,7 +597,7 @@ Page search always operates and needs no setting. These settings control the glo
 | Setting | Meaning |
 |---------|---------|
 | Enable global search | Builds the index of the whole storage. Disabled by default. OMN-Go holds this index in memory while it runs. The index is about half the size of the text that it covers. |
-| Include in the index | What the index covers. *Notes* and *Bookmarks* are on by default. *Scripts (html/js)*, *JSON (html/json)* and *Uploaded JSON (html/user_json)* are off. |
+| Include in the index | What the index covers. *Notes* and *Bookmarks* are on by default. *Scripts (html/js)*, *JSON (html/json)*, *Uploaded JSON (html/user_json)*, *Contacts (html/user_contacts)* and *Calendars (html/user_calendars)* are off. |
 | Also index OMN-Go's own scripts | Adds the scripts that come with the application to the index. Disabled by default. They are several times the size of a normal note collection. |
 | Search in | Where a search starts. *All notes* is the default. *The open page only* starts each search on the page that you read. |
 | Index status | Not a setting. It tells what the index holds now. |

@@ -25,7 +25,8 @@ import (
 //
 //   - serveEmbeddableAsset: /js/, /css/, /json/ and the root catch-all.
 //     These files ship in the binary and reach html/ at the first request.
-//   - serveStorageSubdir: /images/ and /user_json/, user content only.
+//   - serveStorageSubdir: /images/ and each tree of config.UserFileTrees,
+//     user content only.
 //
 // Both take the content type from resolveContentType, the ONE MIME resolver.
 // See doc/decisions/0003-use-one-table-for-each-content-type.md.
@@ -117,7 +118,8 @@ func (a *App) serveEmbeddableAsset(w http.ResponseWriter, r *http.Request, urlPa
 	http.ServeFile(w, r, physPath)
 }
 
-// serveStorageSubdir serves /images/ or /user_json/ from html/<subDir>/. A
+// serveStorageSubdir serves /images/ or a tree of config.UserFileTrees from
+// html/<subDir>/. A
 // forcedType pins the content type of the whole tree. Otherwise
 // resolveContentType decides for each file. The binary embeds none of these
 // files, thus there is no extraction.

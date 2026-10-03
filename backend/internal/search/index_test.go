@@ -83,6 +83,44 @@ func TestIndexRespectsConfiguredKinds(t *testing.T) {
 	}
 }
 
+// The index covers each tree of config.UserFileTrees when its kind is on, and
+// only the extensions of that tree. A global query then finds a contact, and
+// the search page shows it below the label of the tree.
+func TestIndexCoversEachUserFileTree(t *testing.T) {
+	for _, tree := range config.UserFileTrees {
+		a := enabledSearchApp(t, tree.Dir)
+		writeSearchNote(t, a, "Note.md", "Title: A Note\n\nneedle in a note\n")
+		var want []string
+		for _, ext := range tree.Exts {
+			writeAsset(t, a, tree.Dir+"/up"+ext, "FN:needle of the tree\n")
+			want = append(want, "html/"+tree.Dir+"/up"+ext)
+		}
+		writeAsset(t, a, tree.Dir+"/up.png", "needle in a file of another type\n")
+
+		a.rebuildSearchIndex()
+		got := indexedPaths(a)
+		if len(got) != len(want) {
+			t.Errorf("%s: indexed %v, want %v", tree.Dir, got, want)
+		}
+		for _, path := range want {
+			if !containsPath(got, path) {
+				t.Errorf("%s: %s is not in the index: %v", tree.Dir, path, got)
+			}
+		}
+		for _, d := range a.search.Docs() {
+			if d.Kind != tree.Dir || d.URL != "/"+d.Name {
+				t.Errorf("%s: kind %q and URL %q, want the kind of the tree and the served path", d.Path, d.Kind, d.URL)
+			}
+		}
+
+		rec := getSearchPage(t, a, "needle")
+		heading := `<h2 class="search-group">` + tree.Label + ` <span`
+		if !strings.Contains(rec.Body.String(), heading) {
+			t.Errorf("%s: the search page has no heading %q", tree.Dir, tree.Label)
+		}
+	}
+}
+
 func TestIndexExclusions(t *testing.T) {
 	a := enabledSearchApp(t, config.SearchKindMD, config.SearchKindJS)
 	writeSearchNote(t, a, "Keep.md", "Title: Keep\n\nkeep me\n")

@@ -289,16 +289,21 @@ func (a *App) registerRoutes(mux routeTable) {
 	mux.Handle("/css/", assetTree)
 	mux.Handle("/json/", assetTree)
 
-	// /images and /user_json are user content, and the binary embeds none of
-	// it. resolveContentType gives each file its type.
+	// /images and each tree of config.UserFileTrees are user content, and
+	// the binary embeds none of it. resolveContentType gives each file its
+	// type.
 	mux.Handle("/images/", a.serveStorageSubdir("images", ""))
-	mux.Handle("/user_json/", a.serveStorageSubdir("user_json", ""))
+	for _, tree := range config.UserFileTrees {
+		mux.Handle("/"+tree.Dir+"/", a.serveStorageSubdir(tree.Dir, ""))
+	}
 
 	a.route(mux, "/login", open, "text", post(a.handleLogin))
 	a.route(mux, "/api/quick", admin, "text", post(a.handleQuickNote))
 	a.route(mux, "/api/bookmark", admin, "text", post(a.handleBookmark))
 	a.route(mux, "/api/upload", admin, "text (HTML fragment)", post(a.handleUpload))
-	a.route(mux, "/api/upload_json", admin, "text (Markdown fragment)", post(a.handleUploadJSON))
+	for _, tree := range config.UserFileTrees {
+		a.route(mux, tree.Upload, admin, "text (Markdown fragment)", post(a.handleUploadUserFile(tree)))
+	}
 	a.route(mux, "/api/note", open, "raw file", get(a.handleGetNote))
 	// This route is open, the same as /api/note and each page.
 	// Search collects nothing that a remote caller cannot read file by file.

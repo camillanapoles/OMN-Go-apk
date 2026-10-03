@@ -40,7 +40,8 @@ Routing uses the Go standard library `http.ServeMux`. This has four effects:
 * A route **without** a trailing slash (`/api/note`, `/login`, …)
   matches that exact path only.
 * A route **with** a trailing slash (`/js/`, `/css/`, `/json/`,
-  `/images/`, `/user_json/`) matches the whole subtree.
+  `/images/`, `/user_json/`, `/user_contacts/`, `/user_calendars/`) matches
+  the whole subtree.
 * `/` is the catch-all. `serveFrontend` receives every request that the
   routes above do not match.
 * **Each route except the catch-all and the asset trees names its
@@ -63,7 +64,7 @@ Routing uses the Go standard library `http.ServeMux`. This has four effects:
 | --- | --- |
 | URL query string | `/api/note`, `/api/edit-external`, `/api/sync/preview`, `/api/db/*`, page-level `?edit`/`?refresh` |
 | `application/x-www-form-urlencoded` | `/login`, `/api/save`, `/api/newpage`, `/api/quick`, `/api/bookmark`, `/api/config`, `/api/sync` |
-| `multipart/form-data` | `/api/upload`, `/api/upload_json` |
+| `multipart/form-data` | `/api/upload`, `/api/upload_json`, `/api/upload_contacts`, `/api/upload_calendars` |
 | `application/json` | `/api/sql` |
 
 ### 1.4 Response encodings
@@ -189,10 +190,10 @@ what its own page shows and gets no permission.
 | `GET /api/note` | **none — deliberately open** |
 | `GET /api/search` | **none — deliberately open** |
 | `GET /api/logs` | admin (local bypass applies) |
-| `/api/quick`, `/api/bookmark`, `/api/upload`, `/api/upload_json`, `/api/save`, `/api/newpage`, `/api/config`, `/api/restart`, `/api/sql`, `/api/db/backup`, `/api/db/backups`, `/api/db/restore`, `/api/sync`, `/api/sync/preview`, `/api/sync/trust-host-key`, `/api/edit-external`, `/api/status`, `/api/export/note`, `/api/import/note` | admin (local bypass applies) |
+| `/api/quick`, `/api/bookmark`, `/api/upload`, `/api/upload_json`, `/api/upload_contacts`, `/api/upload_calendars`, `/api/save`, `/api/newpage`, `/api/config`, `/api/restart`, `/api/sql`, `/api/db/backup`, `/api/db/backups`, `/api/db/restore`, `/api/sync`, `/api/sync/preview`, `/api/sync/trust-host-key`, `/api/edit-external`, `/api/status`, `/api/export/note`, `/api/import/note` | admin (local bypass applies) |
 | `GET /Config.html`, `GET /OMNGoFiles.html`, `GET /OMNGoStatus.html`, `GET /OMNGoLogs.html`, `GET /db_backups` | admin (local bypass applies) — answers a **page**, not a 401 |
 | `GET /OMNGoTags.html`, `GET /OMNGoSearch.html` | none |
-| All page and static routes (`/`, `*.html`, `/js/`, `/css/`, `/json/`, `/images/`, `/user_json/`) | none |
+| All page and static routes (`/`, `*.html`, `/js/`, `/css/`, `/json/`, `/images/`, `/user_json/`, `/user_contacts/`, `/user_calendars/`) | none |
 
 A route with `none` answers a remote caller with no login. The login box of a
 page decides only what the page shows. A program that asks `/api/note` or
@@ -255,6 +256,8 @@ gets a refusal page with the code `200`.
 | POST | `/api/bookmark` | admin | text |
 | POST | `/api/upload` | admin | text (HTML fragment) |
 | POST | `/api/upload_json` | admin | text (Markdown fragment) |
+| POST | `/api/upload_contacts` | admin | text (Markdown fragment) |
+| POST | `/api/upload_calendars` | admin | text (Markdown fragment) |
 | GET | `/api/note` | none | raw file |
 | GET | `/api/search` | none | JSON |
 | POST | `/api/save` | admin | text |
@@ -288,7 +291,7 @@ method, and they need no role.
 | --- | --- | --- | --- |
 | any | `/`, `/<name>.html`, `/<asset>` | none | HTML / asset |
 | any | `/js/…`, `/css/…`, `/json/…` | none | asset |
-| any | `/images/…`, `/user_json/…` | none | asset |
+| any | `/images/…`, `/user_json/…`, `/user_contacts/…`, `/user_calendars/…` | none | asset |
 
 ---
 
@@ -759,7 +762,7 @@ remove. The server answers global scope from the in-memory index
 | `q` | string | yes | — | The query. Empty is an empty result, not an error |
 | `scope` | string | no | see below | `page` or `all` |
 | `on` | string | no | — | Page name or asset path for `scope=page`, resolved by `resolvePageName` |
-| `kind` | string | no | the configured kinds | Comma list of `md,bookmarks,js,json,user_json` — narrows, never widens |
+| `kind` | string | no | the configured kinds | Comma list of `md,bookmarks,js,json,user_json,user_contacts,user_calendars` — narrows, never widens |
 | `limit` | int | no | `50` | Max results (hard cap `200`); `scope=page` returns at most one |
 | `snippets` | int | no | `3` | Max snippet lines per result (hard cap `10`) |
 
@@ -1074,6 +1077,43 @@ The server saves the file in `html/user_json/` and serves it from
 | --- | --- |
 | `200` | `\n[<name>](/user_json/<name>)\n` |
 | `400` / `500` | Same shapes as `/api/upload` |
+
+The target of the link holds the name with percent escapes. The name
+`Ann Lee.vcf` thus gives the target `/user_contacts/Ann%20Lee.vcf`, because a
+space ends the target of a Markdown link. The text of the link holds the name
+as it is.
+
+#### `POST /api/upload_contacts`
+
+The same endpoint for a vCard file.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `file` | file | yes | Allowed: `.vcf` |
+
+The server saves the file in `html/user_contacts/` and serves it from
+`/user_contacts/<filename>`. The `200` response is
+`\n[<name>](/user_contacts/<name>)\n`.
+
+#### `POST /api/upload_calendars`
+
+The same endpoint for an iCalendar file or a vCalendar file.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `file` | file | yes | Allowed: `.ics .vcs` |
+
+The server saves the file in `html/user_calendars/` and serves it from
+`/user_calendars/<filename>`. The `200` response is
+`\n[<name>](/user_calendars/<name>)\n`.
+
+```bash
+curl -F 'file=@invite.ics' http://127.0.0.1:8080/api/upload_calendars
+```
+
+`config.UserFileTrees` in `backend/internal/config/user_files.go` is the one
+table of these three trees. A row gives the directory, the endpoint, the
+extensions and the search kind.
 
 ---
 
@@ -1869,7 +1909,7 @@ and the Android WebView paints nothing else.
 | `search` | one pass over the index | `enabled`, `docs`, `lines`, `bytes`, `index_bytes_estimate`, `built`, `checked`, `dirty`, `kinds`, `scope` |
 | `runtime` | none | `go_version`, `goroutines`, `heap_alloc`, `sys`, `assets_version`, `assets_refreshed` |
 | `android` | none | `package`, `default_port`, `fullscreen` (the section is absent off Android) |
-| `storage` | a walk of the storage directory | `dir` and one `{files,bytes}` group each for `notes`, `pages`, `images`, `user_json`, `databases`, `backups`, `asset_backups`, `total` |
+| `storage` | a walk of the storage directory | `dir` and one `{files,bytes}` group each for `notes`, `pages`, `images`, `user_json`, `user_contacts`, `user_calendars`, `databases`, `backups`, `asset_backups`, `total` |
 | `git_dirty` | a walk of the worktree | `dirty`, `changed`, `untracked` |
 
 `bind_port` is what the listener bound, not what the configuration asked for.
@@ -2045,13 +2085,15 @@ browser and a note of the user can name the old file.
 | root catch-all (`/favicon.ico`, `/robots.txt`, …) | `html/` | Same lazy extraction |
 | `/images/` | `html/images/` | Pure user content, never embedded |
 | `/user_json/` | `html/user_json/` | Pure user content, never embedded |
+| `/user_contacts/` | `html/user_contacts/` | Pure user content, never embedded |
+| `/user_calendars/` | `html/user_calendars/` | Pure user content, never embedded |
 
 **Content-type resolution** (`resolveContentType`), highest precedence
 first:
 
 1. `config.json` → `mime_types[ext]`
-2. the built-in table: `.html .css .js .mjs .json .jsonl .md .svg .png
-   .jpg .jpeg .gif .webp .ico .woff .woff2 .ttf`
+2. the built-in table: `.html .css .js .mjs .json .jsonl .vcf .ics .vcs .md
+   .txt .svg .png .jpg .jpeg .gif .webp .ico .woff .woff2 .ttf`
 3. Go's `mime.TypeByExtension`
 4. nothing set → `net/http` sniffs the content
 
@@ -2060,6 +2102,10 @@ Lines, not one JSON document, and this type shows the file in the browser and
 in the Android WebView. `application/json` would send a browser JSON viewer to
 a parse error, and `application/jsonl` would start a download that the WebView
 cannot do.
+
+`.vcf`, `.ics` and `.vcs` resolve to `text/plain; charset=utf-8` for the same
+reason. Chromium starts a download for `text/vcard` and for `text/calendar`.
+See `doc/decisions/0025-serve-a-contact-and-a-calendar-as-plain-text.md`.
 
 ### 5.3 The file index
 
@@ -2283,7 +2329,8 @@ stream:
   submitted target. Build the follow-up URL from the response, not from the
   request.
 * Two endpoints return content for a verbatim splice into a note, with the
-  newlines: `/api/upload` and `/api/upload_json`.
+  newlines: `/api/upload`, `/api/upload_json`, `/api/upload_contacts` and
+  `/api/upload_calendars`.
 * `/api/sync/preview` returned a bare JSON array before, and `null` in place
   of `[]` when nothing had changed. It now returns an object whose `files`
   field is always an array. See §4 for the reason for the extra fields.

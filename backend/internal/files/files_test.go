@@ -748,6 +748,7 @@ func TestFilesKindIcon(t *testing.T) {
 		"x.html": "html", "x.md": "article", "x.js": "javascript",
 		"x.css": "css", "x.json": "data_object", "x.txt": "subject",
 		"x.png": "image", "x.woff2": "text_fields", "x.qqq": "insert_drive_file",
+		"x.vcf": "contacts", "x.ics": "event", "x.vcs": "event",
 	}
 	for name, want := range cases {
 		if got := filesKindIcon(name, false); got != want {

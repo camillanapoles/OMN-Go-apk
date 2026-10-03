@@ -345,6 +345,11 @@ func TestBaseline_RouteSet(t *testing.T) {
 		// See internal/gitsync/host_keys.go.
 		"/api/sync/trust-host-key",
 		"/api/upload",
+		// One upload route and one tree for each row of config.UserFileTrees.
+		// A contact and a calendar have a tree of their own, the same as a
+		// JSON file.
+		"/api/upload_calendars",
+		"/api/upload_contacts",
 		"/api/upload_json",
 		"/css/",
 		"/db_backups",
@@ -352,6 +357,8 @@ func TestBaseline_RouteSet(t *testing.T) {
 		"/js/",
 		"/json/",
 		"/login",
+		"/user_calendars/",
+		"/user_contacts/",
 		"/user_json/",
 		// These are the rows of the page-access table in page_access.go. Each is an
 		// exact pattern, thus the catch-all "/" still answers each note.
@@ -393,6 +400,8 @@ func TestBaseline_RouteSet(t *testing.T) {
 		"POST /api/sync",
 		"POST /api/sync/trust-host-key",
 		"POST /api/upload",
+		"POST /api/upload_calendars",
+		"POST /api/upload_contacts",
 		"POST /api/upload_json",
 		"POST /login",
 	}

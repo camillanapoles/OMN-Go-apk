@@ -1,10 +1,11 @@
 package app
 
 // ----------------------------------------------------------------------
-// The two upload endpoints
+// The upload endpoints
 // ----------------------------------------------------------------------
 //
-// /api/upload takes an image, and /api/upload_json takes a JSON file.
+// /api/upload takes an image. Each tree of config.UserFileTrees has an
+// upload of its own, for example /api/upload_json for a JSON file.
 // Each one writes a file of the client into the storage directory. A
 // fault here can thus put a file in the wrong place or lose one.
 //
@@ -13,8 +14,6 @@ package app
 // also cover the route, the admin check, the answer that the editor
 // inserts, and the status code of each failure.
 //
-// Before these tests, handleUpload, handleUploadJSON and writeUploadError
-// had no coverage.
 
 import (
 	"bytes"
@@ -235,7 +234,11 @@ func TestUploadNeedsTheAdminRoleFromTheLAN(t *testing.T) {
 	fw, _ := mw.CreateFormFile("image", "pic.png")
 	fw.Write([]byte("x"))
 	mw.Close()
-	for _, route := range []string{"/api/upload", "/api/upload_json"} {
+	routes := []string{"/api/upload"}
+	for _, tree := range config.UserFileTrees {
+		routes = append(routes, tree.Upload)
+	}
+	for _, route := range routes {
 		req := httptest.NewRequest(http.MethodPost, route, bytes.NewReader(buf.Bytes()))
 		req.Header.Set("Content-Type", mw.FormDataContentType())
 		req.RemoteAddr = "192.168.1.50:40000"
@@ -268,6 +271,82 @@ func TestUploadJSONWritesTheFileAndAnswersALink(t *testing.T) {
 		got, err := os.ReadFile(filepath.Join(a.StorageDir, "html", "user_json", name))
 		if err != nil || !bytes.Equal(got, payload) {
 			t.Errorf("%s: the file on disk is wrong: %q, %v", name, got, err)
+		}
+	}
+}
+
+// Each tree of config.UserFileTrees takes each of its extensions. It writes
+// the file below html/<tree> and answers a Markdown link to it. A GET of the
+// link then answers the bytes as text. The Android WebView thus shows a
+// contact or a calendar, and it does not start a download.
+func TestUploadUserFileWritesEachTree(t *testing.T) {
+	for _, tree := range config.UserFileTrees {
+		for _, ext := range tree.Exts {
+			a := uplApp(t)
+			name := "data" + ext
+			payload := []byte("BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n")
+			rec := uplPost(t, a, tree.Upload, "file", name, payload)
+			if rec.Code != http.StatusOK {
+				t.Errorf("%s: status %d, want 200: %s", name, rec.Code, rec.Body.String())
+				continue
+			}
+			link := "/" + tree.Dir + "/" + name
+			if want := "\n[" + name + "](" + link + ")\n"; rec.Body.String() != want {
+				t.Errorf("%s: answer = %q, want %q", name, rec.Body.String(), want)
+			}
+			got, err := os.ReadFile(filepath.Join(a.StorageDir, "html", tree.Dir, name))
+			if err != nil || !bytes.Equal(got, payload) {
+				t.Errorf("%s: the file on disk is wrong: %q, %v", name, got, err)
+			}
+
+			get := httptest.NewRecorder()
+			a.Router.ServeHTTP(get, httptest.NewRequest(http.MethodGet, link, nil))
+			if get.Code != http.StatusOK || !bytes.Equal(get.Body.Bytes(), payload) {
+				t.Errorf("GET %s: status %d, body %q", link, get.Code, get.Body.String())
+			}
+			ct := get.Header().Get("Content-Type")
+			if ext != ".json" && ct != "text/plain; charset=utf-8" {
+				t.Errorf("GET %s: Content-Type = %q, want text/plain", link, ct)
+			}
+		}
+	}
+}
+
+// The contacts application names a file after the person, thus the name
+// holds a space. A space ends the target of a Markdown link. The answer
+// escapes the name in the target, and the escaped link reaches the file.
+func TestUploadUserFileEscapesTheNameInTheLink(t *testing.T) {
+	a := uplApp(t)
+	rec := uplPost(t, a, "/api/upload_contacts", "file", "Ann Lee (1).vcf", []byte("BEGIN:VCARD\r\nEND:VCARD\r\n"))
+	const want = "\n[Ann Lee (1).vcf](/user_contacts/Ann%20Lee%20%281%29.vcf)\n"
+	if rec.Code != http.StatusOK || rec.Body.String() != want {
+		t.Fatalf("status %d, answer = %q, want %q", rec.Code, rec.Body.String(), want)
+	}
+	get := httptest.NewRecorder()
+	a.Router.ServeHTTP(get, httptest.NewRequest(http.MethodGet, "/user_contacts/Ann%20Lee%20%281%29.vcf", nil))
+	if get.Code != http.StatusOK || !strings.HasPrefix(get.Body.String(), "BEGIN:VCARD") {
+		t.Errorf("the escaped link answers status %d, body %q", get.Code, get.Body.String())
+	}
+}
+
+// A tree takes only its own extensions. A calendar sent to the contacts
+// route gives 400 and writes no file.
+func TestUploadUserFileRejectsTheFileOfAnotherTree(t *testing.T) {
+	for _, tree := range config.UserFileTrees {
+		for _, other := range config.UserFileTrees {
+			if other.Dir == tree.Dir {
+				continue
+			}
+			a := uplApp(t)
+			before := uplFiles(t, a)
+			name := "data" + other.Exts[0]
+			rec := uplPost(t, a, tree.Upload, "file", name, []byte("x"))
+			if rec.Code != http.StatusBadRequest {
+				t.Errorf("%s sent to %s: status %d, want 400", name, tree.Upload, rec.Code)
+			}
+			if after := uplFiles(t, a); len(after) != len(before) {
+				t.Errorf("%s sent to %s wrote a file: %v", name, tree.Upload, after)
+			}
 		}
 	}
 }

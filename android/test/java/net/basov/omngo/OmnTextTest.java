@@ -25,6 +25,7 @@ public final class OmnTextTest {
         theNameOfANote();
         aNoteAsText();
         theNameOfASharedFile();
+        theTreeOfASharedFile();
         theWordsOfTheServer();
         theOutputOfACommand();
         theNameOfAnExport();
@@ -94,26 +95,64 @@ public final class OmnTextTest {
     // The name of a shared file becomes a path below the storage directory.
     // The result must hold no path separator, and it must have an extension.
     private static void theNameOfASharedFile() {
-        eq("file: a plain name", "photo.png", OmnText.sanitizeSharedFilename("photo.png", false));
-        eq("file: a path", "c.png", OmnText.sanitizeSharedFilename("a/b/c.png", false));
+        eq("file: a plain name", "photo.png", OmnText.sanitizeSharedFilename("photo.png", ".png"));
+        eq("file: a path", "c.png", OmnText.sanitizeSharedFilename("a/b/c.png", ".png"));
         eq("file: a path that goes up", "passwd.png",
-            OmnText.sanitizeSharedFilename("../../etc/passwd", false));
-        eq("file: a path of Windows", "x.json", OmnText.sanitizeSharedFilename("C:\\dir\\x.json", true));
-        eq("file: no extension, image", "scan.png", OmnText.sanitizeSharedFilename("scan", false));
-        eq("file: no extension, JSON", "data.json", OmnText.sanitizeSharedFilename("data", true));
-        eq("file: a hidden name", ".profile.png", OmnText.sanitizeSharedFilename(".profile", false));
-        eq("file: a separator at the end", ".json", OmnText.sanitizeSharedFilename("dir/", true));
+            OmnText.sanitizeSharedFilename("../../etc/passwd", ".png"));
+        eq("file: a path of Windows", "x.json", OmnText.sanitizeSharedFilename("C:\\dir\\x.json", ".json"));
+        eq("file: no extension, image", "scan.png", OmnText.sanitizeSharedFilename("scan", ".png"));
+        eq("file: no extension, JSON", "data.json", OmnText.sanitizeSharedFilename("data", ".json"));
+        eq("file: a hidden name", ".profile.png", OmnText.sanitizeSharedFilename(".profile", ".png"));
+        eq("file: a separator at the end", ".json", OmnText.sanitizeSharedFilename("dir/", ".json"));
 
         // A provider that gives no name gets a name with the time in it.
-        String made = OmnText.sanitizeSharedFilename(null, false);
+        String made = OmnText.sanitizeSharedFilename(null, ".png");
         eq("file: no name, image", true, made.matches("shared_[0-9]+\\.png"));
-        made = OmnText.sanitizeSharedFilename("   ", true);
+        made = OmnText.sanitizeSharedFilename("   ", ".json");
         eq("file: a name of spaces, JSON", true, made.matches("shared_[0-9]+\\.json"));
 
         for (String name : new String[]{"a/b/c.png", "..\\..\\x.json", "dir/", "../../etc/passwd"}) {
-            String out = OmnText.sanitizeSharedFilename(name, false);
+            String out = OmnText.sanitizeSharedFilename(name, ".png");
             eq("file: no separator in " + name, false, out.indexOf('/') >= 0 || out.indexOf('\\') >= 0);
         }
+    }
+
+    // A shared JSON file, contact or calendar goes to its own tree. The
+    // extension decides before the type, and an image has no tree.
+    private static void theTreeOfASharedFile() {
+        eq("tree: .json", "user_json", dirOf(null, "data.json"));
+        eq("tree: .JSONL", "user_json", dirOf(null, "LOG.JSONL"));
+        eq("tree: .vcf", "user_contacts", dirOf("application/octet-stream", "Ann Lee.vcf"));
+        eq("tree: .ics", "user_calendars", dirOf(null, "invite.ics"));
+        eq("tree: .vcs", "user_calendars", dirOf("text/plain", "old.vcs"));
+        eq("tree: the type of the contacts application", "user_contacts", dirOf("text/x-vcard", "Ann Lee"));
+        eq("tree: text/vcard", "user_contacts", dirOf("text/vcard", null));
+        eq("tree: text/calendar", "user_calendars", dirOf("text/calendar", null));
+        eq("tree: text/x-vcalendar", "user_calendars", dirOf("text/x-vcalendar", null));
+        eq("tree: application/json", "user_json", dirOf("application/json", null));
+        eq("tree: the name wins against the type", "user_calendars", dirOf("application/json", "a.ics"));
+        eq("tree: an image", "", dirOf("image/png", "photo.png"));
+        eq("tree: no type and no name", "", dirOf(null, null));
+
+        // A name with no extension gets the first extension of its tree.
+        OmnText.UserFileTree contacts = OmnText.userFileTree("text/x-vcard", "Ann Lee");
+        eq("tree: the default extension", "Ann Lee.vcf",
+            OmnText.sanitizeSharedFilename("Ann Lee", contacts.exts[0]));
+        eq("tree: the extension of the other tree", false, contacts.hasExtension(".ics"));
+
+        // The link names the tree, and its target holds no space.
+        eq("link: a plain name", "\n[data.json](/user_json/data.json)\n",
+            OmnText.userFileLink("user_json", "data.json"));
+        eq("link: a space", "\n[Ann Lee.vcf](/user_contacts/Ann%20Lee.vcf)\n",
+            OmnText.userFileLink("user_contacts", "Ann Lee.vcf"));
+        eq("link: a parenthesis and a letter above 127",
+            "\n[\u0416 (1).ics](/user_calendars/%D0%96%20%281%29.ics)\n",
+            OmnText.userFileLink("user_calendars", "\u0416 (1).ics"));
+    }
+
+    private static String dirOf(String mimeType, String name) {
+        OmnText.UserFileTree tree = OmnText.userFileTree(mimeType, name);
+        return tree == null ? "" : tree.dir;
     }
 
     // A refusal of the import shows the words of the server. An answer

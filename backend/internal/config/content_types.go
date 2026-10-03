@@ -19,7 +19,13 @@ var BuiltinMIME = map[string]string{
 	// render. application/json would fail: a backup is JSON Lines, and a JSON
 	// viewer stops at the second line.
 	".jsonl": "text/plain; charset=utf-8",
-	".md":    "text/markdown; charset=utf-8",
+	// A contact and a calendar are text/plain for the same reason. No
+	// Chromium renders text/vcard or text/calendar. See
+	// doc/decisions/0025-serve-a-contact-and-a-calendar-as-plain-text.md.
+	".vcf": "text/plain; charset=utf-8",
+	".ics": "text/plain; charset=utf-8",
+	".vcs": "text/plain; charset=utf-8",
+	".md":  "text/markdown; charset=utf-8",
 	// The Go table has no ".txt", and a phone has no /etc/mime.types.
 	// EditableFileType reads this table, thus without this row a .txt on
 	// Android gets no editor. A file beside a note is a .txt.
