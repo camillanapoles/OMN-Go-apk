@@ -1605,6 +1605,10 @@ array, never `null`.
 | `dirty` | `.sqlite` file is newer than the newest backup |
 | `insync` | mtimes are equal |
 
+The state comes from the modification time of the two files. A pull does
+not write a backup that has no change, thus a pull alone does not change
+the state. See `doc/decisions/0010-write-a-pull-without-the-checkout-of-go-git.md`.
+
 A backup entry with `"valid": false` carries `"error": "<reason>"`.
 
 | Status | Body |

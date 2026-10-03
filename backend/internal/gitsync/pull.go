@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/format/index"
@@ -216,10 +217,14 @@ func (svc Service) syncPullAbort(wTree *git.Worktree) error {
 	return nil
 }
 
-// WriteTreeToWorktree writes each blob of tree into the worktree, and it
-// answers the paths that it wrote. It touches nothing else. Checkout and
-// Reset of go-git can delete each file outside the tree, also config.json.
+// WriteTreeToWorktree makes each path of tree hold its blob, and it answers
+// those paths. It touches nothing else. Checkout and Reset of go-git can
+// delete each file outside the tree, also config.json.
 // See doc/decisions/0010-write-a-pull-without-the-checkout-of-go-git.md.
+//
+// A FILE THAT ALREADY HOLDS ITS BLOB STAYS AS IT IS. A write gives a file
+// a new modification time. The DB backup page and the page cache read
+// that time, thus a write of each file made each backup "newer".
 func (svc Service) WriteTreeToWorktree(repo *git.Repository, wTree *git.Worktree, tree *object.Tree) (map[string]bool, error) {
 	newIndex := &index.Index{Version: 2}
 	written := map[string]bool{}
@@ -228,28 +233,10 @@ func (svc Service) WriteTreeToWorktree(repo *git.Repository, wTree *git.Worktree
 	defer fileIter.Close()
 
 	err := fileIter.ForEach(func(f *object.File) error {
-		reader, err := f.Reader()
-		if err != nil {
-			return fmt.Errorf("open blob for %s: %v", f.Name, err)
-		}
-		defer reader.Close()
-
-		if dir := filepath.Dir(f.Name); dir != "." {
-			if err := wTree.Filesystem.MkdirAll(dir, 0755); err != nil {
-				return fmt.Errorf("mkdir for %s: %v", f.Name, err)
+		if !worktreeHoldsBlob(wTree.Filesystem, f) {
+			if err := writeBlob(wTree.Filesystem, f); err != nil {
+				return err
 			}
-		}
-		out, err := wTree.Filesystem.Create(f.Name)
-		if err != nil {
-			return fmt.Errorf("create %s: %v", f.Name, err)
-		}
-		_, copyErr := io.Copy(out, reader)
-		closeErr := out.Close()
-		if copyErr != nil {
-			return fmt.Errorf("write %s: %v", f.Name, copyErr)
-		}
-		if closeErr != nil {
-			return fmt.Errorf("close %s: %v", f.Name, closeErr)
 		}
 
 		size := uint32(0)
@@ -277,6 +264,53 @@ func (svc Service) WriteTreeToWorktree(repo *git.Repository, wTree *git.Worktree
 		return nil, fmt.Errorf("failed to update index: %v", err)
 	}
 	return written, nil
+}
+
+// worktreeHoldsBlob tells whether the file at the path of f already holds
+// the bytes of f. Each fault answers false, and the caller writes the file.
+func worktreeHoldsBlob(fs billy.Filesystem, f *object.File) bool {
+	info, err := fs.Lstat(f.Name)
+	if err != nil || !info.Mode().IsRegular() || info.Size() != f.Size {
+		return false
+	}
+	in, err := fs.Open(f.Name)
+	if err != nil {
+		return false
+	}
+	defer in.Close()
+	h := plumbing.NewHasher(plumbing.BlobObject, info.Size())
+	if _, err := io.Copy(h, in); err != nil {
+		return false
+	}
+	return h.Sum() == f.Hash
+}
+
+// writeBlob writes the bytes of f to its path, and makes the directory.
+func writeBlob(fs billy.Filesystem, f *object.File) error {
+	reader, err := f.Reader()
+	if err != nil {
+		return fmt.Errorf("open blob for %s: %v", f.Name, err)
+	}
+	defer reader.Close()
+
+	if dir := filepath.Dir(f.Name); dir != "." {
+		if err := fs.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("mkdir for %s: %v", f.Name, err)
+		}
+	}
+	out, err := fs.Create(f.Name)
+	if err != nil {
+		return fmt.Errorf("create %s: %v", f.Name, err)
+	}
+	_, copyErr := io.Copy(out, reader)
+	closeErr := out.Close()
+	if copyErr != nil {
+		return fmt.Errorf("write %s: %v", f.Name, copyErr)
+	}
+	if closeErr != nil {
+		return fmt.Errorf("close %s: %v", f.Name, closeErr)
+	}
+	return nil
 }
 
 // OldTrackedPaths answers each path that HEAD tracks. An unborn branch gives

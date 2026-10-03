@@ -1,7 +1,7 @@
 # 0010. Write a pull without the checkout of go-git
 
 * Status: accepted
-* Version: 1.7.3, 1.8.5
+* Version: 1.7.3, 1.8.5, 26.10.22
 * Code: `gitsync.Service.WriteTreeToWorktree`, `gitsync.OldTrackedPaths`,
   `syncPull` and `syncPullForce` in `backend/internal/gitsync/pull.go`
 
@@ -29,6 +29,10 @@ A pull does not call the checkout of go-git. It writes the files itself:
 
 * `gitsync.Service.WriteTreeToWorktree` writes each file of the remote tree, and
   it touches no other file. It also writes a new index.
+* It does not write a file that already holds the bytes of its blob. It
+  compares the size and then the git hash of the content. A write gives a
+  file a new modification time, and the DB backup page and the page cache
+  read that time.
 * `gitsync.OldTrackedPaths` gives each path that the old HEAD tracks.
 * After the write, a pull removes each path that the old HEAD tracked and
   the new tree does not hold. The pull thus deletes a note that another
@@ -40,6 +44,9 @@ A pull does not call the checkout of go-git. It writes the files itself:
 
 * `config.json`, the databases and the other local files survive each
   kind of pull.
+* A file with no change keeps its modification time through a pull. Before
+  that rule, each pull made each backup "newer" than its database on the
+  DB backup page, and the page cache compiled each note again.
 * A change of this code needs care. The tests of `internal/gitsync/sync_test.go`
   run a real sync against a bare repository on disk, and they check each of
   these files.

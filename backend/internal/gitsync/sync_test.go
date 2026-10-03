@@ -40,6 +40,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-git/go-git/v5"
 	gitconfig "github.com/go-git/go-git/v5/config"
@@ -1414,5 +1415,129 @@ func TestSyncPullForceChangesNothingWhenTheFetchFails(t *testing.T) {
 	}
 	if !gsExists(a, "md/Stray.md") {
 		t.Error("the failed force pull deleted md/Stray.md")
+	}
+}
+
+// ----------------------------------------------------------------------
+// A pull keeps the time of a file that did not change
+// ----------------------------------------------------------------------
+//
+// THE FAULT THAT THESE TESTS HOLD. A pull wrote each file of the remote
+// tree, also a file with the same bytes. Each file thus got a new
+// modification time at each pull. The DB backup page compares the time of a
+// backup with the time of its database. After a pull it showed "backup
+// newer" for each database, and no backup had a change.
+
+// gsOld is a modification time long before each test.
+var gsOld = time.Date(2020, 1, 2, 3, 4, 5, 0, time.UTC)
+
+// gsSetOld gives one file of the work tree the time gsOld.
+func gsSetOld(t *testing.T, a *testApp, rel string) {
+	t.Helper()
+	if err := os.Chtimes(filepath.Join(a.StorageDir, filepath.FromSlash(rel)), gsOld, gsOld); err != nil {
+		t.Fatalf("Chtimes(%s): %v", rel, err)
+	}
+}
+
+// gsIsOld tells whether one file of the work tree still has the time gsOld.
+func gsIsOld(t *testing.T, a *testApp, rel string) bool {
+	t.Helper()
+	info, err := os.Stat(filepath.Join(a.StorageDir, filepath.FromSlash(rel)))
+	if err != nil {
+		t.Fatalf("Stat(%s): %v", rel, err)
+	}
+	return info.ModTime().Equal(gsOld)
+}
+
+func TestSyncPullKeepsTheTimeOfAFileWithNoChange(t *testing.T) {
+	const backup = "html/db_backup/notes/20260101T000000Z_host.jsonl"
+	for _, action := range []string{"pull", "pull_force"} {
+		remote := gsRemote(t)
+		gsSeedRemote(t, remote, "first", map[string]string{
+			"md/One.md": "one\n",
+			"md/Two.md": "two\n",
+			backup:      "{\"format\":\"omn-go-db-backup\"}\n",
+		})
+		a := gsApp(t, remote)
+		if err := a.gitSync().SyncRepo("pull", ""); err != nil {
+			t.Fatalf("the first pull: %v", err)
+		}
+		for _, rel := range []string{"md/One.md", "md/Two.md", backup} {
+			gsSetOld(t, a, rel)
+		}
+
+		// Another device changes one note and adds one note.
+		gsSeedRemote(t, remote, "second", map[string]string{
+			"md/Two.md":   "two, with a change\n",
+			"md/Three.md": "three\n",
+		})
+		if err := a.gitSync().SyncRepo(action, ""); err != nil {
+			t.Fatalf("SyncRepo(%s): %v", action, err)
+		}
+
+		if !gsIsOld(t, a, backup) {
+			t.Errorf("%s gave the backup a new time, and the backup has no change. "+
+				"The DB backup page then shows \"backup newer\".", action)
+		}
+		if !gsIsOld(t, a, "md/One.md") {
+			t.Errorf("%s gave md/One.md a new time, and the note has no change. "+
+				"The page cache then compiles the note again.", action)
+		}
+		// The pull still does its work.
+		if gsIsOld(t, a, "md/Two.md") {
+			t.Errorf("%s did not write md/Two.md, and the remote changed it", action)
+		}
+		if got := gsRead(t, a, "md/Two.md"); got != "two, with a change\n" {
+			t.Errorf("after %s, md/Two.md holds %q", action, got)
+		}
+		if got := gsRead(t, a, "md/Three.md"); got != "three\n" {
+			t.Errorf("after %s, md/Three.md holds %q", action, got)
+		}
+
+		// The index agrees with the work tree, thus the next sync sees no
+		// local change.
+		repo, err := a.gitSync().GetOrInitRepo()
+		if err != nil {
+			t.Fatal(err)
+		}
+		wt, err := repo.Worktree()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if dirty, dErr := TrackedWorktreeIsDirty(wt); dErr != nil || dirty {
+			t.Errorf("after %s the work tree is dirty=%v, err=%v", action, dirty, dErr)
+		}
+	}
+}
+
+// A file of the same size and with different bytes is not the same file.
+// The size alone must not decide.
+func TestWriteTreeToWorktreeReadsTheContentAndNotOnlyTheSize(t *testing.T) {
+	a, repo, wt := newTestRepo(t)
+	writeAndAdd(t, a, wt, "md/Same.md", "the same bytes\n")
+	writeAndAdd(t, a, wt, "md/Size.md", "abcdef\n")
+	testCommit(t, wt, "initial")
+
+	// The same count of bytes, and one different letter.
+	if err := os.WriteFile(filepath.Join(a.StorageDir, "md", "Size.md"), []byte("abcdeX\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	gsSetOld(t, a, "md/Same.md")
+	gsSetOld(t, a, "md/Size.md")
+
+	written, err := a.gitSync().WriteTreeToWorktree(repo, wt, headTree(t, repo))
+	if err != nil {
+		t.Fatalf("WriteTreeToWorktree: %v", err)
+	}
+	if got, _ := os.ReadFile(filepath.Join(a.StorageDir, "md", "Size.md")); string(got) != "abcdef\n" {
+		t.Errorf("md/Size.md holds %q. A file of the same size kept its wrong bytes.", got)
+	}
+	if !gsIsOld(t, a, "md/Same.md") {
+		t.Error("md/Same.md got a new time, and its bytes are the bytes of the tree")
+	}
+	// A path that the function did not write is still a path of the tree.
+	// The caller removes each old path that is not in this answer.
+	if !written["md/Same.md"] || !written["md/Size.md"] {
+		t.Errorf("the answer is %v, want each path of the tree", written)
 	}
 }
