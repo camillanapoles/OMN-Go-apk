@@ -123,10 +123,7 @@ func (svc Service) HandleBackupList(w http.ResponseWriter, r *http.Request) {
 	dbs := make([]backupDBView, 0, len(sorted))
 	for _, name := range sorted {
 		v := backupDBView{Name: name}
-		// Keep the raw mtime for the state test below. The RFC3339 text in
-		// v.MTime has a precision of one second. A test against it would show
-		// "backup newer" directly after a backup, where CreateBackup made
-		// the two mtimes equal.
+		// The raw mtime is for backupState below.
 		var dbMTime time.Time
 		if info, err := os.Stat(svc.UserDBPath(name)); err == nil && info.Size() > 0 {
 			v.SQLiteExists = true
@@ -137,6 +134,7 @@ func (svc Service) HandleBackupList(w http.ResponseWriter, r *http.Request) {
 
 		files, _ := svc.ListBackupFiles(name)
 		var newestMTime time.Time
+		var newestHeader backupHeader
 		newestValid := false
 		for i, fn := range files {
 			full := filepath.Join(svc.BackupDir(name), fn)
@@ -156,6 +154,7 @@ func (svc Service) HandleBackupList(w http.ResponseWriter, r *http.Request) {
 				bv.Rows = h.Rows
 				if i == 0 {
 					newestValid = true
+					newestHeader = h
 				}
 			} else if err != nil {
 				bv.Error = err.Error()
@@ -178,14 +177,7 @@ func (svc Service) HandleBackupList(w http.ResponseWriter, r *http.Request) {
 		case !v.SQLiteExists:
 			v.State = "missing"
 		default:
-			switch {
-			case newestMTime.After(dbMTime):
-				v.State = "backup_newer"
-			case dbMTime.After(newestMTime):
-				v.State = "dirty"
-			default:
-				v.State = "insync"
-			}
+			v.State = backupState(newestHeader, newestMTime, dbMTime)
 		}
 		dbs = append(dbs, v)
 	}

@@ -267,11 +267,10 @@ func (svc Service) restoreFromBackup(name, fileName string) error {
 		return fmt.Errorf("swap database: %w", err)
 	}
 
-	// Give the .sqlite file the mtime of the restored backup, because the two
-	// now hold the same content. A restore of an older backup then shows
-	// "newer backup exists".
-	if info, err := os.Stat(backupPath); err == nil {
-		os.Chtimes(finalPath, info.ModTime(), info.ModTime())
+	// The database now equals the restored backup. See markInSync. A
+	// restore of an older backup then shows "newer backup exists".
+	if err := markInSync(finalPath, header, backupPath); err != nil {
+		svc.Log(logx.DBRestore).Errf("touch %s.sqlite: %v", name, err)
 	}
 
 	svc.Log(logx.DBRestore).Infof("%s: restored from %s (%d objects, %d rows)",

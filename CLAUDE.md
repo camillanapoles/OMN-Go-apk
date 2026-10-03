@@ -495,7 +495,10 @@ fail when you skip one of these steps.
   each backup by hand. File names are immutable:
   `html/db_backup/<db>/<UTCtimestamp>_<hostname>.jsonl`. The format version is 2.
   The app restores a backup automatically in one case only. That case is a bootstrap
-  restore, when backups exist and no `.sqlite` file exists.
+  restore, when backups exist and no `.sqlite` file exists. The state of a
+  database compares the mtime of the `.sqlite` file with the `created` time in
+  the header of the newest backup. It never reads the mtime of the backup file.
+  See `doc/decisions/0024-read-the-backup-state-from-the-created-time.md`.
 
 ---
 

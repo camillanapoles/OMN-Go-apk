@@ -209,13 +209,14 @@ func (svc Service) CreateBackup(name string) (created string, pruned []string, e
 		host = config.DefaultHostname()
 	}
 	header := backupHeader{
-		Format:   BackupFormatName,
-		Version:  BackupFormatVersion,
-		Database: name,
-		Created:  time.Now().UTC().Format(time.RFC3339),
-		Hostname: host,
-		Objects:  objects,
-		Rows:     totalRows,
+		Format:    BackupFormatName,
+		Version:   BackupFormatVersion,
+		Database:  name,
+		Created:   time.Now().UTC().Format(time.RFC3339),
+		Hostname:  host,
+		Objects:   objects,
+		Rows:      totalRows,
+		ExactTime: true,
 	}
 	headerBytes, err := json.Marshal(header)
 	if err != nil {
@@ -249,12 +250,9 @@ func (svc Service) CreateBackup(name string) (created string, pruned []string, e
 		return "", nil, fmt.Errorf("finalize backup: %w", err)
 	}
 
-	// The database now equals this backup. Give the .sqlite file the mtime of
-	// the backup, thus the state dot of the page shows "in sync".
-	if info, err := os.Stat(target); err == nil {
-		if err := os.Chtimes(svc.UserDBPath(name), info.ModTime(), info.ModTime()); err != nil && !os.IsNotExist(err) {
-			svc.Log(logx.DBBackup).Errf("touch %s.sqlite: %v", name, err)
-		}
+	// The database now equals this backup. See markInSync.
+	if err := markInSync(svc.UserDBPath(name), header, target); err != nil && !os.IsNotExist(err) {
+		svc.Log(logx.DBBackup).Errf("touch %s.sqlite: %v", name, err)
 	}
 
 	pruned, err = svc.PruneBackups(name)

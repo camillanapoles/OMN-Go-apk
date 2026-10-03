@@ -143,6 +143,8 @@ type backupHeader struct {
 	Hostname string `json:"hostname"`
 	Objects  int    `json:"objects"`
 	Rows     int    `json:"rows"`
+	// ExactTime says that the database got exactly the Created time.
+	ExactTime bool `json:"exact_time,omitempty"`
 }
 
 type backupLine struct {

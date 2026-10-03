@@ -1519,9 +1519,14 @@ Each file starts with a header line. After that line there is one line for
 each schema object and one line for each row:
 
 ```json
-{"format":"omngo-db-backup","version":1,"database":"mydata",
- "created":"2026-07-27T14:05:00Z","hostname":"pixel7","objects":3,"rows":42}
+{"format":"omngo-db-backup","version":2,"database":"mydata",
+ "created":"2026-07-27T14:05:00Z","hostname":"pixel7","objects":3,"rows":42,
+ "exact_time":true}
 ```
+
+`created` is the UTC time of the backup, to the second. `exact_time` says
+that the server gave the `.sqlite` file exactly that time. A backup of an
+older version has no `exact_time`. See the `state` values below.
 
 Backups are **manual**. There is exactly one automatic case.
 `bootstrapIfMissing` restores the newest backup when a database has backups
@@ -1601,13 +1606,19 @@ array, never `null`.
 | `none` | No backups at all |
 | `invalid` | Newest backup has an unreadable or mismatched header |
 | `missing` | Backups exist but there is no `.sqlite` file |
-| `backup_newer` | Newest backup is newer than the `.sqlite` file |
-| `dirty` | `.sqlite` file is newer than the newest backup |
-| `insync` | mtimes are equal |
+| `backup_newer` | The `created` time of the newest backup is after the mtime of the `.sqlite` file |
+| `dirty` | The mtime of the `.sqlite` file is after the `created` time of the newest backup |
+| `insync` | The mtime of the `.sqlite` file is the `created` time of the newest backup |
 
-The state comes from the modification time of the two files. A pull does
-not write a backup that has no change, thus a pull alone does not change
-the state. See `doc/decisions/0010-write-a-pull-without-the-checkout-of-go-git.md`.
+The state compares the mtime of the `.sqlite` file with the `created` time
+in the header of the newest backup. It does not read the mtime of the
+backup file, because a pull or a file tool can change that time. A backup
+and a restore set the mtime of the `.sqlite` file to `created`.
+
+A backup with no `exact_time` has two more cases of `insync`. The
+`.sqlite` file is at most 5 seconds after `created`, or it has the mtime of
+the backup file. An older version left the database in that state. See
+`doc/decisions/0024-read-the-backup-state-from-the-created-time.md`.
 
 A backup entry with `"valid": false` carries `"error": "<reason>"`.
 
@@ -1627,8 +1638,8 @@ A backup entry with `"valid": false` carries `"error": "<reason>"`.
 Restores into `<storage>/db/<db>.sqlite` and destroys the current content.
 `db.Store.restoreMu` serializes this endpoint against the bootstrap restore. The
 endpoint removes the open handle, so the next `/api/sql` call opens the new
-file. It sets the mtime of the restored `.sqlite` file to the mtime of the
-backup. The state dot on the page therefore reads `insync` at once.
+file. It sets the mtime of the restored `.sqlite` file to the `created` time
+of the backup. The state dot on the page therefore reads `insync` at once.
 
 **Responses**
 
