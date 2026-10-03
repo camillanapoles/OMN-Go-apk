@@ -1,0 +1,6 @@
+• Fix. All timestams UTC
+• Fix. Wrong DB backup newer
+• Fix. Scroll to bottom after Emmet
+• Check the SSH host key of the git server
+• Refactor code
+• Increase code test coverage
