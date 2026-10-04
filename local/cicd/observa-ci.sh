@@ -24,7 +24,7 @@ T1=$(date +%s)
 ELAPSED=$((T1 - T0))
 
 STATE=$(gh pr view "$TARGET" --repo "$REPO" --json state,mergedAt \
-  --jq '"\(.state)\(if .mergedAt then " merged " + .mergedAt else "" end")' 2>/dev/null || echo "state unknown")
+  --jq '.state + (if .mergedAt then " merged " + .mergedAt else "" end)' 2>/dev/null || echo "state unknown")
 SUMMARY="PR $TARGET: $STATE, wait ${ELAPSED}s, watch exit $RC."
 say "$SUMMARY"
 

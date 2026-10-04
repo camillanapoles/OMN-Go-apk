@@ -19,6 +19,8 @@ Each entry records the increment, the evidence, and the verdict.
 | Serial critical path (needs: gate) | 7m29s | 1m54s + 5m35s |
 | Layer cache | MISS on attempt 2 (zero `CACHED` steps; first success had not yet exported) | build log, no `CACHED` markers; test stage ran 59.3s inside APK job |
 
-- Change 1: drop `needs: gate` — jobs run in parallel. The APK build already runs the gate in its `test` stage (`gate-passed` copy blocks artifacts). Expected critical path: max(1m54s, 5m35s) ≈ 5m35s. Verdict: measured on PR #2.
-- Change 2: cache stays as configured (`mode=max`, scopes `omngo`/`omngo-test`). Attempt 2 was the first successful export; the next build is the true warm test. Verdict: pending next build.
+- Change 1: drop `needs: gate` — jobs run in parallel. The APK build already runs the gate in its `test` stage (`gate-passed` copy blocks artifacts). Expected critical path: max(1m54s, 5m35s) ≈ 5m35s. **Verdict: KEEP — PR #2 measured 5m18s wait, merge-ref run 5m49s, dev-push run 4m34s; two jobs ran at the same time. −26% against the 7m29s serial path.**
+- Change 2: cache stays as configured (`mode=max`, scopes `omngo`/`omngo-test`). The PR #2 runs started 6 min after the first successful export and still took ~5m49s, so the layer cache did not visibly hit. **Verdict: open — the next build (PR #3) is the true warm test; it can import the export of PR #2. If it still shows no `CACHED` steps, inspect the `Exporting cache` phase of the run log before any further change.**
+- Change 3: disabled the `sync-gitlab.yml` workflow on the fork (no GitLab remote; it failed on each push and added permanent red noise). Not a performance change; removes false alarms from the observer.
+- Deploy proof: Release `OMN-Go 26.10.25` (tag `v26.10.25-f.1`) published with 7 assets: universal APK 69 MB, four ABI APKs, two desktop binaries. Build time 5m50s (16:46:48→16:52:38).
 - Reverted ideas: none yet.
