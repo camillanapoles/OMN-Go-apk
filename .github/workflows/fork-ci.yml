@@ -40,14 +40,21 @@ jobs:
       - name: Expose the GitHub Actions runtime for the buildx cache
         uses: crazy-max/ghaction-github-runtime@v3
 
+      # Only the dev branch exports cache. One full export fills a large
+      # part of the 10 GB Actions cache pool. Two or three exports in one
+      # increment evict each other, and every build then runs cold.
       - name: Run the quality gate
         run: |
+          CACHE_TO=""
+          if [ "$GITHUB_REF" = "refs/heads/dev" ]; then
+            CACHE_TO="--cache-to type=gha,mode=max,scope=omngo-test"
+          fi
           docker buildx build \
             -f Dockerfile.ci \
             --target test \
             --progress plain \
             --cache-from type=gha,scope=omngo-test \
-            --cache-to type=gha,mode=max,scope=omngo-test \
+            $CACHE_TO \
             .
 
   apk:
@@ -85,7 +92,12 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        # Only the dev branch exports cache (same reason as in the gate).
         run: |
+          CACHE_TO=""
+          if [ "$GITHUB_REF" = "refs/heads/dev" ]; then
+            CACHE_TO="--cache-to type=gha,mode=max,scope=omngo"
+          fi
           docker buildx build \
             -f Dockerfile.ci \
             --target export \
@@ -95,7 +107,7 @@ jobs:
             --secret id=key_alias,env=KEY_ALIAS \
             --secret id=key_password,env=KEY_PASSWORD \
             --cache-from type=gha,scope=omngo \
-            --cache-to type=gha,mode=max,scope=omngo \
+            $CACHE_TO \
             .
           ls -la artifacts/
 
