@@ -34,6 +34,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # The BuildKit gha cache backend reads ACTIONS_CACHE_URL and
+      # ACTIONS_RUNTIME_TOKEN. The runner hands those to actions only,
+      # so this step exposes them to the plain run steps below.
+      - name: Expose the GitHub Actions runtime for the buildx cache
+        uses: crazy-max/ghaction-github-runtime@v3
+
       - name: Run the quality gate
         run: |
           docker buildx build \
@@ -61,6 +67,11 @@ jobs:
       # Decode the keystore to RUNNER_TEMP, outside the checkout, so the
       # Docker build context never captures it. The build reads it only
       # as a BuildKit secret (id=keystore).
+      # Same runtime exposure as in the gate job: the gha cache backend
+      # of the buildx build below needs the two runtime variables.
+      - name: Expose the GitHub Actions runtime for the buildx cache
+        uses: crazy-max/ghaction-github-runtime@v3
+
       - name: Restore Android keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
