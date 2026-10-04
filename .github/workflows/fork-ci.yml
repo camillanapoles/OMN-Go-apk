@@ -42,7 +42,6 @@ jobs:
 
   apk:
     name: APK Build
-    needs: gate
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
