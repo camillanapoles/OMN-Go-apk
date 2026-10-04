@@ -359,7 +359,7 @@ test('a dropped JSON file goes to the JSON upload, by its name or by its type', 
         drop(h, file[0], file[1]);
         await h.settle();
         const sent = h.requests[h.requests.length - 1];
-        assert.strictEqual(sent.url, '/api/upload_json');
+        assert.strictEqual(sent.url, '/api/upload_json?incoming=1');
         assert.strictEqual(sent.body, 'file=' + file[0]);
         assert.ok(h.$('#editor').value.indexOf('[data](/user_json/data.json)') === BODY);
     }
@@ -387,7 +387,9 @@ test('a dropped contact or calendar goes to the upload of its tree', async () =>
         drop(h, c[0], c[1]);
         await h.settle();
         const sent = h.requests[h.requests.length - 1];
-        assert.strictEqual(sent.url, c[2], c[0] + ' (' + c[1] + ')');
+        // incoming=1 asks the server for a line on the Incoming notes page.
+        const want = c[2] === '/api/upload' ? c[2] : c[2] + '?incoming=1';
+        assert.strictEqual(sent.url, want, c[0] + ' (' + c[1] + ')');
         assert.strictEqual(sent.body, (c[2] === '/api/upload' ? 'image=' : 'file=') + c[0]);
     }
 });

@@ -9,13 +9,12 @@ package repocheck
 // omn-go-editor.js and USER_FILE_TREES in OmnText.java.
 //
 // A copy that differs is a silent fault. The editor sends a dropped
-// calendar to the image upload, or the share path writes a contact into a
-// directory that no route serves. The tests below run the real JavaScript
+// calendar to the image upload, or the share path sends a contact to a
+// route that refuses it. The tests below run the real JavaScript
 // and the real Java, and they compare each answer with the Go table.
 
 import (
 	"encoding/json"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,10 +24,6 @@ import (
 
 	"net.basov.omngo/backend/internal/config"
 )
-
-// userFileNames are the names of the link test. A contact file has the name
-// of a person, thus a space, a parenthesis and a letter above 127 are usual.
-var userFileNames = []string{"data.json", "Ann Lee.vcf", "Ann (1).vcf", "a+b&c=d@e:f.ics", "Жз.vcs", "50%.ics"}
 
 // The editor must send each extension of each tree to the upload route of
 // that tree, and each other file to the image upload.
@@ -69,12 +64,11 @@ process.stdout.write(JSON.stringify(editor.userFileUploads));
 	}
 }
 
-// The Android share path must write each file into the directory of its
-// tree, and it must make the same Markdown link as handleUploadUserFile.
+// The Android share path must send each file to the upload route of its
+// tree. The server does the rest. See handleUploadUserFile.
 //
-// The test writes a small class that prints the Java table and the link of
-// each name of userFileNames. It skips with no JDK, the same as
-// TestJavaUnitTests.
+// The test writes a small class that prints the Java table. It skips with no
+// JDK, the same as TestJavaUnitTests.
 func TestUserFileTreesHaveTheirCopies_Java(t *testing.T) {
 	javac, err := exec.LookPath("javac")
 	if err != nil {
@@ -85,21 +79,12 @@ func TestUserFileTreesHaveTheirCopies_Java(t *testing.T) {
 		t.Skip("no java on this machine")
 	}
 
-	// The probe reads the names from a UTF-8 file. An argument or a string
-	// in the source would go through the encoding of the platform, and the
-	// build image has no UTF-8 locale.
 	const probe = `package net.basov.omngo;
 
 public final class UserFileProbe {
-    public static void main(String[] args) throws Exception {
-        java.io.PrintStream out = new java.io.PrintStream(System.out, true, "UTF-8");
+    public static void main(String[] args) {
         for (OmnText.UserFileTree tree : OmnText.USER_FILE_TREES) {
-            out.println("tree " + tree.dir + " " + String.join(",", tree.exts));
-        }
-        java.nio.file.Path names = java.nio.file.Paths.get(args[0]);
-        for (String name : java.nio.file.Files.readAllLines(names, java.nio.charset.StandardCharsets.UTF_8)) {
-            out.print("link " + OmnText.userFileLink("d", name).replace("\n", ""));
-            out.println();
+            System.out.println("tree " + tree.upload + " " + String.join(",", tree.exts));
         }
     }
 }
@@ -109,10 +94,6 @@ public final class UserFileProbe {
 	if err := os.WriteFile(probePath, []byte(probe), 0644); err != nil {
 		t.Fatal(err)
 	}
-	namesPath := filepath.Join(dir, "names.txt")
-	if err := os.WriteFile(namesPath, []byte(strings.Join(userFileNames, "\n")+"\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
 	args := []string{"-encoding", "UTF-8", "-d", dir, probePath}
 	for _, rel := range pureJavaSources {
 		args = append(args, filepath.Join(repoRoot, filepath.FromSlash(rel)))
@@ -120,42 +101,24 @@ public final class UserFileProbe {
 	if compiled, cErr := exec.Command(javac, args...).CombinedOutput(); cErr != nil {
 		t.Fatalf("javac failed: %v\n%s", cErr, compiled)
 	}
-	run := exec.Command(java, "-cp", dir, "net.basov.omngo.UserFileProbe", namesPath)
 	// Only stdout holds the answer. Some machines write a line about
 	// JAVA_TOOL_OPTIONS to stderr.
-	raw, err := run.Output()
+	raw, err := exec.Command(java, "-cp", dir, "net.basov.omngo.UserFileProbe").Output()
 	if err != nil {
 		t.Fatalf("the probe failed: %v\n%s", err, raw)
 	}
 
-	var trees, links []string
+	var trees []string
 	for _, line := range strings.Split(strings.TrimSpace(string(raw)), "\n") {
-		line = strings.TrimRight(line, "\r")
-		if rest, ok := strings.CutPrefix(line, "tree "); ok {
+		if rest, ok := strings.CutPrefix(strings.TrimRight(line, "\r"), "tree "); ok {
 			trees = append(trees, rest)
 		}
-		if rest, ok := strings.CutPrefix(line, "link "); ok {
-			links = append(links, rest)
-		}
 	}
-
-	var wantTrees []string
+	var want []string
 	for _, tree := range config.UserFileTrees {
-		wantTrees = append(wantTrees, tree.Dir+" "+strings.Join(tree.Exts, ","))
+		want = append(want, tree.Upload+" "+strings.Join(tree.Exts, ","))
 	}
-	if !reflect.DeepEqual(trees, wantTrees) {
-		t.Errorf("USER_FILE_TREES in OmnText.java is %q, and config.UserFileTrees is %q", trees, wantTrees)
-	}
-
-	if len(links) != len(userFileNames) {
-		t.Fatalf("the probe answered %d link(s) for %d name(s):\n%s", len(links), len(userFileNames), raw)
-	}
-	for i, name := range userFileNames {
-		// This is the format of handleUploadUserFile, without its two
-		// line ends.
-		want := "[" + name + "](/d/" + url.PathEscape(name) + ")"
-		if links[i] != want {
-			t.Errorf("%q: OmnText.userFileLink gives %q, and the upload handler gives %q", name, links[i], want)
-		}
+	if !reflect.DeepEqual(trees, want) {
+		t.Errorf("USER_FILE_TREES in OmnText.java is %q, and config.UserFileTrees is %q", trees, want)
 	}
 }

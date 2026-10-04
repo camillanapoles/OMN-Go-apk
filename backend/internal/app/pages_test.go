@@ -78,6 +78,10 @@ func TestEachPageShowsTheValuesOfOtherGroups(t *testing.T) {
 	for _, want := range []string{
 		"var OMN_SEARCH_GLOBAL = true;",
 		fmt.Sprintf("var OMN_INCOMING_PAGE = %q;", exchange.IncomingIndexName),
+		// The receive box reads this value. It holds each extension of
+		// config.UserFileTrees with the upload route of its tree.
+		`var OMN_USER_FILE_UPLOADS = {".json":"/api/upload_json",".jsonl":"/api/upload_json",` +
+			`".vcf":"/api/upload_contacts",".ics":"/api/upload_calendars",".vcs":"/api/upload_calendars"};`,
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the page misses %s: %s", want, page)

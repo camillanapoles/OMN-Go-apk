@@ -81,17 +81,17 @@ final class OmnText {
 
     /** One tree of files that the user uploads or shares. */
     static final class UserFileTree {
-        /** The directory below html/, and the first segment of the URL. */
-        final String dir;
+        /** The route of the server that takes a file of the tree. */
+        final String upload;
         /** The name of one file of the tree in a message. */
         final String word;
-        /** The extensions that the tree takes. The first one is the default. */
+        /** The extensions that the tree takes. */
         final String[] exts;
         /** The types that a sender can give such a file. */
         final String[] types;
 
-        UserFileTree(String dir, String word, String[] exts, String[] types) {
-            this.dir = dir;
+        UserFileTree(String upload, String word, String[] exts, String[] types) {
+            this.upload = upload;
             this.word = word;
             this.exts = exts;
             this.types = types;
@@ -103,18 +103,18 @@ final class OmnText {
     }
 
     // USER_FILE_TREES is the copy of config.UserFileTrees in
-    // backend/internal/config/user_files.go. The share path writes a file
-    // without the Go server, thus it cannot read that table.
-    // TestUserFileTreesHaveTheirCopies in backend/internal/repocheck
+    // backend/internal/config/user_files.go. The share path must know which
+    // file to take before the Go server sees it, thus it cannot read that
+    // table. TestUserFileTreesHaveTheirCopies in backend/internal/repocheck
     // compares the rows with the Go table.
     static final UserFileTree[] USER_FILE_TREES = {
-        new UserFileTree("user_json", "JSON file",
+        new UserFileTree("/api/upload_json", "JSON file",
             new String[]{".json", ".jsonl"},
             new String[]{"application/json", "application/jsonl"}),
-        new UserFileTree("user_contacts", "Contact file",
+        new UserFileTree("/api/upload_contacts", "Contact file",
             new String[]{".vcf"},
             new String[]{"text/vcard", "text/x-vcard"}),
-        new UserFileTree("user_calendars", "Calendar file",
+        new UserFileTree("/api/upload_calendars", "Calendar file",
             new String[]{".ics", ".vcs"},
             new String[]{"text/calendar", "text/x-vcalendar"}),
     };
@@ -137,32 +137,6 @@ final class OmnText {
             if (Arrays.asList(tree.types).contains(mimeType)) return tree;
         }
         return null;
-    }
-
-    // Answers the Markdown link of a file in a tree. The text is the same
-    // as the answer of handleUploadUserFile in
-    // backend/internal/app/upload_handlers.go. The target has each byte
-    // escaped that url.PathEscape of Go escapes. A contact file often has a
-    // space in its name, and a space ends the target of a Markdown link.
-    static String userFileLink(String dir, String filename) {
-        StringBuilder target = new StringBuilder();
-        byte[] bytes;
-        try {
-            bytes = filename.getBytes("UTF-8");
-        } catch (java.io.UnsupportedEncodingException e) {
-            bytes = filename.getBytes();
-        }
-        for (byte b : bytes) {
-            int c = b & 0xff;
-            boolean plain = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
-                || "-_.~$&+=:@".indexOf(c) >= 0;
-            if (plain) {
-                target.append((char) c);
-            } else {
-                target.append('%').append("0123456789ABCDEF".charAt(c >> 4)).append("0123456789ABCDEF".charAt(c & 15));
-            }
-        }
-        return "\n[" + filename + "](/" + dir + "/" + target + ")\n";
     }
 
     // Falls back to a generated name when the content provider supplies

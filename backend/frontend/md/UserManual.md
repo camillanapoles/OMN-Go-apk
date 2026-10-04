@@ -222,10 +222,13 @@ When you save, OMN-Go updates the `Modified:` header line and recompiles the pag
 
 **Images.** Drag an image file onto the editor area. OMN-Go uploads the file to `images/`. OMN-Go then puts a Markdown image reference at the cursor.
 
-**Contacts and calendars.** OMN-Go keeps a vCard file (`.vcf`) in `user_contacts/`. It keeps an iCalendar file (`.ics`) and a vCalendar file (`.vcs`) in `user_calendars/`. A JSON file (`.json`, `.jsonl`) goes to `user_json/`. There are two ways to add such a file:
+**Contacts and calendars.** OMN-Go keeps a vCard file (`.vcf`) in `user_contacts/`. It keeps an iCalendar file (`.ics`) and a vCalendar file (`.vcs`) in `user_calendars/`. A JSON file (`.json`, `.jsonl`) goes to `user_json/`. There are three ways to add such a file:
 
-- On Android, share the file from the contacts application, the calendar application or a file manager into OMN-Go. OMN-Go saves the file and adds a link to the Quick Notes page.
+- On Android, share the file from the contacts application, the calendar application or a file manager into OMN-Go.
 - On each device, drag the file onto the editor area. OMN-Go uploads the file and puts a Markdown link at the cursor.
+- On the desktop, give the file to the **Receive a note** box of the [Incoming notes](incoming/incoming) page.
+
+Each way saves the file and adds a line to the Incoming notes page. The line shows the time and a link with the path of the file, for example `html/user_calendars/event.ics`. A file with the same name replaces the file that is there.
 
 Press the link to read the file as text. Add `?edit=true` to the link to change the file in the editor. Git sync carries these files to your other devices. To keep a file on this device only, start its name with `local-`.
 
@@ -578,7 +581,7 @@ The [Config](Config) page edits `config.json`. The page puts the settings into s
 |---------|---------|
 | Hostname (device label) | Device label in the database backup filenames (see [Database backups](#database-backups)). The default is the OS hostname. On Android, set a short name like `phone`. |
 | Backup Prune Depth | How many backups to keep per database (default `3`). When you create a backup, OMN-Go deletes the oldest backups above this count. |
-| Max Upload Size (MB) | Largest image, JSON file, contact file or calendar file that you can drag into the editor or share into the Quick Notes page (default `3`). |
+| Max Upload Size (MB) | Largest image, JSON file, contact file or calendar file that you can drag into the editor or share into OMN-Go (default `3`). |
 
 ### Android Integration
 
@@ -756,7 +759,7 @@ The desktop does not use the description. A browser download has no message with
 
 Some applications, Telegram for example, give a `.md` attachment the type `application/octet-stream`. OMN-Go is thus in the share sheet for each unknown file type. If the file is not a note, OMN-Go refuses it and shows a message.
 
-**On the desktop.** Open the [Incoming notes](incoming/incoming) note and press **Receive a note** to open the box. Select one or more `.md` files, or drop the files on the box. Then press **Import**.
+**On the desktop.** Open the [Incoming notes](incoming/incoming) note and press **Receive a note** to open the box. Select one or more `.md` files, or drop the files on the box. Then press **Import**. The box also takes a JSON file, a contact file and a calendar file. See [Editing pages](#editing-pages).
 
 The box is closed when the page opens, because the usual reason to open this page is to see what arrived. It does not show on Android at all: there the share sheet does this work.
 

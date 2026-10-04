@@ -1062,14 +1062,51 @@ curl -F 'image=@shot.png' http://127.0.0.1:8080/api/upload
 
 #### `POST /api/upload_json`
 
-**Body**: `multipart/form-data`
+**Body**: `multipart/form-data`, or the bytes of the file
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `file` | file | yes | Allowed: `.json .jsonl` |
 
+**Parameters** (query string)
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `incoming` | `1` | no | Also put a line for the file on the Incoming notes page |
+| `name` | string | no | The file name, for a request body that is not a form |
+
 The server saves the file in `html/user_json/` and serves it from
-`/user_json/<filename>`.
+`/user_json/<filename>`. A file with the same name is replaced.
+
+A request body that is not `multipart/form-data` is the bytes of the file.
+The Android share path sends this form. The server then reads the name from
+`name`, and it changes the name in three steps:
+
+1. It keeps only the part after the last `/` or `\`.
+2. An empty name becomes `shared-<UTC time>`.
+3. A name with no extension gets the first extension of the tree. The
+   contacts application of Android gives `Ann Lee`, and the file is
+   `Ann Lee.vcf`.
+
+**The line on the Incoming notes page.** With `incoming=1`, the server puts
+one line directly below the marker of `md/incoming/incoming.md`, the same as
+for a note that arrives:
+
+```markdown
+* <span class="omn-incoming-when">2026-08-09 12:34</span> · [html/user_calendars/event.ics](/user_calendars/event.ics)
+```
+
+The text of the link is the path of the file below the storage directory. The
+target is the URL of the file. The editor, the receive box and the Android
+share path send `incoming=1`.
+
+A request with no `incoming=1` adds no line. A note script can keep its data
+in a JSON file and send each change to this endpoint. See
+`frontend/md/Test/OMN-Go/JSONBasedCounter.md`. A line for each such write
+would fill the page.
+
+When the server cannot write the line, the file is still saved, and the
+response is still `200`. The log gets an error line.
 
 **Responses**
 
@@ -1107,8 +1144,12 @@ The server saves the file in `html/user_calendars/` and serves it from
 `/user_calendars/<filename>`. The `200` response is
 `\n[<name>](/user_calendars/<name>)\n`.
 
+The parameters `incoming` and `name`, and the request body that is not a
+form, are the same for the three endpoints.
+
 ```bash
-curl -F 'file=@invite.ics' http://127.0.0.1:8080/api/upload_calendars
+curl -F 'file=@invite.ics' 'http://127.0.0.1:8080/api/upload_calendars?incoming=1'
+curl --data-binary @card.vcf 'http://127.0.0.1:8080/api/upload_contacts?name=Ann%20Lee'
 ```
 
 `config.UserFileTrees` in `backend/internal/config/user_files.go` is the one

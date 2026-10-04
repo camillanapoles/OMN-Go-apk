@@ -34,21 +34,24 @@ final class ShareIn {
     //
     // So this is handled entirely natively, and it is independent of
     // whatever the WebView does.
+    //
+    // A JSON FILE, A CONTACT AND A CALENDAR go to the upload route of
+    // their tree, the same as a shared note goes to /api/import/note. The
+    // server saves the file and puts a line for it on the Incoming notes
+    // page. This side repeats no rule of the server. See postUserFile.
+    //
+    // AN IMAGE goes to the Quick Notes page in two steps.
     //   1. Validate the shared file and copy it straight onto the same
     //      on-disk tree that the Go server serves from, which is
-    //      storageDir()/html/images or .../user_json. A contact and a
-    //      calendar have a tree each. See OmnText.USER_FILE_TREES. It
-    //      enforces the same
+    //      storageDir()/html/images. It enforces the same
     //      extension whitelist and max-size limit that saveUploadedFile
     //      enforces on the server for the own drag-and-drop upload of the
     //      editor. The limit comes from max_upload_size_mb in config.json.
     //      See backend/internal/app/upload_handlers.go. If
     //      imageUploadExtensions changes there, change the whitelist here
-    //      too. OmnText.USER_FILE_TREES holds each other list.
-    //   2. Build the same snippet format that those Go handlers return.
-    //      An image gets an HTML <img class="omn-imported-image"> tag. A
-    //      JSON file, a contact and a calendar get a markdown link, for
-    //      example [name](/user_json/name). POST it
+    //      too.
+    //   2. Build the same snippet format that handleUpload returns, an
+    //      HTML <img class="omn-imported-image"> tag. POST it
     //      as a Quick Note with the existing /api/quick endpoint. The
     //      QuickNotes.md append and compile logic of the server is thus
     //      reused and not duplicated here. See handleQuickNote. A loopback
@@ -301,21 +304,30 @@ final class ShareIn {
             public void run() {
                 try {
                     String displayName = queryDisplayName(uri);
-                    // tree is null for an image.
-                    OmnText.UserFileTree tree = OmnText.userFileTree(mimeType, displayName);
+                    long maxBytes = (long) a.readMaxUploadSizeMB() * 1024 * 1024;
 
-                    String filename = OmnText.sanitizeSharedFilename(displayName, tree != null ? tree.exts[0] : ".png");
+                    // A JSON file, a contact or a calendar goes to the
+                    // server. tree is null for an image.
+                    OmnText.UserFileTree tree = OmnText.userFileTree(mimeType, displayName);
+                    if (tree != null) {
+                        byte[] body = readUriCapped(uri, maxBytes);
+                        if (body == null) {
+                            a.showToast("Not saved: file is larger than the configured upload limit.");
+                            return;
+                        }
+                        postUserFileWithRetry(body, tree.upload, displayName);
+                        a.showToast(tree.word + " added to Incoming notes");
+                        return;
+                    }
+
+                    String filename = OmnText.sanitizeSharedFilename(displayName, ".png");
                     String ext = filename.substring(filename.lastIndexOf('.')).toLowerCase(java.util.Locale.ROOT);
-                    boolean allowed = tree != null ? tree.hasExtension(ext) : SHARED_IMAGE_EXT.contains(ext);
-                    if (!allowed) {
+                    if (!SHARED_IMAGE_EXT.contains(ext)) {
                         a.showToast("Not saved: only images, .json, .jsonl, .vcf, .ics or .vcs files can be shared into OMN-Go.");
                         return;
                     }
 
-                    long maxBytes = (long) a.readMaxUploadSizeMB() * 1024 * 1024;
-
-                    String subDir = tree != null ? tree.dir : "images";
-                    java.io.File destDir = new java.io.File(a.storageDir() + "/html/" + subDir);
+                    java.io.File destDir = new java.io.File(a.storageDir() + "/html/images");
                     destDir.mkdirs();
                     java.io.File destFile = new java.io.File(destDir, filename);
 
@@ -326,41 +338,71 @@ final class ShareIn {
                         return;
                     }
 
-                    // This is the format that handleUpload and
-                    // handleUploadUserFile in
-                    // backend/internal/app/upload_handlers.go make.
-                    // If either one changes, change this code by hand.
-                    //
-                    // Images went from markdown image syntax to an HTML
-                    // <img> tag, with the .omn-imported-image class. See
-                    // omn-go-core.css. A dropped image thus gets a sensible
-                    // default size, and it does not render at full native
-                    // resolution. This native share path builds its own
-                    // snippet, independent of the Go server, see the block
-                    // comment above. It still emitted the old markdown form
-                    // here. An image shared into a fresh Android install
-                    // then rendered without the class that desktop
-                    // drag-and-drop already got.
-                    //
-                    // A file of a tree gets a markdown link. See
-                    // OmnText.userFileLink.
-                    String snippet;
-                    if (tree != null) {
-                        snippet = OmnText.userFileLink(tree.dir, filename);
-                    } else {
-                        String escapedName = android.text.Html.escapeHtml(filename);
-                        snippet = "\n<img src=\"/images/" + escapedName + "\" alt=\"" + escapedName
-                            + "\" class=\"omn-imported-image\" />\n";
-                    }
+                    // This is the format that handleUpload in
+                    // backend/internal/app/upload_handlers.go makes: an
+                    // HTML <img> tag with the .omn-imported-image class.
+                    // See omn-go-core.css. The class gives the image a
+                    // default width. If handleUpload changes, change this
+                    // code by hand.
+                    String escapedName = android.text.Html.escapeHtml(filename);
+                    String snippet = "\n<img src=\"/images/" + escapedName + "\" alt=\"" + escapedName
+                        + "\" class=\"omn-imported-image\" />\n";
 
                     postQuickNoteWithRetry(snippet);
-                    a.showToast((tree != null ? tree.word : "Image") + " added to Quick Notes");
+                    a.showToast("Image added to Quick Notes");
                 } catch (Exception e) {
                     e.printStackTrace();
                     a.showToast("Failed to save shared file: " + e.getMessage());
                 }
             }
         }).start();
+    }
+
+    // Sends a shared file to the upload route of its tree. One short retry
+    // covers a cold start, the same as postQuickNoteWithRetry.
+    void postUserFileWithRetry(byte[] body, String route, String displayName) throws java.io.IOException {
+        try {
+            postUserFile(body, route, displayName);
+        } catch (java.net.ConnectException first) {
+            try {
+                Thread.sleep(1500);
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
+            postUserFile(body, route, displayName);
+        }
+    }
+
+    // POSTs the bytes of a file to route. See handleUploadUserFile in
+    // backend/internal/app/upload_handlers.go. The server gives the file
+    // its name and its extension, and saves it. incoming=1 makes the server
+    // put a line for the file on the Incoming notes page. A refusal shows
+    // the words of the server.
+    void postUserFile(byte[] body, String route, String displayName) throws java.io.IOException {
+        String target = a.serverBase() + route + "?incoming=1";
+        if (displayName != null && !displayName.isEmpty()) {
+            target += "&name=" + java.net.URLEncoder.encode(displayName, "UTF-8");
+        }
+        java.net.HttpURLConnection conn =
+            (java.net.HttpURLConnection) new java.net.URL(target).openConnection();
+        try {
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/octet-stream");
+            conn.setFixedLengthStreamingMode(body.length);
+            java.io.OutputStream os = conn.getOutputStream();
+            os.write(body);
+            os.close();
+
+            int code = conn.getResponseCode();
+            if (code != 200) {
+                java.io.InputStream in = conn.getErrorStream();
+                String text = in == null ? "" : OmnText.readAllUtf8(in).trim();
+                throw new java.io.IOException(text.isEmpty() ? "server returned HTTP " + code : text);
+            }
+        } finally {
+            conn.disconnect();
+        }
     }
 
     String queryDisplayName(android.net.Uri uri) {

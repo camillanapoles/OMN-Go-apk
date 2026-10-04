@@ -720,11 +720,44 @@ if (window.location.protocol !== 'file:') {
                 statusEl.classList.toggle('is-error', !!bad);
             };
 
+            // OMN_USER_FILE_UPLOADS maps the extension of a JSON file, of a
+            // contact and of a calendar to the upload route of its tree. The
+            // server injects it, the same as OMN_INCOMING_PAGE.
+            const uploads = (typeof OMN_USER_FILE_UPLOADS !== 'undefined') ? OMN_USER_FILE_UPLOADS : {};
+            const uploadExts = Object.keys(uploads);
+            if (uploadExts.length) input.accept += ',' + uploadExts.join(',');
+
+            // uploadRoute answers the upload route of a file that is not a
+            // note, or undefined.
+            const uploadRoute = function (file) {
+                const name = String(file.name || '').toLowerCase();
+                const dot = name.lastIndexOf('.');
+                return dot >= 0 ? uploads[name.substring(dot)] : undefined;
+            };
+
+            // A file that is not a note goes to its own tree. incoming=1
+            // makes the server put a line for it in the list below.
+            const uploadOne = async function (file, route) {
+                const form = new FormData();
+                form.append('file', file, file.name);
+                const res = await fetch(route + '?incoming=1', { method: 'POST', body: form });
+                if (res.status === 401) {
+                    throw new Error('log in as admin to import a file');
+                }
+                if (!res.ok) {
+                    let why = '';
+                    try { why = (await res.text()).trim(); } catch (e) { /* no text */ }
+                    throw new Error(why || ('HTTP ' + res.status));
+                }
+            };
+
             // One note for each request. The rules live in the backend, in
             // internal/exchange/exchange.go. The Android share path reaches
             // that same code. A note thus lands in the same place, whichever
             // way it came.
             const importOne = async function (file) {
+                const route = uploadRoute(file);
+                if (route) return uploadOne(file, route);
                 const form = new FormData();
                 form.append('file', file, file.name);
                 const res = await fetch('/api/import/note', { method: 'POST', body: form });

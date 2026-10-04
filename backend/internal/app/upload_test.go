@@ -21,8 +21,10 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -348,6 +350,143 @@ func TestUploadUserFileRejectsTheFileOfAnotherTree(t *testing.T) {
 				t.Errorf("%s sent to %s wrote a file: %v", name, tree.Upload, after)
 			}
 		}
+	}
+}
+
+// uplPostRaw sends the bytes of a file as the body of the request, the same
+// as ShareIn.java. query holds the name of the file and the other values.
+func uplPostRaw(t *testing.T, a *App, route, query string, body []byte) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPost, route+"?"+query, bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/octet-stream")
+	req.RemoteAddr = "127.0.0.1:40000"
+	rec := httptest.NewRecorder()
+	a.Router.ServeHTTP(rec, req)
+	return rec
+}
+
+// uplIncoming answers the Markdown of the incoming index, or "".
+func uplIncoming(a *App) string {
+	data, _ := os.ReadFile(a.layout().MD("incoming", "incoming.md"))
+	return string(data)
+}
+
+// ?incoming=1 puts a line for the file on the Incoming notes page, for each
+// tree. The text of the link is the path below the storage directory. The
+// page that the server sends then holds a link that reaches the file.
+func TestUploadUserFileWithIncomingAddsALine(t *testing.T) {
+	a := uplApp(t)
+	for _, tree := range config.UserFileTrees {
+		name := "Ann Lee (1)" + tree.Exts[0]
+		rec := uplPost(t, a, tree.Upload+"?incoming=1", "file", name, []byte("data"))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s: status %d: %s", tree.Upload, rec.Code, rec.Body.String())
+		}
+		target := "/" + tree.Dir + "/Ann%20Lee%20%281%29" + tree.Exts[0]
+		line := "· [html/" + tree.Dir + "/" + name + "](" + target + ")\n"
+		if idx := uplIncoming(a); !strings.Contains(idx, line) {
+			t.Errorf("%s: the incoming index has no line %q:\n%s", tree.Dir, line, idx)
+		}
+
+		page := httptest.NewRecorder()
+		// refresh=true compiles the page again. The time of a file has
+		// the step of the kernel clock, and this loop is faster.
+		req := httptest.NewRequest(http.MethodGet, "/incoming/incoming.html?refresh=true", nil)
+		req.RemoteAddr = "127.0.0.1:40000"
+		a.Router.ServeHTTP(page, req)
+		link := `<a href="` + target + `">html/` + tree.Dir + "/" + name + "</a>"
+		if !strings.Contains(page.Body.String(), link) {
+			t.Errorf("%s: the Incoming notes page has no link %q", tree.Dir, link)
+		}
+		file := httptest.NewRecorder()
+		a.Router.ServeHTTP(file, httptest.NewRequest(http.MethodGet, target, nil))
+		if file.Code != http.StatusOK || file.Body.String() != "data" {
+			t.Errorf("GET %s: status %d, body %q", target, file.Code, file.Body.String())
+		}
+	}
+	if n := strings.Count(uplIncoming(a), `* <span class="omn-incoming-when">`); n != len(config.UserFileTrees) {
+		t.Errorf("the incoming index has %d line(s), want %d", n, len(config.UserFileTrees))
+	}
+}
+
+// An upload with no incoming=1 adds no line. A note script that keeps its
+// data in a JSON file sends each change to /api/upload_json. See
+// frontend/md/Test/OMN-Go/JSONBasedCounter.md. A line for each write would
+// fill the Incoming notes page.
+func TestUploadUserFileWithoutIncomingAddsNoLine(t *testing.T) {
+	a := uplApp(t)
+	before := uplIncoming(a)
+	for i := 0; i < 3; i++ {
+		if rec := uplPost(t, a, "/api/upload_json", "file", "local-counter.json", []byte(`{"n":1}`)); rec.Code != http.StatusOK {
+			t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+		}
+	}
+	if after := uplIncoming(a); after != before || strings.Contains(after, "local-counter") {
+		t.Errorf("an upload with no incoming=1 changed the incoming index:\n%s", after)
+	}
+}
+
+// The Android share path sends the bytes as the body and the name in ?name=.
+// The server gives the file a safe name with an extension of the tree, saves
+// it and answers the link.
+func TestUploadUserFileTakesARawBody(t *testing.T) {
+	for _, c := range []struct {
+		why, route, name, want string
+	}{
+		{"a plain name", "/api/upload_calendars", "invite.ics", "invite.ics"},
+		{"the contacts application gives the name of the person", "/api/upload_contacts", "Ann Lee", "Ann Lee.vcf"},
+		{"a path keeps only its last part", "/api/upload_contacts", "../../md/Ann.vcf", "Ann.vcf"},
+		{"a path of Windows", "/api/upload_json", `C:\dir\data.json`, "data.json"},
+		{"upper case in the extension", "/api/upload_calendars", "OLD.VCS", "OLD.VCS"},
+	} {
+		a := uplApp(t)
+		rec := uplPostRaw(t, a, c.route, "incoming=1&name="+url.QueryEscape(c.name), []byte("data"))
+		if rec.Code != http.StatusOK {
+			t.Errorf("%s: status %d: %s", c.why, rec.Code, rec.Body.String())
+			continue
+		}
+		dir := strings.Replace(c.route, "/api/upload_", "user_", 1)
+		got, err := os.ReadFile(filepath.Join(a.StorageDir, "html", dir, c.want))
+		if err != nil || string(got) != "data" {
+			t.Errorf("%s: html/%s/%s is wrong: %q, %v", c.why, dir, c.want, got, err)
+		}
+		if !strings.Contains(uplIncoming(a), "[html/"+dir+"/"+c.want+"](") {
+			t.Errorf("%s: the incoming index has no line for %s:\n%s", c.why, c.want, uplIncoming(a))
+		}
+		if files := uplFiles(t, a); len(files) != 2 {
+			t.Errorf("%s: the upload wrote %v, want the file and the incoming index only", c.why, files)
+		}
+	}
+
+	// A share with no name gets the time as its name.
+	a := uplApp(t)
+	rec := uplPostRaw(t, a, "/api/upload_contacts", "", []byte("data"))
+	if rec.Code != http.StatusOK || !regexp.MustCompile(`^\n\[shared-\d{8}T\d{6}Z\.vcf\]\(/user_contacts/shared-\d{8}T\d{6}Z\.vcf\)\n$`).MatchString(rec.Body.String()) {
+		t.Errorf("a body with no name: status %d, answer %q", rec.Code, rec.Body.String())
+	}
+}
+
+// A raw body has no declared size, thus the server counts the bytes. A file
+// over the limit, and a file of another type, give 400 and write nothing.
+func TestUploadUserFileRefusesABadRawBody(t *testing.T) {
+	a := uplApp(t)
+	a.config.Update(func(c *config.Config) { c.MaxUploadSizeMB = 1 })
+	before := uplFiles(t, a)
+
+	big := bytes.Repeat([]byte("x"), 1<<20+1)
+	if rec := uplPostRaw(t, a, "/api/upload_contacts", "incoming=1&name=big.vcf", big); rec.Code != http.StatusBadRequest ||
+		!strings.Contains(rec.Body.String(), "file too large") {
+		t.Errorf("a body over the limit: status %d, answer %q", rec.Code, rec.Body.String())
+	}
+	if rec := uplPostRaw(t, a, "/api/upload_contacts", "incoming=1&name=invite.ics", []byte("x")); rec.Code != http.StatusBadRequest ||
+		!strings.Contains(rec.Body.String(), `file type ".ics" is not allowed (allowed: .vcf)`) {
+		t.Errorf("a calendar sent to the contacts route: status %d, answer %q", rec.Code, rec.Body.String())
+	}
+	if rec := uplPostRaw(t, a, "/api/upload_contacts", "incoming=1&name=..", []byte("x")); rec.Code != http.StatusBadRequest {
+		t.Errorf("the name \"..\": status %d, want 400", rec.Code)
+	}
+	if after := uplFiles(t, a); len(after) != len(before) {
+		t.Errorf("a refused upload wrote a file: %v", after)
 	}
 }
 

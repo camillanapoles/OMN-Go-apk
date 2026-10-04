@@ -117,42 +117,27 @@ public final class OmnTextTest {
         }
     }
 
-    // A shared JSON file, contact or calendar goes to its own tree. The
-    // extension decides before the type, and an image has no tree.
+    // A shared JSON file, contact or calendar goes to the upload route of its
+    // tree. The extension decides before the type, and an image has no tree.
     private static void theTreeOfASharedFile() {
-        eq("tree: .json", "user_json", dirOf(null, "data.json"));
-        eq("tree: .JSONL", "user_json", dirOf(null, "LOG.JSONL"));
-        eq("tree: .vcf", "user_contacts", dirOf("application/octet-stream", "Ann Lee.vcf"));
-        eq("tree: .ics", "user_calendars", dirOf(null, "invite.ics"));
-        eq("tree: .vcs", "user_calendars", dirOf("text/plain", "old.vcs"));
-        eq("tree: the type of the contacts application", "user_contacts", dirOf("text/x-vcard", "Ann Lee"));
-        eq("tree: text/vcard", "user_contacts", dirOf("text/vcard", null));
-        eq("tree: text/calendar", "user_calendars", dirOf("text/calendar", null));
-        eq("tree: text/x-vcalendar", "user_calendars", dirOf("text/x-vcalendar", null));
-        eq("tree: application/json", "user_json", dirOf("application/json", null));
-        eq("tree: the name wins against the type", "user_calendars", dirOf("application/json", "a.ics"));
-        eq("tree: an image", "", dirOf("image/png", "photo.png"));
-        eq("tree: no type and no name", "", dirOf(null, null));
-
-        // A name with no extension gets the first extension of its tree.
-        OmnText.UserFileTree contacts = OmnText.userFileTree("text/x-vcard", "Ann Lee");
-        eq("tree: the default extension", "Ann Lee.vcf",
-            OmnText.sanitizeSharedFilename("Ann Lee", contacts.exts[0]));
-        eq("tree: the extension of the other tree", false, contacts.hasExtension(".ics"));
-
-        // The link names the tree, and its target holds no space.
-        eq("link: a plain name", "\n[data.json](/user_json/data.json)\n",
-            OmnText.userFileLink("user_json", "data.json"));
-        eq("link: a space", "\n[Ann Lee.vcf](/user_contacts/Ann%20Lee.vcf)\n",
-            OmnText.userFileLink("user_contacts", "Ann Lee.vcf"));
-        eq("link: a parenthesis and a letter above 127",
-            "\n[\u0416 (1).ics](/user_calendars/%D0%96%20%281%29.ics)\n",
-            OmnText.userFileLink("user_calendars", "\u0416 (1).ics"));
+        eq("tree: .json", "/api/upload_json", routeOf(null, "data.json"));
+        eq("tree: .JSONL", "/api/upload_json", routeOf(null, "LOG.JSONL"));
+        eq("tree: .vcf", "/api/upload_contacts", routeOf("application/octet-stream", "Ann Lee.vcf"));
+        eq("tree: .ics", "/api/upload_calendars", routeOf(null, "invite.ics"));
+        eq("tree: .vcs", "/api/upload_calendars", routeOf("text/plain", "old.vcs"));
+        eq("tree: the type of the contacts application", "/api/upload_contacts", routeOf("text/x-vcard", "Ann Lee"));
+        eq("tree: text/vcard", "/api/upload_contacts", routeOf("text/vcard", null));
+        eq("tree: text/calendar", "/api/upload_calendars", routeOf("text/calendar", null));
+        eq("tree: text/x-vcalendar", "/api/upload_calendars", routeOf("text/x-vcalendar", null));
+        eq("tree: application/json", "/api/upload_json", routeOf("application/json", null));
+        eq("tree: the name wins against the type", "/api/upload_calendars", routeOf("application/json", "a.ics"));
+        eq("tree: an image", "", routeOf("image/png", "photo.png"));
+        eq("tree: no type and no name", "", routeOf(null, null));
     }
 
-    private static String dirOf(String mimeType, String name) {
+    private static String routeOf(String mimeType, String name) {
         OmnText.UserFileTree tree = OmnText.userFileTree(mimeType, name);
-        return tree == null ? "" : tree.dir;
+        return tree == null ? "" : tree.upload;
     }
 
     // A refusal of the import shows the words of the server. An answer

@@ -1598,9 +1598,10 @@
             // A JSON file, a contact and a calendar go to the upload of
             // their tree. It puts the file in that tree and not in images/,
             // and it answers a plain "[name](/user_json/name)" link and not
-            // an image embed.
+            // an image embed. incoming=1 also puts a line for the file on
+            // the Incoming notes page.
             var userURL = userFileUpload(file);
-            var uploadURL = userURL || '/api/upload';
+            var uploadURL = userURL ? userURL + '?incoming=1' : '/api/upload';
             var fieldName = userURL ? 'file' : 'image';
             var fd = new FormData();
             fd.append(fieldName, file);

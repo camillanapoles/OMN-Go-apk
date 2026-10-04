@@ -27,6 +27,12 @@ func (a *App) ensureIncomingIndex(now time.Time) error {
 	return a.exchange().EnsureIncomingIndex(now)
 }
 
+// addIncomingFile puts a line for an uploaded file on the incoming index. See
+// exchange.Service.AddIncomingFile.
+func (a *App) addIncomingFile(rel string, now time.Time) error {
+	return a.exchange().AddIncomingFile(rel, now)
+}
+
 // handleExportNote answers GET /api/export/note. See
 // exchange.Service.HandleExportNote.
 func (a *App) handleExportNote(w http.ResponseWriter, r *http.Request) {

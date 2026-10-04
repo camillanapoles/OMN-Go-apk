@@ -1070,12 +1070,17 @@ func TestBaseline_InjectedRuntimeVarSet(t *testing.T) {
 	// omn-go-api.js must know which page the box belongs on, and it must keep
 	// no second copy of the name of the note.
 	//
+	// OMN_USER_FILE_UPLOADS: the receive box sends a JSON file, a contact
+	// and a calendar to the upload route of its tree. The value comes from
+	// config.UserFileTrees, thus omn-go-api.js keeps no copy of that table.
+	//
 	// The three log switches: the console mirror in omn-go-api.js reads them
 	// to decide what it prints. A page compiled before a switch changed must
 	// still get the new answer.
 	want := []string{
 		"APP_VERSION", "OMN_INCOMING_PAGE", "OMN_LOG_DEBUG", "OMN_LOG_INFO",
-		"OMN_LOG_TAGS", "OMN_SEARCH_GLOBAL", "OMN_THEME", "USE_INTERNAL_ED",
+		"OMN_LOG_TAGS", "OMN_SEARCH_GLOBAL", "OMN_THEME", "OMN_USER_FILE_UPLOADS",
+		"USE_INTERNAL_ED",
 	}
 	if strings.Join(names, ",") != strings.Join(want, ",") {
 		t.Errorf("injected runtime globals changed: got %v, want %v\n"+

@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
 
 	"net.basov.omngo/backend/internal/noteheader"
 	"net.basov.omngo/backend/internal/render"
@@ -226,7 +227,7 @@ func (svc Service) ImportNote(content []byte, displayName string, now time.Time)
 		Base:  base,
 		Label: label,
 	}
-	if err := svc.addIncomingIndexLine(res, now); err != nil {
+	if err := svc.addIncomingIndexLine(res.Label, hrefEscapePath(res.Rel), now); err != nil {
 		// The note is on disk. Only its index line is missing. Report that,
 		// and do not fail an import that worked.
 		return res, fmt.Errorf("the note was saved, but the incoming index was not updated: %w", err)
@@ -421,10 +422,43 @@ func incomingLabel(title, base, index string) string {
 	return label
 }
 
+// AddIncomingFile puts a line for an uploaded file on the incoming index. rel
+// is the path of the file below html/, for example
+// "user_calendars/event.ics". The link text is the path below the storage
+// directory, and the target is the URL of the file.
+func (svc Service) AddIncomingFile(rel string, now time.Time) error {
+	return svc.addIncomingIndexLine(incomingFileLabel("html/"+rel), "/"+hrefEscapePath(rel), now)
+}
+
+// incomingFileLabel answers the path of a file as the text of a Markdown
+// link. A backslash goes before each character that starts markup, thus the
+// page shows the path as it is. An underscore inside a word starts nothing,
+// and it stays as it is.
+func incomingFileLabel(p string) string {
+	runes := []rune(p)
+	alnum := func(i int) bool {
+		return i >= 0 && i < len(runes) && (unicode.IsLetter(runes[i]) || unicode.IsDigit(runes[i]))
+	}
+	var b strings.Builder
+	for i, r := range runes {
+		switch {
+		case r < 0x20 || r == 0x7f:
+			continue
+		case r == '_' && !(alnum(i-1) && alnum(i+1)),
+			r < 0x80 && strings.ContainsRune(incomingLabelUnsafe, r):
+			b.WriteByte('\\')
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
 // addIncomingIndexLine puts one line at the top of the list in
-// md/incoming/incoming.md: below the marker, or first in the body. The link
-// target is relative to the index directory.
-func (svc Service) addIncomingIndexLine(res importResult, now time.Time) error {
+// md/incoming/incoming.md: below the marker, or first in the body. label is
+// the text of the link, already safe for Markdown. target is the escaped
+// target: a path relative to the index directory for a note, and a URL for a
+// file.
+func (svc Service) addIncomingIndexLine(label, target string, now time.Time) error {
 	dir := svc.Layout.MD(incomingDirName)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
@@ -440,14 +474,8 @@ func (svc Service) addIncomingIndexLine(res importResult, now time.Time) error {
 		content = incomingIndexStarter(now)
 	}
 
-	label := res.Label
-	if label == "" {
-		label = res.Base
-	}
-	// incomingLabel already cleaned the label. hrefEscapePath encodes the
-	// target, because a note name can hold a space.
 	line := "* <span class=\"omn-incoming-when\">" + now.UTC().Format("2006-01-02 15:04") +
-		"</span> · [" + label + "](" + hrefEscapePath(res.Rel) + ")"
+		"</span> · [" + label + "](" + target + ")"
 
 	header, sep, body := noteheader.SplitRegion(content)
 	if header == "" {

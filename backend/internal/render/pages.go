@@ -109,9 +109,28 @@ type Facts struct {
 	IncomingPage string      // OMN_INCOMING_PAGE
 }
 
+// userFileUploadsJS is the value of OMN_USER_FILE_UPLOADS: an object that maps
+// each extension of config.UserFileTrees to the upload route of its tree. The
+// receive box reads it, thus omn-go-api.js holds no copy of the table.
+var userFileUploadsJS = func() string {
+	js := []byte{'{'}
+	for _, tree := range config.UserFileTrees {
+		for _, ext := range tree.Exts {
+			if len(js) > 1 {
+				js = append(js, ',')
+			}
+			js = strconv.AppendQuote(js, ext)
+			js = append(js, ':')
+			js = strconv.AppendQuote(js, tree.Upload)
+		}
+	}
+	return string(append(js, '}'))
+}()
+
 // InjectRuntimeVars puts the values of NOW into the RuntimeVarsMarker of a
 // page: APP_VERSION, USE_INTERNAL_ED, OMN_THEME, OMN_SEARCH_GLOBAL,
-// OMN_INCOMING_PAGE, OMN_LOG_DEBUG, OMN_LOG_INFO and OMN_LOG_TAGS. The cache
+// OMN_INCOMING_PAGE, OMN_USER_FILE_UPLOADS, OMN_LOG_DEBUG, OMN_LOG_INFO and
+// OMN_LOG_TAGS. The cache
 // on disk keeps the marker, thus a change of a setting needs no new compile.
 //
 // The marker is in <head>, thus data-theme applies before the body shows. The
@@ -124,7 +143,7 @@ func (rd *Renderer) InjectRuntimeVars(page []byte) []byte {
 	// The version is a value here, and not a constant. fmt would thus copy
 	// it to the heap at each request. The append functions write each value
 	// with the same quotes as %q and %t of fmt.
-	script := make([]byte, 0, 512)
+	script := make([]byte, 0, 768)
 	script = append(script, "<script>var APP_VERSION = "...)
 	script = strconv.AppendQuote(script, rd.Version)
 	script = append(script, "; var USE_INTERNAL_ED = "...)
@@ -135,6 +154,8 @@ func (rd *Renderer) InjectRuntimeVars(page []byte) []byte {
 	script = strconv.AppendBool(script, searchGlobal)
 	script = append(script, "; var OMN_INCOMING_PAGE = "...)
 	script = strconv.AppendQuote(script, rd.Facts.IncomingPage)
+	script = append(script, "; var OMN_USER_FILE_UPLOADS = "...)
+	script = append(script, userFileUploadsJS...)
 	script = append(script, "; var OMN_LOG_DEBUG = "...)
 	script = strconv.AppendBool(script, cfg.LogDebug)
 	script = append(script, "; var OMN_LOG_INFO = "...)

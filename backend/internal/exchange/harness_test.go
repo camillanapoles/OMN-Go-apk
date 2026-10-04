@@ -38,7 +38,7 @@ func (a *testApp) importNote(content []byte, displayName string, now time.Time) 
 }
 
 func (a *testApp) addIncomingIndexLine(res importResult, now time.Time) error {
-	return a.exchange().addIncomingIndexLine(res, now)
+	return a.exchange().addIncomingIndexLine(res.Label, hrefEscapePath(res.Rel), now)
 }
 
 func (a *testApp) ensureIncomingIndex(now time.Time) error {

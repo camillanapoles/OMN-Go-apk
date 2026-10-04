@@ -933,6 +933,70 @@ func TestIncomingIndexLineIsSafeMarkdown(t *testing.T) {
 	}
 }
 
+// An uploaded file gets a line in the same list as a note, with the same
+// time form. The text of the link is the path below the storage directory,
+// and the target is the URL of the file. The newest line is the first one,
+// for a note and a file together.
+func TestIncomingFileLine(t *testing.T) {
+	a := newTestApp(t)
+	if _, err := a.importNote([]byte(sampleNote), "", testNow); err != nil {
+		t.Fatal(err)
+	}
+	later := testNow.Add(time.Hour)
+	if err := a.exchange().AddIncomingFile("user_calendars/event.ics", later); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.exchange().AddIncomingFile("user_contacts/Ann Lee (1).vcf", later); err != nil {
+		t.Fatal(err)
+	}
+	idx := incomingFile(t, a, "incoming.md")
+	want := incomingListMarker + "\n" +
+		`* <span class="omn-incoming-when">2026-08-09 13:34</span> · [html/user_contacts/Ann Lee (1).vcf](/user_contacts/Ann%20Lee%20%281%29.vcf)` + "\n" +
+		`* <span class="omn-incoming-when">2026-08-09 13:34</span> · [html/user_calendars/event.ics](/user_calendars/event.ics)` + "\n" +
+		`* <span class="omn-incoming-when">2026-08-09 12:34</span> · [Weekly plan](project/Sub/WeeklyPlan)` + "\n"
+	if !strings.Contains(idx, want) {
+		t.Errorf("the list is wrong.\nwant:\n%s\ngot:\n%s", want, idx)
+	}
+}
+
+// The first file can arrive before the first note. The line then makes the
+// incoming index, with its header block and its marker.
+func TestIncomingFileLineMakesTheIndex(t *testing.T) {
+	a := newTestApp(t)
+	if err := a.exchange().AddIncomingFile("user_json/data.json", testNow); err != nil {
+		t.Fatal(err)
+	}
+	idx := incomingFile(t, a, "incoming.md")
+	hb := noteheader.Parse(idx)
+	if !hb.HasHeader || !strings.HasPrefix(idx, "Title: Incoming notes\n") {
+		t.Fatalf("the index has no header block:\n%s", idx)
+	}
+	if !strings.Contains(hb.Body, incomingListMarker+"\n* <span") {
+		t.Errorf("the line is not below the marker:\n%s", idx)
+	}
+}
+
+// The text of the link is the path as it is. A character that starts markup
+// gets a backslash, and an underscore inside a word needs none. The name of
+// a file comes from another application, thus the label must not start
+// markup of its own.
+func TestIncomingFileLabel(t *testing.T) {
+	for _, tt := range []struct{ in, want string }{
+		{"html/user_calendars/event.ics", "html/user_calendars/event.ics"},
+		{"html/user_json/my_data_2.json", "html/user_json/my_data_2.json"},
+		{"html/user_contacts/Ann Lee (1).vcf", "html/user_contacts/Ann Lee (1).vcf"},
+		{"html/user_contacts/_Ann_.vcf", `html/user_contacts/\_Ann\_.vcf`},
+		{"html/user_contacts/a]b[c.vcf", `html/user_contacts/a\]b\[c.vcf`},
+		{"html/user_contacts/<b>*x*~`|&.vcf", "html/user_contacts/\\<b\\>\\*x\\*\\~\\`\\|\\&.vcf"},
+		{"html/user_contacts/a\\b.vcf", `html/user_contacts/a\\b.vcf`},
+		{"html/user_contacts/a\nb\x00.vcf", "html/user_contacts/ab.vcf"},
+	} {
+		if got := incomingFileLabel(tt.in); got != tt.want {
+			t.Errorf("incomingFileLabel(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
 // The template and the constants that read it must agree, or a line lands in
 // the wrong half of the page. The starter is deliberately almost empty: the
 // receive box is application chrome (modals.html) and not the user's note.
