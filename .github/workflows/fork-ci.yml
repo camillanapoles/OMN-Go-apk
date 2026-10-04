@@ -17,6 +17,10 @@ concurrency:
 
 permissions:
   contents: read
+  # The BuildKit gha cache backend needs the actions domain: write to
+  # export cache entries, read to import them. With contents alone it
+  # silently skips both phases (post step prints "State not set").
+  actions: write
 
 jobs:
   gate:
