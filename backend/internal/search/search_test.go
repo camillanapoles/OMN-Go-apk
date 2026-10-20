@@ -498,9 +498,9 @@ func writeSearchNote(t *testing.T, a *testApp, rel, content string) {
 //
 // spellcheck="false", autocorrect="off", autocapitalize and autocomplete all
 // read like housekeeping on a search field. On Android they are not cosmetic.
-// Each is a hint that the soft keyboard reads when it attaches. Several fold
-// into the NO_SUGGESTIONS flag of the IME, which disables the COMPOSING
-// region. That region is the mechanism that every non-Latin layout uses to
+// Each is a hint that the soft keyboard reads when it attaches.
+// autocomplete="off" folds into the NO_SUGGESTIONS flag of the IME, which
+// disables the COMPOSING region. That region is the mechanism that every non-Latin layout uses to
 // enter text. Cyrillic input then silently produces nothing while Latin typing
 // works. The field looks fine, and it refuses half the scripts of the world.
 //
@@ -571,9 +571,9 @@ func TestSearchOverlayReattachesFocusAfterLayout(t *testing.T) {
 
 // The editor's find and replace fields carry no keyboard hints either.
 //
-// Same rule and same reason as the search overlay above. On Android those
-// attributes fold into the NO_SUGGESTIONS flag of the IME. That flag disables
-// the composing region that every non-Latin layout needs. A find field that
+// Same rule and same reason as the search overlay above. On Android
+// autocomplete="off" folds into the NO_SUGGESTIONS flag of the IME. That flag
+// disables the composing region that every non-Latin layout needs. A find field that
 // cannot accept Cyrillic is a find field that cannot search a Russian note.
 func TestEditorFindInputsDoNotDisableTheIME(t *testing.T) {
 	src, err := frontend.Templates.ReadFile("templates/editor.html")

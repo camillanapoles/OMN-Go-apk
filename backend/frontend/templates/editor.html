@@ -221,10 +221,11 @@
          on a phone is not free.
 
          Note what these inputs deliberately do NOT carry: no spellcheck,
-         autocorrect, autocapitalize or autocomplete. On Android those fold
-         into the keyboard's NO_SUGGESTIONS flag, which disables the composing
-         region every non-Latin layout needs - see the search overlay in
-         omn-go-api.js for the same rule and the bug that produced it. -->
+         autocorrect, autocapitalize or autocomplete. Each one is a hint that
+         the Android keyboard reads. autocomplete="off" sets its
+         NO_SUGGESTIONS flag, which disables the composing region every
+         non-Latin layout needs - see the search overlay in omn-go-search.js
+         for the same rule and the bug that produced it. -->
     <div class="omn-editor-find" id="editorFind" hidden>
         <div class="omn-editor-find-row">
             <button id="findToggleReplace" type="button" class="editor-tool omn-find-chevron"
@@ -261,10 +262,19 @@
              behind each hit showing through the transparent textarea.
 
              Every metric on .omn-editor-mirror must match #editor exactly, the
-             same discipline the line-number gutter already needs. -->
+             same discipline the line-number gutter already needs.
+
+             spellcheck="false" keeps the keyboard menu away. A red underline
+             marks a word that the spell check does not know, and code is full
+             of such words. A tap on such a word opens a menu ("Add to
+             dictionary", "Delete"). That menu takes the focus, thus the
+             keyboard closes. The keyboard still shows its suggestions:
+             Chromium does not tell the keyboard about spellcheck, and only
+             autocomplete="off" sets NO_SUGGESTIONS. See computeEditorInfo in
+             content/browser/input/ImeUtils.java of Chromium. -->
         <div class="omn-editor-pane">
             <div id="editorMirror" class="omn-editor-mirror" aria-hidden="true"></div>
-            <textarea id="editor" spellcheck="true" placeholder="Loading…" autocapitalize="off" autocomplete="on"></textarea>
+            <textarea id="editor" spellcheck="false" placeholder="Loading…" autocapitalize="off" autocomplete="on"></textarea>
         </div>
     </div>
     <div class="omn-editor-status">

@@ -103,10 +103,10 @@ if (window.location.protocol !== 'file:') {
                     // inputmode. Every one of those is a hint that the
                     // Android keyboard reads when it attaches.
                     //
-                    // Several of them fold into the NO_SUGGESTIONS flag.
-                    // spellcheck="false" and autocorrect="off" do so
-                    // certainly, and autocomplete="off" does so in some
-                    // WebView builds. That flag switches off the COMPOSING
+                    // autocomplete="off" folds into the NO_SUGGESTIONS flag.
+                    // autocorrect="off" removes the AUTO_CORRECT flag. See
+                    // computeEditorInfo in ImeUtils.java of Chromium. The
+                    // NO_SUGGESTIONS flag switches off the COMPOSING
                     // region, which is the mechanism that every non-Latin
                     // layout uses to enter text at all.
                     //

@@ -58,6 +58,20 @@ function drop(h, name, type) {
 // The load
 // ---------------------------------------------------------------------
 
+// A tap on a word with a spell-check mark opens a menu of Android ("Add to
+// dictionary", "Delete"). The menu takes the focus, and the keyboard closes.
+// spellcheck="false" removes the marks and thus the menu.
+//
+// autocomplete="off" would set NO_SUGGESTIONS for the keyboard. The keyboard
+// would then show no suggestions, and a non-Latin layout would type nothing.
+test('the text has no spell check, and the keyboard keeps its suggestions', async () => {
+    const h = await editorPage(NOTE);
+    const ta = h.$('#editor');
+    assert.strictEqual(ta.getAttribute('spellcheck'), 'false');
+    assert.notStrictEqual(ta.getAttribute('autocomplete'), 'off');
+    assert.notStrictEqual(ta.getAttribute('autocorrect'), 'off');
+});
+
 test('the editor asks for the note by name and opens it on its body', async () => {
     const h = await editorPage(NOTE);
     assert.deepStrictEqual(h.requests.map((r) => r.method + ' ' + r.url), ['GET /api/note?name=Note']);
