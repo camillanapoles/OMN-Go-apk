@@ -41,6 +41,8 @@ Left to right:
 
 The editor shows the name of the note at its bottom ("Editing …"). Drag an image file onto the text area to upload the image. The editor inserts an `<img>` tag at the cursor. The tag has the `omn-imported-image` class, which limits the width of the image. The image therefore does not render at its full native resolution.
 
+The editor does not check the spelling, thus it shows no red underline. On Android, a tap on such an underline opened a menu, and the keyboard closed. The keyboard still shows its suggestions above the keys.
+
 ## Find and replace
 
 Press <i class="material-icons">search</i>, or press **Ctrl/Cmd + F**. **Ctrl/Cmd + H** opens the find bar with the replace field already shown. The find bar appears between the toolbar and the text. It pushes the note down and does not cover it, so you see the text while you change it. If you selected text before you opened the find bar, that text is already the query.
