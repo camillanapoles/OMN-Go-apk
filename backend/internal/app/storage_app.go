@@ -33,7 +33,18 @@ func AssetsRefreshed() bool {
 func (a *App) refreshEmbeddedAssets() {
 	// The flag reports the work of this start only.
 	assetsRefreshed.Store(false)
-	if storage.RefreshEmbeddedAssets(a.layout(), version, a.log(logx.Assets)) > 0 {
+	if storage.AssetsVersion(a.layout()) != version {
+		// Each page compiles again with the page shell of this build.
+		setStartStage("Removing the compiled pages of the old version")
+		n, err := storage.DropCompiledPages(a.layout(), startProgress("Removing the compiled pages of the old version"))
+		if err != nil {
+			a.log(logx.Assets).Errf("cannot remove the compiled pages: %v", err)
+		}
+		if n > 0 {
+			a.log(logx.Assets).Infof("removed %d compiled page(s) of the previous version", n)
+		}
+	}
+	if storage.RefreshEmbeddedAssets(a.layout(), version, a.log(logx.Assets), startProgress("Updating the application files")) > 0 {
 		// AssetsRefreshed tells the Android layer to clear the WebView cache
 		// one time.
 		assetsRefreshed.Store(true)
@@ -43,6 +54,7 @@ func (a *App) refreshEmbeddedAssets() {
 // syncNoteFilesToHTML copies the plain files of md/ to html/. See
 // storage.SyncNoteFilesToHTML.
 func (a *App) syncNoteFilesToHTML() {
+	setStartStage("Copying the files of the notes")
 	storage.SyncNoteFilesToHTML(a.layout(), a.log(logx.NoteFiles))
 }
 

@@ -77,13 +77,14 @@ build_job:
     # push hiccup never fails the job - artifacts are already exported by then.
     - |
       docker buildx build \
-        -f Dockerfile.ci \
         --target export \
         --output type=local,dest=artifacts \
         --secret id=keystore,src=/tmp/omn-go.keystore \
         --secret id=keystore_password,env=KEYSTORE_PASSWORD \
         --secret id=key_alias,env=KEY_ALIAS \
         --secret id=key_password,env=KEY_PASSWORD \
+        --build-arg "OMN_GO_COMMIT=${CI_COMMIT_SHA}" \
+        --build-arg "OMN_GO_COMMIT_TIME=${CI_COMMIT_TIMESTAMP}" \
         --cache-from type=registry,ref=${CI_REGISTRY_IMAGE}:buildcache \
         --cache-to type=registry,ref=${CI_REGISTRY_IMAGE}:buildcache,mode=max,ignore-error=true \
         .

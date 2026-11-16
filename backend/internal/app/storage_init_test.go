@@ -309,6 +309,41 @@ func TestInitStorageLeavesAnUpgradedTreeAlone(t *testing.T) {
 	}
 }
 
+// A start with a new version removes each compiled page. The next request
+// compiles it with the page shell of this build. A start with the same
+// version keeps the cache. See
+// doc/decisions/0026-compile-each-page-again-after-a-new-version.md.
+func TestANewVersionCompilesEachPageAgain(t *testing.T) {
+	a, dir := siApp(t)
+	a.initStorage(dir)
+	note := filepath.Join(dir, "md", "Old.md")
+	if err := os.WriteFile(note, []byte("Title: Old\n\nbody"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	page := filepath.Join(dir, "html", "Old.html")
+	if err := os.WriteFile(page, []byte("<html>the shell of the old version</html>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	(&App{}).initStorage(dir)
+	if _, err := os.Stat(page); err != nil {
+		t.Fatalf("a start with the same version removed the compiled page: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, "assets_version"), []byte("0.0.1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	(&App{}).initStorage(dir)
+	// The precompile goroutine can compile the page again before the read.
+	// Thus the test looks for the old shell, not for a missing file.
+	if got, err := os.ReadFile(page); err == nil && strings.Contains(string(got), "the shell of the old version") {
+		t.Errorf("a start with a new version kept the compiled page")
+	}
+	if _, err := os.Stat(note); err != nil {
+		t.Errorf("the note went away: %v", err)
+	}
+}
+
 // The override wins over every default.
 //
 // ServerService.storageDir(ctx) on Android passes the directory of the

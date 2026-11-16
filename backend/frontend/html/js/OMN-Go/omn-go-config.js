@@ -21,15 +21,15 @@
 // --- Config page: menu navigation + unsaved-changes tracking ---
 //
 // The config form itself is untouched. Each settings group is a show and
-// hide .config-screen block inside the ONE <form>. FormData(form) in
+// hide .omn-config-screen block inside the ONE <form>. FormData(form) in
 // the config-save action below thus still collects every field, whatever
-// screen is open. A no-op on a page with no #configForm.
+// screen is open. A no-op on a page with no #omn-config-form.
 document.addEventListener("DOMContentLoaded", () => {
-    const form = document.getElementById('configForm');
+    const form = document.getElementById('omn-config-form');
     if (!form) return;
-    const panel = form.closest('.config-panel') || document;
-    const menu = document.getElementById('configMenu');
-    const screens = panel.querySelectorAll('.config-screen');
+    const panel = form.closest('.omn-card') || document;
+    const menu = document.getElementById('omn-config-menu');
+    const screens = panel.querySelectorAll('.omn-config-screen');
 
     // -- Navigation --
     //
@@ -55,10 +55,10 @@ document.addEventListener("DOMContentLoaded", () => {
             // fallback shown when the hash names no known sub-screen.
             const name = s.getAttribute('data-screen');
             const active = !!name && name === want;
-            s.classList.toggle('active', active);
+            s.classList.toggle('omn-active', active);
             if (active) matched = true;
         });
-        if (menu) menu.classList.toggle('active', !matched);
+        if (menu) menu.classList.toggle('omn-active', !matched);
         // A sub-screen replaces the menu at the top of the panel, so start
         // it at the top instead of inheriting the menu's scroll offset.
         window.scrollTo(0, 0);
@@ -91,21 +91,21 @@ document.addEventListener("DOMContentLoaded", () => {
     // triggers the prompt. The config-save action calls
     // window.configMarkClean() before its reload paths, thus a successful
     // save does not prompt.
-    const dots = panel.querySelectorAll('.config-dirty-dot');
-    const labels = panel.querySelectorAll('.config-dirty-indicator .config-dirty-label');
-    const menuBanner = document.getElementById('configMenuDirty');
+    const dots = panel.querySelectorAll('.omn-config-dirty-dot');
+    const labels = panel.querySelectorAll('.omn-config-dirty-indicator .omn-config-dirty-label');
+    const menuBanner = document.getElementById('omn-config-menu-dirty');
     let dirty = false;
 
     function markDirty() {
         if (dirty) return;
         dirty = true;
-        dots.forEach(d => d.classList.add('dirty'));
+        dots.forEach(d => d.classList.add('omn-dirty'));
         labels.forEach(l => { l.textContent = 'Unsaved changes'; });
         if (menuBanner) menuBanner.hidden = false;
     }
     window.configMarkClean = function() {
         dirty = false;
-        dots.forEach(d => d.classList.remove('dirty'));
+        dots.forEach(d => d.classList.remove('omn-dirty'));
         labels.forEach(l => { l.textContent = ''; });
         if (menuBanner) menuBanner.hidden = true;
     };
@@ -161,7 +161,7 @@ function secretValue(cfg, name) {
 
 // The reveal button of a settings screen. See OMN.action in omn-go-core.js.
 window.OMN.action('config-reveal', async function (btn) {
-    const form = document.getElementById('configForm');
+    const form = document.getElementById('omn-config-form');
     if (!form || !btn) return;
     const label = btn.querySelector('[data-reveal-label]');
     const icon = btn.querySelector('.material-icons');
@@ -183,13 +183,13 @@ window.OMN.action('config-reveal', async function (btn) {
     try {
         const res = await fetch('/api/config');
         if (res.status === 401 || res.status === 403) {
-            alert('Log in as admin on a note page to read the passwords.');
+            await window.omnAlert('Log in as admin on a note page to read the passwords.');
             return;
         }
-        if (!res.ok) { alert('Failed to read the configuration: ' + res.status); return; }
+        if (!res.ok) { await window.omnAlert('Could not read the configuration: ' + res.status); return; }
         cfg = await res.json();
     } catch (e) {
-        alert('Network error: ' + e);
+        await window.omnAlert('Network error: ' + e);
         return;
     }
 
@@ -209,7 +209,7 @@ window.OMN.action('config-reveal', async function (btn) {
 });
 
 document.addEventListener('DOMContentLoaded', function () {
-    const form = document.getElementById('configForm');
+    const form = document.getElementById('omn-config-form');
     if (!form) return;
     secretFields(form).forEach(function (el) {
         el.addEventListener('input', function () { el.dataset.dirty = '1'; });
@@ -218,8 +218,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // Each Save button of the page. See OMN.action in omn-go-core.js.
 window.OMN.action('config-save', async function () {
-    const form = document.getElementById('configForm');
-    if (!form) { alert('Config form not found'); return; }
+    const form = document.getElementById('omn-config-form');
+    if (!form) { await window.omnAlert('The configuration form is not on the page.'); return; }
     const fd = new FormData(form);
     // A secret box that the reader did not touch carries no meaning,
     // thus it must not reach the server at all. See the note above.
@@ -237,7 +237,7 @@ window.OMN.action('config-save', async function () {
             if (body === 'RestartRequired') {
                 // ShareLAN changed: the listen socket is bound once at
                 // startup, so the server must fully restart to rebind.
-                alert('LAN sharing changed - the application will now restart to apply it.\n\nDesktop: this page reloads automatically in a few seconds.\nAndroid: the app will close; reopen it manually.');
+                await window.omnAlert('LAN sharing changed. The application restarts to apply the change.\n\nDesktop: this page loads again after a few seconds.\nAndroid: the app closes. Open it again.');
                 try { await fetch('/api/restart', { method: 'POST' }); } catch (e) { /* connection drops as the server exits - expected */ }
                 // Desktop: the replacement process is up within ~1-3s
                 // (bind retry included); reload to reconnect. On
@@ -246,13 +246,13 @@ window.OMN.action('config-save', async function () {
                 setTimeout(function(){ window.location.reload(); }, 3000);
                 return;
             }
-            alert('Configuration saved. Reloading...');
+            window.omnNoticeAfterLoad('Configuration saved.');
             window.location.reload();
         } else {
             let msg = await res.text();
-            alert('Failed to save configuration: ' + msg);
+            await window.omnAlert('Could not save the configuration: ' + msg);
         }
     } catch (e) {
-        alert('Network error: ' + e);
+        await window.omnAlert('Network error: ' + e);
     }
 });

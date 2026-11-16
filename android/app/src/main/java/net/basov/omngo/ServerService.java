@@ -57,6 +57,26 @@ public class ServerService extends Service {
      */
     private static boolean backendStarted = false;
 
+    /**
+     * Counts down when Backend.startServer() returned. At that point the
+     * storage directory and config.json are ready, and Go waits for the
+     * bind. See awaitBackendReturn.
+     */
+    private static final java.util.concurrent.CountDownLatch backendReturned =
+            new java.util.concurrent.CountDownLatch(1);
+
+    /**
+     * Blocks until Backend.startServer() returned, or until the time is
+     * over. Answers false when the time is over. Call it on a worker
+     * thread, and never on the main thread. After true, call
+     * Backend.waitUntilReady() for the bind. That call alone returns at
+     * once when Backend.startServer() did not start yet. The latch closes
+     * that gap.
+     */
+    static boolean awaitBackendReturn(long timeoutMs) throws InterruptedException {
+        return backendReturned.await(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+    }
+
     private PowerManager.WakeLock wakeLock;
 
     // ---------------------------------------------------------------
@@ -85,39 +105,9 @@ public class ServerService extends Service {
         return "/storage/emulated/0/Android/media/" + ctx.getPackageName();
     }
 
-    /**
-     * Reads config.json from the same scoped-storage directory the Go
-     * backend uses. Returns null if the file doesn't exist yet (first
-     * launch) or can't be parsed - both treated as "sharing off, defaults"
-     * by the callers.
-     */
-    private static org.json.JSONObject readConfig(Context ctx) {
-        try {
-            java.io.File cfg = new java.io.File(storageDir(ctx), "config.json");
-            if (!cfg.exists()) return null;
-            byte[] buf = new byte[(int) cfg.length()];
-            java.io.FileInputStream in = new java.io.FileInputStream(cfg);
-            try {
-                int off = 0;
-                while (off < buf.length) {
-                    int n = in.read(buf, off, buf.length - off);
-                    if (n < 0) break;
-                    off += n;
-                }
-            } finally {
-                in.close();
-            }
-            return new org.json.JSONObject(new String(buf, java.nio.charset.StandardCharsets.UTF_8));
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-
     /** True when config.json says share_lan is enabled. */
     public static boolean isLanSharingEnabled(Context ctx) {
-        org.json.JSONObject cfg = readConfig(ctx);
-        return cfg != null && cfg.optBoolean("share_lan", false);
+        return OmnConfig.flag(storageDir(ctx), "share_lan");
     }
 
     /**
@@ -131,10 +121,7 @@ public class ServerService extends Service {
      * flavor's app) is listening on.
      */
     public static int serverPort(Context ctx) {
-        org.json.JSONObject cfg = readConfig(ctx);
-        int def = BuildConfig.DEFAULT_SERVER_PORT;
-        int port = cfg != null ? cfg.optInt("server_port", def) : def;
-        return port > 0 ? port : def;
+        return OmnConfig.port(storageDir(ctx), BuildConfig.DEFAULT_SERVER_PORT);
     }
 
     /**
@@ -283,9 +270,27 @@ public class ServerService extends Service {
             // The Go runtime cannot ask Android which applicationId it
             // runs under, and /api/status reports it. Set before the
             // server starts, so the first status request already has it.
-            Backend.setAndroidPackage(getPackageName());
-            Backend.startServer(storageDir(this), BuildConfig.DEFAULT_SERVER_PORT);
+            //
+            // A worker thread, and not the main thread, which runs each
+            // onStartCommand. The first start of a new version writes the
+            // shipped files again and compiles each page again, and that
+            // takes seconds. On the main thread, the activity could not
+            // draw its first frame in that time, and the screen stayed
+            // black. MainActivity waits with awaitBackendReturn.
             backendStarted = true;
+            final String dir = storageDir(this);
+            final String pkg = getPackageName();
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Backend.setAndroidPackage(pkg);
+                        Backend.startServer(dir, BuildConfig.DEFAULT_SERVER_PORT);
+                    } finally {
+                        backendReturned.countDown();
+                    }
+                }
+            }, "omn-go-start").start();
         }
 
         // Sticky, thus the LAN-sharing server comes back when the system

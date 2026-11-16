@@ -23,7 +23,7 @@
 // site in this file reads it. See window.onload below.
 //
 // A SECOND call stood inside a MutationObserver. That observer watched
-// #preview for a change of the DOM, and the render of KaTeX itself makes
+// #omn-preview for a change of the DOM, and the render of KaTeX itself makes
 // such a change. It replaces the text "$...$" with the markup
 // <span class="katex">...</span>.
 //
@@ -32,7 +32,7 @@
 // rendered math with the same delimiter pattern. That is what damaged
 // the plain text nearby.
 //
-// The server sets the content of #preview one time, and no code of this
+// The server sets the content of #omn-preview one time, and no code of this
 // file changes it after that. The observer therefore had no work at all.
 // It is REMOVED below and not repaired. A mechanism that feeds itself
 // and has no work to do is a risk with no gain.
@@ -142,10 +142,10 @@ window.OMNProgress = (function() {
               '<div class="omn-progress-head">' +
                 '<span class="omn-progress-title"></span>' +
                 '<button type="button" class="omn-progress-close" aria-label="Hide">' +
-                  '<i class="material-icons icon-sm">close</i>' +
+                  '<i class="material-icons omn-icon-sm">close</i>' +
                 '</button>' +
               '</div>' +
-              '<div class="omn-progress-track indeterminate"><div class="omn-progress-fill"></div></div>' +
+              '<div class="omn-progress-track omn-indeterminate"><div class="omn-progress-fill"></div></div>' +
               '<div class="omn-progress-stage"></div>' +
               '<div class="omn-progress-detail"></div>' +
             '</div>';
@@ -187,12 +187,12 @@ window.OMNProgress = (function() {
         percent: function(n) {
             if (!trackEl) return;
             if (n === null || n === undefined || isNaN(n)) {
-                trackEl.classList.add('indeterminate');
+                trackEl.classList.add('omn-indeterminate');
                 fillEl.style.width = '';
                 return;
             }
             n = Math.max(0, Math.min(100, Number(n)));
-            trackEl.classList.remove('indeterminate');
+            trackEl.classList.remove('omn-indeterminate');
             fillEl.style.width = n + '%';
         },
         hide: function() {
@@ -220,20 +220,20 @@ if (typeof currentNote === 'undefined') {
     currentNote = (window.location.pathname.split('/').pop() || 'Welcome').replace(/\.html$/, '').replace(/\.md$/, '');
 }
 
-        // applyPlatformUI shows the .android-only controls. omn-go-core.css
+        // applyPlatformUI shows the .omn-android-only controls. omn-go-core.css
         // hides them. The server sets IS_ANDROID through COND_SCRIPTS in
         // internal/render/pages.go, the same way as IS_MARKDOWN. The function
         // runs at load, and it needs no login and no session.
         //
         // Set "flex", and not "". An empty value removes the inline style,
         // and the cascade decides again. The CSS hides these controls with a
-        // selector that wins inside .header-actions, thus "" keeps the
-        // button hidden on Android too. ".header-actions a, .header-actions
+        // selector that wins inside .omn-header-actions, thus "" keeps the
+        // button hidden on Android too. ".omn-header-actions a, .omn-header-actions
         // button" gives "flex" to each other control of that bar, thus the
         // button matches its neighbors.
         function applyPlatformUI() {
             if (typeof IS_ANDROID !== 'undefined' && IS_ANDROID) {
-                document.querySelectorAll('.android-only').forEach(el => {
+                document.querySelectorAll('.omn-android-only').forEach(el => {
                     el.style.display = 'flex';
                 });
             }
@@ -242,14 +242,14 @@ if (typeof currentNote === 'undefined') {
         // Standalone or offline mode. When the compiled page is opened
         // directly from disk (file://) there is no server. Hide the header
         // controls that work only against the backend: create, quick-note,
-        // bookmark, sync, settings and edit, all marked .server-only in
+        // bookmark, sync, settings and edit, all marked .omn-server-only in
         // index.html. Home, the metadata toggle and Refresh stay, because
         // they work offline. Refresh falls back to a plain reload, see
         // refreshPage. This runs on load, and the header is collapsed by
         // default, thus nothing flashes.
         function applyOfflineUI() {
             if (window.location.protocol === 'file:') {
-                document.querySelectorAll('.server-only').forEach(function (el) {
+                document.querySelectorAll('.omn-server-only').forEach(function (el) {
                     el.style.display = 'none';
                 });
             }
@@ -268,31 +268,56 @@ if (typeof currentNote === 'undefined') {
 
         // Asks the native shell (WebViewSetup.shouldOverrideUrlLoading, see
         // the omngo://edit precedent) to pin a home-screen shortcut to the
-        // current note. The .android-only button is the only way in, and
+        // current note. The .omn-android-only button is the only way in, and
         // applyPlatformUI() reveals it inside the Android app only. There
         // is no equivalent on desktop. "name" is the on-disk page name, and
         // MainActivity needs it to reopen the right note. "title" is the
         // Title: header of the note, already exposed as the global `Title`
         // var, see index.html. The label uses "title" alone, thus a
         // shortcut reads "Grocery List" and not "note-42".
-        window.OMN.action('add-shortcut', function () {
+        //
+        // Android 8 (API 26) and later has two ways to pin a shortcut. The
+        // dialog asks which one, and "mode" gives the answer to
+        // Shortcuts.createNoteShortcut. An older Android has one way only,
+        // thus the page asks nothing there.
+        window.OMN.action('add-shortcut', async function () {
             if (typeof currentNote === 'undefined' || !currentNote) return;
             var label = (typeof Title !== 'undefined' && Title) ? Title : currentNote;
-            window.location.href = 'omngo://shortcut?name=' + encodeURIComponent(currentNote) +
+            var url = 'omngo://shortcut?name=' + encodeURIComponent(currentNote) +
                 '&title=' + encodeURIComponent(label);
+            var android = /Android (\d+)/.exec(navigator.userAgent || '');
+            if (android && Number(android[1]) >= 8 && typeof window.omnDialog === 'function') {
+                var answer = await window.omnDialog({
+                    kind: 'choice',
+                    title: 'Add "' + label + '" to the Home screen',
+                    text: 'Reliable always works and shows the OMN-Go icon. ' +
+                        'Android opens the Home screen, and you confirm there.\n\n' +
+                        'Quick tries to add the shortcut while you stay in OMN-Go. ' +
+                        'It often shows a generic icon, and some launchers do nothing. ' +
+                        'If the icon is wrong or no shortcut appears, use Reliable.',
+                    buttons: [
+                        { label: 'Reliable', value: 'reliable', default: true },
+                        { label: 'Quick', value: 'quick' },
+                        { label: 'Cancel', value: null, cancel: true },
+                    ],
+                });
+                if (!answer.value) return;
+                url += '&mode=' + answer.value;
+            }
+            window.location.href = url;
         });
 
 // The title of the page opens and closes the header. The arrow beside the
 // title shows the state.
 window.OMN.action('toggle-header', function () {
-    var header = document.getElementById('hidable_header');
-    var arrow = document.getElementById('title_arrow');
+    var header = document.getElementById('omn-hidable-header');
+    var arrow = document.getElementById('omn-title-arrow');
     if (!header) return;
-    if (header.classList.contains('hidden')) {
-        header.classList.remove('hidden');
+    if (header.classList.contains('omn-hidden')) {
+        header.classList.remove('omn-hidden');
         if (arrow) arrow.textContent = '\u2212';
     } else {
-        header.classList.add('hidden');
+        header.classList.add('omn-hidden');
         if (arrow) arrow.textContent = '+';
     }
 });
@@ -312,23 +337,127 @@ window.OMN.action('replace-location', function (el) {
 window.OMN.action('edit-page', function () {
     window.location.href = window.location.pathname + '?edit=true';
 });
-// toggle-panel and hide-panel take the id of the panel in data-arg. The
-// panel can be absent. An exported page has no modal, because the server
-// adds each modal when it serves a page.
-window.OMN.action('toggle-panel', function (el) {
-    var p = document.getElementById(el.getAttribute('data-arg'));
-    if (p) p.classList.toggle('hidden');
-});
-window.OMN.action('hide-panel', function (el) {
-    var p = document.getElementById(el.getAttribute('data-arg'));
-    if (p) p.classList.add('hidden');
-});
+// --- The panels ---
+//
+// Quick Note and Bookmark are panels of modals.html, with the class
+// .omn-panel. A panel does not stop the page under it. Only one panel
+// shows at a time. These three functions are the only code that shows or
+// hides a panel. omn-go-api.js, omn-go-bookmark.js and MainActivity.java
+// call them.
+//
+// The metadata panel of index.html has no class .omn-panel. It opens and
+// closes with the same functions, but it does not hide the other panels.
+//
+// A page from disk has no panel, because the server adds modals.html when
+// it sends a page. Thus each function accepts a missing panel.
+
+// omnShowPanel shows a panel and hides each other .omn-panel. It answers
+// false when the page has no such panel.
+window.omnShowPanel = function (id) {
+    var panel = document.getElementById(id);
+    if (!panel) return false;
+    if (panel.classList.contains('omn-panel')) {
+        Array.prototype.forEach.call(document.querySelectorAll('.omn-panel'), function (p) {
+            if (p !== panel) p.classList.add('omn-hidden');
+        });
+    }
+    panel.classList.remove('omn-hidden');
+    return true;
+};
+window.omnHidePanel = function (id) {
+    var panel = document.getElementById(id);
+    if (panel) panel.classList.add('omn-hidden');
+};
+// omnTogglePanel answers true when the panel is open after the call.
+window.omnTogglePanel = function (id) {
+    var panel = document.getElementById(id);
+    if (!panel) return false;
+    if (panel.classList.contains('omn-hidden')) return window.omnShowPanel(id);
+    panel.classList.add('omn-hidden');
+    return false;
+};
+
+// omnCloseTopLayer closes the top layer of the page and answers true. With
+// no open layer it answers false. The Back key of Android (MainActivity.java)
+// and Escape (omn-go-api.js) call it. The order is the order on the screen:
+//
+//   1. A dialog of omn-go-dialog.js (z-index 80).
+//   2. The search overlay of omn-go-search.js (70).
+//   3. A panel (40).
+//
+// Each of the two files loads on demand. Before it loads, its layer cannot
+// be open, and the typeof test skips it. omnCloseDialog also answers true
+// for a dialog that it does not close, for example the login dialog. The
+// page under such a dialog must not change.
+window.omnCloseTopLayer = function () {
+    if (typeof window.omnCloseDialog === 'function' && window.omnCloseDialog() === true) return true;
+    if (typeof window.omnSearchIsOpen === 'function' && window.omnSearchIsOpen()) {
+        window.omnSearchClose();
+        return true;
+    }
+    var open = Array.prototype.find.call(document.querySelectorAll('.omn-panel'), function (p) {
+        return !p.classList.contains('omn-hidden');
+    });
+    if (!open) return false;
+    open.classList.add('omn-hidden');
+    return true;
+};
+
+// --- The notice ---
+//
+// A dialog is for a question or a fault. A result that needs no answer is a
+// notice: one short line at the bottom of the screen. It goes away after
+// OMN_NOTICE_MS, or at a press on it. A second notice replaces the first,
+// thus the page never holds two. The text goes in with textContent.
+
+const OMN_NOTICE_MS = 2500;
+const OMN_NOTICE_KEY = 'omn-notice';
+let omnNoticeTimer = null;
+
+window.omnNotice = function (text) {
+    if (!document.body) return;
+    let el = document.querySelector('.omn-notice');
+    if (!el) {
+        el = document.createElement('div');
+        el.className = 'omn-notice';
+        el.setAttribute('role', 'status');
+        el.setAttribute('aria-live', 'polite');
+        el.addEventListener('click', function () { el.remove(); });
+        document.body.appendChild(el);
+    }
+    el.textContent = String(text);
+    clearTimeout(omnNoticeTimer);
+    omnNoticeTimer = setTimeout(function () { el.remove(); }, OMN_NOTICE_MS);
+};
+
+// omnNoticeAfterLoad keeps a notice for the next page, for a result that
+// loads the page again. The load listener below shows it. A WebView can
+// refuse sessionStorage. The notice is then lost, and nothing fails.
+window.omnNoticeAfterLoad = function (text) {
+    try {
+        window.sessionStorage.setItem(OMN_NOTICE_KEY, String(text));
+    } catch (e) { /* no storage: no notice */ }
+};
+
+function omnShowKeptNotice() {
+    let text = null;
+    try {
+        text = window.sessionStorage.getItem(OMN_NOTICE_KEY);
+        window.sessionStorage.removeItem(OMN_NOTICE_KEY);
+    } catch (e) { /* no storage: no notice */ }
+    if (text) window.omnNotice(text);
+}
+
+// toggle-panel and hide-panel take the id of the panel in data-arg.
+window.OMN.action('toggle-panel', function (el) { window.omnTogglePanel(el.getAttribute('data-arg')); });
+window.OMN.action('hide-panel', function (el) { window.omnHidePanel(el.getAttribute('data-arg')); });
 
 // addEventListener, and NOT "window.onload = ...". A classic OMN note
 // often assigns window.onload itself, for example
 // "window.onload=createTOC()". With a listener, this handler and the
 // window.onload of the note both run.
 window.addEventListener('load', () => {
+            omnShowKeptNotice();
             checkSession();
             applyPlatformUI();
             applyOfflineUI();
@@ -346,17 +475,16 @@ window.addEventListener('load', () => {
             // evaluateJavascript in MainActivity.onNewIntent - this only
             // covers the cold-start case.
             if (params.has('quicknote')) {
-                const qp = document.getElementById('quickPanel');
-                if (qp) qp.classList.remove('hidden');
+                window.omnShowPanel('omn-quick-panel');
                 window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
             }
             if (window.hljs) {
-                document.querySelectorAll('#preview pre code').forEach((block) => {
+                document.querySelectorAll('#omn-preview pre code').forEach((block) => {
                     hljs.highlightElement(block);
                 });
             }
             if (typeof OMN_GO_KATEX !== 'undefined' && OMN_GO_KATEX && window.renderMathInElement) {
-                omnGoRenderMath(document.getElementById('preview') || document.body);
+                omnGoRenderMath(document.getElementById('omn-preview') || document.body);
             }
             // AFTER hljs and KaTeX, and never before. highlightElement
             // rebuilds the innerHTML of each "pre code". That used to
@@ -364,7 +492,7 @@ window.addEventListener('load', () => {
             // See the note above omnApplyArrivalHighlight.
             omnApplyArrivalHighlight();
             if (typeof currentNote !== 'undefined' && currentNote === 'Config') {
-                const tb = document.getElementById('toggleBtn');
+                const tb = document.getElementById('omn-toggle-btn');
                 if (tb) tb.style.display = 'none';
             }
             // Note: ?edit=true is now handled entirely on the server, which

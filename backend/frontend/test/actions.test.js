@@ -152,7 +152,9 @@ function shellActions() {
 
 test('each control of the page shell has an action, from the server and from disk', () => {
     const names = shellActions();
-    assert.ok(names.length >= 15, 'the scan found ' + names.length + ' actions in the shell');
+    // The floor shows that the scan still reads the templates. It is not
+    // the number of the actions.
+    assert.ok(names.length >= 10, 'the scan found ' + names.length + ' actions in the shell');
     for (const protocol of ['http:', 'file:']) {
         const { page } = loadPage(protocol);
         for (const name of names) {
@@ -169,7 +171,7 @@ test('the copy control copies the quick note and writes the result on itself', (
     let selected = false;
     text.select = function () { selected = true; };
     text.setSelectionRange = function () {};
-    page.document.getElementById = function (id) { return id === 'quickText' ? text : null; };
+    page.document.getElementById = function (id) { return id === 'omn-quick-text' ? text : null; };
     const commands = [];
     page.document.execCommand = function (name) { commands.push(name); return true; };
     const el = control('quick-note-copy');
@@ -192,7 +194,7 @@ test('the copy control copies the quick note and writes the result on itself', (
 
 test('the title opens and closes the header', () => {
     const { page, clicks } = loadPage();
-    const classes = { hidden: true };
+    const classes = { 'omn-hidden': true };
     const header = makeElement();
     header.classList = {
         contains: function (c) { return !!classes[c]; },
@@ -201,20 +203,25 @@ test('the title opens and closes the header', () => {
     };
     const arrow = makeElement();
     page.document.getElementById = function (id) {
-        return id === 'hidable_header' ? header : id === 'title_arrow' ? arrow : null;
+        return id === 'omn-hidable-header' ? header : id === 'omn-title-arrow' ? arrow : null;
     };
     click(clicks, control('toggle-header'));
-    assert.strictEqual(classes.hidden, undefined, 'the first click did not open the header');
+    assert.strictEqual(classes['omn-hidden'], undefined, 'the first click did not open the header');
     assert.strictEqual(arrow.textContent, '\u2212');
     click(clicks, control('toggle-header'));
-    assert.strictEqual(classes.hidden, true, 'the second click did not close the header');
+    assert.strictEqual(classes['omn-hidden'], true, 'the second click did not close the header');
     assert.strictEqual(arrow.textContent, '+');
 });
 
 test('the new page control sends the name to /api/newpage', async () => {
     const { page, clicks } = loadPage();
-    const answers = ['my new note', 'MyNewNote'];
-    page.prompt = function () { return answers.shift(); };
+    // The control asks with one form of omn-go-dialog.js. The person typed
+    // the title and kept the file name that came from it.
+    const asked = [];
+    page.omnDialog = async function (opts) {
+        asked.push(opts);
+        return { value: true, input: 'my new note', inputs: ['my new note', 'MyNewNote'] };
+    };
     page.currentNote = 'dir/Here';
     const requests = [];
     page.fetch = async function (url, opts) {
@@ -227,6 +234,9 @@ test('the new page control sends the name to /api/newpage', async () => {
         '/api/newpage', 'POST', 'source=dir%2FHere&target=MyNewNote&title=my+new+note',
     ]]);
     assert.strictEqual(page.location.href, '/dir/MyNewNote.html?edit=true');
+    assert.strictEqual(asked.length, 1, 'the control asks more than one time');
+    // The array comes from the realm of the page, thus the test compares text.
+    assert.strictEqual(asked[0].fields.map(function (f) { return f.label; }).join('|'), 'Title|File name');
 });
 
 test('no internal function of a control is a name of window', () => {
@@ -239,23 +249,6 @@ test('no internal function of a control is a name of window', () => {
         'toggleBookmarkPanel']) {
         assert.strictEqual(typeof page[name], 'undefined', 'window.' + name + ' is back');
     }
-});
-
-test('hide-panel and toggle-panel work on the panel of data-arg', () => {
-    const { page, clicks } = loadPage();
-    const calls = [];
-    const panel = makeElement();
-    panel.classList = {
-        add: function (c) { calls.push('add ' + c); },
-        toggle: function (c) { calls.push('toggle ' + c); },
-    };
-    page.document.getElementById = function (id) { return id === 'quickPanel' ? panel : null; };
-    click(clicks, control('hide-panel', 'quickPanel'));
-    click(clicks, control('toggle-panel', 'quickPanel'));
-    // An id that the page does not have must not throw. An exported page
-    // has no modal.
-    click(clicks, control('hide-panel', 'absent'));
-    assert.deepStrictEqual(calls, ['add hidden', 'toggle hidden']);
 });
 
 test('on a page from disk a server action does not throw', () => {

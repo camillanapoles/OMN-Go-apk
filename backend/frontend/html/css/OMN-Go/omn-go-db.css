@@ -1,0 +1,19 @@
+/* The page of the database backups. */
+
+.omn-dbb-row { display:flex; align-items:center; gap:0.6em; padding:0.5em 0.2em; border-bottom:1px solid var(--omn-border-soft); flex-wrap:wrap; }
+.omn-dbb-dot { width:0.85em; height:0.85em; border-radius:50%; flex:0 0 auto; display:inline-block; background:var(--omn-text-dim); }
+.omn-dbb-name { font-weight:bold; min-width:8em; color:var(--omn-text-strong); }
+.omn-dbb-meta { color:var(--omn-text-faint); font-size:0.9em; }
+.omn-dbb-details { margin:0.3em 0 0.8em 1.6em; font-size:0.92em; }
+.omn-dbb-bk { display:flex; align-items:center; gap:0.6em; padding:0.25em 0; flex-wrap:wrap; }
+.omn-dbb-state { font-size:0.85em; padding:0.05em 0.5em; border-radius:1em; border:1px solid var(--omn-border); color:var(--omn-text-muted); }
+.omn-dbb-error { color:var(--omn-danger); }
+.omn-dbb-code { font-family:monospace; background:var(--omn-bg-inset); color:var(--omn-text); padding:0.1em 0.35em; border-radius:4px; }
+
+/* Each dot has a state label next to it. */
+.omn-dbb-dot.omn-st-insync       { background:var(--omn-state-ok); }
+.omn-dbb-dot.omn-st-dirty        { background:var(--omn-state-warn); }
+.omn-dbb-dot.omn-st-backup_newer { background:var(--omn-state-info); }
+.omn-dbb-dot.omn-st-missing      { background:var(--omn-state-info); }
+.omn-dbb-dot.omn-st-none         { background:var(--omn-state-off); }
+.omn-dbb-dot.omn-st-invalid      { background:var(--omn-state-error); }

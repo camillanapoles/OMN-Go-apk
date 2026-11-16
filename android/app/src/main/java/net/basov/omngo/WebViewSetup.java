@@ -19,6 +19,8 @@ final class WebViewSetup {
     static void build(final MainActivity a) {
         // Create Native Loading Layout
         android.widget.FrameLayout rootLayout = new android.widget.FrameLayout(a);
+        // The color of omn_start_background in res/values/themes.xml, the
+        // window background before this layout.
         rootLayout.setBackgroundColor(android.graphics.Color.parseColor("#f9f9f9"));
 
         final android.widget.ProgressBar progressBar = new android.widget.ProgressBar(a);
@@ -27,6 +29,23 @@ final class WebViewSetup {
             android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
         pbParams.gravity = android.view.Gravity.CENTER;
         progressBar.setLayoutParams(pbParams);
+
+        // The work of the start, under the spinner. See
+        // MainActivity.showStartStage. The spinner stays at the center,
+        // because each later page load shows it there with no text.
+        float dp = a.getResources().getDisplayMetrics().density;
+        a.startText = new android.widget.TextView(a);
+        a.startText.setText("Starting");
+        a.startText.setTextColor(android.graphics.Color.parseColor("#666666"));
+        a.startText.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14);
+        a.startText.setGravity(android.view.Gravity.CENTER);
+        a.startText.setPadding((int) (24 * dp), 0, (int) (24 * dp), 0);
+        android.widget.FrameLayout.LayoutParams textParams = new android.widget.FrameLayout.LayoutParams(
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+        textParams.gravity = android.view.Gravity.CENTER;
+        textParams.topMargin = (int) (64 * dp);
+        a.startText.setLayoutParams(textParams);
 
         // Initialize WebView
         a.webView = new WebView(a);
@@ -93,6 +112,7 @@ final class WebViewSetup {
             @Override
             public void onPageFinished(WebView view, String url) {
                 progressBar.setVisibility(android.view.View.GONE);
+                a.startText.setVisibility(android.view.View.GONE);
                 // A save on the Config page reloads it. That is what makes
                 // a "Fullscreen mode" change apply at once, and not at the
                 // next app start.
@@ -105,6 +125,7 @@ final class WebViewSetup {
             public void onReceivedError(WebView view, android.webkit.WebResourceRequest request,
                                         android.webkit.WebResourceError error) {
                 progressBar.setVisibility(android.view.View.GONE);
+                a.startText.setVisibility(android.view.View.GONE);
                 super.onReceivedError(view, request, error);
             }
             @Override
@@ -119,21 +140,11 @@ final class WebViewSetup {
 
                 if (url != null && url.startsWith("omngo://shortcut")) {
                     try {
-                        String query = url.substring(url.indexOf('?') + 1);
-                        String name = null;
-                        String title = null;
-                        for (String param : query.split("&")) {
-                            int eq = param.indexOf('=');
-                            if (eq < 0) continue;
-                            String key = param.substring(0, eq);
-                            String value = android.net.Uri.decode(param.substring(eq + 1));
-                            if ("name".equals(key)) {
-                                name = value;
-                            } else if ("title".equals(key)) {
-                                title = value;
-                            }
-                        }
-                        a.shortcuts.createNoteShortcut(name, title);
+                        android.net.Uri request = android.net.Uri.parse(url);
+                        a.shortcuts.createNoteShortcut(
+                            request.getQueryParameter("name"),
+                            request.getQueryParameter("title"),
+                            request.getQueryParameter("mode"));
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -142,11 +153,13 @@ final class WebViewSetup {
 
                 if (url != null && url.startsWith("omngo://edit")) {
                     try {
-                        String name = url.substring(url.indexOf("?name=") + 6);
-                        if (name.contains("&")) {
-                            name = name.split("&")[0];
+                        // The server writes the name with url.QueryEscape, which
+                        // writes a space as "+". getQueryParameter reads "+" as a
+                        // space, and Uri.decode does not.
+                        String name = android.net.Uri.parse(url).getQueryParameter("name");
+                        if (name == null || name.isEmpty()) {
+                            return true;
                         }
-                        name = android.net.Uri.decode(name);
                         a.currentEditingName = name;
 
                         IntentBridge.allowFileUriHandoff();
@@ -235,6 +248,7 @@ final class WebViewSetup {
         });
         rootLayout.addView(a.webView);
         rootLayout.addView(progressBar);
+        rootLayout.addView(a.startText);
         a.setContentView(rootLayout);
     }
 }

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -78,6 +79,40 @@ func (l Layout) PageHTML(name string) string {
 	return l.HTML(filepath.FromSlash(ContainedName(name) + ".html"))
 }
 
+// DropCompiledPages removes each compiled page: each html/<name>.html that
+// has the source md/<name>.md. An .html file with no source is a file of the
+// user, and it stays. A new version calls it, because a compiled page holds
+// the page shell of the old templates. See
+// doc/decisions/0026-compile-each-page-again-after-a-new-version.md. The
+// function answers the count of removed pages. progress receives the count
+// after each removal, with no whole count.
+func DropCompiledPages(l Layout, progress Progress) (int, error) {
+	root := l.HTML()
+	removed := 0
+	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(d.Name(), ".html") {
+			return err
+		}
+		rel, relErr := filepath.Rel(root, p)
+		if relErr != nil {
+			return relErr
+		}
+		if !FileExists(l.MD(strings.TrimSuffix(rel, ".html") + ".md")) {
+			return nil
+		}
+		if err := os.Remove(p); err != nil {
+			return err
+		}
+		removed++
+		progress.report(removed, 0)
+		return nil
+	})
+	if os.IsNotExist(err) {
+		err = nil
+	}
+	return removed, err
+}
+
 // The local-only name rule: a file or a directory with a name that starts
 // with "local-" stays on this device.
 //
@@ -102,4 +137,33 @@ func IsLocalOnlyPath(name string) bool {
 		}
 	}
 	return false
+}
+
+// TempSuffix ends the name of the temporary file of ReplaceFile.
+// gitsync.GitignorePatterns holds "*" + TempSuffix.
+const TempSuffix = ".omn-tmp"
+
+// ReplaceFile writes data to a temporary file beside p and renames it to p.
+// A stop of the process during the write thus leaves the old file whole. A
+// temporary file that an earlier stop left behind gets written over.
+func ReplaceFile(p string, data []byte) error {
+	tmp := p + TempSuffix
+	f, err := os.Create(tmp)
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(data)
+	if err == nil {
+		err = f.Sync()
+	}
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Rename(tmp, p)
+	}
+	if err != nil {
+		os.Remove(tmp)
+	}
+	return err
 }

@@ -53,6 +53,10 @@ Do not remove a constraint without an instruction from the maintainer.
 7. **Give each decision one authority.** Each decision has one implementation.
    `noteheader.Parse` is the only header-block parser.
    `render.Renderer.RenderAndCache` is the only writer of `html/<name>.html`.
+   `writeNoteFile` is the only writer of a note source in package `app`. It
+   writes through `storage.ReplaceFile`, a temporary file and a rename.
+   `noteheader.New` is the only header of a new note.
+   `config.Save` is the only writer of `config.json`.
    `storage.ResolvePageName` is the only name resolver.
    `hasRole` is the only role check. `systemPages` is the only page-access table.
    `storage.Layout` is the only code that joins a name to `StorageDir`.
@@ -74,6 +78,10 @@ Do not remove a constraint without an instruction from the maintainer.
    `gitsync.GitignoreLocalOnlyPattern` covers new files. A test compares the
    two. The pattern must stay last in `gitsync.GitignorePatterns`, because
    go-git reads patterns from the end.
+   The app never writes `.gitignore`. `gitsync.Service.WriteExcludeFile` writes
+   the list to `.git/info/exclude`, and `gitsync.Worktree` gives it to go-git.
+   Open each worktree with `gitsync.Worktree`. See
+   `doc/decisions/0029-keep-the-ignore-patterns-of-the-app-in-git-info-exclude.md`.
 10. **LAN sharing is off by default.** When `share_lan` is false, the listener binds
     `127.0.0.1`. The socket enforces the limit, not the authentication code. A local
     connection from `127.0.0.1`, `::1`, or `localhost` always counts as admin.
@@ -94,7 +102,7 @@ Do not remove a constraint without an instruction from the maintainer.
 | Path | Contents |
 | --- | --- |
 | `main_desktop.go` | The only file in `package main`. It holds the only build tag: `//go:build !android`. |
-| `backend/` | `package backend`, the facade for gomobile and for `main_desktop.go`. `backend.go` holds its six functions, and `version.go` holds `APP_VERSION`. |
+| `backend/` | `package backend`, the facade for gomobile and for `main_desktop.go`. `backend.go` holds its seven functions, and `version.go` holds `APP_VERSION` and the build commit. |
 | `backend/internal/app/` | `package app`, the application. It holds the `App` type, the server, the routes, the handlers and the pages. Each `*_app.go` file gives the values of the App to one package of `backend/internal/`. |
 | `backend/internal/repocheck/` | `package repocheck`, which holds only tests. Each test reads the files of the repository and checks a rule that spans more than one package or more than one language. |
 | `backend/internal/` | The other packages. `textmatch` holds the search matcher, and `noteheader` holds the header block. `logx` holds the log tags and the log hub. `config` holds the settings and their store. `storage` holds the storage layout, the application files and the plain files beside the notes. `render` holds the page compile, the page shell, the Tags page and the JSON answer. `db` holds the SQLite databases of the notes and their backups. `gitsync` holds the git sync and the host keys. `search` holds the page search and the global search index. `files` holds the Files page. `exchange` holds the export and the import of a note. `status` holds the Status page and /api/status. `testkit` holds the stand-in of the App for the tests of the feature packages. Only test files import it. |
@@ -102,7 +110,7 @@ Do not remove a constraint without an instruction from the maintainer.
 | `backend/frontend/templates/` | Server-side page fragments. Embedded as `frontend.Templates`. Never extracted to disk. |
 | `backend/frontend/html/` | `js/`, `css/`, `css/fonts/`, `json/`, `favicon.ico`. Embedded as `frontend.Static`. Extracted to the storage directory on demand. The user can edit these files with `?edit=true`. |
 | `backend/frontend/md/` | The bundled system notes. Examples: `Welcome.md`, `UserManual.md`, `Database.md`, `ScriptRules.md`. Also a `Test/OMN-Go/` demonstration tree. |
-| `android/` | Hand-written Gradle files and plain Java. The three components are `MainActivity.java`, `ServerService.java` and `ExportProvider.java`. `MainActivity` holds the life cycle and stays below 800 lines. Each other task is a plain class beside it: `WebViewSetup`, `Fullscreen`, `ShareIn`, `ShareOut`, `IntentBridge` and `Shortcuts`. `OmnConfig` and `OmnText` import no Android package, and `android/test/` holds a test of each. See `doc/decisions/0022-divide-main-activity-into-plain-classes.md`. The build generates `android/app/libs/omngo.aar` with `gomobile bind`. |
+| `android/` | Hand-written Gradle files and plain Java. The three components are `MainActivity.java`, `ServerService.java` and `ExportProvider.java`. `MainActivity` holds the life cycle and stays below 800 lines. Each other task is a plain class beside it: `WebViewSetup`, `Fullscreen`, `ShareIn`, `ShareOut`, `IntentBridge` and `Shortcuts`. `OmnConfig`, `OmnText` and `LocalServer` import no Android package, and `android/test/` holds a test of each. `LocalServer.postWithRetry` is the only POST of Java to its own server. See `doc/decisions/0022-divide-main-activity-into-plain-classes.md`. `android/build_aar.sh` makes `android/app/libs/omngo.aar` with `gomobile bind`. It holds each gomobile step and the x/mobile version. See `doc/decisions/0027-build-the-android-library-with-one-script.md`. |
 | `local/` | Maintainer scripts. The Docker context excludes this directory. The build never ships it. |
 | `fastlane/metadata/android/en-US/` | Store metadata and `changelogs/<versionCode>.txt`. Each changelog line starts with `•`. |
 | `metadata/` | `net.basov.omngo.fdroid.yml`, the F-Droid build recipe. |
@@ -123,18 +131,24 @@ update these files.
 
 * The module is `net.basov.omngo`. The language version is `go 1.25`. go-git v5.19.2
   needs Go 1.25 or later, thus the line cannot go lower.
-* The toolchain image is `golang:1.26.0-bookworm`. The F-Droid recipe builds
-  with the srclib `go@go1.26.0`, thus the two builds use the same compiler.
-  Change the image, the recipe and
+* The toolchain image is `golang:1.26.0-trixie`, with JDK 21. The F-Droid
+  server runs Debian trixie with JDK 21. The F-Droid recipe builds with the
+  srclib `go@go1.26.0`, thus the two builds use the same compiler. Change the
+  image, the recipe and
   `backend/internal/repocheck/testdata/binary_size_baseline.json` together.
-* Each build fetches the newest `golang.org/x/mobile` with `go get -tool`. That
-  version needs Go 1.26.0, thus the real build uses Go 1.26 and not Go 1.25.
+* `XMOBILE_VERSION` in `android/build_aar.sh` is the only pin of
+  `golang.org/x/mobile`. Each build installs that version with `go get -tool`.
+  That version needs Go 1.26.0, thus the real build uses Go 1.26 and not Go 1.25.
+  A new version can raise `golang.org/x/crypto`, `x/net` and `x/sys` in the
+  library. Change the pin on purpose, and only in the script.
+* The script sets `GOTOOLCHAIN=local`. A module that needs a newer Go then
+  stops the build. With `auto`, Go downloads a second compiler without a message.
 * The module has three direct dependencies. Each one has its own `require` line:
   `github.com/yuin/goldmark`, `github.com/go-git/go-git/v5`, and
   `modernc.org/sqlite`. Keep this set small. A new dependency needs a reason and
   maintainer approval.
-* **The build generates `go.sum` inside the container.** `Dockerfile.base` writes it
-  to `/root/lockfiles`. The `test` and `project_builder` stages restore it. The host has no Go
+* **The build generates `go.sum` inside the container.** The `go_env` stage of the
+  `Dockerfile` writes it to `/root/lockfiles`. The `test` and `project_builder` stages restore it. The host has no Go
   toolchain. Remember this before you change `go.mod`.
 * The driver is `modernc.org/sqlite`, because it is pure Go and works with
   `CGO_ENABLED=0`.
@@ -155,15 +169,15 @@ update these files.
   a hook in `connectGroups`.
 * **Keep the exported surface small.** Export only what the Android layer or
   the desktop entry point calls. The Android layer calls `StartServer`,
-  `AssetsRefreshed`, `SetAndroidPackage` and `SetLANAddresses`.
-  `main_desktop.go` calls `StartServer`, `WaitUntilReady` and `ServerPort`.
-  These six functions are the facade in `backend/backend.go`. Each one calls
-  the function of the same name in `package app`. Write everything else as a
-  lowercase method on `*App`.
-* `package app` exports the type `App`, the six functions and `SetVersion`.
-  Only `backend/backend.go` calls them. `SetVersion` gives `APP_VERSION` to
-  the app, because `package app` cannot import `backend`. Do not add an
-  exported name.
+  `WaitUntilReady`, `StartStage`, `AssetsRefreshed`, `SetAndroidPackage` and
+  `SetLANAddresses`. `main_desktop.go` calls `StartServer`, `WaitUntilReady`
+  and `ServerPort`. These seven functions are the facade in
+  `backend/backend.go`. Each one calls the function of the same name in
+  `package app`. Write everything else as a lowercase method on `*App`.
+* `package app` exports the type `App`, the seven functions, `SetVersion` and
+  `SetBuildCommit`. Only `backend/backend.go` calls them. `SetVersion` and
+  `SetBuildCommit` give `APP_VERSION` and the build commit to the app, because
+  `package app` cannot import `backend`. Do not add an exported name.
 * **Names.** Use `handleXxx` for an API endpoint. Use `serveXxx` for a page or an
   asset. Use `renderXxxPage` with an `xxxView` struct. Use `normalizeXxx` for value
   repair. Write a predicate as a question: `storage.IsLocalOnlyPath`,
@@ -172,8 +186,9 @@ update these files.
 * **Branch on `runtime.GOOS`, not on a build tag.** The tree holds one build tag.
 * **Errors.** Wrap an error with `fmt.Errorf("...: %w", err)`. Send the HTTP failure
   of a plain-text endpoint with `http.Error(w, msg, code)`.
-* **JSON answers.** Send each JSON answer with `a.writeJSON(w, code, v)`. Send a JSON
-  failure with `a.writeJSONError(w, code, msg)`. Do not write a second JSON encoder.
+* **JSON answers.** Send each JSON answer with `writeJSON(w, code, v)`. Send a JSON
+  failure with `writeJSONError(w, code, msg)` of the feature package. Both call
+  `render.WriteJSON`. Do not write a second JSON encoder.
   `TestOnlyWriteJSONEncodesAnAnswer` enforces this. `doc/API.md` section 1.4 fixes
   the response shapes. A response is plain-text status words, or JSON with
   `"status":"success"` or `"status":"error"`, or `text/event-stream` for `/api/logs`.
@@ -208,7 +223,7 @@ update these files.
     `omn-go-sync.js` is the only caller and it is a separate file.
     `TestEverySyncLineReachesTheOverlay` runs a whole sync and sends each
     line that it wrote through the real JavaScript.
-  * `logLinePrints` in `omn-go-api.js` and `logLineEnabled` in `log_app.go`
+  * `logLinePrints` in `omn-go-api.js` and `logx.Logger.Enabled` in `logx/hub.go`
     are two implementations of one decision. The page needs the answer
     without the server, thus rule 7 of section 1 allows the pair with a test.
     `TestLogFilterPortAgreesWithTheRealJavaScript` compares them.
@@ -287,12 +302,15 @@ harness of step 12.
 6. Write each API handler on the Service. Answer a JSON value with
    `render.WriteJSON`.
 7. Write `backend/frontend/html/js/OMN-Go/omn-go-<name>.js` and
-   `backend/frontend/html/css/OMN-Go/omn-go-<name>.css`. Load both with a
-   `<script src>` and a `<link>` at the end of the page. Put no style and no
-   script in the template.
+   `backend/frontend/html/css/OMN-Go/omn-go-<name>.css`. Load the script with
+   a `<script src>` at the end of the page. Name the stylesheet in the page
+   header: `render.PageHeader(title, "System", "css/OMN-Go/omn-go-<name>.css")`.
+   The server then puts the link in the head, before `omn-go-custom.css`. Put
+   no style and no script in the template. `TestTemplatesHoldNoStyleBlock`
+   holds the style part.
 8. Add the two files to `storage.VersionDependentAssets` and to
    `gitsync.GitignorePatterns`. Add the two lines to the text of
-   `TestEnsureGitignoreFreshInstall`.
+   `TestWriteExcludeFileFreshInstall`.
 9. Write `backend/internal/app/<name>_app.go`. It holds one method that makes
    the Service, and one method for each route. Give the file a group in
    `fileGroups`, and give the group a layer in `groupLayers`. Both are in
@@ -312,7 +330,7 @@ harness of step 12.
 
 `TestImportLayers`, `TestEachFileHasAGroup`, `TestGroupsUseOnlyLowerLayers`,
 `TestEachAppScriptAndStyleIsVersionDependent`,
-`TestVersionDependentAssetsAreGitignored`, `TestEnsureGitignoreFreshInstall`,
+`TestVersionDependentAssetsAreGitignored`, `TestWriteExcludeFileFreshInstall`,
 `TestBaseline_RouteSet`, `TestAPIRouteTable` and `TestEachFeatureHasItsParts`
 fail when you skip one of these steps.
 
@@ -343,9 +361,18 @@ fail when you skip one of these steps.
   or a `link`. `TestCompiledPageShellStaysSmall` guards the size.
 * **Do not add Tailwind, React, or marked.js.** goldmark renders the markdown on the
   server. The word "Tailwind" stays only in the historical `doc/initial_prompt.md`.
-* Write CSS by hand. `css/OMN-Go/omn-go-core.css` declares the design tokens as `:root`
-  custom properties. The theme is CSS only. It uses `data-theme` on `<html>` with a
-  `prefers-color-scheme` fallback.
+* Write CSS by hand. The palette at the top of `css/OMN-Go/omn-go-core.css` holds
+  each color value of the application: `--omn-light-<token>` and `--omn-dark-<token>`.
+  The theme maps below it give each token a palette value. A rule uses a token and
+  never a color value. `TestColorValuesLiveOnlyInThePalette` and
+  `TestDarkMapsAreTheSame` hold this. The one exception is `omn-go-compat.js`. The
+  theme is CSS only. It uses `data-theme` on `<html>` with a `prefers-color-scheme`
+  fallback.
+* **Each class, id and token of the application starts with `omn-`.** A token is
+  `--omn-<name>`. A note puts its own names into the same page, and the prefix
+  keeps the two sets apart. A class of a vendored library (Material Icons,
+  highlight.js, KaTeX) keeps its own name. `TestEachNameInAStylesheetHasThePrefix`
+  and `TestEachNameInATemplateHasThePrefix` hold this.
 * **Module pattern.** Use an IIFE with an explicit `window.*` export.
 * **A control names its work in `data-action`.** Write no inline `onclick` in a
   template. Call `OMN.action('name', fn)` in a script, and put
@@ -387,6 +414,11 @@ fail when you skip one of these steps.
     stub fetches the file one time and then calls the real function. The body of
     each file sits inside the `file:` guard. Write each function there as a
     `const`. A `function` declaration of the block becomes a global name.
+  * `omn-go-dialog.js` holds the dialogs of the application: `omnAlert`,
+    `omnConfirm`, `omnPrompt` and `omnDialog`. Each one answers a Promise. A
+    note page and the Config page load the file through `omnLazy`. The editor
+    page has no `omn-go-api.js`, thus `editor.html` loads it with a script
+    element. A page from disk gets stubs that answer a closed dialog.
   * `omn-go-config.js` holds the whole Config page. Only
     `templates/config_page.html` names it. A note page never loads it.
   * `omn-go-editor.js` holds the standalone editor page. It uses `var` in an
@@ -400,6 +432,29 @@ fail when you skip one of these steps.
   * `omn-go-custom.js` and `omn-go-custom.css` are user files. They are empty on
     purpose. `omn-go-custom.js` stays independent. It keeps its own plain
     `<script>` element, and it loads last.
+* **Use the dialogs of `omn-go-dialog.js`, and never `alert()`, `confirm()` or
+  `prompt()` of the browser.** A dialog of the browser has the look of the
+  browser, and on Android it is a native dialog of the WebView. Call the
+  functions as properties of `window` and wait for the Promise:
+  `if (await window.omnConfirm(text)) ...`. `TestNoBrowserDialog` holds the
+  rule. `omnDialog` also gives a password field, a textarea, content blocks
+  (paragraph, warning, table, list), a check before the dialog closes, and a
+  dialog that only a button closes. The comment above `omnDialog` lists each
+  option. Cancel is a plain button. Give `danger` only to a button that
+  destroys data. The Android Back key and Escape close the top layer
+  through `omnCloseTopLayer` of `omn-go-core.js`: a dialog, then the search
+  overlay, then a panel. Open and close a panel only with `omnShowPanel`,
+  `omnHidePanel` or `omnTogglePanel`. Only one panel shows at a time.
+- A dialog is for a question or a fault. A result that needs no answer is a
+  notice: `omnNotice(text)` of `omn-go-core.js`. A result that loads the page
+  again keeps its notice for the next page with `omnNoticeAfterLoad(text)`.
+- A button of a page uses `.omn-btn`, with `.omn-btn-primary` for the main
+  action and `.omn-btn-large` for a button that is the whole page. Do not
+  write a button class for one page. A z-index is a token of the list of
+  layers in section 6 of `omn-go-core.css`, or 0 or 1 for an order inside
+  one element. `TestEachZIndexIsALayer` holds the rule. A native dialog of the Android layer stays native when it guards an
+  action that a note script must not start, for example the Termux question
+  of `IntentBridge.java`.
 * **A lazy file gives its work through `omnLazyActions`.** Call `OMN.action` in
   the lazy file. Add the action to the `omnLazyActions` call of that file in
   `omn-go-api.js`, and to the stub list of the `else` branch. Use
@@ -424,6 +479,10 @@ fail when you skip one of these steps.
   character to one character. A row that changes the length moves every span
   after it, and the marks land on the wrong words. Without the table, a search
   for `елка` opens `Ёлка` with nothing marked.
+* **A stylesheet loads only where a page needs it.** `omn-go-core.css` holds
+  what each note page uses. A system page names its own stylesheet with a
+  `Stylesheet:` line of its page header. A lazy file names its stylesheet in
+  `omnModuleStyles` of `omn-go-api.js`, and `omnLoadModule` loads both.
 * **Load order is a feature.** The custom files load last. A user rule then wins
   against an app rule at equal specificity. The editor page loads neither custom
   file. A broken custom file can never lock the user out of the editor that repairs
@@ -437,8 +496,12 @@ fail when you skip one of these steps.
   `render.EscapeHTML(render.EscapeJS(v))` for a JS literal inside an HTML
   attribute. Splice trusted pre-rendered HTML raw.
 * The server injects the runtime variables **when it serves the page**. It replaces
-  the marker `<meta id="omn-go-runtime-vars-marker">`. A version bump therefore does
-  not invalidate the HTML cache on disk. Do not "repair" this.
+  the marker `<meta id="omn-go-runtime-vars-marker">`. A change of a setting
+  therefore needs no new compile. Do not "repair" this.
+* **A new version compiles each page again.** The compiled page holds the page
+  shell of the templates. At a start with a new version, `storage.DropCompiledPages` removes
+  each compiled page. See
+  `doc/decisions/0026-compile-each-page-again-after-a-new-version.md`.
 
 ---
 
@@ -511,10 +574,13 @@ fail when you skip one of these steps.
   three digits, with no leading zero. Examples: `26.10.1`, `26.09.37`,
   `26.09.100`.
 * **Bump the version in every commit.** The maintainer can ask for an exception.
-* A bump changes **two files**:
+* A bump changes **three files**:
   1. `backend/version.go`.
   2. `android/app/build.gradle`. Set `versionName`. Compute `versionCode` as
      `YY*100000 + MM*1000 + S`. Example: 26.09.100 gives 2609100.
+  3. `doc/CODE_MAP.md`: the line "State of the tree: version ...".
+* `TestVersionIsTheSameInEachFile` in `backend/internal/repocheck/version_test.go`
+  fails when the three files do not agree.
 * The F-Droid flavor multiplies `versionCode` by 10 and adds an offset for each ABI.
   See `android/app/fdroid-abi-versioncode.gradle`.
 * **The maintainer creates every tag.** Do not create a tag.
@@ -626,16 +692,30 @@ subject line, also when it has no list.
 
 * The Docker build is the reference build. The host needs no Go, no Android Studio,
   and no Gradle.
-* The build has two files. `Dockerfile.base` makes the toolchain image and stores
-  `go.sum`. `Dockerfile` then runs the gate and builds the artifacts. `local/build.sh`
-  runs both files and copies the artifacts to `output-binaries/`. `Dockerfile.ci`
-  holds the same stages in one file for GitHub and GitLab. Keep the three in step.
+* **The build has one file, the `Dockerfile`.** The local build, GitHub and GitLab
+  build it with the same stages and the same four secret ids. `local/build.sh`
+  builds the `export` stage into `output-binaries/`. It gives the keystore and the
+  passwords of `.env` as BuildKit secrets. Do not add a second Dockerfile for one
+  kind of build.
 * The stages:
-  * `go_env`: Go, the JDK, Node and go.sum.
-  * `base_env`: `go_env` plus the Android SDK, the NDK, Gradle and gomobile.
+  * `sys_env`: Go and the Debian packages: the JDK and Node.
+  * `android_env`: `sys_env` plus the Android SDK, the NDK and Gradle. It reads no file
+    of the repository, thus a change of `go.mod` or of the script does not start it again.
+  * `go_env`: `sys_env` plus go.mod and go.sum.
+  * `base_env`: `android_env` plus the files of `go_env`, gobind and gomobile.
   * `test`: the quality gate.
   * `project_builder`: the artifacts.
-  * `export`: the artifacts alone. Only `Dockerfile.ci` has this stage.
+  * `export`: the artifacts alone. This is the default target.
+* **The binaries hold the commit of the build.** `-ldflags -X` sets `buildCommit` and
+  `buildCommitTime` of package `backend`, and the Server section of the status page
+  shows them. The build context has no `.git`, thus the caller gives the build
+  arguments `OMN_GO_COMMIT` and `OMN_GO_COMMIT_TIME`: `local/build.sh`, the GitHub
+  workflow and `.gitlab-ci.yml`. Only `local/build.sh` adds `-dirty`. The F-Droid build
+  asks git in `android/build_aar.sh`, with no `-dirty`. `TestBuildCommitHasOneName`
+  compares the names. See `doc/decisions/0028-record-the-commit-of-the-build.md`.
+* **The gomobile steps are in `android/build_aar.sh`.** The `Dockerfile` calls it with
+  `tools`, `init` and `bind`. The F-Droid recipe can call it with no argument. Do not
+  write a gomobile step into the `Dockerfile` or into the recipe.
 * **Quality gate.** The `test` stage runs `go vet ./backend/... && go test ./backend/...`
   after `go mod tidy`. The JDK and Node of `go_env` also run the Java test and the
   JavaScript tests. `project_builder` copies `/gate-passed` from the `test` stage, thus
@@ -643,22 +723,24 @@ subject line, also when it has no list.
   the gate and prints a warning. Do not use that argument for work that you push.
 * **The three builds must agree.**
   `backend/internal/repocheck/pipelines_test.go` compares the Android API level,
-  the Go version and the NDK. It reads the Docker files and
-  `android/app/build.gradle`. It also reads the last version in
+  the Go version, the NDK, the build-tools, the Gradle version and the x/mobile pin.
+  It reads the `Dockerfile`, `android/build_aar.sh`, `android/app/build.gradle` and
+  `gradle-wrapper.properties`. It also reads the last version in
   `metadata/net.basov.omngo.fdroid.yml`. `-androidapi` must be the same as
   `minSdk`. When the recipe on the F-Droid server changes, copy it into
   `metadata/` first. The tests then show each difference.
 * **Two builds of one commit give the same APK.** `gomobile bind` has `-trimpath`, and
-  `build.gradle` removes the dependency list from the APK. `TestAndroidBuildIsTheSameOnEachHost`
-  holds both rules. The F-Droid recipe has no `-trimpath` yet.
+  `build.gradle` removes the dependency list from the APK. Go records the directory of
+  the module in `libgojni.so`, also with `-trimpath`, thus the script binds from the fixed
+  path `/tmp/omn-go-src`. `TestAndroidBuildIsTheSameOnEachHost` holds the three rules. The F-Droid recipe has no `-trimpath` yet.
 * **Two GitHub workflows.** `test.yml` builds the `test` stage alone on each push to
   `master` and on each pull request. It needs no secret. `android-gomobile-release.yml`
   builds the artifacts, and a tag push makes the release. Run the gate alone on a
-  device with `docker buildx build --target test .` after `local/build.sh` made the
-  base image one time.
+  device with `docker buildx build --target test .`.
 * Desktop targets are `linux/amd64` and `windows/amd64`. The binary name is
-  `omn-go-v${VERSION}-desktop-<os>-<arch>`. A release build uses `-trimpath` and
-  `-ldflags="-s -w"`.
+  `omn-go-v${VERSION}-desktop-<os>-<arch>`. A release build uses `CGO_ENABLED=0`,
+  `-trimpath` and `-ldflags="-s -w"`, the same flags as `TestBinarySize`. The Linux
+  binary thus needs no C library on the computer of the user.
 * Pass `-ldflags` on the `go build` command line. Keep `GOFLAGS` for single-word
   flags only. The `go` command splits `GOFLAGS` on spaces and drops an unknown flag
   without a message.
@@ -670,7 +752,9 @@ subject line, also when it has no list.
   it. A job rule alone leaves a pipeline that holds no job, and GitLab reports that
   as a fault. `.github/workflows/sync-gitlab.yml` mirrors each branch push and each
   tag, thus a branch push reaches GitLab and must make no pipeline.
-* The Android build tools stay pinned at 34.0.0. **The image follows the build. The
+* The Android build tools stay pinned at 34.0.0, with `buildToolsVersion` in
+  `android/app/build.gradle`. That is the default of AGP 8.2.2, thus the pin does
+  not change the F-Droid build. **The image follows the build. The
   build does not follow the image.** Never change the Gradle configuration to suit
   the Docker image.
 

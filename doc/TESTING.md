@@ -1,5 +1,7 @@
 # How OMN-Go is tested
 
+<!-- Summary: A description of the tests of OMN-Go: what each test examines and where it runs. It also tells what no automatic test reaches, and how to read the binary size report and the benchmarks. -->
+
 This document says what is tested, where each test runs, and what no test
 reaches. Read it before you add a test or change the build.
 
@@ -45,9 +47,9 @@ App.
 The Java and the JavaScript tests are started BY a Go test. There is no
 second command and no second gate.
 
-* `backend/internal/repocheck/java_test.go` compiles and runs the two
-  files of `android/test/java/net/basov/omngo/`: `OmnConfigTest.java` and
-  `OmnTextTest.java`.
+* `backend/internal/repocheck/java_test.go` compiles and runs the three
+  files of `android/test/java/net/basov/omngo/`: `LocalServerTest.java`,
+  `OmnConfigTest.java` and `OmnTextTest.java`.
 * `backend/internal/repocheck/js_test.go` runs `node --test` over
   `backend/frontend/test/*.test.js`.
 
@@ -64,7 +66,9 @@ tools, thus the full set runs there.
 The Android build has ONE Gradle dependency, and rule 1 of `CLAUDE.md`
 section 1 says why. JUnit would be a second one. `OmnConfigTest.java` is
 therefore a plain `main` method with three check helpers of ten lines.
-`OmnTextTest.java` has the same form.
+`OmnTextTest.java` and `LocalServerTest.java` have the same form.
+`LocalServerTest.java` starts the small HTTP server of the JDK on
+`127.0.0.1` and sends real requests to it.
 
 The frontend has no build step, and rule 4 of `CLAUDE.md` says why. A test
 runner from npm would be the first `package.json` of this project.
@@ -143,13 +147,23 @@ loads the scripts that `index.html` names and sends the load events. The
 test then sets a server function, presses a control with `h.press(selector)`
 and reads `h.requests`, `h.dialogs` and the page.
 
+A dialog of `omn-go-dialog.js` goes into `h.dialogs` as `{kind, text}`. After
+one timer turn, the page presses a button of the dialog. `h.confirm(text)`
+chooses OK or Cancel, `h.prompt(text, value)` gives the text of the field or
+null for Cancel, and `h.choose(text)` gives the label of a button.
+`h.fill(text, values)` gives the texts of the fields of each other dialog
+with fields, for example the New page form or the commit dialog, or null for
+Cancel. The page types each text with an input event. A test that presses
+the buttons itself sets `h.keepDialogs = true`. The attribute
+`data-omn-dialog` of the dialog holds its kind.
+
 `configPage()` builds the Config page from `config_page.html` and two git
 server cards, and it also loads `omn-go-config.js`. `mini-dom.js` has
 `FormData`, thus a test reads the body of a save the same as the server
 does.
 
 `editorPage(text, opts)` builds the editor from `editor.html` and loads
-`omn-go-editor.js` with `text` as the note. `opts.search` is the query of
+`omn-go-dialog.js` and `omn-go-editor.js` with `text` as the note. `opts.search` is the query of
 the address, `opts.storage` fills `localStorage`, and `opts.server` answers
 the requests. The page has the `insertText` command of a browser, and
 `opts.noInsertText` takes it away.
@@ -157,12 +171,15 @@ the requests. The page has the `insertText` command of a browser, and
 `systemPage(template, script, server)` builds a system page: the shell
 with one template as its body, and the script of that page.
 
+Each page has a `sessionStorage` in memory. `h.session` holds its values,
+and `opts.session` fills it before the load.
+
 `bookmarkPage(bookmarks, opts)` builds the bookmark page: a note page that
 loads `Bookmarker.js` after the scripts of `index.html`, with `bookmarks`
 as the list of the note. `opts.search` and `opts.hash` are the query and
 the fragment of the address, and `opts.storage` fills `localStorage`.
 
-Fourteen test files use these pages:
+Eighteen test files use these pages:
 
 | File | What it holds |
 | --- | --- |
@@ -170,16 +187,20 @@ Fourteen test files use these pages:
 | `bookmark.test.js` | The panel, the tag list, Save, the share from Android and `omnGoInsertCapture`. |
 | `config.test.js` | A save sends no secret that the person did not type. A reveal alone changes nothing. The menu, the Back control and the mark of a change. |
 | `search.test.js` | The dialog sends no request while the person types. The two scopes, the keys, and the address of a chosen line. |
-| `session.test.js` | The hint cookie, the answer 401 and the login box. |
+| `session.test.js` | The hint cookie, the answer 401 and the login dialog. A wrong password shows in the dialog. Escape and Back do not close it. A page from disk has no login. |
 | `editor-view.test.js` | An expansion keeps the view of the editor, from the Tab key and from the toolbar button. |
 | `editor-page.test.js` | A load that failed switches the save off. The save, Cancel, the jump to a line, the selection cycle, the two view toggles and a dropped file. |
 | `editor-find.test.js` | The find bar: the count, the steps, the three modes, and the text after Replace and Replace all. |
 | `bookmarker.test.js` | The bookmark page of `Bookmarker.js`: the list, the tags, the search, the address of the page and the options of the device. |
 | `nav.test.js` | The four answers to a press on a link of a note. The overlay of a slow page shows after 300 ms, and only for a press that leaves the page. |
 | `share.test.js` | The metadata panel writes each value as text. Send, the two copy controls, and the two ways to the clipboard. |
+| `db.test.js` | The Database Backups page: the list, and the dialogs of Backup and Restore. Cancel sends nothing, and Cancel is the default of Restore. |
+| `notice.test.js` | The notice: its text, its time, one at a time, the press, and the notice for the next page after a save. A refused `sessionStorage` stops nothing. |
+| `panels.test.js` | One panel at a time, each way to open a panel, and the top layer: a dialog, then the search overlay, then a panel. Escape and the Back key. |
 | `status.test.js` | The Status page asks for a slow section only on a press. Each kind of value has its form, and each value is text. |
 | `logs-page.test.js` | The Log page: the history, the new lines, the boxes of the filter, and a copy of the lines that show. |
 | `compat.test.js` | The notice of an old browser: the limit of 85, one notice, and the close mark. |
+| `dialog.test.js` | The dialogs of `omn-go-dialog.js`: the answers, Escape, Enter and Tab, text and not markup, one dialog at a time, and the focus. The field types, the content blocks, the buttons with a hint, the check before close, and the Back key. The question of the shortcut button on Android 8 and later. The New page form and its file name. |
 
 A script that sets `location.href` leaves the page in a browser. The
 document of a test stays, thus `location.href` keeps the address of the
@@ -227,8 +248,8 @@ real `applySyncLogLine`. A line that moves no stage is the failure. The
 overlay fails quietly, thus nothing else would report it.
 
 `TestLogFilterPortAgreesWithTheRealJavaScript` in
-`backend/internal/app/js_port_test.go` compares `logLineEnabled` in
-`backend/internal/app/log_app.go` with `logLinePrints` in `omn-go-api.js` over
+`backend/internal/app/js_port_test.go` compares `logx.Logger.Enabled` in
+`backend/internal/logx/hub.go` with `logLinePrints` in `omn-go-api.js` over
 120 states. It builds the value of `OMN_LOG_TAGS` the way
 `render.Renderer.InjectRuntimeVars` does. A test that builds it another way
 compares a state that no page ever holds.
@@ -261,13 +282,13 @@ Four rules keep it correct with no edit, and a test holds each one:
 Gradle reads a source set only under `android/app/src`, thus it never
 compiles this directory and the F-Droid build cannot see it.
 
-**Node is in `Dockerfile.base` and `Dockerfile.ci` only.** Those two build
-the GitHub artifacts. The F-Droid build server installs what the recipe
+**Node is in the `Dockerfile` only.** It builds the local, GitHub and GitLab
+artifacts. The F-Droid build server installs what the recipe
 names, and the recipe names no Node.
 
-`OmnConfig.java` and `OmnText.java` ARE in `src/main`, thus F-Droid
-compiles them. They add no dependency and no import outside `java.io` and
-`java.util`.
+`OmnConfig.java`, `OmnText.java` and `LocalServer.java` ARE in `src/main`,
+thus F-Droid compiles them. They add no dependency and no import outside
+`java.io`, `java.net` and `java.util`.
 
 ---
 

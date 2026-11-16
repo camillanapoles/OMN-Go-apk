@@ -118,17 +118,21 @@ type statusResponse struct {
 // statusServer holds no listen ADDRESS. The listener binds "::" or "0.0.0.0",
 // and "[::]:8080" answers no question. The port is the useful half, and
 // share_lan with lan_urls tells the rest.
+// build_commit is the commit of the build. The Git section is the git sync.
 type statusServer struct {
-	AppVersion  string   `json:"app_version"`
-	Started     string   `json:"started"`
-	UptimeS     int64    `json:"uptime_s"`
-	BindPort    int      `json:"bind_port"`
-	ShareLAN    bool     `json:"share_lan"`
-	LANURLs     []string `json:"lan_urls"`
-	ActiveConns int64    `json:"active_conns"`
-	Hostname    string   `json:"hostname"`
-	GOOS        string   `json:"goos"`
-	GOARCH      string   `json:"goarch"`
+	AppVersion      string   `json:"app_version"`
+	BuildCommit     string   `json:"build_commit"`
+	BuildCommitTime string   `json:"build_commit_time"`
+	BuildCommitURL  string   `json:"build_commit_url,omitempty"`
+	Started         string   `json:"started"`
+	UptimeS         int64    `json:"uptime_s"`
+	BindPort        int      `json:"bind_port"`
+	ShareLAN        bool     `json:"share_lan"`
+	LANURLs         []string `json:"lan_urls"`
+	ActiveConns     int64    `json:"active_conns"`
+	Hostname        string   `json:"hostname"`
+	GOOS            string   `json:"goos"`
+	GOARCH          string   `json:"goarch"`
 }
 
 // statusConfig is the config section, in the order of the config table.
@@ -245,7 +249,10 @@ func (svc Service) HandleStatus(w http.ResponseWriter, r *http.Request) {
 
 	want, unknown := parseStatusSections(r.URL.Query().Get("sections"))
 	if len(unknown) > 0 {
-		http.Error(w, "unknown section: "+strings.Join(unknown, ", "), http.StatusBadRequest)
+		svc.writeJSON(w, http.StatusBadRequest, render.JSONStatus{
+			Status:  "error",
+			Message: "unknown section: " + strings.Join(unknown, ", "),
+		})
 		return
 	}
 
@@ -268,7 +275,7 @@ var statusPageTmpl = render.LoadTemplate("status_page.html")
 // ServeStatusPage answers /OMNGoStatus.html. The page reads /api/status and
 // shows the answer. It holds no facts of its own.
 func (svc Service) ServeStatusPage(w http.ResponseWriter, r *http.Request) {
-	svc.RenderPage(w, http.StatusOK, "Status", render.PageHeader("Status", "System"), statusPageTmpl)
+	svc.RenderPage(w, http.StatusOK, "Status", render.PageHeader("Status", "System", "css/OMN-Go/omn-go-status.css"), statusPageTmpl)
 }
 
 // parseStatusSections changes the "sections" parameter into a set. Empty

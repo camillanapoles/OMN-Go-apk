@@ -33,15 +33,18 @@ function template(name, values) {
         });
 }
 
-// shellBody answers the body of a note page: the body of index.html and
-// the modals that the server adds when it serves the page. values fills
-// the placeholders of index.html, for example PREVIEW_BODY.
+// shellBody answers the body of a note page as the server sends it: the
+// body of index.html, with modals.html in place of #omn-go-modals-slot.
+// values fills the placeholders of index.html, for example PREVIEW_BODY.
 function shellBody(values) {
     const index = template('index.html', values);
     const open = index.indexOf('<body>');
     const close = index.indexOf('</body>');
     assert.ok(open >= 0 && close > open, 'index.html has no body element');
-    return index.slice(open + '<body>'.length, close) + template('modals.html');
+    const slot = '<div id="omn-go-modals-slot"></div>';
+    const body = index.slice(open + '<body>'.length, close);
+    assert.ok(body.indexOf(slot) >= 0, 'index.html has no modals slot');
+    return body.replace(slot, function () { return template('modals.html'); });
 }
 
 // shellScripts answers the application scripts that index.html names, in
@@ -62,7 +65,7 @@ function shellScripts() {
 // newDomPage answers a page that is ready for a test.
 //
 // opts.body is the markup of the body. The default is shellBody().
-// opts.preview is the markup of the note, inside #preview.
+// opts.preview is the markup of the note, inside #omn-preview.
 // opts.protocol is "http:" or "file:". The default is "http:".
 // opts.note is the name of the note, with no extension. The default is
 // "Note". The page gets the variables that the script block of index.html
@@ -79,15 +82,18 @@ function shellScripts() {
 //	requests   Each call of fetch: {url, method, body}.
 //	dialogs    Each alert, confirm and prompt: {kind, text}.
 //	loads      The src of each script element that a script added.
+//	styles     The href of each stylesheet link that a script added.
 //	streams    Each EventSource that a script opened.
 //	went       Each address that a script opened in place of this page.
 //	replaced   Each address of went that took this page out of the history.
 //	opened     Each call of window.open: {url, target}.
 //	clipboard  Each text that a script wrote with the Clipboard API.
 //	timers     The timers of the page, after h.holdTimers().
+//	session    The sessionStorage of the page, as a plain object.
+//	           opts.session gives its values before the load.
 //
-// A test sets h.server to answer a request, and h.confirm and h.prompt to
-// answer a dialog.
+// A test sets h.server to answer a request, and h.confirm, h.prompt,
+// h.choose and h.fill to answer a dialog.
 function newDomPage(opts) {
     opts = opts || {};
     const page = newPage();
@@ -168,13 +174,23 @@ function newDomPage(opts) {
     page.console = { log() {}, info() {}, warn() {}, error() {}, debug() {}, trace() {}, table() {}, dir() {}, time() {}, timeEnd() {} };
 
     const h = {
-        page: page, document: doc, requests: [], dialogs: [], loads: [], streams: [],
+        page: page, document: doc, requests: [], dialogs: [], loads: [], styles: [], streams: [],
         opened: [], clipboard: [], timers: [], went: [], replaced: [],
         // server answers one request. A test replaces it. The default is
         // a JSON success with no data.
         server: function () { return { status: 'success' }; },
         confirm: function () { return false; },
         prompt: function () { return null; },
+        choose: function () { return null; },
+        fill: function () { return null; },
+        session: Object.assign({}, opts.session || {}),
+    };
+    page.sessionStorage = {
+        getItem: function (key) {
+            return Object.prototype.hasOwnProperty.call(h.session, key) ? h.session[key] : null;
+        },
+        setItem: function (key, value) { h.session[key] = String(value); },
+        removeItem: function (key) { delete h.session[key]; },
     };
 
     // fetch gives the request to h.server. The answer of h.server is the
@@ -228,9 +244,94 @@ function newDomPage(opts) {
         return h.prompt(String(text), value);
     };
 
+    // A dialog of omn-go-dialog.js is an element .omn-dialog in the body.
+    // The page records it in h.dialogs, the same as a dialog of the browser.
+    // After one timer turn, the page presses the button of the answer:
+    //
+    //	alert    OK.
+    //	confirm  OK when h.confirm answers true, and else Cancel.
+    //	prompt   OK with the text of h.prompt, or Cancel for null.
+    //	fields   Each other dialog with fields, for example "form" or
+    //	         "commit". The texts of h.fill go into the fields, one after
+    //	         the other, each with an input event. Then OK, or Cancel for
+    //	         null. A field can be an input or a textarea.
+    //	choice   Each other dialog. The button with the label of h.choose,
+    //	         or else Cancel.
+    //
+    // h.keepDialogs = true leaves each dialog open for the test.
+    const appendToBody = doc.body.appendChild.bind(doc.body);
+    doc.body.appendChild = function (el) {
+        const out = appendToBody(el);
+        if (el.classList && el.classList.contains('omn-dialog')) {
+            const kind = el.getAttribute('data-omn-dialog');
+            const text = el.querySelector('.omn-dialog-text').textContent;
+            h.dialogs.push({ kind: kind, text: text });
+            if (!h.keepDialogs) setTimeout(function () { answerDialog(el, kind, text); }, 0);
+        }
+        return out;
+    };
+    function answerDialog(el, kind, text) {
+        if (!el.parentNode) return;
+        const ok = el.querySelector('[data-omn-default]');
+        const cancel = el.querySelector('[data-omn-cancel]') || ok;
+        if (kind === 'alert') {
+            ok.click();
+        } else if (kind === 'confirm') {
+            (h.confirm(text) ? ok : cancel).click();
+        } else if (kind === 'prompt') {
+            const input = el.querySelector('.omn-dialog-input');
+            const value = h.prompt(text, input.value);
+            if (value === null || value === undefined) {
+                cancel.click();
+            } else {
+                input.value = String(value);
+                ok.click();
+            }
+        } else if (el.querySelector('.omn-dialog-input')) {
+            // A dialog with fields, for example the New page form or the
+            // commit dialog.
+            const inputs = el.querySelectorAll('.omn-dialog-input');
+            const values = h.fill(text, inputs.map(function (i) { return i.value; }));
+            if (!values) {
+                cancel.click();
+                return;
+            }
+            values.forEach(function (value, index) {
+                if (value === undefined || value === null) return;
+                inputs[index].value = String(value);
+                inputs[index].dispatchEvent(new Event('input', { bubbles: true }));
+            });
+            ok.click();
+        } else {
+            const label = h.choose(text);
+            // A button with a hint holds two lines. The label is the first.
+            const chosen = el.querySelectorAll('button').find(function (b) {
+                const first = b.querySelector('.omn-dialog-button-label');
+                return (first ? first.textContent : b.textContent) === label;
+            });
+            (chosen || cancel).click();
+        }
+    }
+
     // A script element that a script adds to the head is a lazy file. The
-    // page runs that file and then calls onload, the same as a browser.
+    // page runs that file and then calls onload, the same as a browser. A
+    // stylesheet link goes to h.styles, and it calls onload too.
     const appendToHead = doc.head.appendChild.bind(doc.head);
+    const insertIntoHead = doc.head.insertBefore.bind(doc.head);
+    function loadStyle(el) {
+        if (el.tagName === 'LINK' && el.getAttribute('rel') === 'stylesheet') {
+            h.styles.push(el.getAttribute('href'));
+            setTimeout(function () {
+                if (typeof el.onload === 'function') el.onload();
+            }, 0);
+        }
+    }
+    doc.head.insertBefore = function (el, before) {
+        insertIntoHead(el, before);
+        loadStyle(el);
+        return el;
+    };
+    // appendChild of mini-dom calls insertBefore, thus loadStyle runs there.
     doc.head.appendChild = function (el) {
         appendToHead(el);
         if (el.tagName === 'SCRIPT' && el.getAttribute('src')) {
@@ -332,7 +433,7 @@ function newDomPage(opts) {
     // element.
     h.hidden = function (selector) {
         const el = h.$(selector);
-        return el.classList.contains('hidden') || el.style.display === 'none';
+        return el.classList.contains('omn-hidden') || el.style.display === 'none';
     };
     return h;
 }
@@ -367,9 +468,9 @@ function systemPage(templateName, script, server, opts) {
 }
 
 // editorPage answers the editor page with text as the note, after the load
-// events and the load of the note. The editor is a page of its own: it has
-// the markup of editor.html and the script omn-go-editor.js, and no other
-// script of the application.
+// events and the load of the note. The editor is a page of its own. It has
+// the markup of editor.html and two scripts: omn-go-dialog.js and
+// omn-go-editor.js. It has no other script of the application.
 //
 // opts.search is the query of the address, for example "?line=3".
 // opts.storage gives the values that localStorage holds before the load.
@@ -422,7 +523,7 @@ async function editorPage(text, opts) {
         }
         return { status: 'success' };
     };
-    h.load(['omn-go-editor.js']).ready();
+    h.load(['omn-go-dialog.js', 'omn-go-editor.js']).ready();
     await h.settle();
     return h;
 }
@@ -451,7 +552,7 @@ function bookmarkPage(bookmarks, opts) {
     h.page.localStorage = h.storage;
     // Bookmarker.css hides the tag cloud until a style shows it.
     h.page.getComputedStyle = function (el) {
-        return { display: el.style.display || (el.id === 'tagsCloud' ? 'none' : 'block') };
+        return { display: el.style.display || (el.id === 'omn-bm-tags-cloud' ? 'none' : 'block') };
     };
     return h.load(shellScripts().concat(['Bookmarker.js'])).ready();
 }

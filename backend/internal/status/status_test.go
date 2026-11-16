@@ -161,6 +161,14 @@ func TestStatusSectionsParameter(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("unknown section: status %d, want 400", rec.Code)
 	}
+	// /api/status answers JSON, thus its error is JSON too, and it names
+	// the section that it does not know.
+	var got struct{ Status, Message string }
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil || got.Status != "error" ||
+		!strings.Contains(got.Message, "sarch") {
+		t.Errorf("unknown section: the body is %q (%v), want a JSON error that names sarch",
+			rec.Body.String(), err)
+	}
 }
 
 // The storage section counts each group of files in one walk.
@@ -493,7 +501,7 @@ func TestStatusPageIsAReaderOfTheEndpoint(t *testing.T) {
 	}
 	body := rec.Body.String()
 	for _, want := range []string{
-		"/api/status", "stStorage", "stDirty", "stCopy", "stReload",
+		"/api/status", "omn-st-storage", "omn-st-dirty", "omn-st-copy", "omn-st-reload",
 		"sections=all&amp;format=md",
 		"/js/OMN-Go/omn-go-status.js", "/css/OMN-Go/omn-go-status.css",
 	} {
@@ -519,5 +527,62 @@ func TestStatusPageIsAReaderOfTheEndpoint(t *testing.T) {
 	}
 	if strings.Contains(statusPageTmpl, "<style>") {
 		t.Error("the template holds an inline style")
+	}
+}
+
+// The Server section names the commit of the build. A hash gives the address
+// of the commit, also with "-dirty". A build with no commit says "unknown",
+// and other text stays as it is, with no address.
+func TestStatusBuildCommit(t *testing.T) {
+	const hash = "0123456789abcdef0123456789abcdef01234567"
+	cases := []struct {
+		commit, wantValue, wantURL string
+	}{
+		{"", "unknown", ""},
+		{hash, hash, buildCommitURLBase + hash},
+		{hash + "-dirty", hash + "-dirty", buildCommitURLBase + hash},
+		{"0123abc", "0123abc", ""},
+		{hash + "-other", hash + "-other", ""},
+	}
+	for _, c := range cases {
+		value, url := buildCommitFields(c.commit)
+		if value != c.wantValue || url != c.wantURL {
+			t.Errorf("buildCommitFields(%q) = %q, %q, want %q, %q", c.commit, value, url, c.wantValue, c.wantURL)
+		}
+	}
+
+	a := newTestApp(t)
+	svc := a.statusService()
+	svc.BuildCommit = hash + "-dirty"
+	svc.BuildCommitTime = "2026-11-10T10:27:00+03:00"
+
+	rec := httptest.NewRecorder()
+	svc.HandleStatus(rec, httptest.NewRequest(http.MethodGet, "/api/status?sections=server", nil))
+	var res statusResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if res.Server == nil || res.Server.BuildCommit != hash+"-dirty" ||
+		res.Server.BuildCommitTime != svc.BuildCommitTime ||
+		res.Server.BuildCommitURL != buildCommitURLBase+hash {
+		t.Errorf("server section = %+v", res.Server)
+	}
+
+	rec = httptest.NewRecorder()
+	svc.HandleStatus(rec, httptest.NewRequest(http.MethodGet, "/api/status?format=md", nil))
+	for _, want := range []string{
+		"| build_commit | " + hash + "-dirty |",
+		"| build_commit_time | 2026-11-10T10:27:00+03:00 |",
+		"| build_commit_url | " + buildCommitURLBase + hash + " |",
+	} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Errorf("markdown misses %q", want)
+		}
+	}
+
+	res2, _ := getStatus(t, newTestApp(t), "")
+	if res2.Server.BuildCommit != "unknown" || res2.Server.BuildCommitURL != "" {
+		t.Errorf("no commit: build_commit = %q, url = %q, want unknown and no url",
+			res2.Server.BuildCommit, res2.Server.BuildCommitURL)
 	}
 }

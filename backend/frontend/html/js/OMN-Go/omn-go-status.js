@@ -18,7 +18,7 @@
     var state = {};
     var loaded = ['server', 'config', 'git', 'search', 'runtime', 'android'];
 
-    var body = document.getElementById('stBody');
+    var body = document.getElementById('omn-st-body');
 
     // Titles for the sections, in the order the page shows them.
     var ORDER = [
@@ -58,14 +58,27 @@
 
     // Every value goes in through textContent. A commit subject, a path
     // and a remote name are content, not markup.
+    //
+    // A key that ends with "_url" and holds an https address becomes a link,
+    // for example build_commit_url. The address is the href and also the
+    // text. Each other address stays text.
     function row(table, key, value) {
         var tr = document.createElement('tr');
         var k = document.createElement('td');
-        k.className = 'st-key';
+        k.className = 'omn-st-key';
         k.textContent = key;
         var v = document.createElement('td');
-        v.className = 'st-val';
-        v.textContent = value;
+        v.className = 'omn-st-val';
+        if (/_url$/.test(key) && /^https:\/\//.test(value)) {
+            var a = document.createElement('a');
+            a.href = value;
+            a.target = '_blank';
+            a.rel = 'noopener';
+            a.textContent = value;
+            v.appendChild(a);
+        } else {
+            v.textContent = value;
+        }
         tr.appendChild(k);
         tr.appendChild(v);
         table.appendChild(tr);
@@ -97,19 +110,19 @@
             var data = state[pair[0]];
             if (!data) { return; }
             var section = document.createElement('div');
-            section.className = 'st-section';
+            section.className = 'omn-st-section';
             var h = document.createElement('h3');
             h.textContent = pair[1];
             section.appendChild(h);
             var table = document.createElement('table');
-            table.className = 'st-table';
+            table.className = 'omn-st-table';
             rowsFor(table, '', data);
             section.appendChild(table);
             body.appendChild(section);
         });
         if (state.generated) {
             var p = document.createElement('p');
-            p.className = 'st-note';
+            p.className = 'omn-st-note';
             p.textContent = 'Generated ' + state.generated;
             body.appendChild(p);
         }
@@ -118,7 +131,7 @@
     function fail(message) {
         body.textContent = '';
         var p = document.createElement('p');
-        p.className = 'st-error';
+        p.className = 'omn-st-error';
         p.textContent = message;
         body.appendChild(p);
     }
@@ -155,10 +168,10 @@
         });
     }
 
-    ask('stStorage', 'storage', 'Counting the files in the storage directory');
-    ask('stDirty', 'git_dirty', 'Reading the git worktree state');
+    ask('omn-st-storage', 'storage', 'Counting the files in the storage directory');
+    ask('omn-st-dirty', 'git_dirty', 'Reading the git worktree state');
 
-    document.getElementById('stReload').addEventListener('click', function () {
+    document.getElementById('omn-st-reload').addEventListener('click', function () {
         state = {};
         load(loaded.join(','), null);
     });
@@ -169,7 +182,7 @@
     // omnGoCopyText in omn-go-share.js is the only clipboard writer of the
     // application. A second copy here would be a second path that must
     // agree about the Android WebView.
-    document.getElementById('stCopy').addEventListener('click', async function () {
+    document.getElementById('omn-st-copy').addEventListener('click', async function () {
         var btn = this;
         var label = btn.textContent;
         try {

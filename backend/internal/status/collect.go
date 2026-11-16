@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -40,17 +41,21 @@ func (svc Service) statusServerSection(cfg config.Config) *statusServer {
 		hostname = config.DefaultHostname()
 	}
 
+	commit, commitURL := buildCommitFields(svc.BuildCommit)
 	s := &statusServer{
-		AppVersion:  svc.Version,
-		Started:     statusTime(svc.StartedAt),
-		UptimeS:     int64(time.Since(svc.StartedAt).Seconds()),
-		BindPort:    port,
-		ShareLAN:    cfg.ShareLAN,
-		LANURLs:     []string{},
-		ActiveConns: svc.ActiveConns,
-		Hostname:    hostname,
-		GOOS:        runtime.GOOS,
-		GOARCH:      runtime.GOARCH,
+		AppVersion:      svc.Version,
+		BuildCommit:     commit,
+		BuildCommitTime: svc.BuildCommitTime,
+		BuildCommitURL:  commitURL,
+		Started:         statusTime(svc.StartedAt),
+		UptimeS:         int64(time.Since(svc.StartedAt).Seconds()),
+		BindPort:        port,
+		ShareLAN:        cfg.ShareLAN,
+		LANURLs:         []string{},
+		ActiveConns:     svc.ActiveConns,
+		Hostname:        hostname,
+		GOOS:            runtime.GOOS,
+		GOARCH:          runtime.GOARCH,
 	}
 	if cfg.ShareLAN {
 		s.LANURLs = lanURLs(port, svc.Android.LANAddresses())
@@ -155,7 +160,7 @@ func (svc Service) statusGitDirtySection() (*statusGitDirty, error) {
 	if err != nil {
 		return &statusGitDirty{}, nil
 	}
-	wTree, err := repo.Worktree()
+	wTree, err := gitsync.Worktree(repo)
 	if err != nil {
 		return nil, fmt.Errorf("open worktree: %v", err)
 	}
@@ -214,10 +219,7 @@ func (svc Service) statusRuntimeSection() *statusRuntime {
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
 
-	stamp := ""
-	if raw, err := os.ReadFile(svc.Layout.File(storage.AssetsVersionFilename)); err == nil {
-		stamp = strings.TrimSpace(string(raw))
-	}
+	stamp := storage.AssetsVersion(svc.Layout)
 	return &statusRuntime{
 		GoVersion:       runtime.Version(),
 		Goroutines:      runtime.NumGoroutine(),
@@ -403,4 +405,23 @@ func (svc Service) openRepoReadOnly() (*git.Repository, error) {
 	}
 	storer := filesystem.NewStorage(dotFS, cache.NewObjectLRUDefault())
 	return git.Open(storer, wtFS)
+}
+
+// buildCommitURLBase is the start of the address of a commit of OMN-Go.
+const buildCommitURLBase = "https://github.com/mvbasov/OMN-Go/commit/"
+
+// buildCommitRe is a full commit hash, with an optional "-dirty".
+var buildCommitRe = regexp.MustCompile(`^([0-9a-f]{40})(-dirty)?$`)
+
+// buildCommitFields answers the build_commit value and its address. No
+// commit gives "unknown", and "-dirty" links to the base commit.
+func buildCommitFields(commit string) (value, url string) {
+	if commit == "" {
+		return "unknown", ""
+	}
+	m := buildCommitRe.FindStringSubmatch(commit)
+	if m == nil {
+		return commit, ""
+	}
+	return commit, buildCommitURLBase + m[1]
 }
