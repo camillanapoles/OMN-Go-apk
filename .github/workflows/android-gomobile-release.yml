@@ -2,10 +2,10 @@ name: Build OMN-Go
 
 on:
   push:
-    branches: [master, DS]
+    branches: [main, DS, merge/sync-cnmfs, omn-go/sync, cnmfs/dev]
     tags: ['v*']
   pull_request:
-    branches: [master]
+    branches: [main, DS, merge/sync-cnmfs, omn-go/sync, cnmfs/dev]
 
 permissions:
   contents: write
