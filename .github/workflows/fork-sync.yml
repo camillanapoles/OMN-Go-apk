@@ -1,0 +1,70 @@
+# Fork Sync: fast-forward master from upstream mvbasov/OMN-Go, then land
+# master into main through a pull request with auto-merge. A push made by
+# GITHUB_TOKEN starts no workflow run, so every git push and every gh
+# command here uses the PAT secret FORK_SYNC_TOKEN.
+name: Fork Sync
+
+on:
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Fast-forward master and open sync PR
+        env:
+          GH_TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
+        run: |
+          set -euo pipefail
+          git remote add upstream https://github.com/mvbasov/OMN-Go.git
+          git fetch upstream master
+
+          git config user.name "fork-sync[bot]"
+          git config user.email "action@github.com"
+          git checkout master
+
+          BEHIND=$(git rev-list --count master..upstream/master)
+          if [ "$BEHIND" -eq 0 ]; then
+            echo "master is up to date with upstream. Nothing to sync."
+            exit 0
+          fi
+          echo "master is $BEHIND commit(s) behind upstream/master."
+
+          # --ff-only refuses a merge commit. A diverged master must be
+          # repaired by hand, not papered over by the bot.
+          git merge --ff-only upstream/master
+
+          # The URL is quoted and the token is never echoed. GitHub also
+          # masks the secret value in the log output.
+          git push "https://x-access-token:${{ secrets.FORK_SYNC_TOKEN }}@github.com/camillanapoles/OMN-Go-apk.git" master
+
+          git fetch origin main
+          AHEAD=$(git rev-list --count origin/main..master)
+          if [ "$AHEAD" -eq 0 ]; then
+            echo "main already holds each commit of master. No PR needed."
+            exit 0
+          fi
+
+          PR=$(gh pr list --repo camillanapoles/OMN-Go-apk \
+            --base main --head master --state open \
+            --json number --jq '.[0].number')
+          if [ -z "$PR" ]; then
+            PR=$(gh pr create --repo camillanapoles/OMN-Go-apk \
+              --base main --head master \
+              --title "Sync upstream master into main" \
+              --body "Automated sync of upstream mvbasov/OMN-Go master into main. Opened by the fork-sync workflow.")
+          fi
+          gh pr merge "$PR" --auto --merge --repo camillanapoles/OMN-Go-apk
