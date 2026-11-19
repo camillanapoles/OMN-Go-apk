@@ -115,10 +115,11 @@ Cada seta é um PR que só mescla com os checks verdes.
 O que continua com o ser humano, por desenho:
 
 - **Produção**: a última seta também é automática. O ruleset
-  `producao-main` continua pedindo 1 aprovação; o merge é feito pelo
-  PAT, que é o bypass de admin do ruleset em modo *pull request*
-  (registrado na audit log). Para trazer o clique humano de volta:
-  remova o bypass do ruleset — aí o PR de produção espera aprovação.
+  `producao-main` continua pedindo 1 aprovação e segura o merge; o
+  workflow espera os builds do PR e mescla com o flag `--admin` do gh —
+  o bypass de admin do ruleset em modo *pull request*, registrado na
+  audit log. Para trazer o clique humano de volta: remova o bypass do
+  ruleset — aí o PR de produção espera aprovação.
 - **Segurança da release**: o APK da Release só sai com a assinatura
   real se os secrets `KEYSTORE_*` estiverem configurados (senão sai com
   keystore descartável e aviso no log — ver SECRETS.md).
