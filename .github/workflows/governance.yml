@@ -1,0 +1,47 @@
+# Governance: the rulesets of doc/gitops/rulesets/ applied to the
+# repository. This closes the GitOps loop of the rules: a change of a
+# ruleset JSON arrives through a pull request like any other change, and
+# this workflow applies it when the change lands on cnmfs/dev, staging or
+# production. A dispatch runs it by hand at any moment.
+#
+# The repository rulesets API needs a token with Administration (write).
+# The GITHUB_TOKEN of the workflow has no such scope, thus the job uses
+# the PAT secret FORK_SYNC_TOKEN. With no token the job warns and stops,
+# and the rules of doc/gitops stay what they were. See
+# doc/gitops/SECRETS.md.
+name: Governance
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [cnmfs/dev, merge/sync-cnmfs, main]
+    paths: ['doc/gitops/rulesets/**', 'doc/gitops/import-rulesets.sh']
+
+permissions:
+  contents: read
+
+jobs:
+  rulesets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check that the governance token exists
+        id: token
+        env:
+          FORK_SYNC_TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
+        run: |
+          if [ -n "$FORK_SYNC_TOKEN" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::FORK_SYNC_TOKEN is not set. The rulesets cannot be applied by this workflow. See doc/gitops/SECRETS.md."
+          fi
+
+      - name: Checkout the rulesets
+        if: steps.token.outputs.ok == 'true'
+        uses: actions/checkout@v4
+
+      - name: Apply the rulesets
+        if: steps.token.outputs.ok == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
+        run: sh doc/gitops/import-rulesets.sh
