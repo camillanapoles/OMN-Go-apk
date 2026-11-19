@@ -120,14 +120,13 @@ jobs:
           # The ruleset producao-main asks for one approval. The PAT is
           # its admin bypass ("pull request" mode), but auto-merge would
           # still wait for that approval forever. Wait instead for the
-          # three checks that ruleset requires — and only those: this
-          # very run is a check of the same commit and would wait for
-          # itself — then merge by hand of the workflow.
+          # two workflow runs of the pull request itself — Fork CI and
+          # GitOps Guard — and merge by hand of the workflow.
           #
-          # The counts come from the REST API of check runs. The
-          # "gh pr checks" of older gh has no --json, and its text
-          # output changes shape between versions.
-          WANTED='select(.name == "Quality Gate" or .name == "APK Build" or .name == "GitOps Guard")'
+          # The runs of the pull_request event are the gate, not the
+          # check runs of the commit: a push event also reports checks
+          # on the same commit, and its skipped jobs count as success
+          # too early. The two runs named below are the real builds.
           FIRST_SHA=$(gh pr view "$PR" --repo camillanapoles/OMN-Go-apk --json headRefOid --jq .headRefOid)
           for i in $(seq 1 60); do
             SHA=$(gh pr view "$PR" --repo camillanapoles/OMN-Go-apk --json headRefOid --jq .headRefOid)
@@ -135,23 +134,27 @@ jobs:
               echo "The head moved on. The next Promote run takes the new head."
               exit 0
             fi
-            URL="repos/camillanapoles/OMN-Go-apk/commits/$SHA/check-runs?per_page=100"
-            PASS=$(gh api "$URL" --jq "[.check_runs[] | select(.status == \"completed\" and .conclusion == \"success\") | $WANTED] | map(.name) | unique | length" 2>/dev/null || :)
-            FAIL=$(gh api "$URL" --jq "[.check_runs[] | select(.status == \"completed\") | select(.conclusion == \"failure\" or .conclusion == \"timed_out\" or .conclusion == \"cancelled\") | $WANTED] | map(.name) | unique | length" 2>/dev/null || :)
-            PASS=${PASS:-0}
-            FAIL=${FAIL:-0}
-            if [ "$FAIL" != "0" ]; then
-              echo "A required check failed."
+            CI=$(gh run list --repo camillanapoles/OMN-Go-apk --commit "$SHA" --event pull_request --workflow "Fork CI" --json status,conclusion --jq '.[0] | "\(.status)/\(.conclusion // "-")"' 2>/dev/null || :)
+            GG=$(gh run list --repo camillanapoles/OMN-Go-apk --commit "$SHA" --event pull_request --workflow "GitOps Guard" --json status,conclusion --jq '.[0] | "\(.status)/\(.conclusion // "-")"' 2>/dev/null || :)
+            CI=${CI:-missing/missing}
+            GG=${GG:-missing/missing}
+            echo "Fork CI: $CI, GitOps Guard: $GG."
+            if [ "$CI" = "completed/success" ] && [ "$GG" = "completed/success" ]; then
+              for j in 1 2 3 4 5; do
+                if gh pr merge "$PR" --merge --repo camillanapoles/OMN-Go-apk; then
+                  echo "Promotion to production merged: pull request #$PR."
+                  exit 0
+                fi
+                sleep 10
+              done
               break
             fi
-            if [ "$PASS" = "3" ]; then
-              if gh pr merge "$PR" --merge --repo camillanapoles/OMN-Go-apk; then
-                echo "Promotion to production merged: pull request #$PR."
-                exit 0
-              fi
-              break
-            fi
-            echo "Required checks passing: $PASS/3. Wait."
+            case "$CI/$GG" in
+              *completed/failure*|*completed/cancelled*|*completed/timed_out*)
+                echo "A required run did not pass."
+                break
+                ;;
+            esac
             sleep 20
           done
           cat > /tmp/pr-comment.md <<'EOF'
