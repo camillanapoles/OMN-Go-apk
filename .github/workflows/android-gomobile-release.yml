@@ -6,6 +6,7 @@ on:
     tags: ['v*']
   pull_request:
     branches: [master]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -30,11 +31,28 @@ jobs:
       # is never captured by the Docker build context / `COPY . .` and never
       # baked into an image layer. It is handed to the build only as a
       # BuildKit secret (id=keystore) in the step below.
+      # The keystore comes from the secret KEYSTORE_BASE64. A fork with
+      # no secret still gets a build: the step then makes a throwaway
+      # keystore with a password of its own and marks each artifact as
+      # test-only in the log. The secret ids of the docker build below
+      # match the mounts of the Dockerfile in any case.
       - name: Restore Android keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
-          echo "${KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/omn-go.keystore"
+          if [ -n "${KEYSTORE_BASE64}" ] && [ -n "${KEYSTORE_PASSWORD:-}" ]; then
+            echo "${KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/omn-go.keystore"
+          else
+            echo "::warning::KEYSTORE_BASE64 is not set. The APK is signed with a THROWAWAY key and is for tests only. See doc/gitops/SECRETS.md for the release keystore."
+            keytool -genkeypair -v \
+              -keystore "${RUNNER_TEMP}/omn-go.keystore" \
+              -alias "${KEY_ALIAS:-omn-go}" \
+              -keyalg RSA -keysize 2048 -validity 1 \
+              -storepass forkci-throwaway -keypass forkci-throwaway \
+              -dname "CN=OMN-Go Fork CI Throwaway (NOT FOR RELEASE)"
+          fi
 
       # Built from the Dockerfile, the same file as the local build
       # (local/build.sh) and GitLab. It holds all stages in one BuildKit
@@ -75,9 +93,9 @@ jobs:
             .
           ls -la artifacts/
         env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'forkci-throwaway' }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'omn-go' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'forkci-throwaway' }}
 
       - name: Remove decoded keystore
         if: always()
