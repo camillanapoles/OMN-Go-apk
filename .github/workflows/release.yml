@@ -1,0 +1,82 @@
+# Release: after production lands, tag the release so the build makes
+# the installable APK.
+#
+#   main -> tag v<APP_VERSION>-f.N -> Build OMN-Go (GitHub Release + APK)
+#
+# A push to main creates the next tag of the version in
+# backend/version.go and pushes it. The push of a v* tag triggers the
+# "Build OMN-Go" workflow (android-gomobile-release.yml), which builds
+# the signed APK through the Dockerfile and publishes the GitHub Release
+# with the APK attached — the artifact to install.
+#
+# The tag is pushed with the PAT secret FORK_SYNC_TOKEN: a push of
+# GITHUB_TOKEN starts no workflow run and the build would never follow.
+# See doc/gitops/SECRETS.md.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    name: Tag the release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check that the release token exists
+        env:
+          FORK_SYNC_TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
+        run: |
+          if [ -z "$FORK_SYNC_TOKEN" ]; then
+            echo "::error::FORK_SYNC_TOKEN is not set. The Release workflow cannot push the tag. See doc/gitops/SECRETS.md."
+            exit 1
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          token: ${{ secrets.FORK_SYNC_TOKEN }}
+
+      - name: Compute the next tag
+        id: tag
+        run: |
+          set -euo pipefail
+          VERSION=$(grep -oP 'APP_VERSION\s*=\s*"\K[^"]+' backend/version.go)
+          if git tag --points-at HEAD | grep -q '^v'; then
+            echo "This commit is already tagged. Nothing to do."
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          MAX=0
+          for ref in $(git ls-remote --tags origin "refs/tags/v${VERSION}-f.*" | awk '{print $2}'); do
+            N=${ref##*-f.}
+            case "$N" in ''|*[!0-9]*) continue ;; esac
+            [ "$N" -gt "$MAX" ] && MAX=$N
+          done
+          TAG="v${VERSION}-f.$((MAX + 1))"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Release tag: $TAG (app version $VERSION)"
+
+      - name: Create the tag and push it
+        if: steps.tag.outputs.tag != ''
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              tag -a "$TAG" -m "OMN-Go $TAG"
+          git push origin "refs/tags/$TAG"
+          {
+            echo "## 🏷️ Release $TAG"
+            echo ""
+            echo "A tag dispara o workflow **Build OMN-Go**, que compila o APK assinado"
+            echo "e publica a GitHub Release com o `.apk` para instalação."
+          } >> "$GITHUB_STEP_SUMMARY"

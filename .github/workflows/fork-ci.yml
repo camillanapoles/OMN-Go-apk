@@ -31,6 +31,7 @@ on:
   push:
     branches: [main, dev, 'cnmfs/**', 'arena/**', 'merge/**', 'feat/**', 'fix/**', 'refactor/**', 'chore/**', 'docs/**']
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 concurrency:
@@ -251,3 +252,65 @@ jobs:
             artifacts/omn-go-*-release.apk
           if-no-files-found: error
           retention-days: 14
+
+  # The first arrow of the GitOps chain: an arena pull request to
+  # cnmfs/dev merges itself once the two builds of this run are green.
+  # The label "hold" stops the auto-merge of one pull request on demand.
+  #
+  # The merge must be made with the PAT secret FORK_SYNC_TOKEN: a merge
+  # of GITHUB_TOKEN starts no workflow run and the Promote chain would
+  # not follow. The ruleset continuidade-cnmfs-arena sets no merge rule
+  # on cnmfs/dev, so the two jobs of this run ARE the gate of the merge.
+  merge-arena:
+    name: Auto-merge arena PR
+    needs: [gate, apk]
+    if: >-
+      always() &&
+      needs.gate.result == 'success' &&
+      needs.apk.result == 'success' &&
+      github.event_name == 'pull_request' &&
+      github.base_ref == 'cnmfs/dev' &&
+      startsWith(github.head_ref, 'arena/') &&
+      github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.labels.*.name, 'hold')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Check that the merge token exists
+        env:
+          FORK_SYNC_TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
+        run: |
+          if [ -z "$FORK_SYNC_TOKEN" ]; then
+            echo "::error::FORK_SYNC_TOKEN is not set. The auto-merge of arena pull requests needs it. See doc/gitops/SECRETS.md."
+            exit 1
+          fi
+
+      - name: Merge the pull request
+        env:
+          GH_TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -uo pipefail
+          STATE=$(gh pr view "$PR" --repo camillanapoles/OMN-Go-apk --json state --jq .state)
+          if [ "$STATE" != "OPEN" ]; then
+            echo "The pull request is $STATE. Nothing to do."
+            exit 0
+          fi
+          HEAD_NOW=$(gh pr view "$PR" --repo camillanapoles/OMN-Go-apk --json headRefOid --jq .headRefOid)
+          if [ "$HEAD_NOW" != "$EXPECTED_SHA" ]; then
+            echo "The head moved on. The run of $HEAD_NOW is the one that merges."
+            exit 0
+          fi
+          for i in 1 2 3 4 5; do
+            if gh pr merge "$PR" --merge --repo camillanapoles/OMN-Go-apk; then
+              echo "Pull request #$PR merged. Promote takes the chain from here."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::warning::The merge of pull request #$PR did not go through. Merge it by hand."
+          exit 1

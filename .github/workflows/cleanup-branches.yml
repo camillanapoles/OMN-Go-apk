@@ -1,0 +1,77 @@
+# Cleanup: after production lands, sweep the arena branches whose work
+# already arrived in main, so the sessions never accumulate.
+#
+#   main push -> delete arena/* branches that landed (no open PR, merged)
+#
+# A branch is deleted only when it has no open pull request, at least
+# one merged pull request, and its tip is reachable from origin/main:
+# the work did arrive in production. A branch whose chain stalled keeps
+# the branch — the sweep runs again on the next production merge. Only
+# arena/* is touched; cnmfs/* and the rest stay.
+#
+# The deletion needs the PAT secret FORK_SYNC_TOKEN: the ruleset
+# continuidade-cnmfs-arena blocks deletions of arena/* for everyone but
+# the admin bypass. See doc/gitops/SECRETS.md.
+name: Cleanup branches
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  sweep:
+    name: Sweep landed arena branches
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check that the cleanup token exists
+        env:
+          FORK_SYNC_TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
+        run: |
+          if [ -z "$FORK_SYNC_TOKEN" ]; then
+            echo "::error::FORK_SYNC_TOKEN is not set. The Cleanup workflow cannot delete branches. See doc/gitops/SECRETS.md."
+            exit 1
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.FORK_SYNC_TOKEN }}
+
+      - name: Delete the arena branches that landed in main
+        env:
+          GH_TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
+        run: |
+          set -euo pipefail
+          git fetch origin --prune '+refs/heads/*:refs/remotes/origin/*'
+          DELETED=""
+          for ref in $(git ls-remote --heads origin 'refs/heads/arena/*' | awk '{print $2}'); do
+            BRANCH=${ref#refs/heads/}
+            OPEN=$(gh pr list --repo camillanapoles/OMN-Go-apk --head "$BRANCH" --state open --json number --jq 'length')
+            [ "$OPEN" != "0" ] && { echo "$BRANCH: open pull request. Keep."; continue; }
+            MERGED=$(gh pr list --repo camillanapoles/OMN-Go-apk --head "$BRANCH" --state merged --json number --jq 'length')
+            [ "$MERGED" = "0" ] && { echo "$BRANCH: nothing merged. Keep."; continue; }
+            TIP=$(git ls-remote origin "refs/heads/$BRANCH" | awk '{print $1}')
+            if git merge-base --is-ancestor "$TIP" origin/main 2>/dev/null; then
+              echo "$BRANCH: landed in main. Delete."
+              git push origin --delete "$BRANCH"
+              DELETED="$DELETED $BRANCH"
+            else
+              echo "$BRANCH: not in main yet. Keep."
+            fi
+          done
+          {
+            echo "## 🧹 Limpeza de branches arena/*"
+            echo ""
+            if [ -n "$DELETED" ]; then
+              echo "Deletados (trabalho já em \`main\`):$DELETED"
+            else
+              echo "Nenhum branch para deletar nesta rodada."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
