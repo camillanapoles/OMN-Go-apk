@@ -407,10 +407,7 @@ func (svc Service) openRepoReadOnly() (*git.Repository, error) {
 	return git.Open(storer, wtFS)
 }
 
-// buildCommitURLBase is the start of the address of a commit of this
-// fork. The status page links the commit of the build with it, and the
-// commit of a fork build lives in the repository of the fork. An address
-// of the original points at a page that knows nothing of the commit.
+// buildCommitURLBase is the address of a commit of this fork, and not of the original.
 const buildCommitURLBase = "https://github.com/camillanapoles/OMN-Go-apk/commit/"
 
 // buildCommitRe is a full commit hash, with an optional "-dirty".
