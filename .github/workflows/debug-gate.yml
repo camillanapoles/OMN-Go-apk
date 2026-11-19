@@ -1,0 +1,44 @@
+# TEMPORARY DEBUG WORKFLOW. It reproduces the quality gate of Fork CI and
+# writes the tail of its output into a comment of pull request 12. Remove
+# it before the merge.
+name: Debug Gate
+
+on:
+  push:
+    branches: [arena/01c8fb19-omn-go-apk]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Run the same gate as Fork CI and capture the output
+        run: |
+          docker buildx build \
+            --target test \
+            --progress plain \
+            . 2>&1 | tail -400 > /tmp/gate.txt || true
+          tail -5 /tmp/gate.txt
+
+      - name: Post the output on the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "### Debug Gate (run ${{ github.run_id }}, commit ${{ github.sha }})"
+            echo '```'
+            tail -c 55000 /tmp/gate.txt
+            echo '```'
+          } > /tmp/comment.md
+          gh pr comment 12 --repo camillanapoles/OMN-Go-apk --body-file /tmp/comment.md
