@@ -8,8 +8,8 @@
 # turns auto-merge on. A push to merge/sync-cnmfs (the staging merge
 # landing) opens the production pull request the same way and merges it
 # when its checks pass. Production is the one place where a ruleset asks
-# for one approval (producao-main): the merge step waits for every check
-# and merges with the PAT, whose actor is the admin bypass of that
+# for one approval (producao-main): the merge step waits for the three
+# required checks and merges with the PAT, whose actor is the admin bypass of that
 # ruleset in "pull request" mode, so the audit log keeps the record. One
 # dispatch can still force either promotion by hand.
 #
@@ -119,20 +119,29 @@ jobs:
           set -uo pipefail
           # The ruleset producao-main asks for one approval. The PAT is
           # its admin bypass ("pull request" mode), but auto-merge would
-          # still wait for that approval forever. Wait for the checks
-          # instead (the bypass would skip them too) and merge by hand
-          # of the workflow.
-          for i in $(seq 1 40); do
-            N=$(gh pr checks "$PR" --repo camillanapoles/OMN-Go-apk --json name --jq 'length' 2>/dev/null || echo 0)
-            [ "$N" != "0" ] && break
-            sleep 15
-          done
-          if gh pr checks "$PR" --repo camillanapoles/OMN-Go-apk --watch --interval 30 --fail-fast; then
-            if gh pr merge "$PR" --merge --repo camillanapoles/OMN-Go-apk; then
-              echo "Promotion to production merged: pull request #$PR."
-              exit 0
+          # still wait for that approval forever. Wait instead for the
+          # three checks that ruleset requires — and only those: this
+          # very run is a check of the same commit and would wait for
+          # itself — then merge by hand of the workflow.
+          for i in $(seq 1 60); do
+            PASS=$(gh pr checks "$PR" --repo camillanapoles/OMN-Go-apk --json name,conclusion --jq '[.[] | select((.name == "Quality Gate" or .name == "APK Build" or .name == "GitOps Guard") and .conclusion == "pass")] | length' 2>/dev/null || :)
+            FAIL=$(gh pr checks "$PR" --repo camillanapoles/OMN-Go-apk --json name,conclusion --jq '[.[] | select((.name == "Quality Gate" or .name == "APK Build" or .name == "GitOps Guard") and .conclusion == "fail")] | length' 2>/dev/null || :)
+            PASS=${PASS:-0}
+            FAIL=${FAIL:-0}
+            if [ "$FAIL" != "0" ]; then
+              echo "A required check failed."
+              break
             fi
-          fi
+            if [ "$PASS" = "3" ]; then
+              if gh pr merge "$PR" --merge --repo camillanapoles/OMN-Go-apk; then
+                echo "Promotion to production merged: pull request #$PR."
+                exit 0
+              fi
+              break
+            fi
+            echo "Required checks passing: $PASS/3. Wait."
+            sleep 20
+          done
           cat > /tmp/pr-comment.md <<'EOF'
           ❌ A promoção automática para **produção** não conseguiu mesclar este PR.
           Conclua a mesclagem à mão (o bypass de admin do ruleset `producao-main` permite sem aprovação),
