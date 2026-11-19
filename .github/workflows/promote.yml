@@ -8,10 +8,10 @@
 # turns auto-merge on. A push to merge/sync-cnmfs (the staging merge
 # landing) opens the production pull request the same way and merges it
 # when its checks pass. Production is the one place where a ruleset asks
-# for one approval (producao-main): the merge step waits for the three
-# required checks and merges with the PAT, whose actor is the admin bypass of that
-# ruleset in "pull request" mode, so the audit log keeps the record. One
-# dispatch can still force either promotion by hand.
+# for one approval (producao-main): the merge step waits for the two
+# workflow runs of the pull request and merges with --admin, the bypass
+# of that ruleset in "pull request" mode, so the audit log keeps the
+# record. One dispatch can still force either promotion by hand.
 #
 # A pull request made by GITHUB_TOKEN starts no workflow run, and the
 # required checks would then never arrive. The workflow thus uses the
@@ -117,11 +117,13 @@ jobs:
           PR: ${{ steps.pr.outputs.pr }}
         run: |
           set -uo pipefail
-          # The ruleset producao-main asks for one approval. The PAT is
-          # its admin bypass ("pull request" mode), but auto-merge would
-          # still wait for that approval forever. Wait instead for the
-          # two workflow runs of the pull request itself — Fork CI and
-          # GitOps Guard — and merge by hand of the workflow.
+          # The ruleset producao-main asks for one approval and holds
+          # the merge of every actor but its admin bypass. Auto-merge
+          # would wait for that approval forever. The gate of the merge
+          # is therefore this workflow: wait for the two workflow runs
+          # of the pull request itself — Fork CI and GitOps Guard — and
+          # then merge with --admin, the bypass of that ruleset in
+          # "pull request" mode. The audit log keeps the record.
           #
           # The runs of the pull_request event are the gate, not the
           # check runs of the commit: a push event also reports checks
@@ -141,7 +143,7 @@ jobs:
             echo "Fork CI: $CI, GitOps Guard: $GG."
             if [ "$CI" = "completed/success" ] && [ "$GG" = "completed/success" ]; then
               for j in 1 2 3 4 5; do
-                if gh pr merge "$PR" --merge --repo camillanapoles/OMN-Go-apk; then
+                if gh pr merge "$PR" --admin --merge --repo camillanapoles/OMN-Go-apk; then
                   echo "Promotion to production merged: pull request #$PR."
                   exit 0
                 fi
