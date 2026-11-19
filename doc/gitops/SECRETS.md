@@ -14,7 +14,7 @@ abaixo.
 | `KEYSTORE_PASSWORD` | secret | idem | idem |
 | `KEY_ALIAS` | secret | idem | idem |
 | `KEY_PASSWORD` | secret | idem | idem |
-| `FORK_SYNC_TOKEN` | secret | `fork-sync.yml` | Não (sem ele, o sync automático avisa e para; o sync manual continua) |
+| `FORK_SYNC_TOKEN` | secret | `fork-sync.yml`, `promote.yml`, `governance.yml` | Não para CI; **sim** para a automação (sync, promoções e regra de ruleset) |
 | `GITLAB_PAT` | secret | `sync-gitlab.yml` | Só se você ativar o mirror para o GitLab |
 | `GITLAB_MIRROR_URL` | **variável** | `sync-gitlab.yml` | Não — sem a variável, o mirror fica **desligado** (é o padrão seguro) |
 
@@ -41,14 +41,23 @@ repository secret**, crie `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`,
 > Atenção: perder o keystore significa não conseguir mais atualizar o APK
 > instalado nos aparelhos (a assinatura muda). Guarde-o em local seguro.
 
-## FORK_SYNC_TOKEN (sync automático do upstream)
+## FORK_SYNC_TOKEN (a automação inteira)
 
-Um PAT (fine-grained) seu com permissão `Contents: write` e `Pull
-requests: write` neste repositório. É preciso porque pushes feitos com o
-`GITHUB_TOKEN` padrão não disparam outros workflows (os checks do PR de
-staging nunca chegariam). Crie em **Settings → Developer settings →
-Personal access tokens → Fine-grained tokens**, aponte para
-`camillanapoles/OMN-Go-apk` e salve como secret `FORK_SYNC_TOKEN`.
+Um PAT (fine-grained) seu com permissão `Contents: write`, `Pull
+requests: write` e `Administration: write` neste repositório. Ele move
+três workflows: `fork-sync.yml` (espelho do upstream), `promote.yml`
+(promoções dev→staging→produção) e `governance.yml` (aplica os rulesets
+quando os JSONs mudam). O `Administration: write` é o que a API de
+rulesets pede; o `GITHUB_TOKEN` padrão não tem esse escopo. É preciso o
+PAT também porque pushes feitos com o `GITHUB_TOKEN` não disparam outros
+workflows (os checks do PR nunca chegariam). Crie em **Settings →
+Developer settings → Personal access tokens → Fine-grained tokens**,
+aponte para `camillanapoles/OMN-Go-apk` e salve como secret
+`FORK_SYNC_TOKEN`.
+
+> O `promote.yml` usa auto-merge. Se der aviso de que não conseguiu
+> ativar, ligue **Settings → General → Allow auto-merge** (meu ambiente
+> não tem permissão para ligar por você).
 
 ## Mirror para o GitLab (opcional, desligado por padrão)
 
