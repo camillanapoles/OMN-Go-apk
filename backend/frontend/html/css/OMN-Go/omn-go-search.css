@@ -1,0 +1,483 @@
+/* The search panel and the search page. omnLoadModule loads this file with
+   omn-go-search.js. */
+
+/* The search panel is at the top of the screen. The list of results grows
+   down, and the field stays in one place. */
+.omn-search-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--omn-overlay-bg);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 8vh 12px 12px;
+    z-index: var(--omn-layer-search);   /* the list of layers is in omn-go-core.css */
+}
+
+.omn-search-overlay[hidden] {
+    display: none;               /* [hidden] alone loses to display: flex */
+}
+
+.omn-search-card {
+    width: 100%;
+    max-width: 640px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--omn-bg-surface);
+    color: var(--omn-text);
+    border: 1px solid var(--omn-border-strong);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px var(--omn-shadow-strong);
+    overflow: hidden;
+}
+
+.omn-search-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--omn-border-soft);
+}
+
+/* The search button. It has the glyph and the tokens of the button of the
+   results page (.omn-search-page-submit). */
+.omn-search-go {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    color: var(--omn-on-accent);
+    background: var(--omn-accent);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.omn-search-go:hover {
+    background: var(--omn-accent-hover);
+}
+
+/* The progress bar of the panel. It also has .omn-progress-track and
+   .omn-progress-fill of the core stylesheet. Here it is a thin line under
+   the field. */
+.omn-search-progress {
+    flex: 0 0 auto;
+    height: 3px;
+    border-radius: 0;
+}
+
+.omn-search-progress[hidden] {
+    display: none;               /* the card is a flex column */
+}
+
+.omn-search-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 6px 4px;
+    font-size: 16px;             /* 16px stops the zoom of a WebView on focus */
+    color: var(--omn-text);
+    background: transparent;
+    border: none;
+    outline: none;
+}
+
+.omn-search-close {
+    flex: 0 0 auto;
+    padding: 2px;
+    color: var(--omn-text-faint);
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.omn-search-close:hover {
+    color: var(--omn-text);
+}
+
+.omn-search-scope {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--omn-border-soft);
+    font-size: 12px;
+}
+
+.omn-search-chip {
+    padding: 2px 8px;
+    border: 1px solid var(--omn-border);
+    border-radius: 10px;
+    color: var(--omn-text-muted);
+}
+
+.omn-search-chip.omn-is-active {
+    color: var(--omn-bg-surface);
+    background: var(--omn-accent);
+    border-color: var(--omn-accent);
+}
+
+.omn-search-where {
+    color: var(--omn-text-faint);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* In global scope, the note of a group of results. */
+.omn-search-doc {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 8px 12px 4px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--omn-border-soft);
+}
+
+.omn-search-doc:hover {
+    background: var(--omn-bg-hover);
+}
+
+.omn-search-doc-title {
+    flex: 0 1 auto;
+    font-weight: 600;
+    color: var(--omn-text-strong);
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.omn-search-doc-path {
+    flex: 1 1 auto;
+    min-width: 0;
+    color: var(--omn-text-dim);
+    font-size: 11px;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.omn-search-note {
+    padding: 4px 12px 8px;
+    color: var(--omn-text-faint);
+    font-size: 11px;
+}
+
+/* A chip is a control only when there is a choice. With global search off,
+   the scope row is a label. */
+.omn-search-chip[role="button"] {
+    cursor: pointer;
+}
+
+.omn-search-chip[role="button"]:hover {
+    border-color: var(--omn-accent);
+    color: var(--omn-accent);
+}
+
+.omn-search-chip.omn-is-active[role="button"]:hover {
+    color: var(--omn-bg-surface);
+}
+
+.omn-search-results {
+    flex: 1 1 auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow-y: auto;
+}
+
+.omn-search-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--omn-border-soft);
+}
+
+.omn-search-row:hover,
+.omn-search-row.omn-is-active {
+    background: var(--omn-bg-hover);
+}
+
+.omn-search-line {
+    flex: 0 0 auto;
+    min-width: 2.5em;
+    text-align: right;
+    color: var(--omn-text-dim);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+
+/* A match in a script or a code block. It gets a mark and keeps its rank. */
+.omn-search-ctx {
+    flex: 0 0 auto;
+    color: var(--omn-text-faint);
+    font-size: 11px;
+    letter-spacing: -1px;
+}
+
+.omn-search-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 13px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;     /* a long word must not widen the card */
+}
+
+.omn-search-status {
+    flex: 0 0 auto;
+    padding: 7px 12px;
+    color: var(--omn-text-faint);
+    font-size: 12px;
+    border-top: 1px solid var(--omn-border-soft);
+}
+
+/* "See all results". The [hidden] attribute shows and hides it, thus this
+   rule sets no display value. */
+.omn-search-seeall {
+    margin-left: auto;
+    padding: 2px 8px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--omn-accent);
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.omn-search-seeall:hover {
+    border-color: var(--omn-border);
+    background: var(--omn-bg-hover);
+}
+
+.omn-search-seeall:focus-visible {
+    outline: 2px solid var(--omn-accent);
+    outline-offset: 1px;
+}
+
+/* The results page, /OMNGoSearch.html. It works without JavaScript. */
+.omn-search-page {
+    max-width: 900px;
+}
+
+.omn-search-page-form {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.omn-search-page-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 8px 10px;
+    font-size: 16px;
+    color: var(--omn-text);
+    background: var(--omn-bg-surface);
+    border: 1px solid var(--omn-border);
+    border-radius: 4px;
+}
+
+.omn-search-page-submit {
+    flex: 0 0 auto;
+    padding: 6px 12px;
+    color: var(--omn-on-accent);
+    background: var(--omn-accent);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.omn-search-page-submit:hover {
+    background: var(--omn-accent-hover);
+}
+
+.omn-search-page-summary {
+    color: var(--omn-text-muted);
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+.omn-search-page-note {
+    color: var(--omn-text-faint);
+}
+
+.omn-search-group {
+    margin: 18px 0 8px;
+    padding-bottom: 4px;
+    font-size: 15px;
+    color: var(--omn-text-heading);
+    border-bottom: 1px solid var(--omn-border-soft);
+}
+
+.omn-search-group-count {
+    color: var(--omn-text-dim);
+    font-size: 12px;
+    font-weight: normal;
+}
+
+.omn-search-result {
+    padding: 8px 0 10px;
+    border-bottom: 1px solid var(--omn-border-soft);
+}
+
+.omn-search-result-title {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.omn-search-result-path {
+    color: var(--omn-text-dim);
+    font-size: 11px;
+    margin-bottom: 4px;
+}
+
+.omn-search-result-tags {
+    margin-bottom: 4px;
+}
+
+.omn-search-snippet {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 2px 0;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+/* A snippet is a link that opens the note at its line (snippetURL in
+   internal/search). It looks like text. Only the <mark> has a color. */
+a.omn-search-snippet {
+    color: inherit;
+    text-decoration: none;
+    border-radius: 3px;
+    padding: 2px 4px;
+    margin: 0 -4px;
+}
+
+a.omn-search-snippet:hover,
+a.omn-search-snippet:focus-visible {
+    background: var(--omn-bg-hover);
+}
+
+.omn-search-snippet-line {
+    flex: 0 0 auto;
+    min-width: 3em;
+    text-align: right;
+    color: var(--omn-text-dim);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+
+.omn-search-snippet-ctx {
+    flex: 0 0 auto;
+    color: var(--omn-text-faint);
+    font-size: 11px;
+    letter-spacing: -1px;
+}
+
+.omn-search-snippet-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.omn-search-result-note,
+.omn-search-empty-hint {
+    color: var(--omn-text-faint);
+    font-size: 12px;
+}
+
+/* The page when global search is off. It explains how to turn search on. */
+.omn-search-page.omn-is-disabled .omn-search-page-form,
+.omn-search-page.omn-is-disabled .omn-search-page-summary {
+    display: none;
+}
+
+.omn-search-page-notice {
+    padding: 8px 0 4px 0;
+    max-width: 46em;
+}
+
+.omn-search-page-notice h2 {
+    margin: 0 0 8px 0;
+    font-size: 1.15rem;
+}
+
+.omn-search-page-notice p {
+    margin: 0 0 10px 0;
+}
+
+/* The one action of the page looks like a button. */
+.omn-search-page-cta {
+    display: inline-block;
+    padding: 6px 12px;
+    border: 1px solid var(--omn-accent);
+    border-radius: 4px;
+    color: var(--omn-accent);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.omn-search-page-cta:hover {
+    background: var(--omn-accent);
+    color: var(--omn-on-accent);
+}
+
+.omn-search-page-notice .omn-search-page-note {
+    font-size: 0.9rem;
+    color: var(--omn-text-muted);
+}
+
+.omn-search-page-notice kbd {
+    padding: 1px 4px;
+    border: 1px solid var(--omn-border);
+    border-radius: 3px;
+    background: var(--omn-bg-inset);
+    font-family: inherit;
+    font-size: 0.85em;
+}
+
+.omn-search-empty {
+    padding: 12px 0;
+}
+
+/* In the panel, a section label takes the place of a line number. It can be
+   as wide as a bookmark title. */
+.omn-search-line.omn-search-section {
+    font-variant-numeric: normal;
+    max-width: 14em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* On the results page, the section of a group of matches. The matches are
+   indented under it. */
+.omn-search-section {
+    margin: 6px 0 2px 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    opacity: 0.85;
+}
+
+.omn-search-section a {
+    text-decoration: none;
+}
+
+.omn-search-section a:hover {
+    text-decoration: underline;
+}
+
+.omn-search-section + .omn-search-snippet,
+.omn-search-section ~ .omn-search-snippet {
+    margin-left: 10px;
+}

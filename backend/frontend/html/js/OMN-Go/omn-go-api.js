@@ -125,9 +125,8 @@ if (window.location.protocol !== 'file:') {
         ['Repo not found',          'Initializing repository…'],
         ['Repo initialized',        'Repository ready'],
         ['Repo opened',             'Repository ready'],
-        ['Created .gitignore',      'Preparing repository…'],
-        ['Updated .gitignore',      'Preparing repository…'],
-        ['cannot update .gitignore','Preparing repository…'],
+        ['Wrote .git/info/exclude', 'Preparing repository…'],
+        ['cannot write .git/info/exclude', 'Preparing repository…'],
         ['Remote',                  'Configuring remote…'],
         ['Removing remote',         'Configuring remote…'],
         ['Adding remote',           'Configuring remote…'],
@@ -212,9 +211,35 @@ if (window.location.protocol !== 'file:') {
     // html/, and the asset prefix of the shell is relative for such a
     // page. An absolute path answers from each of them.
     const omnModuleLoads = {};
+
+    // omnModuleStyles names the stylesheet of a lazy file. The file shows
+    // nothing before its stylesheet is there, thus the load waits for both.
+    const omnModuleStyles = { 'omn-go-search.js': 'omn-go-search.css' };
+
+    // omnLoadStyle puts one stylesheet before omn-go-custom.css, thus a rule
+    // of the user still wins. A page that names the stylesheet already
+    // answers at once. A failed stylesheet does not stop the script.
+    function omnLoadStyle(file) {
+        const href = '/css/OMN-Go/' + file;
+        if (document.querySelector('link[href$="/' + file + '"]')) return Promise.resolve();
+        return new Promise(function (resolve) {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = href;
+            link.onload = function () { resolve(); };
+            link.onerror = function () { resolve(); };
+            const custom = document.querySelector('link[href*="omn-go-custom.css"]');
+            if (custom && custom.parentNode === document.head) {
+                document.head.insertBefore(link, custom);
+            } else {
+                document.head.appendChild(link);
+            }
+        });
+    }
+
     function omnLoadModule(file) {
         if (omnModuleLoads[file]) return omnModuleLoads[file];
-        omnModuleLoads[file] = new Promise(function (resolve, reject) {
+        const script = new Promise(function (resolve, reject) {
             const el = document.createElement('script');
             el.src = '/js/OMN-Go/' + file;
             // async = false keeps the execution order of two injected
@@ -228,6 +253,8 @@ if (window.location.protocol !== 'file:') {
             };
             document.head.appendChild(el);
         });
+        const style = omnModuleStyles[file] ? omnLoadStyle(omnModuleStyles[file]) : Promise.resolve();
+        omnModuleLoads[file] = Promise.all([script, style]).then(function () {});
         return omnModuleLoads[file];
     }
     window.omnLoadModule = omnLoadModule;
@@ -238,7 +265,10 @@ if (window.location.protocol !== 'file:') {
     // The stub answers with a Promise. Each name below is a control that a
     // person presses or that Android calls without reading the answer, thus
     // no caller loses anything. A function whose answer a caller reads must
-    // NOT be lazy. See omnGoInsertCapture and point 2 of the banner.
+    // NOT be lazy. See omnGoInsertCapture and point 2 of the banner. The one
+    // exception is a function that answers a Promise itself, for example
+    // omnConfirm. The caller waits for the Promise of the stub, and the
+    // stub gives the answer of the real Promise.
     function omnLazy(file, names) {
         names.forEach(function (name) {
             const stub = function () {
@@ -278,45 +308,78 @@ if (window.location.protocol !== 'file:') {
         });
     }
 
-    omnLazyActions('omn-go-sync.js', [
-        'sync', 'sync-resolve', 'push-force', 'push-cancel',
-        'commit-upload', 'commit-cancel',
-    ]);
+    omnLazyActions('omn-go-sync.js', ['sync']);
     omnLazy('omn-go-bookmark.js', ['handleShare', 'showBookmarkPanel']);
     omnLazyActions('omn-go-bookmark.js', ['bookmark-panel']);
     omnLazy('omn-go-search.js', ['omnSearchOpen']);
+    // The dialogs of the application. Each name answers a Promise. See
+    // omn-go-dialog.js.
+    omnLazy('omn-go-dialog.js', ['omnDialog', 'omnAlert', 'omnConfirm', 'omnPrompt']);
     // omnSearchOpen keeps its name, because the User Manual promises it.
     window.OMN.action('search', function () { window.omnSearchOpen(); });
 
+    // askLogin shows the login dialog until the server accepts the
+    // password. The dialog has no Cancel, and Escape and the Back key do
+    // nothing: the page under it needs a login. A wrong password shows
+    // "Invalid password." in the dialog, and the dialog stays open.
+    function askLogin() {
+        return window.omnDialog({
+            kind: 'login',
+            title: 'OMN-Go Login',
+            closable: false,
+            fields: [{ type: 'password', placeholder: 'Admin Password', autocomplete: 'current-password' }],
+            check: async function (answer) {
+                const res = await fetch('/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: 'password=' + encodeURIComponent(answer.input)
+                });
+                return res.ok ? '' : 'Invalid password.';
+            },
+            buttons: [{ label: 'Enter', value: true, default: true }],
+        });
+    }
+
     // The actions of this block need the server. The else branch at the end
     // of this file gives each one a stub for a page from disk.
-    window.OMN.action('login', async function () {
-        const pwd = document.getElementById('pwdInput').value;
-        const res = await fetch('/login', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: 'password=' + encodeURIComponent(pwd)
-        });
-        if(res.ok) {
-            document.getElementById('loginOverlay').style.display = 'none';
-            document.getElementById('mainUI').style.display = 'flex';
-        } else {
-            alert('Invalid Password');
-        }
-    });
 
     function toCamelCase(str) {
         let words = str.split(/[-_\s]+/);
         return words.map(w => w ? w.charAt(0).toUpperCase() + w.slice(1) : '').join('');
     }
 
+    // fileNameOf makes a file name from a title: "my new note" gives
+    // "MyNewNote". Each other character becomes "-".
+    function fileNameOf(title) {
+        return toCamelCase(title).replace(/[^a-zA-Z0-9-]/g, '-');
+    }
+
+    // One dialog asks for the title and the file name. The file name
+    // follows the title while the person types. A file name that the
+    // person typed stops that. An empty file name starts it again.
     window.OMN.action('new-page', async function () {
-        let title = prompt("Enter New Page Title:");
+        let nameTyped = false;
+        const answer = await window.omnDialog({
+            kind: 'form',
+            title: 'New page',
+            text: 'The file name comes from the title. You can change it.',
+            fields: [{ label: 'Title' }, { label: 'File name' }],
+            onInput: function (inputs, index) {
+                if (index === 1) {
+                    nameTyped = inputs[1].value !== '';
+                } else if (!nameTyped) {
+                    inputs[1].value = fileNameOf(inputs[0].value);
+                }
+            },
+            buttons: [
+                { label: 'Create', value: true, default: true },
+                { label: 'Cancel', value: false, cancel: true },
+            ],
+        });
+        if (answer.value !== true) return;
+        const title = answer.inputs[0].trim();
         if (!title) return;
-        let camel = toCamelCase(title);
-        let safeName = camel.replace(/[^a-zA-Z0-9-]/g, '-');
-        let fileName = prompt("Confirm File Name:", safeName);
-        if (!fileName) return;
+        const fileName = answer.inputs[1].trim() || fileNameOf(title);
 
         let src = typeof currentNote !== 'undefined' ? currentNote : 'Welcome';
         const fd = new URLSearchParams();
@@ -334,35 +397,40 @@ if (window.location.protocol !== 'file:') {
             const resolvedTarget = await res.text();
             window.location.href = '/' + resolvedTarget + '.html?edit=true';
         } else {
-            alert("Failed to create new page!");
+            await window.omnAlert('The new page was not created.');
         }
     });
 
 
     window.OMN.action('quick-note-save', async function () {
         const fd = new URLSearchParams();
-        fd.append('note', document.getElementById('quickText').value);
+        fd.append('note', document.getElementById('omn-quick-text').value);
         const res = await fetch('/api/quick', { method: 'POST', body: fd });
         if(res.ok) {
-            document.getElementById('quickText').value = '';
-            document.getElementById('quickPanel').classList.add('hidden');
-            alert('Saved!');
+            document.getElementById('omn-quick-text').value = '';
+            window.omnHidePanel('omn-quick-panel');
+            window.omnNoticeAfterLoad('Saved.');
             window.location.reload();
+        } else {
+            // The panel stays open with the text, thus the person can try again.
+            await window.omnAlert('The note was not saved.');
         }
     });
 
     window.OMN.action('bookmark-save', async function () {
         const fd = new URLSearchParams();
-        fd.append('url', document.getElementById('bmUrl').value);
-        fd.append('title', document.getElementById('bmTitle').value);
-        fd.append('tags', document.getElementById('bmTags').value);
-        fd.append('notes', document.getElementById('bmNotes').value);
+        fd.append('url', document.getElementById('omn-bm-url').value);
+        fd.append('title', document.getElementById('omn-bm-title').value);
+        fd.append('tags', document.getElementById('omn-bm-tags').value);
+        fd.append('notes', document.getElementById('omn-bm-notes').value);
         const res = await fetch('/api/bookmark', { method: 'POST', body: fd });
         if(res.ok) {
-            document.getElementById('bmPanel').classList.add('hidden');
-            document.querySelectorAll('#bmPanel input, #bmPanel textarea').forEach(el => el.value = '');
-            alert('Saved!');
+            window.omnHidePanel('omn-bm-panel');
+            document.querySelectorAll('#omn-bm-panel input, #omn-bm-panel textarea').forEach(el => el.value = '');
+            window.omnNoticeAfterLoad('Saved.');
             window.location.reload();
+        } else {
+            await window.omnAlert('The bookmark was not saved.');
         }
     });
 
@@ -381,17 +449,14 @@ if (window.location.protocol !== 'file:') {
     // WebView is on a page without the panel. A page mid-edit on editor.html
     // is such a page, because it loads this file not at all.
     window.omnGoInsertCapture = function(text, label) {
-        var q = document.getElementById('quickText');
-        var p = document.getElementById('quickPanel');
-        if (!q || !p) { return false; }
+        var q = document.getElementById('omn-quick-text');
+        if (!q || !document.getElementById('omn-quick-panel')) { return false; }
         var content = '';
         if (label) { content += label + "\n\n"; }
         if (text) { content += text; }
         q.value = content.trim();
-        p.classList.remove('hidden');
-        var bm = document.getElementById('bmPanel');
-        if (bm) { bm.classList.add('hidden'); }
-        return true;
+        // omnShowPanel also hides the bookmark panel.
+        return window.omnShowPanel('omn-quick-panel');
     };
 
     // Global Drag & Drop for URLs (Bookmarks). It is registered on
@@ -400,20 +465,20 @@ if (window.location.protocol !== 'file:') {
     // the rest of this script.
     document.addEventListener('DOMContentLoaded', () => {
         document.body.addEventListener('dragover', e => {
-            if (!e.target.closest('#editor')) e.preventDefault();
+            if (!e.target.closest('#omn-editor-text')) e.preventDefault();
         });
         document.body.addEventListener('drop', e => {
-            if (e.target.closest('#editor')) return;
+            if (e.target.closest('#omn-editor-text')) return;
             const url = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
             if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
                 e.preventDefault();
-                document.getElementById('bmUrl').value = url;
-                document.getElementById('bmTitle').value = '';
+                document.getElementById('omn-bm-url').value = url;
+                document.getElementById('omn-bm-title').value = '';
                 const html = e.dataTransfer.getData('text/html');
                 if (html) {
                     const match = html.match(/<a[^>]*>(.*?)<\/a>/i);
                     if (match && match[1]) {
-                        document.getElementById('bmTitle').value = match[1].replace(/<[^>]+>/g, '').trim();
+                        document.getElementById('omn-bm-title').value = match[1].replace(/<[^>]+>/g, '').trim();
                     }
                 }
                 window.showBookmarkPanel();
@@ -548,31 +613,25 @@ if (window.location.protocol !== 'file:') {
     }
 
     window.checkSession = async function() {
-        // #loginOverlay is a server-injected modal. See injectRuntimeVars.
-        // An exported page and an offline page have no login gate. When
-        // the element is absent, leave the visible content alone rather
-        // than read a property of null. #mainUI stays in the page, and
-        // the guard covers it for the same reason.
-        const overlay = document.getElementById('loginOverlay');
-        const main = document.getElementById('mainUI');
-        if (!overlay || !main) return;
+        // An exported page and an offline page have no login gate. When the
+        // server sends a page, InjectRuntimeVars puts the modals into
+        // #omn-go-modals-slot. A page that still holds the empty slot is
+        // thus a copy from disk.
+        const main = document.getElementById('omn-main-ui');
+        if (!main || document.getElementById('omn-go-modals-slot')) return;
         // An admin hint cookie means that this browser logged in. The
         // server still tests the signed cookie on each request. An old
         // "guest" hint gives no role. See doc/decisions/0018-keep-one-role.md.
-        if (roleHint() === 'admin') {
-            overlay.style.display = 'none';
-            main.style.display = 'flex';
-        } else {
-            // Check if server is configured with public role or check backend
+        if (roleHint() !== 'admin') {
+            // Only the answer 401 needs a login. The device itself and a
+            // server with no admin password get each other answer.
             const test = await fetch('/api/config');
             if (test.status === 401) {
-                overlay.style.display = 'flex';
                 main.style.display = 'none';
-            } else {
-                overlay.style.display = 'none';
-                main.style.display = 'flex';
+                await askLogin();
             }
         }
+        main.style.display = 'flex';
     };
 
     // GoOMN Log Interceptor - Bridges Go background logs to JS UI
@@ -639,10 +698,10 @@ if (window.location.protocol !== 'file:') {
     // desktop conventions in practice, and the header button is the route
     // on Android.
     //
-    // Escape asks the overlay whether it is open. omn-go-search.js exports
-    // omnSearchIsOpen and omnSearchClose for this listener. Neither one
-    // exists before the first open, and Escape then does nothing, which is
-    // the correct answer when no overlay is on screen.
+    // Escape closes the top layer: the search overlay or a panel. See
+    // omnCloseTopLayer in omn-go-core.js, which the Back key of Android also
+    // calls. A dialog takes its own Escape, thus it never reaches this
+    // listener.
     document.addEventListener('keydown', function (e) {
         if (e.defaultPrevented) return;
 
@@ -652,10 +711,7 @@ if (window.location.protocol !== 'file:') {
             return;
         }
         if (e.key === 'Escape') {
-            if (window.omnSearchIsOpen && window.omnSearchIsOpen()) {
-                e.preventDefault();
-                window.omnSearchClose();
-            }
+            if (window.omnCloseTopLayer()) e.preventDefault();
             return;
         }
         if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -698,26 +754,26 @@ if (window.location.protocol !== 'file:') {
         }
 
         function setUp() {
-            const box = document.getElementById('omnIncoming');
+            const box = document.getElementById('omn-incoming');
             if (!box) return;
             if (!onIncomingPage() || (typeof IS_ANDROID !== 'undefined' && IS_ANDROID)) {
                 box.remove();
                 return;
             }
-            const preview = document.getElementById('preview');
-            const input = document.getElementById('omnIncomingFiles');
-            const button = document.getElementById('omnIncomingImport');
-            const statusEl = document.getElementById('omnIncomingStatus');
+            const preview = document.getElementById('omn-preview');
+            const input = document.getElementById('omn-incoming-files');
+            const button = document.getElementById('omn-incoming-import');
+            const statusEl = document.getElementById('omn-incoming-status');
             if (!preview || !input || !button || !statusEl) return;
 
             // Above the list, which is what the page is for. The box is
             // closed until it is wanted, so it costs one line.
             preview.insertBefore(box, preview.firstChild);
-            box.classList.remove('hidden');
+            box.classList.remove('omn-hidden');
 
             const say = function (msg, bad) {
                 statusEl.textContent = msg || '';
-                statusEl.classList.toggle('is-error', !!bad);
+                statusEl.classList.toggle('omn-is-error', !!bad);
             };
 
             // OMN_USER_FILE_UPLOADS maps the extension of a JSON file, of a
@@ -810,15 +866,15 @@ if (window.location.protocol !== 'file:') {
             ['dragenter', 'dragover'].forEach(function (name) {
                 box.addEventListener(name, function (e) {
                     e.preventDefault();
-                    box.classList.add('is-over');
+                    box.classList.add('omn-is-over');
                 });
             });
             ['dragleave', 'dragend'].forEach(function (name) {
-                box.addEventListener(name, function () { box.classList.remove('is-over'); });
+                box.addEventListener(name, function () { box.classList.remove('omn-is-over'); });
             });
             box.addEventListener('drop', function (e) {
                 e.preventDefault();
-                box.classList.remove('is-over');
+                box.classList.remove('omn-is-over');
                 run(e.dataTransfer && e.dataTransfer.files);
             });
         }
@@ -834,21 +890,27 @@ if (window.location.protocol !== 'file:') {
     console.warn("OMN-Go: Page opened locally. Server Extensions (Sync/SSE) safely disabled.");
 
     // The actions of the guarded block above. A control that needs the
-    // server is hidden on such a page, thus a stub is enough. The last seven
+    // server is hidden on such a page, thus a stub is enough. The last two
     // names are the actions of the lazy files. A page from disk never loads
     // such a file.
     [
-        'login', 'new-page', 'quick-note-save', 'bookmark-save', 'search',
-        'bookmark-panel', 'sync', 'sync-resolve', 'push-force', 'push-cancel',
-        'commit-upload', 'commit-cancel',
+        'new-page', 'quick-note-save', 'bookmark-save', 'search',
+        'bookmark-panel', 'sync',
     ].forEach(function (name) {
         window.OMN.action(name, function () { printDebug(name); });
     });
     window.checkSession = function() { printDebug('checkSession'); };
     window.omnGoOpenDatabase = function() { printDebug('omnGoOpenDatabase'); };
     window.openDatabase = function() { printDebug('openDatabase'); };
+    // The dialogs of omn-go-dialog.js. A page from disk cannot load that
+    // file. Each stub gives the answer of a closed dialog: no value for
+    // omnAlert, false for omnConfirm, null for omnPrompt.
+    window.omnDialog = function() { printDebug('omnDialog'); return Promise.resolve({ value: null, input: null }); };
+    window.omnAlert = function() { printDebug('omnAlert'); return Promise.resolve(); };
+    window.omnConfirm = function() { printDebug('omnConfirm'); return Promise.resolve(false); };
+    window.omnPrompt = function() { printDebug('omnPrompt'); return Promise.resolve(null); };
     // Search needs the server: the panel queries /api/search, which does not
-    // exist on a page opened from disk. The header button is .server-only and
+    // exist on a page opened from disk. The header button is .omn-server-only and
     // therefore already hidden here (applyOfflineUI) - these stubs cover a
     // note script or a stale keyboard shortcut calling in anyway.
     // omnSearchClearHighlights is NOT stubbed here: the highlighting lives in

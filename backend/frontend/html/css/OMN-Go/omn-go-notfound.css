@@ -1,0 +1,56 @@
+/* The page of a missing address, and the page of a file that is not text.
+   The pages also use .omn-card and .omn-card-link-btn of the core
+   stylesheet. */
+
+.omn-notfound-lead {
+    margin: 16px 0 0;
+    color: var(--omn-text-muted);
+}
+
+.omn-notfound-facts {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 6px 14px;
+    margin: 18px 0 0;
+}
+
+.omn-notfound-facts dt {
+    font-weight: 600;
+    color: var(--omn-text-heading);
+    white-space: nowrap;
+}
+
+.omn-notfound-facts dd {
+    margin: 0;
+    color: var(--omn-text);
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.omn-notfound-url {
+    font-family: monospace;
+    background: var(--omn-bg-inset);
+    color: var(--omn-text);
+    padding: 0.1em 0.4em;
+    border-radius: 4px;
+}
+
+.omn-notfound-suggest {
+    margin-top: 20px;
+    padding: 12px 14px;
+    border: 1px solid var(--omn-accent);
+    border-radius: 8px;
+    background: var(--omn-bg-inset);
+}
+
+.omn-notfound-suggest-label {
+    color: var(--omn-text-heading);
+    font-weight: 600;
+    margin-right: 6px;
+}
+
+.omn-notfound-suggest-link {
+    font-family: monospace;
+    font-size: 15px;
+    color: var(--omn-accent);
+}

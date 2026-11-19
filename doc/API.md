@@ -1,5 +1,7 @@
 # OMN-Go Server API
 
+<!-- Summary: A reference for each HTTP endpoint of the OMN-Go server. For each endpoint, it gives the method, the parameters, the access rules and the answer. Use it to write a note script or a client. -->
+
 Reference for every HTTP endpoint that the backend exposes
 (`backend/internal/app/server.go`, `backend/internal/app/log_handlers.go`).
 
@@ -92,15 +94,15 @@ A JSON endpoint answers an error in one of three shapes:
 
 1. `{"status": "error", "message": "..."}` with a 4xx or 5xx code.
    `writeJSONError` writes this shape. `/api/db/*`, `/api/sql`,
-   `/api/sync/trust-host-key` and the two note exchange endpoints use it.
+   `/api/sync/trust-host-key`, `/api/sync/preview`, `/api/status` and the two
+   note exchange endpoints use it.
    `/api/sql` can also send `failed_statement`.
 2. The same shape with the code `200`. `/api/sync` uses it, because the
    status word carries the result. Section 4.11 lists each status word.
 3. The normal answer object with `status` and `error` set. `/api/search`
    uses it.
 
-`/api/status`, `/api/sync/preview` and `/api/logs/history` answer an error
-with `http.Error`, as plain text.
+`/api/logs/history` has no error answer.
 
 **Cache-Control.** Each response carries `Cache-Control: no-cache`. The header
 is set in `connectionMiddleware` (`backend/internal/app/middleware.go`). That
@@ -169,8 +171,9 @@ parts, separated by a dot:
 | 3 | `HMAC-SHA256("role.expiry", key)`, in base64url with no padding |
 
 The key is 32 random bytes at `<StorageDir>/session_secret`. The application
-makes the file at the first login and gives it mode 0600. The file is in
-`.gitignore`, thus a sync never carries the key of one device to another.
+makes the file at the first login and gives it mode 0600. The ignore rules
+of the app name the file, thus a sync never carries the key of one device to
+another. See "The ignore rules" in the section of `POST /api/sync`.
 A cookie is therefore valid on the device that made it and on no other.
 
 The cookie lasts **30 days**. It is `HttpOnly` and `SameSite=Lax`. It is not
@@ -468,7 +471,9 @@ of `source` again at once.
 | Status | Body |
 | --- | --- |
 | `200` | The **resolved** target name, e.g. `local/test` — plain text, no trailing newline |
+| `200` | The same, when the new page exists but the link line of `source` could not be written. The log holds the fault |
 | `400` | `Missing fields` when `target` or `title` is empty |
+| `500` | `Failed to create the page` when the new page cannot be written |
 
 ---
 
@@ -502,6 +507,7 @@ again.
 | --- | --- |
 | `200` | `Saved` |
 | `200` | *(empty body, nothing written)* when `note` is empty |
+| `500` | `Failed to save` when the read or the write of `QuickNotes.md` fails. An absent `QuickNotes.md` is not a fault: the first entry makes it |
 
 ---
 
@@ -539,7 +545,8 @@ it.
 
 | Status | Body |
 | --- | --- |
-| `200` | `Saved` — also returned when `Bookmarks.md` is missing or lacks the marker, in which case nothing was written |
+| `200` | `Saved` |
+| `500` | `Failed to save` when `Bookmarks.md` is missing, lacks the marker, or cannot be written. Nothing was written |
 
 ---
 
@@ -952,7 +959,7 @@ was therefore a dead end that named neither the cause nor the cure.
 #### `?hl=<term>` — highlight on arrival
 
 Any page accepts repeated `hl` parameters. At load the client marks every
-literal occurrence of those terms in `#preview` and scrolls to the first one.
+literal occurrence of those terms in `#omn-preview` and scrolls to the first one.
 The client then removes the parameters from the address bar with
 `history.replaceState`. The URL that the user copies, bookmarks or reloads is
 therefore the plain one, and a refresh does not apply the highlight again.
@@ -1783,18 +1790,44 @@ curl -X POST http://127.0.0.1:8080/api/sync \
      -d 'action=push' -d 'message=notes from phone'
 ```
 
+**The ignore rules.** Two files tell git which files to leave out:
+
+| File | Who writes it | Synced |
+| --- | --- | --- |
+| `<StorageDir>/.git/info/exclude` | The app, at each open of the repository | No |
+| `<StorageDir>/.gitignore` | The person, by hand | Yes, it is a tracked file |
+
+- `gitsync.Service.WriteExcludeFile` writes `gitsync.GitignorePatterns` to
+  `.git/info/exclude`. It writes the whole file, and only when the content
+  is different. The file starts with two comment lines that say this.
+- Command line git reads `.git/info/exclude` as a second `.gitignore`. A
+  sync never carries it, because it is below `.git`.
+- go-git refuses each path below `.git`, thus it cannot read the file. The
+  app gives go-git the same list in code: `gitsync.Worktree` sets it as the
+  `Excludes` of each worktree, and the status applies it.
+- The app never writes `.gitignore`. A change of that tracked file on each
+  device makes a pull conflict on the next device. See
+  `doc/decisions/0029-keep-the-ignore-patterns-of-the-app-in-git-info-exclude.md`.
+- `.gitignore` works as before, also a `.gitignore` in a subdirectory. A
+  pattern of the person goes there and reaches each device.
+- A `!` line in `.gitignore` can include again a file that
+  `.git/info/exclude` leaves out, because git gives `.gitignore` the
+  priority. The app does not depend on this order. `Excludes` and
+  `gitsync.Service.LoadGitignoreMatcher` put `GitignorePatterns` after
+  `.gitignore`, thus the list of the app wins for each status, commit, push,
+  preview and force pull.
+- An older install keeps the OMN-Go lines that the app wrote into
+  `.gitignore` before. They repeat `.git/info/exclude` and do no harm. The
+  person can delete them.
+
 **The local-only name rule.** A path stays on one device when a name in
 it starts with `local-`. This is the name of the file, or the name of a
-directory above it. The `.gitignore` pattern is the single line
-`local-*`, and it is the last line of the file. go-git reads the patterns from the end and stops at the
+directory above it. The ignore pattern is the single line
+`local-*`, and it is the last line of `GitignorePatterns`. go-git reads the patterns from the end and stops at the
 first match, thus a local-only name wins over a `!` negation, for example
 `html/images/local-map.svg`.
 
-The rule started as `/html/db_backup/local-*/`, which kept the backups of a
-`local-` database out of git. `gitsync.Service.EnsureGitignore` deletes that
-older line from an existing install and writes the general one.
-
-A `.gitignore` pattern does not remove a file from the git index. A file
+An ignore pattern does not remove a file from the git index. A file
 that git tracked before it got the name would thus keep its old behavior.
 A commit takes no new content, and a force pull writes the copy of the
 repository over the local file. `gitsync.Service.CommitLocalChanges` thus reads
@@ -1842,8 +1875,12 @@ there is anything to push. It commits nothing.
 | --- | --- | --- | --- |
 | `action` | string | yes | Must be `upload` — nothing else is supported |
 
+Another `action` answers `400`. A repository that the server cannot open or
+read answers `500`. Each error is `{"status": "error", "message": "..."}`.
+
 The endpoint takes the files from `git status`. It removes anything that
-`.gitignore` matches, and it removes the root `config.json`. The
+the ignore rules match (see "The ignore rules" above), and it removes the
+root `config.json`. The
 `config.json` file is never synced, because it holds the secrets of one
 device. Database backups need no special handling. They are ordinary files
 under `html/db_backup/`, and the same scan finds them.
@@ -1934,7 +1971,7 @@ at once and run a progress bar over the slow request alone. `git_dirty`
 writes one `[status]` line to the log stream before it starts.
 
 `sections=all` selects each section, the two slow ones included. An unknown
-section name answers `400`.
+section name answers `400` with `{"status": "error", "message": "unknown section: <names>"}`.
 
 `format=md` answers with the same facts as a Markdown document, with the
 content type `text/plain; charset=utf-8`. A browser paints `text/plain`,
@@ -2176,8 +2213,8 @@ that mattered drowned in them. Since 26.08.55 a row speaks only when the
 application is involved.
 
 **Two channels in a row.** The word says what the file **is**. The colour says
-what **happens** to it. The colour tokens are `--file-app`, `--file-alert`,
-`--file-keep`, `--file-derived` and `--file-plain`, and each has a value for
+what **happens** to it. The colour tokens are `--omn-file-app`, `--omn-file-alert`,
+`--omn-file-keep`, `--omn-file-derived` and `--omn-file-plain`, and each has a value for
 each theme (`omn-go-core.css`, section 1). Colour is never the only carrier:
 `app-owned` is a word on the second line of each row that it applies to, in
 each of the three trees.

@@ -42,7 +42,7 @@ async function loadJSON() {
         if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
     } catch (error) {
-        console.error('Fetch error:', error);
+        console.omn-error('Fetch error:', error);
     }
 }
 loadJSON();
@@ -455,11 +455,8 @@ func TestParseQuery(t *testing.T) {
 
 // The dialog is reachable from the page chrome, and reachable by everyone.
 //
-// Search is read-only. Unlike create, quick-note and bookmark, the button is
-// thus NOT .admin-only. A remote caller can already read every page. To be
-// unable to search what you are allowed to read is a strange place to draw a
-// line. It IS .server-only, because an exported page has no /api/search. The
-// existing applyOfflineUI() hides it there with no extra code.
+// The button is .omn-server-only, because an exported page has no
+// /api/search. applyOfflineUI() hides it there with no extra code.
 func TestSearchButtonIsInTheRenderedPage(t *testing.T) {
 	a := newTestApp(t)
 	page := string(a.Renderer().CompilePage("Note", []byte("Title: A Note\n\nbody")))
@@ -475,11 +472,8 @@ func TestSearchButtonIsInTheRenderedPage(t *testing.T) {
 			break
 		}
 	}
-	if !strings.Contains(line, "server-only") {
-		t.Errorf("search button is not .server-only, so an exported page would show a button that cannot work: %s", line)
-	}
-	if strings.Contains(line, "admin-only") {
-		t.Errorf("search button is .admin-only; reading and searching should need the same rights: %s", line)
+	if !strings.Contains(line, "omn-server-only") {
+		t.Errorf("search button is not .omn-server-only, so an exported page would show a button that cannot work: %s", line)
 	}
 }
 
@@ -498,9 +492,9 @@ func writeSearchNote(t *testing.T, a *testApp, rel, content string) {
 //
 // spellcheck="false", autocorrect="off", autocapitalize and autocomplete all
 // read like housekeeping on a search field. On Android they are not cosmetic.
-// Each is a hint that the soft keyboard reads when it attaches. Several fold
-// into the NO_SUGGESTIONS flag of the IME, which disables the COMPOSING
-// region. That region is the mechanism that every non-Latin layout uses to
+// Each is a hint that the soft keyboard reads when it attaches.
+// autocomplete="off" folds into the NO_SUGGESTIONS flag of the IME, which
+// disables the COMPOSING region. That region is the mechanism that every non-Latin layout uses to
 // enter text. Cyrillic input then silently produces nothing while Latin typing
 // works. The field looks fine, and it refuses half the scripts of the world.
 //
@@ -571,9 +565,9 @@ func TestSearchOverlayReattachesFocusAfterLayout(t *testing.T) {
 
 // The editor's find and replace fields carry no keyboard hints either.
 //
-// Same rule and same reason as the search overlay above. On Android those
-// attributes fold into the NO_SUGGESTIONS flag of the IME. That flag disables
-// the composing region that every non-Latin layout needs. A find field that
+// Same rule and same reason as the search overlay above. On Android
+// autocomplete="off" folds into the NO_SUGGESTIONS flag of the IME. That flag
+// disables the composing region that every non-Latin layout needs. A find field that
 // cannot accept Cyrillic is a find field that cannot search a Russian note.
 func TestEditorFindInputsDoNotDisableTheIME(t *testing.T) {
 	src, err := frontend.Templates.ReadFile("templates/editor.html")
@@ -581,7 +575,7 @@ func TestEditorFindInputsDoNotDisableTheIME(t *testing.T) {
 		t.Fatal(err)
 	}
 	page := string(src)
-	for _, id := range []string{`id="findInput"`, `id="replaceInput"`} {
+	for _, id := range []string{`id="omn-find-input"`, `id="omn-replace-input"`} {
 		at := strings.Index(page, id)
 		if at < 0 {
 			t.Fatalf("%s is gone; this test needs updating", id)

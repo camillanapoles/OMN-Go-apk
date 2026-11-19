@@ -1,13 +1,35 @@
-# Fork CI: quality gate plus unsigned-for-release APK artifacts for the
-# fork branches (main, dev, feat/*, fix/*, refactor/*, chore/*, docs/*).
-# master stays the upstream mirror and is covered by test.yml instead.
-# Job names are stable because branch protection uses them as required
+# Fork CI: quality gate plus APK artifacts for the branches of this
+# fork. The branch model is the GitOps flow of doc/gitops/README.md:
+#
+#   cnmfs/*, arena/*   work branches (specs and sessions)
+#   omn-go/sync        the mirror of the original (upstream)
+#   merge/sync-cnmfs   staging: the merge of the mirror with our work
+#   main               production
+#
+# The workflow builds the ONE Dockerfile of the tree. The older
+# Dockerfile.ci of the fork disappeared when the original was merged in,
+# and a build of that name then failed at once.
+#
+# ONE BUILD PER COMMIT. The Decide step of each job stops a build that
+# has nothing to do. A push to a branch with an open pull request builds
+# nothing: the pull request run is the one build of that commit. A
+# commit that one Fork CI run already built and passed builds nothing:
+# its tree cannot answer differently. A manual re-run (run_attempt above
+# one) always builds. Each job still RUNS and passes with its steps
+# skipped, because a required check that never reports blocks the
+# merge.
+#
+# The APK job needs no secret to run. With no KEYSTORE_BASE64 it makes a
+# throwaway keystore and prints a warning. The APK is then for tests
+# only. See doc/gitops/SECRETS.md for the release keystore.
+#
+# Job names are stable because the branch rulesets use them as required
 # checks: "Quality Gate" and "APK Build".
 name: Fork CI
 
 on:
   push:
-    branches: [main, dev, 'feat/**', 'fix/**', 'refactor/**', 'chore/**', 'docs/**']
+    branches: [main, dev, 'cnmfs/**', 'arena/**', 'merge/**', 'feat/**', 'fix/**', 'refactor/**', 'chore/**', 'docs/**']
   pull_request:
   workflow_dispatch:
 
@@ -17,6 +39,7 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: read
   # The BuildKit gha cache backend needs the actions domain: write to
   # export cache entries, read to import them. With contents alone it
   # silently skips both phases (post step prints "State not set").
@@ -28,32 +51,64 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - name: Decide whether this run must build
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          run=true
+          if [ "$RUN_ATTEMPT" != "1" ]; then
+            echo "A re-run attempt always builds."
+          elif [ "$EVENT" = "push" ]; then
+            OPEN=$(gh pr list --repo camillanapoles/OMN-Go-apk --head "$BRANCH" --state open --json number --jq 'length')
+            if [ "$OPEN" != "0" ]; then
+              run=false
+              echo "An open pull request covers this push. The pull request run is the one build of $HEAD_SHA."
+            fi
+          fi
+          if [ "$run" = "true" ]; then
+            DONE=$(gh run list --repo camillanapoles/OMN-Go-apk --commit "$HEAD_SHA" --workflow "Fork CI" --json conclusion --jq '[.[] | select(.conclusion == "success")] | length')
+            if [ "$DONE" != "0" ]; then
+              run=false
+              echo "A Fork CI run of $HEAD_SHA already passed. The tree did not change, thus the answer cannot change."
+            fi
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
       - name: Checkout code
+        if: steps.decide.outputs.run == 'true'
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
+        if: steps.decide.outputs.run == 'true'
         uses: docker/setup-buildx-action@v3
 
       # The BuildKit gha cache backend reads ACTIONS_CACHE_URL and
       # ACTIONS_RUNTIME_TOKEN. The runner hands those to actions only,
       # so this step exposes them to the plain run steps below.
       - name: Expose the GitHub Actions runtime for the buildx cache
+        if: steps.decide.outputs.run == 'true'
         uses: crazy-max/ghaction-github-runtime@v3
 
-      # Only the dev branch exports cache. One full export fills a large
+      # Only two branches export cache. One full export fills a large
       # part of the 10 GB Actions cache pool. Two or three exports in one
       # increment evict each other, and every build then runs cold.
       - name: Run the quality gate
+        if: steps.decide.outputs.run == 'true'
         run: |
           CACHE_TO=""
-          if [ "$GITHUB_REF" = "refs/heads/dev" ]; then
+          if [ "$GITHUB_REF" = "refs/heads/dev" ] || [ "$GITHUB_REF" = "refs/heads/merge/sync-cnmfs" ]; then
             CACHE_TO="--cache-to type=gha,mode=max,scope=omngo-test"
           fi
           docker buildx build \
-            -f Dockerfile.ci \
             --target test \
             --progress plain \
             --cache-from type=gha,scope=omngo-test \
+            --cache-from type=gha,scope=omngo \
             $CACHE_TO \
             .
 
@@ -62,51 +117,110 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
+      - name: Decide whether this run must build
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          run=true
+          if [ "$RUN_ATTEMPT" != "1" ]; then
+            echo "A re-run attempt always builds."
+          elif [ "$EVENT" = "push" ]; then
+            OPEN=$(gh pr list --repo camillanapoles/OMN-Go-apk --head "$BRANCH" --state open --json number --jq 'length')
+            if [ "$OPEN" != "0" ]; then
+              run=false
+              echo "An open pull request covers this push. The pull request run is the one build of $HEAD_SHA."
+            fi
+          fi
+          if [ "$run" = "true" ]; then
+            DONE=$(gh run list --repo camillanapoles/OMN-Go-apk --commit "$HEAD_SHA" --workflow "Fork CI" --json conclusion --jq '[.[] | select(.conclusion == "success")] | length')
+            if [ "$DONE" != "0" ]; then
+              run=false
+              echo "A Fork CI run of $HEAD_SHA already passed. The tree did not change, thus the answer cannot change."
+            fi
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
       - name: Checkout code
+        if: steps.decide.outputs.run == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
 
       - name: Set up Docker Buildx
+        if: steps.decide.outputs.run == 'true'
         uses: docker/setup-buildx-action@v3
 
-      # Decode the keystore to RUNNER_TEMP, outside the checkout, so the
-      # Docker build context never captures it. The build reads it only
-      # as a BuildKit secret (id=keystore).
       # Same runtime exposure as in the gate job: the gha cache backend
       # of the buildx build below needs the two runtime variables.
       - name: Expose the GitHub Actions runtime for the buildx cache
+        if: steps.decide.outputs.run == 'true'
         uses: crazy-max/ghaction-github-runtime@v3
 
+      # The keystore comes from the secret KEYSTORE_BASE64. A fork with
+      # no secret still gets a build: the step then makes a throwaway
+      # keystore with a password of its own and marks each artifact as
+      # test-only in the log. The secret ids of the docker build below
+      # match the mounts of the Dockerfile in any case.
       - name: Restore Android keystore
+        id: keystore
+        if: steps.decide.outputs.run == 'true'
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        run: |
-          echo "${KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/omn-go.keystore"
-
-      # Signing material goes in as BuildKit secrets, never as build
-      # args. The secret ids match the mounts of Dockerfile.ci.
-      - name: Build and export artifacts
-        env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        # Only the dev branch exports cache (same reason as in the gate).
+        run: |
+          if [ -n "${KEYSTORE_BASE64}" ] && [ -n "${KEYSTORE_PASSWORD:-}" ]; then
+            echo "${KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/omn-go.keystore"
+            echo "throwaway=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::KEYSTORE_BASE64 is not set. The APK is signed with a THROWAWAY key and is for tests only. See doc/gitops/SECRETS.md for the release keystore."
+            keytool -genkeypair -v \
+              -keystore "${RUNNER_TEMP}/omn-go.keystore" \
+              -alias "${KEY_ALIAS:-omn-go}" \
+              -keyalg RSA -keysize 2048 -validity 1 \
+              -storepass forkci-throwaway -keypass forkci-throwaway \
+              -dname "CN=OMN-Go Fork CI Throwaway (NOT FOR RELEASE)"
+            echo "throwaway=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Signing material goes in as BuildKit secrets, never as build
+      # args. A throwaway keystore brings its own password: the build
+      # step then reads the fallback of each expression below.
+      #
+      # The cache-from of the omngo-test scope lets a build of this job
+      # skip each layer that the Quality Gate job of the same run or of
+      # an earlier run already made. The export stage runs the gate by
+      # design (the Dockerfile copies /gate-passed from the test stage),
+      # thus the two jobs of one run share the same test layers.
+      - name: Build and export artifacts
+        if: steps.decide.outputs.run == 'true'
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'forkci-throwaway' }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'omn-go' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'forkci-throwaway' }}
+        # Only two branches export cache (same reason as in the gate).
         run: |
           CACHE_TO=""
-          if [ "$GITHUB_REF" = "refs/heads/dev" ]; then
+          if [ "$GITHUB_REF" = "refs/heads/dev" ] || [ "$GITHUB_REF" = "refs/heads/merge/sync-cnmfs" ]; then
             CACHE_TO="--cache-to type=gha,mode=max,scope=omngo"
           fi
           docker buildx build \
-            -f Dockerfile.ci \
             --target export \
             --output type=local,dest=artifacts \
             --secret id=keystore,src="${RUNNER_TEMP}/omn-go.keystore" \
             --secret id=keystore_password,env=KEYSTORE_PASSWORD \
             --secret id=key_alias,env=KEY_ALIAS \
             --secret id=key_password,env=KEY_PASSWORD \
+            --build-arg "OMN_GO_COMMIT=$(git rev-parse HEAD)" \
+            --build-arg "OMN_GO_COMMIT_TIME=$(git log -1 --format=%cI)" \
             --cache-from type=gha,scope=omngo \
+            --cache-from type=gha,scope=omngo-test \
             $CACHE_TO \
             .
           ls -la artifacts/
@@ -117,6 +231,7 @@ jobs:
 
       - name: Extract version and branch
         id: version
+        if: steps.decide.outputs.run == 'true'
         run: |
           VERSION=$(grep -oP 'APP_VERSION\s*=\s*"\K[^"]+' backend/version.go)
           BRANCH=${GITHUB_REF_NAME//\//-}
@@ -127,6 +242,7 @@ jobs:
           echo "App version: $VERSION, sanitized branch: $BRANCH"
 
       - name: Upload artifacts
+        if: steps.decide.outputs.run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: omn-go-${{ steps.version.outputs.version }}-${{ steps.version.outputs.branch }}

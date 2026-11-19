@@ -232,7 +232,7 @@ func (a *App) serveNotFound(w http.ResponseWriter, r *http.Request) {
 	}
 
 	body := renderNotFoundPage(view)
-	a.renderPage(w, http.StatusNotFound, "Not found", render.PageHeader("Not found", "Error"), body)
+	a.renderPage(w, http.StatusNotFound, "Not found", render.PageHeader("Not found", "Error", "css/OMN-Go/omn-go-notfound.css"), body)
 }
 
 // serveNotEditable answers an editor request for a file that is not text:
@@ -259,7 +259,7 @@ func (a *App) serveNotEditable(w http.ResponseWriter, r *http.Request, relPath s
 
 	body := renderNotEditablePage(notEditableView{Path: urlPath, Type: ct})
 	a.renderPage(w, http.StatusUnsupportedMediaType, "Not a text file",
-		render.PageHeader("Not a text file", "Error"), body)
+		render.PageHeader("Not a text file", "Error", "css/OMN-Go/omn-go-notfound.css"), body)
 }
 
 // notFoundInterceptor keeps the path handling and the range handling of
@@ -359,10 +359,10 @@ func renderNotFoundPage(v notFoundView) string {
 	suggestion := ""
 	if v.Suggested != "" && safeLocalPath(v.Suggested) {
 		esc := render.EscapeHTML(v.Suggested)
-		suggestion = fmt.Sprintf(`    <div class="config-field notfound-suggest">
-        <span class="notfound-suggest-label">Did you mean</span>
-        <a href="%s" class="notfound-suggest-link">%s</a>
-        <span class="config-hint">A note of that name exists. A link written as [text](name) asks the server for a file called "name"; note links need the .html suffix - [text](name.html).</span>
+		suggestion = fmt.Sprintf(`    <div class="omn-card-field omn-notfound-suggest">
+        <span class="omn-notfound-suggest-label">Did you mean</span>
+        <a href="%s" class="omn-notfound-suggest-link">%s</a>
+        <span class="omn-card-hint">A note of that name exists. A link written as [text](name) asks the server for a file called "name"; note links need the .html suffix - [text](name.html).</span>
     </div>
 `, esc, esc)
 	}

@@ -34,14 +34,14 @@
 
                 consoleModal = document.createElement('div');
                 consoleModal.id = 'omn-go-console-modal';
-                consoleModal.className = 'console-modal';
+                consoleModal.className = 'omn-console-modal';
 
                 const header = document.createElement('div');
-                header.className = 'console-header';
-                header.innerHTML = '<span>JS Console Output</span><div class="console-actions"><button id="omn-go-console-clear" class="btn-console btn-console-clear" title="Clear Console"><i class="material-icons icon-sm">delete_sweep</i></button><button id="omn-go-console-close" class="btn-console btn-console-close" title="Close Console"><i class="material-icons icon-sm">close</i></button></div>';
+                header.className = 'omn-console-header';
+                header.innerHTML = '<span>JS Console Output</span><div class="omn-console-actions"><button id="omn-go-console-clear" class="omn-btn-console omn-btn-console-clear" title="Clear Console"><i class="material-icons omn-icon-sm">delete_sweep</i></button><button id="omn-go-console-close" class="omn-btn-console omn-btn-console-close" title="Close Console"><i class="material-icons omn-icon-sm">close</i></button></div>';
 
                 logsContainer = document.createElement('div');
-                logsContainer.className = 'console-logs';
+                logsContainer.className = 'omn-console-logs';
 
                 consoleModal.appendChild(header);
                 consoleModal.appendChild(logsContainer);
@@ -55,20 +55,20 @@
                     clrBtn.onclick = () => {
                         logs = [];
                         if (logsContainer) logsContainer.innerHTML = '';
-                        if (consoleBtn) consoleBtn.innerHTML = '<i class="material-icons icon-xs">terminal</i><span>0</span>';
+                        if (consoleBtn) consoleBtn.innerHTML = '<i class="material-icons omn-icon-xs">terminal</i><span>0</span>';
                         updateConsoleFooterDot();
                     };
                 }
 
                 consoleBtn = document.createElement('button');
                 consoleBtn.id = 'omn-go-console-btn';
-                consoleBtn.className = 'btn-console-main';
-                consoleBtn.innerHTML = '<i class="material-icons icon-xs">terminal</i><span>0</span>';
+                consoleBtn.className = 'omn-btn-console-main';
+                consoleBtn.innerHTML = '<i class="material-icons omn-icon-xs">terminal</i><span>0</span>';
                 consoleBtn.onclick = () => {
                     consoleModal.style.display = 'flex';
                 };
                 // Footer dot tap-to-open is wired in updateConsoleFooterDot,
-                // because the footer (#status) is parsed after #preview and so
+                // because the footer (#omn-page-footer) is parsed after #omn-preview and so
                 // may not exist yet when initConsoleUI first runs.
                 updateConsoleFooterDot();
 
@@ -80,7 +80,7 @@
                     return text.includes('metadata') || id.includes('metadata') || cls.includes('metadata');
                 });
 
-                var target = document.querySelector('.header-actions'); if (target) { target.appendChild(consoleBtn); } else if (document.body) { consoleBtn.classList.add('btn-console-main-fixed'); document.body.appendChild(consoleBtn); }
+                var target = document.querySelector('.omn-header-actions'); if (target) { target.appendChild(consoleBtn); } else if (document.body) { consoleBtn.classList.add('omn-btn-console-main-fixed'); document.body.appendChild(consoleBtn); }
             }
 
             // computeJump decides whether an uncaught error can be opened in
@@ -133,14 +133,14 @@
 
             // The header console button is hidden while the header is folded
             // (the default). This footer dot is always visible, so it tells
-            // the user that console messages exist without unfolding. It is
-            // the same orange as the console button (#ff9800) and lives in
-            // the page footer (#status), added by the template.
+            // the user that console messages exist without unfolding. It has
+            // the color of the console button and lives in the page footer
+            // (#omn-page-footer), added by the template.
             function updateConsoleFooterDot() {
                 var fd = document.getElementById('omn-go-console-footer-dot');
                 if (!fd) return;
                 // Wire tap-to-open once the footer exists (it is parsed after
-                // #preview, so a note's parse-time log can run before it).
+                // #omn-preview, so a note's parse-time log can run before it).
                 // consoleModal exists once initConsoleUI has run.
                 if (!fd._wired && consoleModal) {
                     fd._wired = true;
@@ -159,16 +159,14 @@
                     return;
                 }
                 if (!consoleBtn) initConsoleUI();
-                consoleBtn.innerHTML = `<i class="material-icons icon-xs">terminal</i><span>${logs.length}</span>`;
+                consoleBtn.innerHTML = `<i class="material-icons omn-icon-xs">terminal</i><span>${logs.length}</span>`;
                 updateConsoleFooterDot();
 
                 if (logsContainer) {
                     const msg = document.createElement('div');
-                    msg.style.marginBottom = '4px';
-                    msg.style.paddingBottom = '4px';
-                    msg.style.borderBottom = '1px solid #333';
-                    const color = type === 'error' ? '#ff5555' : type === 'warn' ? '#ffb86c' : '#f8f8f2';
-                    msg.style.color = color;
+                    // The colors are tokens of omn-go-core.css.
+                    msg.className = 'omn-console-line' +
+                        (type === 'error' ? ' omn-console-line-error' : type === 'warn' ? ' omn-console-line-warn' : '');
 
                     const text = Array.from(args).map(a => {
                         try { return typeof a === 'object' ? JSON.stringify(a) : String(a); }

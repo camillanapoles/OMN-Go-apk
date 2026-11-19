@@ -322,10 +322,10 @@ func (svc Service) filesCards() []filesTreeCard {
 		{Key: filesTreeBundled, Icon: "inventory_2", Title: "Bundled",
 			Where: "inside the application",
 			Count: filesCountLabel(nb) + " · " + filesSize(bb)},
-		{Key: filesTreeServed, Icon: "public", Title: "Served", Class: "files-card-served",
+		{Key: filesTreeServed, Icon: "public", Title: "Served", Class: "omn-files-card-served",
 			Where: "html/ — what a URL finds",
 			Count: filesCountLabel(ns) + " · " + filesSize(bs)},
-		{Key: filesTreeSource, Icon: "article", Title: "Source", Class: "files-card-source",
+		{Key: filesTreeSource, Icon: "article", Title: "Source", Class: "omn-files-card-source",
 			Where: "md/ — your notes",
 			Count: filesCountLabel(nm) + " · " + filesSize(bm)},
 	}
@@ -440,7 +440,7 @@ func (svc Service) writeFilesPage(w http.ResponseWriter, view filesPageView) {
 		title += ": " + strings.TrimSuffix(view.Dir, "/")
 	}
 	body := renderFilesPage(view)
-	svc.RenderPage(w, http.StatusOK, title, render.PageHeader(title, "System"), body)
+	svc.RenderPage(w, http.StatusOK, title, render.PageHeader(title, "System", "css/OMN-Go/omn-go-files.css"), body)
 }
 
 // filesCrumbs makes the breadcrumb, from the root of the tree to the current

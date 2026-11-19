@@ -3,8 +3,6 @@ package net.basov.omngo;
 import android.app.Activity;
 import android.os.Bundle;
 import android.webkit.WebView;
-import android.os.Handler;
-import android.os.Looper;
 import net.basov.omngo.backend.Backend;
 
 // MainActivity is the one screen of the application. It holds the methods
@@ -24,6 +22,9 @@ import net.basov.omngo.backend.Backend;
 // package, and nothing outside the package reads them.
 public class MainActivity extends Activity {
     WebView webView;
+    // The text under the spinner of the start screen. WebViewSetup makes it,
+    // showStartStage writes it, and the first loaded page hides it.
+    android.widget.TextView startText;
     // The name of the note that the external editor has open. WebViewSetup
     // sets it for an "omngo://edit" address, and onActivityResult reads it.
     String currentEditingName;
@@ -148,77 +149,128 @@ public class MainActivity extends Activity {
         // manifest theme appear and slide back in.
         Fullscreen.applyFullscreenMode(this);
 
-        // Wait for the Go server to bind before loading
-        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+        // ServerService starts the Go server on a worker thread. The main
+        // thread thus draws the spinner of WebViewSetup at once, also while
+        // the first start of a new version writes and compiles its files.
+        // This thread waits until the server listens, and then the main
+        // thread loads the start page. While it waits, it reads the work of
+        // the start two times per second, and the text under the spinner
+        // shows it. The time limit only guards against a server that never
+        // starts: the load then shows the error.
+        new Thread(new Runnable() {
             @Override
             public void run() {
-                String startUrl = serverBase() + "/Welcome.html";
-                android.content.Intent intent = getIntent();
-                String shortcutNote = intent.getStringExtra(Shortcuts.EXTRA_SHORTCUT_NOTE);
-                if (shortcutNote != null && !shortcutNote.isEmpty()) {
-                    // Tapped a pinned shortcut (see Shortcuts) -
-                    // go straight to that note instead of Welcome.html.
-                    startUrl = serverBase() + "/" + android.net.Uri.encode(shortcutNote) + ".html";
-                } else if (isQuickNoteAliasLaunch(intent)) {
-                    // Tapped the second "OMN-Go Quick Note" app-drawer icon.
-                    // See the QuickNoteAlias activity-alias in the manifest.
-                    // It still loads Welcome.html, thus the app has a normal
-                    // page underneath. It adds a query flag, and the load
-                    // handler of omn-go-core.js reads that flag and pops the
-                    // Quick Note panel open at once. The share_text and
-                    // share_subject flags below do the same for shared text.
-                    startUrl += "?quicknote=1";
-                } else if (shareIn.isSharedNoteIntent(intent)) {
-                    // A note arrived as a FILE. Imported natively, like the
-                    // image/JSON branch below - startUrl stays Welcome.html,
-                    // and openImportedNote takes the WebView to the note when
-                    // the import answers.
-                    shareIn.importSharedNote(shareIn.sharedNoteUri(intent));
-                } else if (android.content.Intent.ACTION_SEND.equals(intent.getAction()) && "text/plain".equals(intent.getType())
-                        && intent.getParcelableExtra(android.content.Intent.EXTRA_STREAM) == null) {
-                    String sharedText = intent.getStringExtra(android.content.Intent.EXTRA_TEXT);
-                    String sharedSubject = intent.getStringExtra(android.content.Intent.EXTRA_SUBJECT);
-                    if (OmnText.looksLikeSharedNote(sharedText)) {
-                        // A note sent AS TEXT. It does not go through the
-                        // URL. A whole note is the wrong size for a query
-                        // string, and the note box is not where it belongs.
-                        shareIn.importSharedText(sharedText);
-                    } else {
-                        startUrl += "?share_text=" + (sharedText != null ? android.net.Uri.encode(sharedText) : "") +
-                                    "&share_subject=" + (sharedSubject != null ? android.net.Uri.encode(sharedSubject) : "");
+                try {
+                    long deadline = System.currentTimeMillis() + BACKEND_START_TIMEOUT_MS;
+                    boolean returned = false;
+                    while (!returned && System.currentTimeMillis() < deadline) {
+                        returned = ServerService.awaitBackendReturn(START_STAGE_POLL_MS);
+                        showStartStage(Backend.startStage());
                     }
-                } else if (shareIn.isSharedFileIntent(intent)) {
-                    // Handled entirely natively (see handleSharedFile) -
-                    // startUrl is deliberately left alone; this cold start
-                    // still lands on Welcome.html like any other launch.
-                    android.net.Uri sharedUri = (android.net.Uri) intent.getParcelableExtra(android.content.Intent.EXTRA_STREAM);
-                    if (sharedUri != null) {
-                        shareIn.handleSharedFile(sharedUri, intent.getType());
+                    if (returned) {
+                        Backend.waitUntilReady();
                     }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                 }
-
-                // An update of the application writes the shipped scripts and
-                // style sheets again (storage.RefreshEmbeddedAssets in
-                // backend/internal/storage/assets.go). The WebView can hold the
-                // previous copy of those files in its disk cache, and then some
-                // new pages do not operate correctly. The Go side tells if it
-                // wrote such a file at this start. The app thus clears the
-                // cache one time, at the first start of a new version.
-                //
-                // The server is up at this point. startService above sends
-                // onStartCommand to this same main thread, and
-                // Backend.startServer completes the work with the assets
-                // before it returns. See initStorage in
-                // backend/internal/app/storage.go.
-                // This runnable comes 1 second later.
-                if (!assetCacheCleared && Backend.assetsRefreshed()) {
-                    assetCacheCleared = true;
-                    webView.clearCache(true);
-                }
-
-                webView.loadUrl(startUrl);
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (!isFinishing() && !isDestroyed()) {
+                            showStartStage("Opening the page");
+                            loadStartPage();
+                        }
+                    }
+                });
             }
-        }, 1000); // 1 second delay
+        }, "omn-go-wait").start();
+    }
+
+    // The longest wait for the Go server. See onCreate.
+    private static final long BACKEND_START_TIMEOUT_MS = 120000;
+
+    // The time between two reads of the start stage: two reads per second.
+    private static final long START_STAGE_POLL_MS = 500;
+
+    // showStartStage writes the work of the start under the spinner. Any
+    // thread can call it. An empty stage shows "Starting". WebViewSetup
+    // hides the text when the first page is loaded.
+    void showStartStage(final String stage) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (startText != null) {
+                    startText.setText(stage == null || stage.isEmpty() ? "Starting" : stage);
+                }
+            }
+        });
+    }
+
+    // loadStartPage loads the first page of this start. It runs on the main
+    // thread, after the Go server listens.
+    private void loadStartPage() {
+        String startUrl = serverBase() + "/Welcome.html";
+        android.content.Intent intent = getIntent();
+        String shortcutNote = intent.getStringExtra(Shortcuts.EXTRA_SHORTCUT_NOTE);
+        if (shortcutNote != null && !shortcutNote.isEmpty()) {
+            // Tapped a pinned shortcut (see Shortcuts) -
+            // go straight to that note instead of Welcome.html.
+            startUrl = serverBase() + "/" + android.net.Uri.encode(shortcutNote) + ".html";
+        } else if (isQuickNoteAliasLaunch(intent)) {
+            // Tapped the second "OMN-Go Quick Note" app-drawer icon.
+            // See the QuickNoteAlias activity-alias in the manifest.
+            // It still loads Welcome.html, thus the app has a normal
+            // page underneath. It adds a query flag, and the load
+            // handler of omn-go-core.js reads that flag and pops the
+            // Quick Note panel open at once. The share_text and
+            // share_subject flags below do the same for shared text.
+            startUrl += "?quicknote=1";
+        } else if (shareIn.isSharedNoteIntent(intent)) {
+            // A note arrived as a FILE. Imported natively, like the
+            // image/JSON branch below - startUrl stays Welcome.html,
+            // and openImportedNote takes the WebView to the note when
+            // the import answers.
+            shareIn.importSharedNote(shareIn.sharedNoteUri(intent));
+        } else if (android.content.Intent.ACTION_SEND.equals(intent.getAction()) && "text/plain".equals(intent.getType())
+                && intent.getParcelableExtra(android.content.Intent.EXTRA_STREAM) == null) {
+            String sharedText = intent.getStringExtra(android.content.Intent.EXTRA_TEXT);
+            String sharedSubject = intent.getStringExtra(android.content.Intent.EXTRA_SUBJECT);
+            if (OmnText.looksLikeSharedNote(sharedText)) {
+                // A note sent AS TEXT. It does not go through the
+                // URL. A whole note is the wrong size for a query
+                // string, and the note box is not where it belongs.
+                shareIn.importSharedText(sharedText);
+            } else {
+                startUrl += "?share_text=" + (sharedText != null ? android.net.Uri.encode(sharedText) : "") +
+                            "&share_subject=" + (sharedSubject != null ? android.net.Uri.encode(sharedSubject) : "");
+            }
+        } else if (shareIn.isSharedFileIntent(intent)) {
+            // Handled entirely natively (see handleSharedFile) -
+            // startUrl is deliberately left alone; this cold start
+            // still lands on Welcome.html like any other launch.
+            android.net.Uri sharedUri = (android.net.Uri) intent.getParcelableExtra(android.content.Intent.EXTRA_STREAM);
+            if (sharedUri != null) {
+                shareIn.handleSharedFile(sharedUri, intent.getType());
+            }
+        }
+
+        // An update of the application writes the shipped scripts and
+        // style sheets again (storage.RefreshEmbeddedAssets in
+        // backend/internal/storage/assets.go). The WebView can hold the
+        // previous copy of those files in its disk cache, and then some
+        // new pages do not operate correctly. The Go side tells if it
+        // wrote such a file at this start. The app thus clears the
+        // cache one time, at the first start of a new version.
+        //
+        // The server listens at this point, and Backend.startServer
+        // completed the work with the assets before that. See
+        // initStorage in backend/internal/app/storage.go.
+        if (!assetCacheCleared && Backend.assetsRefreshed()) {
+            assetCacheCleared = true;
+            webView.clearCache(true);
+        }
+
+        webView.loadUrl(startUrl);
     }
 
     @Override
@@ -277,13 +329,13 @@ public class MainActivity extends Activity {
             // Welcome.html with ?quicknote=1. This branch only pops the
             // panel open on whatever page is already showing. A reload here
             // would throw away the current page, which is what the
-            // shared-text branch below avoids for a warm start. The `p &&`
-            // guard makes a silent no-op when the current page has no
-            // #quickPanel at all, for example mid-edit on editor.html. That
-            // mirrors the caveat noted for window.handleShare.
+            // shared-text branch below avoids for a warm start. omnShowPanel
+            // of omn-go-core.js opens the panel. A page without that
+            // function or without the panel, for example editor.html, does
+            // nothing.
             if (webView != null) {
                 webView.evaluateJavascript(
-                    "javascript:(function(){ var p=document.getElementById('quickPanel'); if(p) p.classList.remove('hidden'); })();",
+                    "(function(){ if (typeof window.omnShowPanel==='function') window.omnShowPanel('omn-quick-panel'); })();",
                     null);
             }
         } else if (shareIn.isSharedNoteIntent(intent)) {
@@ -322,13 +374,30 @@ public class MainActivity extends Activity {
         }
     }
 
+    // The page gets the Back key first. omnCloseTopLayer of omn-go-core.js
+    // closes the top layer (a dialog, the search overlay or a panel) and
+    // answers true. With no open layer it answers false, and the WebView goes
+    // back. The editor page has only the dialog part, in omn-go-dialog.js.
+    private static final String CLOSE_TOP_LAYER_JS =
+        "(function(){ try{ return typeof window.omnCloseTopLayer==='function' && "
+        + "window.omnCloseTopLayer()===true; }catch(e){ return false; } })();";
+
     @Override
     public void onBackPressed() {
-        if (webView.canGoBack()) {
-            webView.goBack();
-        } else {
+        if (webView == null) {
             super.onBackPressed();
+            return;
         }
+        webView.evaluateJavascript(CLOSE_TOP_LAYER_JS, value -> {
+            if ("true".equals(value)) {
+                return;
+            }
+            if (webView.canGoBack()) {
+                webView.goBack();
+            } else {
+                super.onBackPressed();
+            }
+        });
     }
 
     @Override

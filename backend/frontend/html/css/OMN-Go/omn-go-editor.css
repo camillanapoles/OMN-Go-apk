@@ -1,0 +1,173 @@
+/* The editor page. editor.html names this file. The editor page loads no
+   omn-go-custom.css. */
+
+html, body { height: 100%; margin: 0; }
+body {
+    display: flex; flex-direction: column;
+    background: var(--omn-bg); color: var(--omn-text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.omn-editor-bar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 10px;
+    background: var(--omn-bg-band);
+    border-bottom: 1px solid var(--omn-border);
+    flex-wrap: wrap;
+}
+.omn-editor-spacer { flex: 1 1 auto; }
+.omn-editor-bar button {
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--omn-bg-surface); color: var(--omn-text);
+    border: 1px solid var(--omn-border-strong);
+    border-radius: 4px; cursor: pointer;
+    padding: 4px 8px; line-height: 1;
+}
+.omn-editor-bar button:hover { background: var(--omn-bg-hover); }
+.omn-editor-bar button.omn-active {
+    background: var(--omn-accent); color: var(--omn-on-accent); border-color: var(--omn-accent);
+}
+.omn-editor-bar button:disabled { opacity: 0.4; cursor: default; }
+.omn-editor-bar button:disabled:hover { background: var(--omn-bg-surface); }
+.omn-editor-bar .material-icons { font-size: 20px; }
+.omn-editor-tools { display: inline-flex; gap: 4px; align-items: center; }
+.omn-editor-tools::after {
+    content: ""; width: 1px; align-self: stretch;
+    background: var(--omn-border); margin: 0 4px;
+}
+/* Find and replace bar. It is between the toolbar and the text, thus it
+   moves the note down and does not cover it. */
+.omn-editor-find {
+    display: flex; flex-direction: column; gap: 4px;
+    padding: 6px 8px;
+    background: var(--omn-bg-band);
+    border-bottom: 1px solid var(--omn-border);
+}
+.omn-editor-find[hidden] { display: none; }
+.omn-editor-find-row {
+    display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+}
+.omn-editor-find-row[hidden] { display: none; }
+.omn-editor-find input {
+    flex: 1 1 8em; min-width: 6em;
+    padding: 4px 6px;
+    background: var(--omn-bg-surface); color: var(--omn-text);
+    border: 1px solid var(--omn-border); border-radius: 4px;
+    font-family: inherit; font-size: 13px;
+}
+.omn-editor-find input:focus { outline: 1px solid var(--omn-accent); }
+/* A query that is not a valid regular expression. The count text is small,
+   thus the field shows it too. */
+.omn-editor-find input.omn-is-invalid { border-color: var(--omn-danger); }
+.omn-editor-find button {
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--omn-bg-surface); color: var(--omn-text);
+    border: 1px solid var(--omn-border-strong);
+    border-radius: 4px; cursor: pointer;
+    padding: 4px 8px; line-height: 1;
+}
+.omn-editor-find button:hover { background: var(--omn-bg-hover); }
+.omn-editor-find button.omn-active {
+    background: var(--omn-accent); color: var(--omn-on-accent); border-color: var(--omn-accent);
+}
+.omn-editor-find .material-icons { font-size: 20px; }
+.omn-find-flag {
+    font-family: monospace; font-size: 12px; font-weight: 700;
+    min-width: 2.2em;
+}
+.omn-find-word { font-size: 12px; }
+.omn-editor-find-count {
+    font-size: 12px; color: var(--omn-text-muted);
+    min-width: 5em; text-align: right; white-space: nowrap;
+}
+/* Keeps the replace field under the find field. */
+.omn-find-chevron-space { width: 30px; flex: 0 0 auto; }
+
+#omn-editor-save { border-color: var(--omn-accent); color: var(--omn-accent); font-weight: 600; }
+#omn-editor-save:hover { background: var(--omn-accent); color: var(--omn-on-accent); }
+/* The line number gutter and the text. The gutter shows only when line
+   numbers are on and word wrap is off (body.omn-ln-on). The font, the line
+   height and the top padding of the gutter must be the same as the textarea. */
+.omn-editor-main { display: flex; flex: 1 1 auto; min-height: 0; }
+.omn-editor-gutter {
+    display: none; flex: 0 0 auto;
+    box-sizing: border-box; overflow: hidden;
+    padding: 12px 8px 12px 10px; margin: 0;
+    text-align: right; white-space: pre;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 14px; line-height: 1.5;
+    color: var(--omn-text-dim); background: var(--omn-bg-band);
+    border-right: 1px solid var(--omn-border);
+    user-select: none; -webkit-user-select: none;
+}
+body.omn-ln-on .omn-editor-gutter { display: block; }
+/* The pane has the surface color. The textarea is transparent, thus the
+   marks of the mirror show through it. */
+.omn-editor-pane {
+    position: relative; display: flex;
+    flex: 1 1 auto; min-width: 0;
+    background: var(--omn-bg-surface);
+}
+.omn-editor #omn-editor-text {
+    display: block; flex: 1 1 auto; min-width: 0;
+    box-sizing: border-box; border: none; outline: none;
+    padding: 12px 14px; margin: 0; resize: none;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 14px; line-height: 1.5; tab-size: 4;
+    white-space: pre-wrap; overflow-x: hidden;
+    background: transparent; color: var(--omn-text);
+    /* Above the mirror */
+    position: relative; z-index: 1;
+}
+/* Word wrap off */
+.omn-editor #omn-editor-text.omn-nowrap { white-space: pre; overflow-x: auto; }
+
+/* The mirror of the matches. It has the box, the font and the wrap of
+   #omn-editor-text, and its text is transparent. Thus only the <mark>
+   backgrounds show. A difference in metrics moves the marks off the words. */
+.omn-editor-mirror {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    box-sizing: border-box;
+    padding: 12px 14px; margin: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 14px; line-height: 1.5; tab-size: 4;
+    white-space: pre-wrap;
+    overflow: hidden;
+    color: transparent;
+    z-index: 0;
+    pointer-events: none;
+    user-select: none; -webkit-user-select: none;
+}
+.omn-editor-mirror.omn-nowrap { white-space: pre; }
+.omn-editor-mirror mark {
+    color: transparent;
+    background: var(--omn-search-hit-bg);
+    border-radius: 2px;
+}
+/* The match that the counter names. A ring, not a new color, shows that it
+   is the same kind of match. */
+.omn-editor-mirror mark.omn-is-current {
+    outline: 2px solid var(--omn-accent);
+    outline-offset: 1px;
+}
+.omn-editor-status {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 12px; font-size: 12px;
+    background: var(--omn-bg-band); border-top: 1px solid var(--omn-border);
+    color: var(--omn-text-faint); min-height: 1.2em;
+}
+/* The file name. The same span shows the load and save messages. */
+#omn-editor-status {
+    flex: 1 1 auto; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+}
+.omn-editor-status-error { color: var(--omn-state-alert); }
+.omn-editor-status-ok    { color: var(--omn-state-ok); }
+/* Green: saved. Red: a change that is not saved. */
+.omn-editor-dot {
+    flex: 0 0 auto; width: 10px; height: 10px;
+    border-radius: 50%; background: var(--omn-text-dim);
+}
+.omn-editor-dot.omn-clean   { background: var(--omn-state-ok); }
+.omn-editor-dot.omn-dirty   { background: var(--omn-state-alert); }
+.omn-editor-dot.omn-loading { background: var(--omn-text-dim); }
+.omn-editor-dot.omn-error   { background: var(--omn-state-alert); }

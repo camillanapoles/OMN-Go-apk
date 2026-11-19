@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -108,5 +109,99 @@ func TestContainedName(t *testing.T) {
 		if got := ContainedName(tc.in); got != tc.want {
 			t.Errorf("ContainedName(%q) = %q, want %q", tc.in, got, tc.want)
 		}
+	}
+}
+
+// A new version drops each compiled page, and it keeps each other .html
+// file. A compiled page holds the page shell of the old templates. An .html
+// file with no .md source is a file of the user, and nothing compiles it
+// again.
+func TestDropCompiledPagesRemovesOnlyCompiledPages(t *testing.T) {
+	l := Layout(t.TempDir())
+	write := func(p, body string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, name := range []string{"Doc", "sub/Deep"} {
+		write(l.MD(filepath.FromSlash(name+".md")), "Title: X\n\nbody")
+		write(l.PageHTML(name), "<html>old shell</html>")
+	}
+	own := l.HTML("js", "demo.html")
+	write(own, "<p>mine</p>")
+
+	var counts []int
+	n, err := DropCompiledPages(l, func(done, total int) {
+		if total != 0 {
+			t.Errorf("progress total = %d, want 0: the walk does not know the whole count", total)
+		}
+		counts = append(counts, done)
+	})
+	if err != nil || n != 2 {
+		t.Fatalf("DropCompiledPages = %d, %v, want 2, nil", n, err)
+	}
+	if len(counts) != 2 || counts[0] != 1 || counts[1] != 2 {
+		t.Errorf("progress counts = %v, want [1 2]", counts)
+	}
+	for _, name := range []string{"Doc", "sub/Deep"} {
+		if FileExists(l.PageHTML(name)) {
+			t.Errorf("the compiled page of %s is still there", name)
+		}
+		if !FileExists(l.MD(filepath.FromSlash(name + ".md"))) {
+			t.Errorf("md/%s.md went away", name)
+		}
+	}
+	if !FileExists(own) {
+		t.Error("the .html file of the user went away")
+	}
+
+	// A storage directory with no html/ is not a fault.
+	if n, err := DropCompiledPages(Layout(t.TempDir()), nil); n != 0 || err != nil {
+		t.Errorf("an empty storage directory: %d, %v", n, err)
+	}
+}
+
+// ReplaceFile writes the new text, and it leaves no temporary file. A
+// temporary file that a stop of the process left behind does not stop the
+// next write.
+func TestReplaceFileWritesAndLeavesNoTemporaryFile(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "Note.md")
+	if err := os.WriteFile(p, []byte("old"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p+TempSuffix, []byte("left by a stop"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := ReplaceFile(p, []byte("new")); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := os.ReadFile(p); string(got) != "new" {
+		t.Errorf("the file holds %q, want %q", got, "new")
+	}
+	if _, err := os.Stat(p + TempSuffix); err == nil {
+		t.Error("the temporary file stays after the write")
+	}
+}
+
+// A write that cannot finish answers the error, keeps the old content, and
+// removes its temporary file. The target here is a directory, thus the
+// rename fails.
+func TestReplaceFileKeepsTheOldContentOnAFault(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "Note.md")
+	if err := os.MkdirAll(filepath.Join(p, "inside"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := ReplaceFile(p, []byte("new")); err == nil {
+		t.Fatal("a write over a directory answered no error")
+	}
+	if _, err := os.Stat(filepath.Join(p, "inside")); err != nil {
+		t.Errorf("the directory changed: %v", err)
+	}
+	if _, err := os.Stat(p + TempSuffix); err == nil {
+		t.Error("the temporary file stays after a failed write")
 	}
 }

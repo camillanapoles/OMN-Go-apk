@@ -39,6 +39,16 @@ import (
 // send it and the sync would carry it.
 const AssetsVersionFilename = "assets_version"
 
+// AssetsVersion answers the version of the last refresh, or "" when the
+// storage directory has no stamp.
+func AssetsVersion(l Layout) string {
+	raw, err := os.ReadFile(l.File(AssetsVersionFilename))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(raw))
+}
+
 // backupLabelSanitizer keeps a backup directory name safe, whatever an old
 // version stamp holds.
 var backupLabelSanitizer = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
@@ -67,6 +77,8 @@ var VersionDependentAssets = []string{
 	"html/js/OMN-Go/omn-go-sync.js",
 	"html/js/OMN-Go/omn-go-bookmark.js",
 	"html/js/OMN-Go/omn-go-search.js",
+	"html/js/OMN-Go/omn-go-db.js",
+	"html/js/OMN-Go/omn-go-dialog.js",
 	"html/js/OMN-Go/omn-go-logs.js",
 	"html/js/OMN-Go/omn-go-status.js",
 	"html/js/OMN-Go/Bookmarker.js",
@@ -77,6 +89,13 @@ var VersionDependentAssets = []string{
 	"html/css/OMN-Go/Bookmarker.css",
 	"html/css/OMN-Go/omn-go-logs.css",
 	"html/css/OMN-Go/omn-go-status.css",
+	"html/css/OMN-Go/omn-go-config.css",
+	"html/css/OMN-Go/omn-go-files.css",
+	"html/css/OMN-Go/omn-go-search.css",
+	"html/css/OMN-Go/omn-go-notfound.css",
+	"html/css/OMN-Go/omn-go-external.css",
+	"html/css/OMN-Go/omn-go-editor.css",
+	"html/css/OMN-Go/omn-go-db.css",
 	"html/css/OMN-Go/highlight.default.min.css",
 	"html/css/OMN-Go/katex.min.css",
 	"md/AndroidIntents.md",
@@ -111,6 +130,7 @@ var RetiredAssets = []string{
 	"html/css/katex.min.css",
 	"html/css/markdown.css",
 	"html/js/OMN-Go/omn-go-sse.js",
+	"html/js/OMN-Go/omn-go-dbbackups.js",
 }
 
 // RenamedAssets gives the current path for each app asset that got a new
@@ -119,7 +139,8 @@ var RetiredAssets = []string{
 // a page in an open browser and a note of the user can name the old file.
 // THE MAP ONLY GROWS.
 var RenamedAssets = map[string]string{
-	"html/js/OMN-Go/omn-go-sse.js": "html/js/OMN-Go/omn-go-api.js",
+	"html/js/OMN-Go/omn-go-sse.js":       "html/js/OMN-Go/omn-go-api.js",
+	"html/js/OMN-Go/omn-go-dbbackups.js": "html/js/OMN-Go/omn-go-db.js",
 }
 
 // RetiredFonts adds the old place of each web font to RetiredAssets. A font is
@@ -205,13 +226,24 @@ func embeddedTwinOf(rel string) []byte {
 	return data
 }
 
+// Progress receives the count of the work that is done and the whole count.
+// The whole count is 0 when it is not known. A nil Progress is allowed.
+type Progress func(done, total int)
+
+// report calls p when p is not nil.
+func (p Progress) report(done, total int) {
+	if p != nil {
+		p(done, total)
+	}
+}
+
 // RefreshEmbeddedAssets writes each changed version-dependent file, and it
 // answers the count of files that it wrote or removed. It runs at each start,
-// and it does nothing when the stamp holds version.
-func RefreshEmbeddedAssets(l Layout, version string, log logx.Logger) int {
+// and it does nothing when the stamp holds version. progress receives each
+// file of the list, also a file that stays the same.
+func RefreshEmbeddedAssets(l Layout, version string, log logx.Logger, progress Progress) int {
 	verFile := l.File(AssetsVersionFilename)
-	prevRaw, _ := os.ReadFile(verFile) // missing file => "" => first run
-	prev := strings.TrimSpace(string(prevRaw))
+	prev := AssetsVersion(l) // "" on the first run
 	if prev == version {
 		return 0
 	}
@@ -229,7 +261,8 @@ func RefreshEmbeddedAssets(l Layout, version string, log logx.Logger) int {
 	// directory must never see two copies of one script. See RetiredAssets.
 	refreshed := removeRetiredAssets(l, backupDir, log)
 
-	for _, rel := range VersionDependentAssets {
+	for i, rel := range VersionDependentAssets {
+		progress.report(i+1, len(VersionDependentAssets))
 		embedData, eerr := frontend.Static.ReadFile(rel)
 		if eerr != nil {
 			// The list names the file, but this build does not embed it.

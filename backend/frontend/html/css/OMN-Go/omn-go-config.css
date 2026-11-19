@@ -1,0 +1,210 @@
+/* The Config page. */
+
+.omn-config-form {
+    margin-top: 20px;
+}
+
+/* The menu and each group of settings are .omn-config-screen blocks. One of
+   them has .omn-active. omn-go-config.js sets it from the hash of the address. */
+.omn-config-screen {
+    display: none;
+}
+
+.omn-config-screen.omn-active {
+    display: block;
+}
+
+/* The menu. Each row is a large target for a finger. */
+.omn-config-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+/* The head of a group: the back control and the title */
+.omn-config-subhead {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--omn-border-title);
+}
+
+.omn-config-back {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    background: none;
+    border: 1px solid var(--omn-border);
+    border-radius: 50%;
+    color: var(--omn-text-heading);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.omn-config-back:hover {
+    background: var(--omn-bg-hover);
+}
+
+.omn-config-subtitle {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--omn-text-strong);
+}
+
+/* Marks of a change that is not saved */
+.omn-config-menu-dirty {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 16px;
+    padding: 10px 12px;
+    border: 1px solid var(--omn-danger);
+    border-radius: 8px;
+    background: var(--omn-bg-inset);
+}
+
+.omn-config-menu-dirty[hidden] {
+    display: none;
+}
+
+.omn-config-menu-dirty-save {
+    margin-left: auto;
+    background: var(--omn-success);
+    color: var(--omn-on-accent);
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.omn-config-menu-dirty-save:hover {
+    background: var(--omn-success-hover);
+}
+
+.omn-config-dirty-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    min-height: 16px;
+}
+
+.omn-config-dirty-dot {
+    flex: 0 0 auto;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--omn-success);
+    transition: background 0.2s;
+}
+
+.omn-config-dirty-dot.omn-dirty {
+    background: var(--omn-danger);
+}
+
+.omn-config-dirty-label {
+    font-size: 13px;
+    color: var(--omn-text-faint);
+}
+
+/* Git servers */
+.omn-git-server-card {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid var(--omn-border-soft);
+    border-radius: 4px;
+    box-shadow: 0 1px 2px var(--omn-shadow-soft);
+    background-color: var(--omn-bg-inset);
+    color: var(--omn-text);
+}
+
+.omn-git-server-label {
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.omn-git-server-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.omn-git-server-input {
+    border: 1px solid var(--omn-border);
+    padding: 0.5rem;
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 4px;
+    background: var(--omn-bg-surface);
+    color: var(--omn-text);
+}
+
+.omn-git-server-key {
+    font-family: monospace;
+    min-height: 60px;
+}
+
+/* The fingerprint of a server key is one long word. It breaks at each
+   character, thus it stays inside the screen of a phone. */
+.omn-git-server-hostkey {
+    overflow-wrap: anywhere;
+    word-break: break-all;
+}
+
+@media (max-width: 600px) {
+    .omn-git-server-grid { grid-template-columns: 1fr; }
+    .omn-config-subtitle { font-size: 18px; }
+}
+
+/* The fields and the Save button of the Config page. */
+.omn-config-label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--omn-text-heading);
+}
+.omn-config-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--omn-border);
+    border-radius: 4px;
+    box-sizing: border-box;
+    background: var(--omn-bg-surface);
+    color: var(--omn-text);
+}
+.omn-config-checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.omn-config-save-btn {
+    background: var(--omn-success);
+    color: var(--omn-on-accent);
+    border: none;
+    padding: 12px 20px;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+    font-size: 16px;
+    transition: background 0.2s;
+}
+.omn-config-save-btn:hover {
+    background: var(--omn-success-hover);
+}
+.omn-config-save-row {
+    margin-top: 20px;
+}

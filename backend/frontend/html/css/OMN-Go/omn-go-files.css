@@ -1,0 +1,222 @@
+/* The Files page, /OMNGoFiles.html. */
+
+/* The page shows one directory at a time, like a file:/// listing of a
+   browser. The path is above the list, and each entry has one row. */
+.omn-files-page {
+    padding: 4px 0 16px;
+}
+
+/* The first screen: one button for each tree */
+/* One column at each width. Each button stays large enough for a thumb. */
+.omn-files-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 46em;
+    margin: 4px 0 8px;
+}
+
+.omn-files-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-sizing: border-box;
+    min-height: 72px;
+    padding: 14px 18px;
+    border-radius: 10px;
+    background: var(--omn-start-notes-bg);
+    color: var(--omn-start-btn-text);
+    text-decoration: none;
+    text-indent: 0;
+    box-shadow: 0 2px 4px var(--omn-shadow);
+}
+
+.omn-files-card:hover,
+.omn-files-card:focus {
+    filter: brightness(1.12);
+}
+
+.omn-files-card-served { background: var(--omn-start-bookmarks-bg); }
+
+.omn-files-card-source { background: var(--omn-files-source-bg); }
+
+.omn-files-card-icon {
+    font-size: 34px;
+    flex: 0 0 auto;
+}
+
+.omn-files-card-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.omn-files-card-title { font-size: 17px; font-weight: 600; }
+
+.omn-files-card-where { font-size: 12px; opacity: 0.9; }
+
+.omn-files-card-count { font-size: 11px; opacity: 0.8; font-variant-numeric: tabular-nums; }
+
+/* The path */
+/* Each part of the path has its own slash, and nothing is between two parts.
+   Thus the path reads as html/js/. */
+.omn-files-crumbs {
+    margin-bottom: 4px;
+    font-size: 14px;
+    overflow-wrap: anywhere;
+}
+
+.omn-files-crumbs a {
+    text-decoration: none;
+}
+
+.omn-files-crumbs a:hover {
+    text-decoration: underline;
+}
+
+.omn-files-crumb-here {
+    font-weight: 600;
+    color: var(--omn-text-strong);
+}
+
+.omn-files-summary {
+    margin: 2px 0 6px;
+    font-size: 12px;
+    color: var(--omn-text-dim);
+    font-variant-numeric: tabular-nums;
+}
+
+/* The key. It is folded by default, and it lists only the words that this
+   directory uses. */
+.omn-files-legend {
+    margin: 0 0 8px;
+    font-size: 11px;
+    color: var(--omn-text-dim);
+}
+
+.omn-files-legend > summary {
+    width: fit-content;
+    padding: 2px 0;
+    color: var(--omn-text-muted);
+    cursor: pointer;
+}
+
+.omn-files-legend > summary:hover {
+    color: var(--omn-accent);
+}
+
+.omn-files-legend > div {
+    padding: 1px 0 1px 14px;
+}
+
+.omn-files-legend b { font-weight: 600; }
+
+.omn-files-empty,
+.omn-files-more {
+    padding: 6px 0;
+    color: var(--omn-text-faint);
+    font-size: 13px;
+}
+
+.omn-files-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* One row, two lines */
+/* The first line holds the name and the kind of file. The second line holds
+   the facts. Thus a long name does not break into one character for each
+   line on a phone. */
+.omn-files-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 1px 8px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--omn-border-soft);
+    font-size: 13px;
+    overflow: hidden;
+}
+
+.omn-files-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.omn-files-name a {
+    text-decoration: none;
+    overflow-wrap: anywhere;
+}
+
+.omn-files-name a:hover {
+    text-decoration: underline;
+}
+
+.omn-files-dir .omn-files-name a {
+    font-weight: 600;
+}
+
+/* The kind of file. Each icon is in the bundled subset of the icon font. */
+.omn-files-kind {
+    font-size: 16px;
+    color: var(--omn-text-dim);
+    flex: 0 0 auto;
+}
+
+.omn-files-state {
+    flex: 0 0 auto;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.omn-files-facts {
+    flex: 1 0 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-left: 22px;   /* under the name */
+}
+
+.omn-files-size,
+.omn-files-meta {
+    flex: 0 0 auto;
+    color: var(--omn-text-dim);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+
+/* The color tells what happens to a file. The words also tell it, thus the
+   color is never the only signal. */
+.omn-files-c-app     { color: var(--omn-file-app); }
+
+.omn-files-c-alert   { color: var(--omn-file-alert); }
+
+.omn-files-c-keep    { color: var(--omn-file-keep); }
+
+.omn-files-c-derived { color: var(--omn-file-derived); }
+
+.omn-files-c-plain   { color: var(--omn-file-plain); }
+
+/* Only for a text file. The editor damages an image or a font. */
+.omn-files-edit {
+    flex: 0 0 auto;
+    margin-left: auto;
+    padding: 1px 6px;
+    color: var(--omn-accent);
+    border: 1px solid var(--omn-border);
+    border-radius: 3px;
+    font-size: 11px;
+    text-decoration: none;
+}
+
+.omn-files-edit:hover {
+    color: var(--omn-on-accent);
+    background: var(--omn-accent);
+    border-color: var(--omn-accent);
+}

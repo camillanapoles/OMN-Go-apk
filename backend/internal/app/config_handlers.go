@@ -1,7 +1,6 @@
 package app
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -111,21 +110,14 @@ func (a *App) handleConfigPost(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Saved"))
 }
 
-// persistConfig writes one configuration to config.json. It runs OUTSIDE the
-// configuration lock, thus a file write does not stop a reader. The caller
-// passes the snapshot that it took inside the lock.
+// persistConfig writes cfg to config.json OUTSIDE the configuration lock, thus
+// a file write does not stop a reader. cfg is a snapshot from inside the lock.
 func (a *App) persistConfig(cfg config.Config) error {
-	data, err := json.MarshalIndent(cfg, "", "  ")
+	err := config.Save(a.layout().Config(), cfg)
 	if err != nil {
-		a.log(logx.Config).Errf("persistConfig: failed to marshal the configuration: %v", err)
-		return err
+		a.log(logx.Config).Errf("persistConfig: %v", err)
 	}
-	configPath := a.layout().Config()
-	if err := os.WriteFile(configPath, data, 0644); err != nil {
-		a.log(logx.Config).Errf("persistConfig: failed to write %s: %v", configPath, err)
-		return err
-	}
-	return nil
+	return err
 }
 
 // applyConfigChange starts the work that a saved change needs. Each change
@@ -204,5 +196,5 @@ func (a *App) restartProcess() {
 
 // serveConfigPage answers /Config.html. The page has no .md and no cache.
 func (a *App) serveConfigPage(w http.ResponseWriter, r *http.Request) {
-	a.renderPage(w, http.StatusOK, "Config", render.PageHeader("Config", "Settings"), a.getConfigPageBody())
+	a.renderPage(w, http.StatusOK, "Config", render.PageHeader("Config", "Settings", "css/OMN-Go/omn-go-config.css"), a.getConfigPageBody())
 }
