@@ -89,6 +89,26 @@ O script cria o ruleset que falta e atualiza o que já existe
 governança tem revisão por PR, histórico no git e pode ser reimportada
 em outro fork.
 
+## A automação do fluxo
+
+Tudo que era manual tem workflow agora. O token `FORK_SYNC_TOKEN` move
+os três (ver SECRETS.md):
+
+| Workflow | Quando | O que faz |
+| -------- | ------ | --------- |
+| `fork-sync.yml` | segunda-feira 04:17 UTC ou dispatch | atualiza `omn-go/sync` (idêntico ao upstream) e abre o PR para staging |
+| `promote.yml` | **push em `cnmfs/dev`** (automático) e dispatch com `target` | abre o PR de promoção e liga o auto-merge. Staging (`cnmfs/dev` → `merge/sync-cnmfs`) segue o dev sozinho; produção (`merge/sync-cnmfs` → `main`) só com dispatch — a ação deliberada de uma pessoa |
+| `governance.yml` | push em `doc/gitops/rulesets/**` (ou dispatch) | reaplica os rulesets via `import-rulesets.sh` — a governança vira GitOps de verdade |
+
+O que continua com o ser humano, por desenho:
+
+- **Produção**: o PR de produção é criado sozinho, mas o ruleset
+  `producao-main` pede 1 aprovação. Com um autor só, o merge final é o
+  clique do Admin (bypass em modo *pull request*, registrado na audit
+  log). Esse clique é a governança de produção.
+- **Divergência do espelho**: se `omn-go/sync` divergir do upstream, o
+  `fork-sync.yml` falha alto e um humano repara.
+
 ## E o resto das regras de build
 
 O audit completo (o que estava quebrado/deficitário e o que foi
