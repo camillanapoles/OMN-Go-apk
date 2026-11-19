@@ -1,29 +1,47 @@
+# Mirror to GitLab.
+#
+# SECURITY CHANGE OF THIS FORK. The original workflow pushed every branch
+# and every tag to gitlab.com/mvbasov/OMN-Go, the GitLab of the author of
+# the original. A fork that runs it hands its own work to that account.
+# This version mirrors only when the repository variable
+# GITLAB_MIRROR_URL names YOUR OWN GitLab remote, and it mirrors only
+# production and staging plus the tags. With no variable the job does
+# nothing.
+#
+# It also needs the secret GITLAB_PAT: a GitLab token with write access
+# to that remote. See doc/gitops/SECRETS.md.
 name: Mirror to GitLab
 
 on:
   push:
-    branches: [master, DS]
+    branches: [main, 'merge/sync-cnmfs']
     tags: ['v*']
-  delete: # Optional: Keeps branches in sync if you delete them on GitHub
+  workflow_dispatch:
 
 jobs:
   git-sync:
+    if: ${{ vars.GITLAB_MIRROR_URL != '' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Fetches full history so branches map identically
+          fetch-depth: 0
 
-      - name: Dynamic Push to GitLab Remote
+      - name: Push staging, production and tags to the GitLab remote
         env:
           GITLAB_PAT: ${{ secrets.GITLAB_PAT }}
+          MIRROR_URL: ${{ vars.GITLAB_MIRROR_URL }}
         run: |
-          # 1. Register GitLab as an alternate authenticated remote target
-          git remote add gitlab "https://oauth2:${GITLAB_PAT}@gitlab.com/mvbasov/OMN-Go.git"
-          
-          # 2. Sync all branch heads and prune deleted ones
-          git push --prune gitlab "+refs/remotes/origin/*:refs/heads/*"
-          
-          # 3. Explicitly push tag history safely
+          set -euo pipefail
+          if [ -z "$GITLAB_PAT" ]; then
+            echo "::error::GITLAB_MIRROR_URL is set but the secret GITLAB_PAT is missing. See doc/gitops/SECRETS.md."
+            exit 1
+          fi
+          HOST_PATH="${MIRROR_URL#https://}"
+          git remote add gitlab "https://oauth2:${GITLAB_PAT}@${HOST_PATH}"
+          git push gitlab \
+            "+refs/remotes/origin/merge/sync-cnmfs:refs/heads/merge/sync-cnmfs" \
+            "+refs/remotes/origin/main:refs/heads/main"
           git push --tags gitlab
