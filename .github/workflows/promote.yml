@@ -1,15 +1,17 @@
-# Promote: the two promotions of the GitOps flow, with no hand.
+# Promote: the promotions of the GitOps flow, with no hand.
 #
-#   cnmfs/dev        -> merge/sync-cnmfs   (staging)
-#   merge/sync-cnmfs -> main               (production)
+#   arena/*          -> cnmfs/dev         (by Fork CI: merge-arena job)
+#   cnmfs/dev        -> merge/sync-cnmfs  (staging)
+#   merge/sync-cnmfs -> main              (production)
 #
 # A push to cnmfs/dev opens the staging pull request on its own and
-# turns auto-merge on: staging follows our dev as soon as each required
-# check is green. The production promotion runs on a dispatch alone. One
-# deliberate action of a person starts it, and the auto-merge then waits
-# for the approval that producao-main asks for. The admin can also merge
-# the pull request with one click: the bypass of that ruleset is the
-# "pull request" mode, and the audit log keeps the record.
+# turns auto-merge on. A push to merge/sync-cnmfs (the staging merge
+# landing) opens the production pull request the same way and merges it
+# when its checks pass. Production is the one place where a ruleset asks
+# for one approval (producao-main): the merge step waits for the two
+# workflow runs of the pull request and merges with --admin, the bypass
+# of that ruleset in "pull request" mode, so the audit log keeps the
+# record. One dispatch can still force either promotion by hand.
 #
 # A pull request made by GITHUB_TOKEN starts no workflow run, and the
 # required checks would then never arrive. The workflow thus uses the
@@ -19,7 +21,7 @@ name: Promote
 
 on:
   push:
-    branches: [cnmfs/dev]
+    branches: [cnmfs/dev, merge/sync-cnmfs]
   workflow_dispatch:
     inputs:
       target:
@@ -29,8 +31,8 @@ on:
         options: [staging, production]
 
 concurrency:
-  group: promote-${{ github.event.inputs.target || 'staging' }}
-  cancel-in-progress: false
+  group: promote-${{ github.event.inputs.target || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -39,7 +41,7 @@ permissions:
 jobs:
   promote:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     steps:
       - name: Check that the promote token exists
         env:
@@ -54,9 +56,18 @@ jobs:
         id: flow
         env:
           EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
           TARGET: ${{ github.event.inputs.target }}
         run: |
           if [ "$EVENT" = "workflow_dispatch" ] && [ "$TARGET" = "production" ]; then
+            echo "flow=production" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT" != "workflow_dispatch" ] && [ "$REF" = "refs/heads/merge/sync-cnmfs" ]; then
+            echo "flow=production" >> "$GITHUB_OUTPUT"
+          else
+            echo "flow=staging" >> "$GITHUB_OUTPUT"
+          fi
+          FLOW=$(tail -n 1 "$GITHUB_OUTPUT" | cut -d= -f2)
+          if [ "$FLOW" = "production" ]; then
             echo "head=merge/sync-cnmfs" >> "$GITHUB_OUTPUT"
             echo "base=main" >> "$GITHUB_OUTPUT"
             echo "title=Promote staging to production" >> "$GITHUB_OUTPUT"
@@ -66,7 +77,8 @@ jobs:
             echo "title=Promote dev to staging" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Open the pull request and turn auto-merge on
+      - name: Open the pull request
+        id: pr
         env:
           GH_TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
           HEAD: ${{ steps.flow.outputs.head }}
@@ -81,10 +93,76 @@ jobs:
             PR=$(gh pr create --repo camillanapoles/OMN-Go-apk \
               --base "$BASE" --head "$HEAD" \
               --title "$TITLE" \
-              --body "Promotion of the GitOps flow, opened by the Promote workflow. Auto-merge lands it when each required check is green.") || {
+              --body "Promoção do fluxo GitOps, aberta pelo workflow Promote. Ele espera os checks passarem e mescla sozinho.") || {
               echo "No pull request: $HEAD has nothing new for $BASE."
+              echo "pr=" >> "$GITHUB_OUTPUT"
               exit 0
             }
           fi
+          echo "pr=$PR" >> "$GITHUB_OUTPUT"
+
+      - name: Merge the staging pull request when its checks pass
+        if: steps.pr.outputs.pr != '' && steps.flow.outputs.flow == 'staging'
+        env:
+          GH_TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
+          PR: ${{ steps.pr.outputs.pr }}
+        run: |
           gh pr merge "$PR" --auto --merge --repo camillanapoles/OMN-Go-apk || \
             echo "::warning::Auto-merge could not be enabled. Turn on \"Allow auto-merge\" in Settings > General, or merge pull request #$PR by hand."
+
+      - name: Merge the production pull request when its checks pass
+        if: steps.pr.outputs.pr != '' && steps.flow.outputs.flow == 'production'
+        env:
+          GH_TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
+          PR: ${{ steps.pr.outputs.pr }}
+        run: |
+          set -uo pipefail
+          # The ruleset producao-main asks for one approval and holds
+          # the merge of every actor but its admin bypass. Auto-merge
+          # would wait for that approval forever. The gate of the merge
+          # is therefore this workflow: wait for the two workflow runs
+          # of the pull request itself — Fork CI and GitOps Guard — and
+          # then merge with --admin, the bypass of that ruleset in
+          # "pull request" mode. The audit log keeps the record.
+          #
+          # The runs of the pull_request event are the gate, not the
+          # check runs of the commit: a push event also reports checks
+          # on the same commit, and its skipped jobs count as success
+          # too early. The two runs named below are the real builds.
+          FIRST_SHA=$(gh pr view "$PR" --repo camillanapoles/OMN-Go-apk --json headRefOid --jq .headRefOid)
+          for i in $(seq 1 60); do
+            SHA=$(gh pr view "$PR" --repo camillanapoles/OMN-Go-apk --json headRefOid --jq .headRefOid)
+            if [ "$SHA" != "$FIRST_SHA" ]; then
+              echo "The head moved on. The next Promote run takes the new head."
+              exit 0
+            fi
+            CI=$(gh run list --repo camillanapoles/OMN-Go-apk --commit "$SHA" --event pull_request --workflow "Fork CI" --json status,conclusion --jq '.[0] | "\(.status)/\(.conclusion // "-")"' 2>/dev/null || :)
+            GG=$(gh run list --repo camillanapoles/OMN-Go-apk --commit "$SHA" --event pull_request --workflow "GitOps Guard" --json status,conclusion --jq '.[0] | "\(.status)/\(.conclusion // "-")"' 2>/dev/null || :)
+            CI=${CI:-missing/missing}
+            GG=${GG:-missing/missing}
+            echo "Fork CI: $CI, GitOps Guard: $GG."
+            if [ "$CI" = "completed/success" ] && [ "$GG" = "completed/success" ]; then
+              for j in 1 2 3 4 5; do
+                if gh pr merge "$PR" --admin --merge --repo camillanapoles/OMN-Go-apk; then
+                  echo "Promotion to production merged: pull request #$PR."
+                  exit 0
+                fi
+                sleep 10
+              done
+              break
+            fi
+            case "$CI/$GG" in
+              *completed/failure*|*completed/cancelled*|*completed/timed_out*)
+                echo "A required run did not pass."
+                break
+                ;;
+            esac
+            sleep 20
+          done
+          cat > /tmp/pr-comment.md <<'EOF'
+          ❌ A promoção automática para **produção** não conseguiu mesclar este PR.
+          Conclua a mesclagem à mão (o bypass de admin do ruleset `producao-main` permite sem aprovação),
+          ou reexecute o workflow **Promote** com `target=production`. Veja `doc/gitops/README.md`.
+          EOF
+          gh pr comment "$PR" --repo camillanapoles/OMN-Go-apk --body-file /tmp/pr-comment.md
+          exit 1

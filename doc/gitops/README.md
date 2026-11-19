@@ -20,6 +20,8 @@ merge/sync-cnmfs   STAGING: sempre o merge do original (update) + nosso dev
                      │ PR (nosso build staging)
                      ▼
 main               PRODUÇÃO: só recebe merge/sync-cnmfs (nosso build produção)
+  │ tag v<versão>-f.N automática → GitHub Release com o APK para instalar
+  └── depois: os arena/* que já chegaram em main são deletados (sem acumular)
 ```
 
 Regras de fluxo (validadas pelo check obrigatório **GitOps Guard**):
@@ -91,21 +93,36 @@ em outro fork.
 
 ## A automação do fluxo
 
-Tudo que era manual tem workflow agora. O token `FORK_SYNC_TOKEN` move
-os três (ver SECRETS.md):
+A cadeia inteira anda sozinha. O token `FORK_SYNC_TOKEN` move todos os
+workflows abaixo (ver SECRETS.md):
+
+```
+arena/* (CI verde) ➞ cnmfs/dev ➞ merge/sync-cnmfs ➞ main ➞ 🏷️ Release com APK ➞ 🧹 delete do arena/*
+```
+
+Cada seta é um PR que só mescla com os checks verdes.
 
 | Workflow | Quando | O que faz |
 | -------- | ------ | --------- |
-| `fork-sync.yml` | segunda-feira 04:17 UTC ou dispatch | atualiza `omn-go/sync` (idêntico ao upstream) e abre o PR para staging |
-| `promote.yml` | **push em `cnmfs/dev`** (automático) e dispatch com `target` | abre o PR de promoção e liga o auto-merge. Staging (`cnmfs/dev` → `merge/sync-cnmfs`) segue o dev sozinho; produção (`merge/sync-cnmfs` → `main`) só com dispatch — a ação deliberada de uma pessoa |
+| `fork-ci.yml` | PR (e push) | Quality Gate + APK Build; **auto-merge do PR `arena/*` → `cnmfs/dev`** quando os dois jobs passam (a label `hold` segura um PR) |
+| `promote.yml` | **push em `cnmfs/dev`** e **push em `merge/sync-cnmfs`** (automáticos) e dispatch com `target` | abre o PR de promoção e mescla quando os checks passam: `cnmfs/dev` → `merge/sync-cnmfs` (staging) e `merge/sync-cnmfs` → `main` (produção) |
+| `release.yml` | **push em `main`** | cria e pusha a tag `v<APP_VERSION>-f.N` (versão de `backend/version.go`) |
+| `android-gomobile-release.yml` | push de tag `v*` | builda o APK assinado pelo `Dockerfile` e publica a **GitHub Release** com o `.apk` para instalação |
+| `cleanup-branches.yml` | **push em `main`** | deleta os `arena/*` cujo trabalho já chegou em `main` (sem PR aberto e pelo menos um PR mesclado) — as sessões nunca acumulam |
 | `governance.yml` | push em `doc/gitops/rulesets/**` (ou dispatch) | reaplica os rulesets via `import-rulesets.sh` — a governança vira GitOps de verdade |
+| `fork-sync.yml` | segunda-feira 04:17 UTC ou dispatch | atualiza `omn-go/sync` (idêntico ao upstream) e abre o PR para staging |
 
 O que continua com o ser humano, por desenho:
 
-- **Produção**: o PR de produção é criado sozinho, mas o ruleset
-  `producao-main` pede 1 aprovação. Com um autor só, o merge final é o
-  clique do Admin (bypass em modo *pull request*, registrado na audit
-  log). Esse clique é a governança de produção.
+- **Produção**: a última seta também é automática. O ruleset
+  `producao-main` continua pedindo 1 aprovação e segura o merge; o
+  workflow espera os builds do PR e mescla com o flag `--admin` do gh —
+  o bypass de admin do ruleset em modo *pull request*, registrado na
+  audit log. Para trazer o clique humano de volta: remova o bypass do
+  ruleset — aí o PR de produção espera aprovação.
+- **Segurança da release**: o APK da Release só sai com a assinatura
+  real se os secrets `KEYSTORE_*` estiverem configurados (senão sai com
+  keystore descartável e aviso no log — ver SECRETS.md).
 - **Divergência do espelho**: se `omn-go/sync` divergir do upstream, o
   `fork-sync.yml` falha alto e um humano repara.
 
