@@ -32,7 +32,7 @@ on:
 
 concurrency:
   group: promote-${{ github.event.inputs.target || github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -123,9 +123,21 @@ jobs:
           # three checks that ruleset requires — and only those: this
           # very run is a check of the same commit and would wait for
           # itself — then merge by hand of the workflow.
+          #
+          # The counts come from the REST API of check runs. The
+          # "gh pr checks" of older gh has no --json, and its text
+          # output changes shape between versions.
+          WANTED='select(.name == "Quality Gate" or .name == "APK Build" or .name == "GitOps Guard")'
+          FIRST_SHA=$(gh pr view "$PR" --repo camillanapoles/OMN-Go-apk --json headRefOid --jq .headRefOid)
           for i in $(seq 1 60); do
-            PASS=$(gh pr checks "$PR" --repo camillanapoles/OMN-Go-apk --json name,conclusion --jq '[.[] | select((.name == "Quality Gate" or .name == "APK Build" or .name == "GitOps Guard") and .conclusion == "pass")] | length' 2>/dev/null || :)
-            FAIL=$(gh pr checks "$PR" --repo camillanapoles/OMN-Go-apk --json name,conclusion --jq '[.[] | select((.name == "Quality Gate" or .name == "APK Build" or .name == "GitOps Guard") and .conclusion == "fail")] | length' 2>/dev/null || :)
+            SHA=$(gh pr view "$PR" --repo camillanapoles/OMN-Go-apk --json headRefOid --jq .headRefOid)
+            if [ "$SHA" != "$FIRST_SHA" ]; then
+              echo "The head moved on. The next Promote run takes the new head."
+              exit 0
+            fi
+            URL="repos/camillanapoles/OMN-Go-apk/commits/$SHA/check-runs?per_page=100"
+            PASS=$(gh api "$URL" --jq "[.check_runs[] | select(.status == \"completed\" and .conclusion == \"success\") | $WANTED] | map(.name) | unique | length" 2>/dev/null || :)
+            FAIL=$(gh api "$URL" --jq "[.check_runs[] | select(.status == \"completed\") | select(.conclusion == \"failure\" or .conclusion == \"timed_out\" or .conclusion == \"cancelled\") | $WANTED] | map(.name) | unique | length" 2>/dev/null || :)
             PASS=${PASS:-0}
             FAIL=${FAIL:-0}
             if [ "$FAIL" != "0" ]; then
