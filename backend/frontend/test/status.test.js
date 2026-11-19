@@ -84,7 +84,7 @@ test('a value with markup stays text', async () => {
 });
 
 test('an https address in a _url key is a link, and each other address is text', async () => {
-    const commit = 'https://github.com/mvbasov/OMN-Go/commit/0123456789abcdef0123456789abcdef01234567';
+    const commit = 'https://github.com/camillanapoles/OMN-Go-apk/commit/0123456789abcdef0123456789abcdef01234567';
     const h = await open([], {
         server: {
             build_commit: '0123456789abcdef0123456789abcdef01234567-dirty',

@@ -407,8 +407,8 @@ func (svc Service) openRepoReadOnly() (*git.Repository, error) {
 	return git.Open(storer, wtFS)
 }
 
-// buildCommitURLBase is the start of the address of a commit of OMN-Go.
-const buildCommitURLBase = "https://github.com/mvbasov/OMN-Go/commit/"
+// buildCommitURLBase is the address of a commit of this fork, and not of the original.
+const buildCommitURLBase = "https://github.com/camillanapoles/OMN-Go-apk/commit/"
 
 // buildCommitRe is a full commit hash, with an optional "-dirty".
 var buildCommitRe = regexp.MustCompile(`^([0-9a-f]{40})(-dirty)?$`)
