@@ -1,0 +1,77 @@
+# GitOps Guard: the flow of branches of doc/gitops/README.md, checked on
+# each pull request. A repository ruleset cannot read the SOURCE branch
+# of a pull request. This job can, and the rulesets of staging and of
+# production name "GitOps Guard" as a required check.
+#
+#   main                <- only merge/sync-cnmfs   (production)
+#   merge/sync-cnmfs    <- only omn-go/sync, cnmfs/* or arena/*   (staging)
+#   omn-go/sync         <- no pull request at all (the Fork Sync workflow
+#                          updates the mirror with a direct push)
+#   cnmfs/*             <- only cnmfs/* or arena/*
+#   arena/* and others  <- free work branches
+#
+# A pull request from a repository that is not this one fails the check.
+# The fork accepts no change from an outside copy without a review of its
+# own flows.
+name: GitOps Guard
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: GitOps Guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate the flow of the pull request
+        env:
+          BASE: ${{ github.event.pull_request.base.ref }}
+          HEAD: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          fail() {
+            echo "::error::$1"
+            exit 1
+          }
+          if [ "$HEAD_REPO" != "$BASE_REPO" ]; then
+            fail "A pull request must come from a branch of $BASE_REPO. This one comes from $HEAD_REPO."
+          fi
+          case "$BASE" in
+            main)
+              if [ "$HEAD" != "merge/sync-cnmfs" ]; then
+                fail "Production (main) accepts only merge/sync-cnmfs. The head of this pull request is $HEAD."
+              fi
+              ;;
+            merge/sync-cnmfs)
+              case "$HEAD" in
+                omn-go/sync|cnmfs/*|arena/*)
+                  ;;
+                *)
+                  fail "Staging (merge/sync-cnmfs) accepts only omn-go/sync, cnmfs/* or arena/*. The head of this pull request is $HEAD."
+                  ;;
+              esac
+              ;;
+            omn-go/sync)
+              fail "omn-go/sync is the mirror of the original. Only the Fork Sync workflow updates it."
+              ;;
+            cnmfs/*)
+              case "$HEAD" in
+                cnmfs/*|arena/*)
+                  ;;
+                *)
+                  fail "A cnmfs branch accepts only cnmfs/* or arena/*. The head of this pull request is $HEAD."
+                  ;;
+              esac
+              ;;
+            *)
+              # A work branch outside the governed flow stays free.
+              ;;
+          esac
+          echo "OK: $HEAD -> $BASE follows the GitOps flow."
