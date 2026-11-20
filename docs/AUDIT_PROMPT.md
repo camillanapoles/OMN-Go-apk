@@ -129,6 +129,73 @@ branch e nada fora da raiz do workspace persiste). Nada de branch nova aqui.
 
 ---
 
+## FASE S: SKILLS & HARNESS (PRIORIDADE MÁXIMA — execute ANTES das FASEs 1-3)
+
+Spec dedicada: `openspec/changes/audit-skills-harness/`. Execute esta fase
+antes da descoberta: ela otimiza os agentes que executarão o resto da
+auditoria.
+
+### S.1 — Validar skill e frameworks GLOBAIS (todo o workspace)
+
+- Fontes externas candidatas (validadas em 2026-11-19/20 — revalide com
+  `fetch_page`/`git ls-remote` antes de instalar):
+  - `multica-ai/andrej-karpathy-skills` — guidelines gerais (4 princípios
+    Karpathy); formato `skills/<id>/SKILL.md` + `.claude-plugin` + Cursor.
+  - `mattpocock/skills` — eng. software geral; `.agents/`, marketplace, CI
+    valida frontmatter, instala em 9 agentes.
+  - `chrisbanes/skills` — Android/Kotlin/Compose; **triagem obrigatória**:
+    Kotlin/Compose colidem com CLAUDE.md §1 regra 1 (sem AndroidX, Java puro)
+    — só workflow/build/review genéricos podem virar global.
+  - `affaan-m/ECC` — harness de agentes (skills, instincts, memory, security,
+    research-first); instalar seletivas, nunca o repo.
+- Critério de validade: formato aberto SKILL.md (frontmatter `name`/
+  `description`), atividade recente ou versão pinada estável, e ZERO conflito
+  com `CLAUDE.md` §1. Falhou o critério → entra no pool como `inactive` com
+  `reason`, ou é rejeitada.
+
+### S.2 — Instalação REPLICÁVEL (não ad-hoc)
+
+- Toda habilidade é ativo versionado: tree fonte em `local/skills/`
+  (próprias) + `local/skills/manifest.yml` (`id/source/pin/status/reason/
+  applies_to`) para as externas — **pin de commit obrigatório**, nunca
+  material gerado por ferramenta sem registro.
+- Instalador único e idempotente: `bash local/agent-setup/install.sh`
+  (bash+git+curl apenas, Termux-ok) materializa em `.claude/skills/` e nos
+  formatos dos demais agentes. Uma máquina nova fica completa com
+  `git clone && bash local/agent-setup/install.sh`. Reexecutar não duplica.
+- **[CORRIGIDO v2]** O `.claude/` auto-gerado pelo gitnexus continua fora do
+  git; o que versiona é o tree em `local/skills/` — o install.sh é a única
+  via de materialização.
+
+### S.3 — Toda habilidade nova é AUDITADA antes de virar global
+
+- Fluxo fixo: candidata entra **inativa** no manifest com origem+pin+motivo →
+  auditoria cruzando com `CLAUDE.md` §1/§3-§9 e specs abertas → decisão
+  `global` / `per-domain` / `rejected` registrada no manifest → meta-teste
+  (`repocheck`) falha o Gate com global sem `reason`/`pin`.
+- O que é global ativa em todo workspace (todas as máquinas e worktrees);
+  o resto fica no pool inativo.
+
+### S.4 — Seleção por-spec do pool inativo
+
+- Para cada spec, além das globais já ativas, a instrução da spec seleciona do
+  pool inativo as skills úteis ao domínio focado e registra a seleção na
+  seção "Skills ativas" do `AGENTS.md` da spec (com justificativa ou
+  "nenhuma adicional"). A seleção é auditável no PR da issue.
+
+### S.5 — Princípios de INTEROPERABILIDADE (obrigatórios)
+
+- Formatos abertos (SKILL.md + `AGENTS.md`), um único tree fonte por projeto,
+  instalação replicável de qualquer máquina, seleção declarada (auditorável
+  em PR), fonte terceira sempre pinada e citada. Zero lock-in de vendor:
+  a mesma skill deve instalar em Claude Code, Codex, Cursor, OpenCode e
+  afins, ou não entra.
+- Resultado esperado: cada projeto/workspace/spec com `AGENTS.md` próprio
+  (como instruído na FASE 3) **+ otimizado** pelas skills globais e pela
+  seleção por-spec das 4 fontes acima.
+
+---
+
 ## BASE DE VERDADE (leitura obrigatória antes de emitir qualquer achado)
 
 Nenhum achado pode ser emitido sem antes ler e cruzar com:

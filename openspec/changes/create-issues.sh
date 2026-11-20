@@ -15,8 +15,9 @@ if ! gh repo view --json hasIssuesEnabled -q .hasIssuesEnabled | grep -q true; t
   exit 1
 fi
 
-DIRS=(audit-config audit-backend-core audit-storage-exchange audit-frontend-js audit-android audit-build-ci audit-docs-gov)
+DIRS=(audit-skills-harness audit-config audit-backend-core audit-storage-exchange audit-frontend-js audit-android audit-build-ci audit-docs-gov)
 TITLES=(
+  "[SPEC][SKILLS-HARNESS][PRIORIDADE MÁXIMA] Governança de skills: fontes validadas, install replicável e seleção por-spec"
   "[SPEC][CONFIG] Auditoria e Refatoração: senha admin default e onboarding de identidade"
   "[SPEC][BACKEND-CORE] Auditoria e Refatoração: hardening de login, headers e meta-testes HTTP"
   "[SPEC][STORAGE-EXCHANGE] Auditoria e Refatoração: contrato Go-Java de uploads e sandbox de SVG"
@@ -25,12 +26,14 @@ TITLES=(
   "[SPEC][BUILD-CI] Auditoria e Refatoração: contexto Docker, pins de actions e ruído de CI"
   "[SPEC][DOCS-GOV] Auditoria e Refatoração: docs com Dockerfile.ci morto e codemaps parados"
 )
-DOMS=(dom:config dom:backend-core dom:storage dom:frontend-js dom:android dom:build-ci dom:docs-gov)
+# A primeira issue carrega também o label de prioridade máxima.
+DOMS=(dom:skills-harness,priority:high dom:config dom:backend-core dom:storage dom:frontend-js dom:android dom:build-ci dom:docs-gov)
 
 # Labels idempotentes
 gh label create "spec:draft" --color 1D76DB --description "Spec OpenSpec aguardando refinamento" 2>/dev/null || true
 gh label create "audit" --color FBCA04 --description "Item vindo da auditoria arquitetural" 2>/dev/null || true
-for d in "${DOMS[@]}"; do gh label create "$d" --color 0E8A16 --description "Domínio da auditoria arquitetural" 2>/dev/null || true; done
+gh label create "priority:high" --color B60205 --description "Executar antes das demais (skills-harness)" 2>/dev/null || true
+for d in "${DOMS[@]}"; do gh label create "${d%%,*}" --color 0E8A16 --description "Domínio da auditoria arquitetural" 2>/dev/null || true; done
 
 echo "| Tag da Spec | Diretório OpenSpec | AGENTS.md | GitHub Issue # |"
 echo "| --- | --- | --- | --- |"

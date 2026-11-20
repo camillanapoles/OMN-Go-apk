@@ -1,20 +1,30 @@
-# Índice da Auditoria Arquitetural (2026-11-19)
+# Índice da Auditoria Arquitetural (2026-11-19/20)
 
 Auditoria executada conforme `docs/AUDIT_PROMPT.md` — branch de sessão
 `arena/d9c9b8dd-omn-go-apk`, commit base `02e8cd8`, grafo GitNexus 6.217 nós /
-20.613 arestas / 527 flows. **20 itens** em **7 specs**; 2 falsos positivos
+20.613 arestas / 527 flows. **24 itens** em **8 specs**; 2 falsos positivos
 descartados no loop de validação (traversal de upload: stdlib aplica
 `filepath.Base` + meta-teste da casa; WAL do SQLite: decisão documentada para
 FUSE/Android). Domínios `render-search`, `sync-git` e `db` foram descartados
 por não terem achados defensáveis.
 
+**Prioridade máxima: `audit-skills-harness`** — governança de skills dos
+agentes (fontes validadas: karpathy-skills, mattpocock/skills, chrisbanes/skills,
+affaan-m/ECC). Execute esta issue ANTES das demais: ela otimiza os agentes que
+executarão as outras 7 (ver `docs/AUDIT_PROMPT.md` FASE S).
+
 ## Mapa Topológico Geral
 
 ```
+audit-skills-harness (dom:skills-harness) ★ PRIORIDADE MÁXIMA
+├── GAP      :: GOVERNANCA        :: 1   [::001] skills não versionadas/replicáveis
+├── GAP      :: INTEROPERABILIDADE :: 1  [::002] sem gate de auditoria de skill
+├── MELHORIA :: INTEROPERABILIDADE :: 1  [::003] formato universal + fontes pinadas
+└── MELHORIA :: USABILIDADE       :: 1   [::004] pool inativo + seleção por-spec
 audit-config (dom:config)
 ├── CONFLITO :: SEGURANCA         :: 1   [CONFIG::CONFLITO::SEGURANCA::001]
-├── MELHORIA :: USABILIDADE       :: 1   [CONFIG::MELHORIA::USABILIDADE::002]
-└── MELHORIA :: GOVERNANCA        :: 1   [CONFIG::MELHORIA::GOVERNANCA::003]
+├── MELHORIA :: USABILIDADE       :: 1   [::002]
+└── MELHORIA :: GOVERNANCA        :: 1   [::003]
 audit-backend-core (dom:backend-core)
 ├── MELHORIA :: SEGURANCA         :: 2   [::001] login sem rate limit, [::002] headers
 ├── MELHORIA :: CICLOMATICIDADE   :: 1   [::003] branch morta localhost
@@ -39,12 +49,13 @@ audit-docs-gov (dom:docs-gov)
 └── GAP      :: GOVERNANCA        :: 1   [::002] codemaps do fork sem rotina de refresh
 ```
 
-Totais: **CONFLITO 2 · ERRO 1 · GAP 5 · MELHORIA 12 = 20 itens.**
+Totais: **CONFLITO 2 · ERRO 1 · GAP 7 · MELHORIA 14 = 24 itens.**
 
 ## Tabela de Rastreabilidade
 
 | Tag da Spec | Diretório OpenSpec | AGENTS.md | GitHub Issue # |
 | --- | --- | --- | --- |
+| `audit-skills-harness` ★ | `openspec/changes/audit-skills-harness/` | `audit-skills-harness/AGENTS.md` | _pendente_¹ |
 | `audit-config` | `openspec/changes/audit-config/` | `audit-config/AGENTS.md` | _pendente_¹ |
 | `audit-backend-core` | `openspec/changes/audit-backend-core/` | `audit-backend-core/AGENTS.md` | _pendente_¹ |
 | `audit-storage-exchange` | `openspec/changes/audit-storage-exchange/` | `audit-storage-exchange/AGENTS.md` | _pendente_¹ |
@@ -61,17 +72,18 @@ tem escopo de admin para habilitar: HTTP 403). Após habilitar em
 bash openspec/changes/create-issues.sh
 ```
 
-O script cria as 7 issues (`spec:draft`, `audit`, `dom:*`), grava o número em
-cada `proposal.md`/`AGENTS.md` e imprime esta tabela preenchida. Aí cada issue
+O script cria as 8 issues (a primeira com `priority:high`; labels
+`spec:draft`/`audit`/`dom:*` idempotentes), grava o número em cada
+`proposal.md`/`AGENTS.md` e imprime esta tabela preenchida. Aí cada issue
 está pronta para ser puxada individualmente em worktrees/branches futuros
-(`cnmfs/<slug>`) pelo pipeline Event-Driven, conforme `docs/AUDIT_PROMPT.md`.
+(`cnmfs/<slug>`) pelo pipeline Event-Driven — **skills-harness primeiro**.
 
 ## Conformidade da execução (FASE 4)
 
-- Diff contém apenas `openspec/**`, `docs/AUDIT_PROMPT.md` (commit anterior) e
-  a entry de higiene `.gitignore` (`.gitnexus/`, `.claude/`).
+- Diff contém apenas `openspec/**`, `docs/AUDIT_PROMPT.md` e a entry de
+  higiene `.gitignore` (`.gitnexus/`, `.claude/`).
 - Nenhum arquivo de produção alterado; sem `.claude/`, `AGENTS.md` de raiz ou
   `.gitnexus/` no tree.
-- Quality Gate do Fork CI **verde** nos commits da auditoria (run
-  44648264656).
+- Quality Gate do Fork CI **verde** nos commits da auditoria (runs
+  44590409395, 44648264656, 44649059643).
 - Commits 100% docs/openspec: sem bump de `APP_VERSION` (exceção da FASE 0.6).
