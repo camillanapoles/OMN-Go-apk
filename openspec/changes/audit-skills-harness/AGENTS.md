@@ -11,6 +11,16 @@ SKILL.md + AGENTS.md, tree fonte `local/skills/`, instalador
 §1 (constraints — o gate existe para elas), §2 (papel de `local/`),
 `docs/CONTRIBUTING.md` (Termux) e a spec desta change.
 
+## Skills ativas
+
+- Globais (manifest `local/skills/manifest.yml`; instalar com
+  `bash local/agent-setup/install.sh`): `gitnexus-exploring`,
+  `gitnexus-debugging`, `gitnexus-impact-analysis`, `gitnexus-refactoring`,
+  `gitnexus-guide`, `gitnexus-cli`, `karpathy-guidelines`.
+- Pool (instalar com `bash local/agent-setup/install.sh <id>`):
+  - `ecc-conventions` (affaan-m/ECC) — convenções de desenvolvimento na revisão do próprio harness. Uso: durante a triagem de skills contra §1.
+  - `triage` (mattpocock/skills) — triagem de skill nova (fluxo de 3 passos do manifest). Uso: no passo de auditoria do fluxo.
+
 ## Arquivos permitidos para edição
 
 - `local/skills/**` (tree + manifest)

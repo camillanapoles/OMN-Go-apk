@@ -11,6 +11,16 @@ por `hasRole` (autoridade única; local = admin; rede = cookie HMAC). Ler
 antes: `CLAUDE.md` §1 regras 10-11, §3 (Routes/JSON/Logging), ADR 0001, 0002,
 0004, 0016, 0017, 0018 e a spec desta change.
 
+## Skills ativas
+
+- Globais (manifest `local/skills/manifest.yml`; instalar com
+  `bash local/agent-setup/install.sh`): `gitnexus-exploring`,
+  `gitnexus-debugging`, `gitnexus-impact-analysis`, `gitnexus-refactoring`,
+  `gitnexus-guide`, `gitnexus-cli`, `karpathy-guidelines`.
+- Pool (instalar com `bash local/agent-setup/install.sh <id>`):
+  - `security-review` (affaan-m/ECC) — checklist de segurança para login, headers e entrada de dados. Uso: na implementação do rate limit e dos headers.
+  - `tdd` (mattpocock/skills) — ciclo de teste para os meta-testes HTTP novos. Uso: ao escrever os testes do domínio.
+
 ## Arquivos permitidos para edição
 
 - `backend/internal/app/middleware.go`, `session.go`, `serving.go`,

@@ -10,6 +10,15 @@ ordem fixa + vendored + custom por último). O arquivo central é
 `omn-go-api.js` (chamadas ao backend + lazy loader). Ler antes: CLAUDE.md §4
 (frontend rules), ADR 0015, 0020, 0021 e a spec desta change.
 
+## Skills ativas
+
+- Globais (manifest `local/skills/manifest.yml`; instalar com
+  `bash local/agent-setup/install.sh`): `gitnexus-exploring`,
+  `gitnexus-debugging`, `gitnexus-impact-analysis`, `gitnexus-refactoring`,
+  `gitnexus-guide`, `gitnexus-cli`, `karpathy-guidelines`.
+- Pool (instalar com `bash local/agent-setup/install.sh <id>`):
+  - `codebase-design` (mattpocock/skills) — design de módulo para dividir omn-go-api.js (918 linhas). Uso: no refactor do módulo.
+
 ## Arquivos permitidos para edição
 
 - `backend/frontend/html/js/OMN-Go/omn-go-api.js`,

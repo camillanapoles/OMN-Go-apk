@@ -10,6 +10,15 @@ em `export`), Fork CI (um build por commit, checks obrigatórios), Fork Sync
 (build/CI), doc/gitops/README.md (modelo de branches), docs/RUNBOOK.md
 (segredos) e a spec desta change.
 
+## Skills ativas
+
+- Globais (manifest `local/skills/manifest.yml`; instalar com
+  `bash local/agent-setup/install.sh`): `gitnexus-exploring`,
+  `gitnexus-debugging`, `gitnexus-impact-analysis`, `gitnexus-refactoring`,
+  `gitnexus-guide`, `gitnexus-cli`, `karpathy-guidelines`.
+- Pool (instalar com `bash local/agent-setup/install.sh <id>`):
+  - `research` (mattpocock/skills) — pesquisa para avaliar pinagem de actions e Dockerfile. Uso: na auditoria das workflows.
+
 ## Arquivos permitidos para edição
 
 - `.dockerignore`

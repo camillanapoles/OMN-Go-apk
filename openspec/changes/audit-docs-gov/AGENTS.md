@@ -11,6 +11,16 @@ camada do fork; `docs/RUNBOOK` é operação; `docs/CONTRIBUTING` é onboarding.
 Ler antes: `docs/CONTRIBUTING.md`, `docs/RUNBOOK.md`, `doc/gitops/README.md`,
 `doc/decisions/README.md` e a spec desta change.
 
+## Skills ativas
+
+- Globais (manifest `local/skills/manifest.yml`; instalar com
+  `bash local/agent-setup/install.sh`): `gitnexus-exploring`,
+  `gitnexus-debugging`, `gitnexus-impact-analysis`, `gitnexus-refactoring`,
+  `gitnexus-guide`, `gitnexus-cli`, `karpathy-guidelines`.
+- Pool (instalar com `bash local/agent-setup/install.sh <id>`):
+  - `grounded-writing` (chrisbanes/skills) — redação fundamentada em fonte do tree (genérico). Uso: na refatoração dos docs.
+  - `changelog` (chrisbanes/skills) — escrita de changelog (genérico). Uso: ao atualizar os codemaps.
+
 ## Arquivos permitidos para edição
 
 - `docs/CONTRIBUTING.md`, `docs/RUNBOOK.md`, `docs/CODEMAPS/*.md`

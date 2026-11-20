@@ -34,6 +34,32 @@ Cópia local dos valores: `~/keystores/omn-go-fork/omn-go-fork.env` (fora do rep
 - Sync: run semanal `Fork Sync` success (up-to-date = 9s).
 - Release: 7 assets presentes. Observação ao vivo: `acompanha-ci.sh`.
 
+## Agent skills
+
+Catálogo: `local/skills/manifest.yml` (fonte, pin, status e reason por skill).
+Instalador: `local/agent-setup/install.sh` (bash+git, Termux-ok, idempotente).
+Gate: `backend/internal/repocheck/agent_skills_test.go` (roda no `go test`).
+
+Rotina ao abrir uma spec (mesma rotina de docs de `audit-docs-gov::002`):
+
+1. Ler o `local/skills/manifest.yml` e a seção "Skills ativas" do `AGENTS.md`
+   da spec.
+2. Ativar as globais e a seleção da spec com o instalador (comandos abaixo).
+3. Registrar qualquer seleção nova no `AGENTS.md` da spec (visível no PR).
+
+Comandos exatos:
+
+```bash
+bash local/agent-setup/install.sh                  # instala só as globais
+bash local/agent-setup/install.sh security-review  # globais + 1 do pool
+rm -rf .claude/skills && bash local/agent-setup/install.sh   # repõe o conjunto
+```
+
+- A segunda execução não duplica (comparação por hash).
+- Skill nova: entra `inactive` no manifest (source + pin + reason) → auditoria
+  contra `CLAUDE.md` §1 → decisão global/inativa/rejeitada. Uma global sem
+  reason ou sem pin derruba o Quality Gate.
+
 ## Problemas conhecidos → fix
 | Sintoma | Causa | Fix |
 |---|---|---|

@@ -13,6 +13,15 @@ oculta segredos da página (ADR 0005). Ler antes: `CLAUDE.md` §1 (regra 7),
 §3 ("Configuration"), ADR 0001/0005/0014, e a spec desta change
 (`specs/config/spec.md`).
 
+## Skills ativas
+
+- Globais (manifest `local/skills/manifest.yml`; instalar com
+  `bash local/agent-setup/install.sh`): `gitnexus-exploring`,
+  `gitnexus-debugging`, `gitnexus-impact-analysis`, `gitnexus-refactoring`,
+  `gitnexus-guide`, `gitnexus-cli`, `karpathy-guidelines`.
+- Pool (instalar com `bash local/agent-setup/install.sh <id>`):
+  - `security-review` (affaan-m/ECC) — checklist de segurança para autenticação e segredos. Uso: durante a implementação da senha default.
+
 ## Arquivos permitidos para edição
 
 - `backend/internal/config/config.go` (somente o bloco do fresh install e

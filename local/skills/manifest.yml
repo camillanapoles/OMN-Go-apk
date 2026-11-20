@@ -1,0 +1,439 @@
+# local/skills/manifest.yml — catálogo de skills dos agentes (fonte da verdade)
+#
+# Governança: openspec/changes/audit-skills-harness/ (issue #30).
+# Rotina de uso: docs/RUNBOOK.md, seção "Agent skills".
+# Gate executável: backend/internal/repocheck/agent_skills_test.go.
+#
+# Campos de cada entrada:
+#   id        nome da skill (único; vira .claude/skills/<id>/ no install).
+#   source    tool:<ferramenta> ou <owner>/<repo> do GitHub.
+#   pin       SHA completo do commit (40 hex) ou versão da ferramenta (X.Y.Z).
+#   path      caminho do SKILL.md na fonte. Árvore local = local/skills/<id>/SKILL.md.
+#   status    global | inactive | rejected. Decisão explícita. Zero vazio.
+#   reason    motivo da decisão (obrigatório em global).
+#   applies_to domínios sugeridos (dom:* das specs) ou all/none.
+#
+# Regras fixas:
+#   - Toda entrada carrega source + pin + status + reason.
+#   - Fonte terceira nunca é vendorada em local/skills/. Só o manifest cita.
+#     O install.sh baixa no pin declarado (clone raso + checkout).
+#   - Toda skill nova entra INATIVA com origem + pin + motivo e passa por
+#     auditoria contra CLAUDE.md §1 antes de virar global (fluxo de 3 passos
+#     em docs/AUDIT_PROMPT.md, FASE S.3).
+#   - Nunca ativar o pool inteiro. Seleção por-spec no AGENTS.md da spec.
+#
+# Revalidação das fontes em 2026-11-20 (antes de instalar):
+#   - Os nomes "ecc-guardrails" e "ecc-research-playbook" citados na spec
+#     NÃO existem no pin 4adeee6 de affaan-m/ECC. Os equivalentes reais
+#     estão registrados abaixo (security-review, deep-research).
+#   - chrisbanes/skills no pin edd18ff traz 21 skills (a spec dizia 19).
+#     A triagem cobre as 21.
+skills:
+  # ---- Globais de ferramenta (GitNexus): versionadas na árvore local ----
+  - id: gitnexus-exploring
+    source: tool:gitnexus
+    pin: 1.6.12
+    path: local/skills/gitnexus-exploring/SKILL.md
+    status: global
+    reason: "Exploração de arquitetura e fluxos pelo grafo. Global de ferramenta."
+    applies_to: all
+  - id: gitnexus-debugging
+    source: tool:gitnexus
+    pin: 1.6.12
+    path: local/skills/gitnexus-debugging/SKILL.md
+    status: global
+    reason: "Depuração por traço de erro no grafo. Global de ferramenta."
+    applies_to: all
+  - id: gitnexus-impact-analysis
+    source: tool:gitnexus
+    pin: 1.6.12
+    path: local/skills/gitnexus-impact-analysis/SKILL.md
+    status: global
+    reason: "Análise de impacto antes de editar código. Global de ferramenta."
+    applies_to: all
+  - id: gitnexus-refactoring
+    source: tool:gitnexus
+    pin: 1.6.12
+    path: local/skills/gitnexus-refactoring/SKILL.md
+    status: global
+    reason: "Refatoração com mapa de dependências. Global de ferramenta."
+    applies_to: all
+  - id: gitnexus-guide
+    source: tool:gitnexus
+    pin: 1.6.12
+    path: local/skills/gitnexus-guide/SKILL.md
+    status: global
+    reason: "Referência do próprio GitNexus. Global de ferramenta."
+    applies_to: all
+  - id: gitnexus-cli
+    source: tool:gitnexus
+    pin: 1.6.12
+    path: local/skills/gitnexus-cli/SKILL.md
+    status: global
+    reason: "Comandos da CLI GitNexus (analyze, check). Global de ferramenta."
+    applies_to: all
+
+  # ---- multica-ai/andrej-karpathy-skills @ 2c606141 (validada 2026-11-19) ----
+  - id: karpathy-guidelines
+    source: multica-ai/andrej-karpathy-skills
+    pin: 2c606141936f1eeef17fa3043a72095b4765b9c2
+    path: skills/karpathy-guidelines/SKILL.md
+    status: global
+    reason: "Diretrizes gerais (Think Before Coding, Simplicity First). Sem conflito com §1."
+    applies_to: all
+
+  # ---- chrisbanes/skills @ edd18ff7 (validada 2026-11-20; triagem §1 regra 1) ----
+  - id: android-benchmark-comparison
+    source: chrisbanes/skills
+    pin: edd18ff74aef5c49485dc376c043043f1e767f5a
+    path: skills/android-benchmark-comparison/SKILL.md
+    status: inactive
+    reason: "conflito §1 regra 1"
+    applies_to: android
+  - id: compose-animations
+    source: chrisbanes/skills
+    pin: edd18ff74aef5c49485dc376c043043f1e767f5a
+    path: skills/compose-animations/SKILL.md
+    status: inactive
+    reason: "conflito §1 regra 1"
+    applies_to: android
+  - id: compose-component-design
+    source: chrisbanes/skills
+    pin: edd18ff74aef5c49485dc376c043043f1e767f5a
+    path: skills/compose-component-design/SKILL.md
+    status: inactive
+    reason: "conflito §1 regra 1"
+    applies_to: android
+  - id: compose-focus-navigation
+    source: chrisbanes/skills
+    pin: edd18ff74aef5c49485dc376c043043f1e767f5a
+    path: skills/compose-focus-navigation/SKILL.md
+    status: inactive
+    reason: "conflito §1 regra 1"
+    applies_to: android
+  - id: compose-performance
+    source: chrisbanes/skills
+    pin: edd18ff74aef5c49485dc376c043043f1e767f5a
+    path: skills/compose-performance/SKILL.md
+    status: inactive
+    reason: "conflito §1 regra 1"
+    applies_to: android
+  - id: compose-state-and-effects
+    source: chrisbanes/skills
+    pin: edd18ff74aef5c49485dc376c043043f1e767f5a
+    path: skills/compose-state-and-effects/SKILL.md
+    status: inactive
+    reason: "conflito §1 regra 1"
+    applies_to: android
+  - id: compose-ui-testing-patterns
+    source: chrisbanes/skills
+    pin: edd18ff74aef5c49485dc376c043043f1e767f5a
+    path: skills/compose-ui-testing-patterns/SKILL.md
+    status: inactive
+    reason: "conflito §1 regra 1"
+    applies_to: android
+  - id: kotlin-api-design
+    source: chrisbanes/skills
+    pin: edd18ff74aef5c49485dc376c043043f1e767f5a
+    path: skills/kotlin-api-design/SKILL.md
+    status: inactive
+    reason: "conflito §1 regra 1"
+    applies_to: android
+  - id: kotlin-concurrency-and-flow
+    source: chrisbanes/skills
+    pin: edd18ff74aef5c49485dc376c043043f1e767f5a
+    path: skills/kotlin-concurrency-and-flow/SKILL.md
+    status: inactive
+    reason: "conflito §1 regra 1"
+    applies_to: android
+  - id: kotlin-control-flow
+    source: chrisbanes/skills
+    pin: edd18ff74aef5c49485dc376c043043f1e767f5a
+    path: skills/kotlin-control-flow/SKILL.md
+    status: inactive
+    reason: "conflito §1 regra 1"
+    applies_to: android
+  - id: release-kotlin-library
+    source: chrisbanes/skills
+    pin: edd18ff74aef5c49485dc376c043043f1e767f5a
+    path: skills/release-kotlin-library/SKILL.md
+    status: inactive
+    reason: "conflito §1 regra 1"
+    applies_to: android
+  - id: changelog
+    source: chrisbanes/skills
+    pin: edd18ff74aef5c49485dc376c043043f1e767f5a
+    path: skills/changelog/SKILL.md
+    status: inactive
+    reason: "candidata genérica (docs); ativar por-spec"
+    applies_to: docs-gov
+  - id: deliver-issue
+    source: chrisbanes/skills
+    pin: edd18ff74aef5c49485dc376c043043f1e767f5a
+    path: skills/deliver-issue/SKILL.md
+    status: inactive
+    reason: "candidata genérica (workflow); ativar por-spec"
+    applies_to: android
+  - id: gradle-run
+    source: chrisbanes/skills
+    pin: edd18ff74aef5c49485dc376c043043f1e767f5a
+    path: skills/gradle-run/SKILL.md
+    status: inactive
+    reason: "candidata genérica (build); ativar por-spec"
+    applies_to: android, build-ci
+  - id: grounded-writing
+    source: chrisbanes/skills
+    pin: edd18ff74aef5c49485dc376c043043f1e767f5a
+    path: skills/grounded-writing/SKILL.md
+    status: inactive
+    reason: "candidata genérica (docs); ativar por-spec"
+    applies_to: docs-gov
+  - id: implement-with-subagents
+    source: chrisbanes/skills
+    pin: edd18ff74aef5c49485dc376c043043f1e767f5a
+    path: skills/implement-with-subagents/SKILL.md
+    status: inactive
+    reason: "candidata genérica (workflow); ativar por-spec"
+    applies_to: backend-core
+  - id: run-project
+    source: chrisbanes/skills
+    pin: edd18ff74aef5c49485dc376c043043f1e767f5a
+    path: skills/run-project/SKILL.md
+    status: inactive
+    reason: "candidata genérica (build); ativar por-spec"
+    applies_to: android
+  - id: shepherd
+    source: chrisbanes/skills
+    pin: edd18ff74aef5c49485dc376c043043f1e767f5a
+    path: skills/shepherd/SKILL.md
+    status: inactive
+    reason: "candidata genérica (workflow); ativar por-spec"
+    applies_to: backend-core
+  - id: subagent-delegation
+    source: chrisbanes/skills
+    pin: edd18ff74aef5c49485dc376c043043f1e767f5a
+    path: skills/subagent-delegation/SKILL.md
+    status: inactive
+    reason: "candidata genérica (workflow); ativar por-spec"
+    applies_to: backend-core
+  - id: to-plan
+    source: chrisbanes/skills
+    pin: edd18ff74aef5c49485dc376c043043f1e767f5a
+    path: skills/to-plan/SKILL.md
+    status: inactive
+    reason: "candidata genérica (workflow); ativar por-spec"
+    applies_to: config
+  - id: using-chrisbanes-skills
+    source: chrisbanes/skills
+    pin: edd18ff74aef5c49485dc376c043043f1e767f5a
+    path: skills/using-chrisbanes-skills/SKILL.md
+    status: inactive
+    reason: "candidata genérica (onboarding da fonte); ativar por-spec"
+    applies_to: android
+
+  # ---- mattpocock/skills @ abeeaf95 (validada 2026-11-19) ----
+  - id: ask-matt
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/engineering/ask-matt/SKILL.md
+    status: inactive
+    reason: "eng. software geral (Q&A); selecionar por-spec"
+    applies_to: all
+  - id: code-review
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/engineering/code-review/SKILL.md
+    status: inactive
+    reason: "eng. software geral (review); selecionar por-spec"
+    applies_to: backend-core, storage, frontend-js
+  - id: codebase-design
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/engineering/codebase-design/SKILL.md
+    status: inactive
+    reason: "eng. software geral (design); selecionar por-spec"
+    applies_to: frontend-js, storage
+  - id: diagnosing-bugs
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/engineering/diagnosing-bugs/SKILL.md
+    status: inactive
+    reason: "eng. software geral (debug); selecionar por-spec"
+    applies_to: backend-core
+  - id: domain-modeling
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/engineering/domain-modeling/SKILL.md
+    status: inactive
+    reason: "eng. software geral (design); selecionar por-spec"
+    applies_to: storage
+  - id: grill-with-docs
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/engineering/grill-with-docs/SKILL.md
+    status: inactive
+    reason: "eng. software geral (docs); selecionar por-spec"
+    applies_to: docs-gov
+  - id: implement-spec
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/engineering/implement-spec/SKILL.md
+    status: inactive
+    reason: "eng. software geral (implementação); selecionar por-spec"
+    applies_to: config, backend-core
+  - id: implement
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/engineering/implement/SKILL.md
+    status: inactive
+    reason: "eng. software geral (implementação); selecionar por-spec"
+    applies_to: backend-core
+  - id: improve-codebase-architecture
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/engineering/improve-codebase-architecture/SKILL.md
+    status: inactive
+    reason: "eng. software geral (design); selecionar por-spec"
+    applies_to: frontend-js
+  - id: pr
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/engineering/pr/SKILL.md
+    status: inactive
+    reason: "eng. software geral (workflow); selecionar por-spec"
+    applies_to: all
+  - id: prototype
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/engineering/prototype/SKILL.md
+    status: inactive
+    reason: "eng. software geral (implementação); selecionar por-spec"
+    applies_to: frontend-js
+  - id: research
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/engineering/research/SKILL.md
+    status: inactive
+    reason: "eng. software geral (pesquisa); selecionar por-spec"
+    applies_to: build-ci
+  - id: retro
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/engineering/retro/SKILL.md
+    status: inactive
+    reason: "eng. software geral (workflow); selecionar por-spec"
+    applies_to: all
+  - id: setup-matt-pocock-skills
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/engineering/setup-matt-pocock-skills/SKILL.md
+    status: rejected
+    reason: "setup da própria fonte; sem valor para este repo"
+    applies_to: none
+  - id: tdd
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/engineering/tdd/SKILL.md
+    status: inactive
+    reason: "eng. software geral (testes); selecionar por-spec"
+    applies_to: backend-core, config
+  - id: to-spec
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/engineering/to-spec/SKILL.md
+    status: inactive
+    reason: "eng. software geral (docs); selecionar por-spec"
+    applies_to: docs-gov
+  - id: to-tickets
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/engineering/to-tickets/SKILL.md
+    status: inactive
+    reason: "eng. software geral (workflow); selecionar por-spec"
+    applies_to: docs-gov
+  - id: triage
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/engineering/triage/SKILL.md
+    status: inactive
+    reason: "eng. software geral (review); selecionar por-spec"
+    applies_to: skills-harness, backend-core
+  - id: wayfinder
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/engineering/wayfinder/SKILL.md
+    status: inactive
+    reason: "eng. software geral (workflow); selecionar por-spec"
+    applies_to: all
+  - id: wizard
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/engineering/wizard/SKILL.md
+    status: inactive
+    reason: "eng. software geral (workflow); selecionar por-spec"
+    applies_to: all
+  - id: git-guardrails-claude-code
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/misc/git-guardrails-claude-code/SKILL.md
+    status: rejected
+    reason: "lock-in de vendor (FASE S.5); Claude Code apenas"
+    applies_to: none
+  - id: migrate-to-shoehorn
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/misc/migrate-to-shoehorn/SKILL.md
+    status: rejected
+    reason: "escopo de nicho; irrelevante para o stack da casa"
+    applies_to: none
+  - id: scaffold-exercises
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/misc/scaffold-exercises/SKILL.md
+    status: rejected
+    reason: "material didático; não é skill de trabalho"
+    applies_to: none
+  - id: setup-pre-commit
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/misc/setup-pre-commit/SKILL.md
+    status: rejected
+    reason: "ferramenta específica (pre-commit); fora do stack da casa"
+    applies_to: none
+  - id: mattpocock-in-progress
+    source: mattpocock/skills
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/in-progress/
+    status: rejected
+    reason: "em desenvolvimento na fonte (in-progress); não instalar"
+    applies_to: none
+
+  # ---- affaan-m/ECC @ 4adeee67 (validada 2026-11-20; instalar seletivas) ----
+  - id: ecc-conventions
+    source: affaan-m/ECC
+    pin: 4adeee6732a12d1540f49a4d50a38ce8c97f9a53
+    path: .agents/skills/ecc-conventions/SKILL.md
+    status: inactive
+    reason: "seleção ECC do pool; convenções da casa (§7) têm precedência"
+    applies_to: docs-gov
+  - id: security-review
+    source: affaan-m/ECC
+    pin: 4adeee6732a12d1540f49a4d50a38ce8c97f9a53
+    path: .agents/skills/security-review/SKILL.md
+    status: inactive
+    reason: "seleção ECC (equivale a ecc-guardrails, nome inexistente no pin)"
+    applies_to: config, backend-core
+  - id: deep-research
+    source: affaan-m/ECC
+    pin: 4adeee6732a12d1540f49a4d50a38ce8c97f9a53
+    path: .agents/skills/deep-research/SKILL.md
+    status: inactive
+    reason: "seleção ECC (equivale a ecc-research-playbook, nome inexistente no pin)"
+    applies_to: build-ci
+  - id: ecc-catalog
+    source: affaan-m/ECC
+    pin: 4adeee6732a12d1540f49a4d50a38ce8c97f9a53
+    path: -
+    status: rejected
+    reason: "não instalar o repo (mais de 1000 skills); só as seleções acima"
+    applies_to: none

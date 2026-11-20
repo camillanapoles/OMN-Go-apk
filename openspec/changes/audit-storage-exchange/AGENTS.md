@@ -11,6 +11,16 @@ filename do multipart e `userFileName` sanitiza o caminho de query; a contençã
 final é `storage.RelInside`. Ler antes: CLAUDE.md §1 regras 7-8, §5 (nota vs
 arquivo), ADR 0006/0007/0008, e a spec desta change.
 
+## Skills ativas
+
+- Globais (manifest `local/skills/manifest.yml`; instalar com
+  `bash local/agent-setup/install.sh`): `gitnexus-exploring`,
+  `gitnexus-debugging`, `gitnexus-impact-analysis`, `gitnexus-refactoring`,
+  `gitnexus-guide`, `gitnexus-cli`, `karpathy-guidelines`.
+- Pool (instalar com `bash local/agent-setup/install.sh <id>`):
+  - `code-review` (mattpocock/skills) — revisão em dois eixos do contrato Go↔Java de uploads. Uso: antes do commit do contrato.
+  - `codebase-design` (mattpocock/skills) — design de módulo para unificar as vias de upload. Uso: na refatoração da duplicação.
+
 ## Arquivos permitidos para edição
 
 - `backend/internal/app/upload_handlers.go`, `serving.go`

@@ -12,6 +12,16 @@ foreground (`ServerService`, `data_sync`, `START_STICKY`). Ler antes:
 CLAUDE.md §1 regras 1, 3, 6, §2 (mapa android/), ADR 0022, 0027 e a spec
 desta change.
 
+## Skills ativas
+
+- Globais (manifest `local/skills/manifest.yml`; instalar com
+  `bash local/agent-setup/install.sh`): `gitnexus-exploring`,
+  `gitnexus-debugging`, `gitnexus-impact-analysis`, `gitnexus-refactoring`,
+  `gitnexus-guide`, `gitnexus-cli`, `karpathy-guidelines`.
+- Pool (instalar com `bash local/agent-setup/install.sh <id>`):
+  - `gradle-run` (chrisbanes/skills) — workflow genérico de build Gradle (sem Kotlin/Compose). Uso: antes do merge Android.
+  - `run-project` (chrisbanes/skills) — execução e verificação do projeto (genérico). Uso: antes do merge Android.
+
 ## Arquivos permitidos para edição
 
 - `android/app/src/main/java/net/basov/omngo/WebViewSetup.java`
