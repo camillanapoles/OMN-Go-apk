@@ -98,20 +98,24 @@ jobs:
       # Only two branches export cache. One full export fills a large
       # part of the 10 GB Actions cache pool. Two or three exports in one
       # increment evict each other, and every build then runs cold.
+      - name: Set up Go for the probe
+        if: steps.decide.outputs.run == 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.0'
+
       - name: Run the quality gate
         if: steps.decide.outputs.run == 'true'
         run: |
-          CACHE_TO=""
-          if [ "$GITHUB_REF" = "refs/heads/dev" ] || [ "$GITHUB_REF" = "refs/heads/merge/sync-cnmfs" ]; then
-            CACHE_TO="--cache-to type=gha,mode=max,scope=omngo-test"
-          fi
-          docker buildx build \
-            --target test \
-            --progress plain \
-            --cache-from type=gha,scope=omngo-test \
-            --cache-from type=gha,scope=omngo \
-            $CACHE_TO \
-            .
+          set +e
+          go vet ./backend/... > vet.log 2>&1
+          VET=$?
+          go test ./backend/... > test.log 2>&1
+          TEST=$?
+          echo "PROBE vet=$VET test=$TEST"
+          while IFS= read -r l; do echo "::error::VET $l"; done < <(tail -25 vet.log)
+          while IFS= read -r l; do echo "::error::T $l"; done < <(grep -E "^(--- FAIL|FAIL|ok|---|# )|\.go:[0-9]+:" test.log | tail -35)
+          if [ "$VET" != "0" ] || [ "$TEST" != "0" ]; then exit 1; fi
 
   apk:
     name: APK Build
