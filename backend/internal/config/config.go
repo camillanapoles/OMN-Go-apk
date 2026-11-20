@@ -14,6 +14,15 @@ import (
 // change of one line.
 const MaxGitServers = 5
 
+// DefaultAdminPassword is the password of a fresh install. It is public,
+// thus the network login refuses it. See
+// doc/decisions/0030-refuse-the-default-admin-password-on-the-network.md.
+const DefaultAdminPassword = "admin_secret_changeme"
+
+// DefaultAuthor is the sync author of a fresh install. The Config page
+// asks for a real name while it stands.
+const DefaultAuthor = "Anonymous"
+
 // These are the theme values of Config.Theme. ThemeAuto follows the dark mode
 // of the system, through the prefers-color-scheme media query of the CSS.
 const (
@@ -307,8 +316,8 @@ func Load(c *Config, configPath string, fallbackPort int, log logx.Logger) {
 			// 8081, because the two flavors can run side by side. The loader
 			// writes the port to config.json, thus each later reader sees it.
 			ServerPort:      fallbackPort,
-			AdminPassword:   "admin_secret_changeme",
-			Author:          "Anonymous",
+			AdminPassword:   DefaultAdminPassword,
+			Author:          DefaultAuthor,
 			UseInternalEd:   true,
 			DesktopExtCmd:   "subl",
 			Theme:           ThemeAuto,

@@ -108,6 +108,14 @@
                 <label class="omn-config-label">Author Name</label>
                 <input type="text" id="omn-cfg-author" name="author" value="%%AUTHOR%%" class="omn-config-input" />
             </div>
+            <!-- The author warning works like the password warning of the
+                 Network screen. The box carries no name, thus the browser
+                 never sends it. It is checked while the author name is the
+                 default of the fresh install. -->
+            <div class="omn-card-field omn-config-checkbox-row">
+                <input type="checkbox" %%AUTHOR_DEFAULT_CHECKED%% disabled aria-hidden="true" />
+                <label class="omn-config-label omn-dialog-warning">Warning: the author name is the default. Set your name before you use the git sync.</label>
+            </div>
             <div class="omn-card-field">
                 <label class="omn-config-label">Theme</label>
                 <select id="omn-cfg-theme" name="theme" class="omn-config-input">
@@ -147,6 +155,15 @@
             <div class="omn-card-field">
                 <label class="omn-config-label">Admin Password</label>
                 <input type="password" id="omn-cfg-admin-pwd" name="admin_password" value="" data-secret="admin_password" autocomplete="new-password" placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;&#9679; unchanged" class="omn-config-input" />
+            </div>
+            <!-- The first-run warning. The box carries no name, thus the
+                 browser never sends it. It is checked while the admin
+                 password is the default of the fresh install, and the login
+                 of the network then refuses each caller. See doc/decisions/
+                 0030-refuse-the-default-admin-password-on-the-network.md. -->
+            <div class="omn-card-field omn-config-checkbox-row">
+                <input type="checkbox" %%ADMIN_PASSWORD_DEFAULT_CHECKED%% disabled aria-hidden="true" />
+                <label class="omn-config-label omn-dialog-warning">Warning: the admin password is the default of the fresh install. The login of the network is refused until you save a new password.</label>
             </div>
             <div class="omn-card-field">
                 <button type="button" class="omn-card-link-btn" data-reveal data-action="config-reveal">

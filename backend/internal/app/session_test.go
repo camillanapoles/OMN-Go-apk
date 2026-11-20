@@ -314,6 +314,51 @@ func TestLoginWritesTheTwoCookies(t *testing.T) {
 	}
 }
 
+// The network login is refused while the admin password is the default of
+// the fresh install. The default is public, thus it grants nothing on the
+// network. A local caller still logs in, so the person can open the Config
+// page and save a new password. See
+// doc/decisions/0030-refuse-the-default-admin-password-on-the-network.md.
+func TestNetworkLoginWithDefaultPasswordIsRefused(t *testing.T) {
+	a := newTestApp(t)
+	cases := []struct {
+		remote   string
+		password string
+		status   int
+	}{
+		{"192.0.2.10:5555", config.DefaultAdminPassword, http.StatusForbidden},
+		{"192.0.2.10:5555", "wrong", http.StatusForbidden},
+		{"127.0.0.1:5555", config.DefaultAdminPassword, http.StatusOK},
+	}
+	for _, c := range cases {
+		rec := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/login?password="+c.password, nil)
+		r.RemoteAddr = c.remote
+		a.handleLogin(rec, r)
+		if rec.Code != c.status {
+			t.Errorf("remote %s password %q gave %d, want %d", c.remote, c.password, rec.Code, c.status)
+		}
+		if c.status == http.StatusOK && len(rec.Result().Cookies()) != 2 {
+			t.Errorf("remote %s password %q set %d cookies, want 2", c.remote, c.password, len(rec.Result().Cookies()))
+		}
+	}
+
+	// A new password opens the network login again.
+	a.config.Update(func(c *config.Config) {
+		c.AdminPassword = "own-password"
+	})
+	rec := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/login?password=own-password", nil)
+	r.RemoteAddr = "192.0.2.10:5555"
+	a.handleLogin(rec, r)
+	if rec.Code != http.StatusOK {
+		t.Errorf("with a new password the network login gave %d, want 200", rec.Code)
+	}
+	if len(rec.Result().Cookies()) != 2 {
+		t.Errorf("with a new password the login set %d cookies, want 2", len(rec.Result().Cookies()))
+	}
+}
+
 // An empty configured password grants nothing. A person who clears
 // admin_password asks for no admin password. The old code read the empty
 // value as a match for an empty submission.

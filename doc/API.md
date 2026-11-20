@@ -319,6 +319,7 @@ endpoint.
 | --- | --- | --- | --- |
 | `200` | `text/plain` | `OK` | Sets the signed `session_role` cookie and the `session_role_hint` cookie, for the `admin` role. See §2.2. |
 | `401` | `text/plain` | `Invalid` | No cookie set |
+| `403` | `text/plain` | `Change the admin password first` | The configured password is the default of the fresh install and the caller is not local. See ADR 0030. |
 | `500` | `text/plain` | `Login unavailable` | This install has no session key and could not make one. See `sessionSecret` in `backend/internal/app/session.go`. |
 
 ```bash
@@ -1982,7 +1983,7 @@ and the Android WebView paints nothing else.
 | Section | Cost | Fields |
 | --- | --- | --- |
 | `server` | none | `app_version`, `started`, `uptime_s`, `bind_port`, `share_lan`, `lan_urls[]`, `active_conns`, `hostname`, `goos`, `goarch` |
-| `config` | none | `author`, `internal_editor`, `theme`, `hostname`, `backup_prune_depth`, `max_upload_mb`, `intent_uri`, `termux_intent`, `android_fullscreen`, `search_enabled`, `search_bundled`, `search_kinds`, `search_scope`, `log_debug`, `log_info`, `log_tags` |
+| `config` | none | `author`, `internal_editor`, `theme`, `hostname`, `backup_prune_depth`, `max_upload_mb`, `intent_uri`, `termux_intent`, `android_fullscreen`, `search_enabled`, `search_bundled`, `search_kinds`, `search_scope`, `log_debug`, `log_info`, `log_tags`, `admin_password_default`, `author_default` |
 | `git` | two object reads | `repo_exists`, `configured`, `branch`, `head{hash,short,subject,author,date}`, `remote{name,url}`, `remote_ref`, `remote_head{…}` |
 | `search` | one pass over the index | `enabled`, `docs`, `lines`, `bytes`, `index_bytes_estimate`, `built`, `checked`, `dirty`, `kinds`, `scope` |
 | `runtime` | none | `go_version`, `goroutines`, `heap_alloc`, `sys`, `assets_version`, `assets_refreshed` |

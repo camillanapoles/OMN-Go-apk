@@ -53,7 +53,20 @@ func PageValues(c Config) []PageValue {
 			out = append(out, PageValue{Name: name, Value: *f.String(&c), Text: true})
 		}
 	}
+	// The two rows below are derived and come from no table row. They are
+	// the first-run marks of the page. The Secret row still gives no value.
+	out = append(out, PageValue{Name: "ADMIN_PASSWORD_DEFAULT_CHECKED", Value: markIf(c.AdminPassword == DefaultAdminPassword)})
+	out = append(out, PageValue{Name: "AUTHOR_DEFAULT_CHECKED", Value: markIf(c.Author == DefaultAuthor)})
 	return out
+}
+
+// markIf answers the check mark of a checkbox placeholder, or an empty
+// string.
+func markIf(on bool) string {
+	if on {
+		return "checked"
+	}
+	return ""
 }
 
 // PlaceholderName answers s in upper case, with "_" for each other character.
@@ -105,5 +118,9 @@ func StatusValues(c Config) []StatusValue {
 		}
 		out = append(out, StatusValue{Key: f.Status, Value: v})
 	}
+	// The two rows below are derived and come from no table row. They
+	// carry the first-run state as booleans. doc/API.md names them.
+	out = append(out, StatusValue{Key: "admin_password_default", Value: c.AdminPassword == DefaultAdminPassword})
+	out = append(out, StatusValue{Key: "author_default", Value: c.Author == DefaultAuthor})
 	return out
 }

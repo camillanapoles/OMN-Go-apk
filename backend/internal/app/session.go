@@ -36,6 +36,7 @@ import (
 	"strings"
 	"time"
 
+	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
 )
 
@@ -179,6 +180,15 @@ func (a *App) readSessionRole(r *http.Request) string {
 func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 	cfg := a.config.Get()
 	pwd := r.FormValue("password")
+
+	if !a.isLocalConnection(r) && cfg.AdminPassword == config.DefaultAdminPassword {
+		// The default password is public, thus no caller on the network
+		// can log in while it stands. See
+		// doc/decisions/0030-refuse-the-default-admin-password-on-the-network.md.
+		a.log(logx.Session).Errf("login refused: the admin password is still the default of the fresh install")
+		http.Error(w, "Change the admin password first", http.StatusForbidden)
+		return
+	}
 
 	if !passwordMatches(pwd, cfg.AdminPassword) {
 		if cfg.AdminPassword == "" {
