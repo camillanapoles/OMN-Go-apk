@@ -8,3 +8,4 @@ output-binaries/
 data/
 .aider*
 .gitnexus/
+.claude/
