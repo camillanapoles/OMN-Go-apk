@@ -8,6 +8,9 @@ is in `backend/version.go`.
 
 This document uses ASD-STE100 Simplified Technical English. See section 10.
 
+Section 12 holds the agent skill program. It has the highest priority for
+work that adds a skill or a capability to a session.
+
 ---
 
 ## 1. Fixed constraints
@@ -817,3 +820,59 @@ Java file also each line of a block comment. See `doc/decisions/README.md`.
 8. **Never push to the repository. Never commit.** The maintainer applies each change.
 9. Give each change as a unified diff for `git apply`.
 10. Give a short commit message together with the patch. Use the format in section 7.
+
+---
+
+## 12. Agent skill program (priority: high)
+
+This section has the highest priority for work that adds a skill or a
+capability to a session. Read it before you install or activate any skill. The
+full spec is `doc/decisions/0030-adopt-the-agent-skill-program.md`.
+
+The repository holds no skill files. Each skill comes from a source outside
+the tree. The four sources of the program are:
+
+* `multica-ai/andrej-karpathy-skills`: generic guidelines for an agent session.
+* `mattpocock/skills`: skills for software engineering work.
+* `chrisbanes/skills`: skills for Kotlin, Jetpack Compose and Android.
+* `affaan-m/ECC`: skills and instincts for the agent harness.
+
+Follow the three stages of the spec.
+
+**Stage 1. Verify the source, and install only what passes.**
+
+1. Verify the plugin or the skill source before you use it.
+2. Check each skill and each framework for the whole workspace.
+3. Install each skill through a reproducible path: an `install.sh` script, or a
+   committed tree. Record the commit of the tree.
+4. Name the hooks of a plugin in the spec before you enable it.
+5. Post the spec in the skills patterns of the project. Activate the global
+   skills in one place.
+6. Install the general skills at once. A skill of one stage stays inactive
+   until that stage starts.
+
+**Stage 2. Stage the skill increments.**
+
+1. Do not add a new skill to the initial instructions of a session.
+2. A script or a note of the current process carries each new skill.
+3. Split each increment into a global set and a stage set.
+4. The global set holds only what the maintainer accepts.
+
+**Stage 3. Select the stage set for each spec.**
+
+1. A spec carries the general skills that are already active.
+2. The workspace instruction selects the inactive skills that the spec needs.
+3. Name each selected skill, its source and its commit.
+4. The stage skills return to inactive when the spec ends.
+
+**Interoperability principles.**
+
+1. A skill from one source must not change the behavior of another source.
+2. A skill must use the file formats and the hooks of the tool that runs it.
+3. Keep the names and the files of the four sources. Copy or adapt a skill
+   only when a copy is necessary, and name the source.
+
+Each project, each workspace and each spec holds one `AGENTS.md`. The file
+holds the active skills of the workspace and the generic appendix of the
+karpathy guidelines. The generic appendix gives the behavioral base: think
+before coding, simplicity first, surgical changes, and goal-driven execution.
