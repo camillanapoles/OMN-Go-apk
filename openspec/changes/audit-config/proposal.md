@@ -1,6 +1,6 @@
 # Proposal — audit-config
 
-> **Issue:** _pendente_
+> **Issue:** #31
 > **Domínio:** `config` (`backend/internal/config/` + os pontos de consumo em `backend/internal/app/`)
 > **Branch da sessão:** `arena/d9c9b8dd-omn-go-apk` · **Commit base da auditoria:** `02e8cd8`
 > **Nota de versão:** commit 100% documentação/openspec — sem bump de `APP_VERSION` (exceção registrada na FASE 0 de `docs/AUDIT_PROMPT.md`).

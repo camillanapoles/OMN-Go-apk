@@ -1,6 +1,6 @@
 # AGENTS.md — audit-storage-exchange (contrato local da change)
 
-Issue: _pendente_
+Issue: #33
 
 ## Contexto isolado
 

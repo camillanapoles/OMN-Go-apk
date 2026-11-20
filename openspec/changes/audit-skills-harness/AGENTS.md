@@ -1,6 +1,6 @@
 # AGENTS.md — audit-skills-harness (contrato local da change)
 
-Issue: _pendente_
+Issue: #30
 
 ## Contexto isolado
 

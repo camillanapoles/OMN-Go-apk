@@ -1,6 +1,6 @@
 # Proposal — audit-android
 
-> **Issue:** _pendente_
+> **Issue:** #35
 > **Domínio:** `android` — `android/app/src/main/java/net/basov/omngo/`,
 > `android/test/`, Gradle.
 > **Branch da sessão:** `arena/d9c9b8dd-omn-go-apk` · **Commit base:** `02e8cd8`

@@ -1,6 +1,6 @@
 # Proposal — audit-backend-core
 
-> **Issue:** _pendente_
+> **Issue:** #32
 > **Domínio:** `backend-core` — `package app` (`backend/internal/app/`): server,
 > rotas, middleware, sessão de rede, serving, request guard.
 > **Branch da sessão:** `arena/d9c9b8dd-omn-go-apk` · **Commit base:** `02e8cd8`

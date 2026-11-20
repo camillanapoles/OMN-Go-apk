@@ -1,6 +1,6 @@
 # AGENTS.md — audit-frontend-js (contrato local da change)
 
-Issue: _pendente_
+Issue: #34
 
 ## Contexto isolado
 

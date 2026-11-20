@@ -1,6 +1,6 @@
 # AGENTS.md — audit-android (contrato local da change)
 
-Issue: _pendente_
+Issue: #35
 
 ## Contexto isolado
 

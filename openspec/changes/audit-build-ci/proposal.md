@@ -1,6 +1,6 @@
 # Proposal — audit-build-ci
 
-> **Issue:** _pendente_
+> **Issue:** #36
 > **Domínio:** `build-ci` — `Dockerfile`, `.dockerignore`,
 > `.github/workflows/`, `.gitlab-ci.yml`.
 > **Branch da sessão:** `arena/d9c9b8dd-omn-go-apk` · **Commit base:** `02e8cd8`

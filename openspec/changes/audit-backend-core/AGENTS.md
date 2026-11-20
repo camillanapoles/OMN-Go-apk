@@ -1,6 +1,6 @@
 # AGENTS.md — audit-backend-core (contrato local da change)
 
-Issue: _pendente_
+Issue: #32
 
 ## Contexto isolado
 

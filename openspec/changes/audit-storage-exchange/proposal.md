@@ -1,6 +1,6 @@
 # Proposal — audit-storage-exchange
 
-> **Issue:** _pendente_
+> **Issue:** #33
 > **Domínio:** `storage-exchange` — `backend/internal/storage/`,
 > `backend/internal/exchange/` e os handlers de upload em
 > `backend/internal/app/upload_handlers.go`.

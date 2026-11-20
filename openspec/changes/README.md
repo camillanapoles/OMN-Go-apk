@@ -55,28 +55,22 @@ Totais: **CONFLITO 2 · ERRO 1 · GAP 7 · MELHORIA 14 = 24 itens.**
 
 | Tag da Spec | Diretório OpenSpec | AGENTS.md | GitHub Issue # |
 | --- | --- | --- | --- |
-| `audit-skills-harness` ★ | `openspec/changes/audit-skills-harness/` | `audit-skills-harness/AGENTS.md` | _pendente_¹ |
-| `audit-config` | `openspec/changes/audit-config/` | `audit-config/AGENTS.md` | _pendente_¹ |
-| `audit-backend-core` | `openspec/changes/audit-backend-core/` | `audit-backend-core/AGENTS.md` | _pendente_¹ |
-| `audit-storage-exchange` | `openspec/changes/audit-storage-exchange/` | `audit-storage-exchange/AGENTS.md` | _pendente_¹ |
-| `audit-frontend-js` | `openspec/changes/audit-frontend-js/` | `audit-frontend-js/AGENTS.md` | _pendente_¹ |
-| `audit-android` | `openspec/changes/audit-android/` | `audit-android/AGENTS.md` | _pendente_¹ |
-| `audit-build-ci` | `openspec/changes/audit-build-ci/` | `audit-build-ci/AGENTS.md` | _pendente_¹ |
-| `audit-docs-gov` | `openspec/changes/audit-docs-gov/` | `audit-docs-gov/AGENTS.md` | _pendente_¹ |
+| `audit-skills-harness` ★ | `openspec/changes/audit-skills-harness/` | `audit-skills-harness/AGENTS.md` | #30 |
+| `audit-config` | `openspec/changes/audit-config/` | `audit-config/AGENTS.md` | #31 |
+| `audit-backend-core` | `openspec/changes/audit-backend-core/` | `audit-backend-core/AGENTS.md` | #32 |
+| `audit-storage-exchange` | `openspec/changes/audit-storage-exchange/` | `audit-storage-exchange/AGENTS.md` | #33 |
+| `audit-frontend-js` | `openspec/changes/audit-frontend-js/` | `audit-frontend-js/AGENTS.md` | #34 |
+| `audit-android` | `openspec/changes/audit-android/` | `audit-android/AGENTS.md` | #35 |
+| `audit-build-ci` | `openspec/changes/audit-build-ci/` | `audit-build-ci/AGENTS.md` | #36 |
+| `audit-docs-gov` | `openspec/changes/audit-docs-gov/` | `audit-docs-gov/AGENTS.md` | #37 |
 
-¹ **Issues desabilitadas no repositório** (o token da sessão de auditoria não
-tem escopo de admin para habilitar: HTTP 403). Após habilitar em
-*Settings → General → Features → Issues*, rodar **uma vez**:
+Issues criadas em 2026-11-20 por `openspec/changes/create-issues.sh`
+(rastreabilidade bidirecional fechada: cada `proposal.md` e `AGENTS.md`
+carrega o número da issue). Ordem de execução: **#30 primeiro** → #31 → #32 →
+#37 → demais. Remover o label `spec:draft` de cada issue quando o refinamento
+M==N for aprovado pelo mantenedor.
 
-```bash
-bash openspec/changes/create-issues.sh
-```
 
-O script cria as 8 issues (a primeira com `priority:high`; labels
-`spec:draft`/`audit`/`dom:*` idempotentes), grava o número em cada
-`proposal.md`/`AGENTS.md` e imprime esta tabela preenchida. Aí cada issue
-está pronta para ser puxada individualmente em worktrees/branches futuros
-(`cnmfs/<slug>`) pelo pipeline Event-Driven — **skills-harness primeiro**.
 
 ## Conformidade da execução (FASE 4)
 

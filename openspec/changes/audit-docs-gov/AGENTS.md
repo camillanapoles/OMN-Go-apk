@@ -1,6 +1,6 @@
 # AGENTS.md — audit-docs-gov (contrato local da change)
 
-Issue: _pendente_
+Issue: #37
 
 ## Contexto isolado
 

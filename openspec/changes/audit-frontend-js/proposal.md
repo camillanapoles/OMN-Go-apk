@@ -1,6 +1,6 @@
 # Proposal — audit-frontend-js
 
-> **Issue:** _pendente_
+> **Issue:** #34
 > **Domínio:** `frontend-js` — `backend/frontend/html/js/OMN-Go/` (scripts da
 > app), `backend/frontend/html/css/OMN-Go/` e `backend/frontend/templates/`.
 > **Branch da sessão:** `arena/d9c9b8dd-omn-go-apk` · **Commit base:** `02e8cd8`

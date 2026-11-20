@@ -1,6 +1,6 @@
 # AGENTS.md — audit-build-ci (contrato local da change)
 
-Issue: _pendente_
+Issue: #36
 
 ## Contexto isolado
 

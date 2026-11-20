@@ -1,6 +1,6 @@
 # Proposal — audit-docs-gov
 
-> **Issue:** _pendente_
+> **Issue:** #37
 > **Domínio:** `docs-gov` — `docs/`, `doc/`, `backend/internal/repocheck/`
 > (meta-testes de governança).
 > **Branch da sessão:** `arena/d9c9b8dd-omn-go-apk` · **Commit base:** `02e8cd8`

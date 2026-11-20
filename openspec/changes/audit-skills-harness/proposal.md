@@ -1,6 +1,6 @@
 # Proposal — audit-skills-harness (PRIORIDADE MÁXIMA)
 
-> **Issue:** _pendente_
+> **Issue:** #30
 > **Domínio:** `skills-harness` — `local/skills/` (novo), `local/agent-setup/`
 > (novo), `.gitignore`, `docs/RUNBOOK.md` (rotina). Executar esta issue
 > **ANTES** das demais: ela otimiza os agentes que executarão as outras 7.
