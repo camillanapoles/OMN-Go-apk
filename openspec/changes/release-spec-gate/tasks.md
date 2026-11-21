@@ -46,3 +46,10 @@
   - **Validação:** a execução do gate antes do dispatch mostra a spec certa
     na mensagem de OK, e o primeiro dispatch real (issue #42) atravessa os
     cinco passos do gate sem falha.
+
+- [x] O gate lê a versão do mapa de código sem o ponto final da frase.
+  - **Verificação:** o dry-run do gate na árvore com a versão 26.11.38 no
+    trio mostra as três versões iguais na mensagem de OK; o padrão antigo
+    capturava o ponto da frase e divergia do arquivo de versão.
+  - **Validação:** a execução local do gate com a issue #42 fechada atravessa
+    o quarto passo e chega ao OK completo dos cinco fatos.
