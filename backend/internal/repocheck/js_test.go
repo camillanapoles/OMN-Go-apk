@@ -32,6 +32,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -288,5 +289,93 @@ func TestFrontendTestsAreNotShipped(t *testing.T) {
 	if _, err := frontend.Static.ReadDir("test"); err == nil {
 		t.Error("frontend.Static embeds frontend/test. Each test file would then reach " +
 			"every device and every git sync.")
+	}
+}
+
+// ----------------------------------------------------------------------
+// The innerHTML lint of the app scripts.
+// ----------------------------------------------------------------------
+//
+// innerHTML with a dynamic value is the classic XSS vector of a frontend
+// that has no build step and no sanitizer. The safe form is a clear:
+// el.innerHTML = ''. Each other assignment pins its line in the map
+// below. A new assignment must build nodes with createElement/textContent,
+// or a person must extend the map on purpose.
+
+// innerHTMLExemptions pins each innerHTML assignment of the app scripts
+// that predates this lint. The key is the base name of the script. The
+// vendored minified files are out of the scan.
+var innerHTMLExemptions = map[string][]string{
+	"Bookmarker.js": {
+		`counterSpan.innerHTML = counter;`,
+		`searchB.innerHTML = 'Search';`,
+		`buttonsBexpand.innerHTML = 'Expand';`,
+		`buttonsBcollapse.innerHTML = 'Collapse';`,
+		`buttonsBall.innerHTML = 'All';`,
+		`versionS.innerHTML = bVersion;`,
+	},
+	"omn-go-core.js": {
+		`el.innerHTML =`,
+	},
+	"omn-go-db.js": {
+		`list.innerHTML = out.join('');`,
+	},
+	"omn-go-editor.js": {
+		`findChevron.innerHTML = '<i class="material-icons">' +`,
+		`b.innerHTML = '<i class="material-icons">' + tool.icon + '</i>';`,
+	},
+	"omn-go-search.js": {
+		`overlay.innerHTML =`,
+	},
+}
+
+// innerHTMLAssignRe finds a line that assigns to innerHTML. The flag of
+// an increment form counts too. The value can sit on the next lines, thus
+// an end of line after the sign counts as a match.
+var innerHTMLAssignRe = regexp.MustCompile(`innerHTML\s*\+?=(?:[^=]|$)`)
+
+// innerHTMLSafeRe finds the one safe form: a clear with an empty string.
+var innerHTMLSafeRe = regexp.MustCompile(`innerHTML\s*=\s*(''|"")\s*;?\s*$`)
+
+func TestNoDynamicInnerHTML(t *testing.T) {
+	base := filepath.Join(repoRoot, "backend", "frontend", "html", "js", "OMN-Go")
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || !strings.HasSuffix(name, ".js") || strings.HasSuffix(name, ".min.js") {
+			continue
+		}
+		src, err := readRepoFile(filepath.ToSlash(filepath.Join("backend/frontend/html/js/OMN-Go", name)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for n, line := range strings.Split(src, "\n") {
+			trimmed := strings.TrimSpace(line)
+			if trimmed == "" || strings.HasPrefix(trimmed, "//") {
+				continue
+			}
+			if !innerHTMLAssignRe.MatchString(trimmed) {
+				continue
+			}
+			if innerHTMLSafeRe.MatchString(trimmed) {
+				continue
+			}
+			allowed := false
+			for _, pinned := range innerHTMLExemptions[name] {
+				if trimmed == pinned {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				t.Errorf("%s:%d assigns to innerHTML with a dynamic value.\n"+
+					"  Line: %s\n"+
+					"  Build nodes with createElement/textContent, or pin the line in innerHTMLExemptions on purpose.",
+					name, n+1, trimmed)
+			}
+		}
 	}
 }

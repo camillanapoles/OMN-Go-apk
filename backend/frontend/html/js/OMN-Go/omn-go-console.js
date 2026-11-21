@@ -29,6 +29,35 @@
             let consoleModal = null;
             let logsContainer = null;
 
+            // iconButton builds one console button with its icon. The DOM
+            // is the same that the old innerHTML made: button > i.
+            function iconButton(id, cls, title, icon) {
+                const b = document.createElement('button');
+                b.id = id;
+                b.className = cls;
+                b.title = title;
+                const i = document.createElement('i');
+                i.className = 'material-icons omn-icon-sm';
+                i.textContent = icon;
+                b.appendChild(i);
+                return b;
+            }
+
+            // renderConsoleCount rebuilds the footer button content: the
+            // terminal icon and the count of lines. The DOM is the same
+            // that the old innerHTML made: i + span.
+            function renderConsoleCount(n) {
+                if (!consoleBtn) return;
+                consoleBtn.textContent = '';
+                const i = document.createElement('i');
+                i.className = 'material-icons omn-icon-xs';
+                i.textContent = 'terminal';
+                const s = document.createElement('span');
+                s.textContent = String(n);
+                consoleBtn.appendChild(i);
+                consoleBtn.appendChild(s);
+            }
+
             function initConsoleUI() {
                 if (consoleBtn) return;
 
@@ -38,7 +67,14 @@
 
                 const header = document.createElement('div');
                 header.className = 'omn-console-header';
-                header.innerHTML = '<span>JS Console Output</span><div class="omn-console-actions"><button id="omn-go-console-clear" class="omn-btn-console omn-btn-console-clear" title="Clear Console"><i class="material-icons omn-icon-sm">delete_sweep</i></button><button id="omn-go-console-close" class="omn-btn-console omn-btn-console-close" title="Close Console"><i class="material-icons omn-icon-sm">close</i></button></div>';
+                const headerTitle = document.createElement('span');
+                headerTitle.textContent = 'JS Console Output';
+                const headerActions = document.createElement('div');
+                headerActions.className = 'omn-console-actions';
+                headerActions.appendChild(iconButton('omn-go-console-clear', 'omn-btn-console omn-btn-console-clear', 'Clear Console', 'delete_sweep'));
+                headerActions.appendChild(iconButton('omn-go-console-close', 'omn-btn-console omn-btn-console-close', 'Close Console', 'close'));
+                header.appendChild(headerTitle);
+                header.appendChild(headerActions);
 
                 logsContainer = document.createElement('div');
                 logsContainer.className = 'omn-console-logs';
@@ -54,8 +90,8 @@
                 if (clrBtn) {
                     clrBtn.onclick = () => {
                         logs = [];
-                        if (logsContainer) logsContainer.innerHTML = '';
-                        if (consoleBtn) consoleBtn.innerHTML = '<i class="material-icons omn-icon-xs">terminal</i><span>0</span>';
+                        if (logsContainer) logsContainer.textContent = '';
+                        renderConsoleCount(0);
                         updateConsoleFooterDot();
                     };
                 }
@@ -63,7 +99,7 @@
                 consoleBtn = document.createElement('button');
                 consoleBtn.id = 'omn-go-console-btn';
                 consoleBtn.className = 'omn-btn-console-main';
-                consoleBtn.innerHTML = '<i class="material-icons omn-icon-xs">terminal</i><span>0</span>';
+                renderConsoleCount(0);
                 consoleBtn.onclick = () => {
                     consoleModal.style.display = 'flex';
                 };
@@ -159,7 +195,7 @@
                     return;
                 }
                 if (!consoleBtn) initConsoleUI();
-                consoleBtn.innerHTML = `<i class="material-icons omn-icon-xs">terminal</i><span>${logs.length}</span>`;
+                renderConsoleCount(logs.length);
                 updateConsoleFooterDot();
 
                 if (logsContainer) {
