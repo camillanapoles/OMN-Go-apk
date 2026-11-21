@@ -26,8 +26,13 @@ gh issue view "$ISSUE" --json labels -q '.labels[].name' | grep -qx "spec:done" 
   || fail "a issue #$ISSUE não tem o label spec:done (adicione ao fechar, com a evidência dos critérios)"
 
 # 2. A spec da issue existe no tree e não tem tarefa pendente.
-SPEC_PROPOSAL="$(grep -rl "Issue: #$ISSUE" openspec/changes/*/proposal.md 2>/dev/null | head -1 || true)"
-[ -n "$SPEC_PROPOSAL" ] || fail "nenhuma spec em openspec/changes cita a issue #$ISSUE"
+# A proposal cita a issue na linha "> **Issue:** #N" da casa, ou na forma
+# plana "Issue: #N". O padrão aceita os dois formatos, e o gate exige UMA
+# spec por issue: duas proposals com a mesma issue deixam a prova ambígua.
+mapfile -t SPEC_MATCHES < <(grep -rlE "Issue:\*{0,2} ?#$ISSUE\b" openspec/changes/*/proposal.md 2>/dev/null || true)
+[ "${#SPEC_MATCHES[@]}" -ge 1 ] || fail "nenhuma spec em openspec/changes cita a issue #$ISSUE — a proposal precisa de uma linha Issue: #$ISSUE"
+[ "${#SPEC_MATCHES[@]}" -eq 1 ] || fail "a issue #$ISSUE é citada por ${#SPEC_MATCHES[@]} proposals — uma release precisa de UMA spec"
+SPEC_PROPOSAL="${SPEC_MATCHES[0]}"
 SPEC_DIR="$(dirname "$SPEC_PROPOSAL")"
 TASKS="$SPEC_DIR/tasks.md"
 [ -f "$TASKS" ] || fail "a spec $SPEC_DIR não tem tasks.md"
