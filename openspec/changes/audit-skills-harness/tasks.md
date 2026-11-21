@@ -2,7 +2,7 @@
 
 ## P0 (replicabilidade — fundação dos agentes)
 
-- [ ] Criar `local/skills/manifest.yml` com as 4 fontes validadas + 6 skills
+- [ ] Criar `local/skills/manifest.yml` com as 5 fontes validadas + 6 skills
   gitnexus como globais de ferramenta (GAP::GOVERNANCA::001).
   - **Verificação:** toda entry tem `source` + `pin` (commit) + `status` +
     `reason`; skills do projeto existem em `local/skills/<id>/SKILL.md`.
@@ -25,10 +25,11 @@
     o caminho.
   - **Validação:** `go vet` verde; nenhum outro meta-teste afetado.
 - [ ] Triagem das skills externas contra `CLAUDE.md` §1
-  (GAP::INTEROPERABILIDADE::002 — caso chrisbanes).
+  (GAP::INTEROPERABILIDADE::002 — casos chrisbanes e jev).
   - **Verificação:** skills Kotlin/Compose marcadas `inactive` com
-    `reason: "conflito §1 regra 1"`; candidatas genéricas (build/review)
-    documentadas.
+    `reason: "conflito §1 regra 1"`; `jev-agent-skill` marcada `inactive` com
+    `reason: "serviço externo + API key — opt-in por estágio"`; candidatas
+    genéricas (build/review) documentadas.
   - **Validação:** manifest 100% com decisão explícita (global/inativa/
     rejeitada) — zero `status` vazio.
 
