@@ -155,7 +155,8 @@ func renderTagsMarkdown(index map[string][]TagPageRef) []byte {
 	})
 
 	var b strings.Builder
-	b.WriteString("Title: Tags\nCategory: System\n\n")
+	b.WriteString("Title: Tags\nCategory: System\n")
+	b.WriteString("Content-Security-Policy: " + SystemPageCSP + "\n\n")
 	b.WriteString("<!--\n")
 	b.WriteString("  Generated automatically by OMN-Go from every note's Tags: header.\n")
 	b.WriteString("  Do not edit - your changes are overwritten on the next regeneration.\n")
