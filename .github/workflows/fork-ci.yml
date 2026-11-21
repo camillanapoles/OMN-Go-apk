@@ -119,7 +119,11 @@ jobs:
           while IFS= read -r l; do
             m="${l//'%'/'%25'}"; m="${m//$'\r'/'%0D'}"; m="${m//$'\n'/'%0A'}"
             echo "::error::${m}"
-          done < <(grep -E "FAIL|panic:|undefined|cannot |\.go:[0-9]+:[0-9]+:|--- FAIL|# [a-z]|vet:|Error" build.log | tail -35)
+          done < <(grep -E "FAIL|panic:|vet:" build.log | grep -v "cannot read" | tail -20)
+          while IFS= read -r l; do
+            m="${l//'%'/'%25'}"; m="${m//$'\r'/'%0D'}"; m="${m//$'\n'/'%0A'}"
+            echo "::error::${m}"
+          done < <(grep -E "\.go:[0-9]+:[0-9]+:" build.log | grep -v "cannot read" | tail -15)
           exit $RC
 
   apk:
