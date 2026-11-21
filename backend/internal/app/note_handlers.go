@@ -331,8 +331,7 @@ func (a *App) handleNewPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// A bare target resolves relative to the directory of source, the same as
-	// a bare relative link on that page. "test" from "local/local" is
-	// "local/test".
+	// a bare relative link on that page. "test" from "local/local" is "local/test".
 	rawTarget := target
 	// storage.ContainedName keeps each name in the md directory. See
 	// internal/storage/paths.go.

@@ -154,8 +154,7 @@ func renderFilesListing(v filesPageView) string {
 	fmt.Fprintf(&b, `<p class="omn-files-summary">%s</p>`, render.EscapeHTML(v.Summary))
 
 	// Fold the legend, and leave it out when this directory uses no word.
-	// <details> needs no script, and it keeps its state while the page is
-	// open.
+	// <details> needs no script, and it keeps its state while the page is open.
 	if len(v.Legend) > 0 {
 		b.WriteString(`<details class="omn-files-legend">` +
 			`<summary>What the words mean</summary>`)

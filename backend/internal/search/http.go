@@ -13,8 +13,7 @@ import (
 )
 
 // Only GLOBAL search has a setting. Page search has no cost when nobody uses
-// it. A switch that saves nothing only gives one more way to break the
-// feature.
+// it. A switch that saves nothing only gives one more way to break the feature.
 
 // GlobalAvailable answers "can this server search each file now": the
 // user asked for it AND an index exists. injectRuntimeVars gives it to each
@@ -152,8 +151,7 @@ func (svc Service) searchPage(resp *searchResponse, qs map[string][]string) {
 		return // missing, outside storage, or binary: nothing to say
 	}
 	// The kind filters of the query apply, and Config.SearchKinds does NOT.
-	// That setting tells what the INDEX holds, and page search must work on
-	// each note.
+	// That setting tells what the INDEX holds, and page search must work on each note.
 	if !kindAllowed(doc.Kind, splitCSV(get("kind")), q.kinds) {
 		return
 	}

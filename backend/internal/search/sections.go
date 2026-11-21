@@ -36,8 +36,7 @@ import (
 // docSection is one part of a document, from line start to line end, both
 // included. id is the anchor in the compiled HTML. It is "" for the text
 // before the first heading, and for a heading with an id that this file
-// cannot predict. Such a section still labels its hits, and it links to the
-// page.
+// cannot predict. Such a section still labels its hits, and it links to the page.
 type docSection struct {
 	start, end int
 	id         string
@@ -87,8 +86,7 @@ const headingUnsafe = "[]`_$<>&#\\"
 // headingSlug applies the id rule of goldmark (parser.WithAutoHeadingID) to
 // the text of a heading. It lowercases and keeps an ASCII letter or digit. A
 // space and a '-' become a '-'. It drops each other ASCII character and each
-// non-ASCII rune. ok is false when the text holds a character of
-// headingUnsafe.
+// non-ASCII rune. ok is false when the text holds a character of headingUnsafe.
 func headingSlug(text string) (slug string, ok bool) {
 	var b strings.Builder
 	for _, r := range strings.TrimSpace(text) {
@@ -231,8 +229,7 @@ var reATXHeading = regexp.MustCompile(`^ {0,3}(#{1,6})([ \t]+(.*))?$`)
 // does not use it to find a heading. A run of '=' or '-' under a paragraph
 // line is an h1 or h2. Its text depends on the rules of a paragraph, thus the
 // code stops the ids of that document. QuickNotes always has an empty line
-// before its "---", thus that line is a thematic break and never an
-// underline.
+// before its "---", thus that line is a thematic break and never an underline.
 var reSetextRule = regexp.MustCompile(`^ {0,3}(=+|-+)[ \t]*$`)
 
 // sectionsFromHeadings splits a document at its headings. lines, contexts and

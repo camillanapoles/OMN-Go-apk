@@ -110,8 +110,7 @@ func readUserFile(r *http.Request, tree config.UserFileTree, maxBytes int64, now
 	var body io.Reader = r.Body
 	name := r.URL.Query().Get("name")
 	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
-		// 10 MB is the part of the form that stays in memory. It is not the
-		// size limit.
+		// 10 MB is the part of the form that stays in memory. It is not the size limit.
 		if err := r.ParseMultipartForm(10 << 20); err != nil {
 			return "", nil, fmt.Errorf("parse form: %w", err)
 		}
@@ -182,8 +181,7 @@ func (a *App) handleUploadUserFile(tree config.UserFileTree) http.HandlerFunc {
 			return
 		}
 		if r.URL.Query().Get("incoming") == "1" {
-			// The file is on disk. A fault of the index must not fail an
-			// upload that worked.
+			// The file is on disk. A fault of the index must not fail an upload that worked.
 			if err := a.addIncomingFile(tree.Dir+"/"+filename, now); err != nil {
 				a.log(logx.Upload).Errf("%s is saved, but the incoming index has no line for it: %v", filename, err)
 			}

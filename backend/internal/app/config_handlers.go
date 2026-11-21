@@ -145,8 +145,7 @@ func searchIndexNeedsRebuild(prev, next config.Config) bool {
 	if prev.SearchBundled != next.SearchBundled {
 		return true
 	}
-	// Compare after normalization. A nil list and the default list are the
-	// same set.
+	// Compare after normalization. A nil list and the default list are the same set.
 	return strings.Join(config.NormalizeSearchKinds(prev.SearchKinds), ",") !=
 		strings.Join(config.NormalizeSearchKinds(next.SearchKinds), ",")
 }

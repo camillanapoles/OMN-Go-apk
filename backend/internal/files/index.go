@@ -59,8 +59,7 @@ const (
 
 // indexedFile is one file in one tree, keyed by its LOGICAL path: relative to
 // the root of the tree, with slashes. In the Bundled tree,
-// frontend/html/js/x.js is "js/x.js", and frontend/md/Note.md is
-// "md/Note.md".
+// frontend/html/js/x.js is "js/x.js", and frontend/md/Note.md is "md/Note.md".
 type indexedFile struct {
 	path string
 	size int64

@@ -206,8 +206,7 @@ func (rd *Renderer) RewriteInternalLink(href string) string {
 	case strings.HasSuffix(base, ".md"):
 		base = strings.TrimSuffix(base, ".md") + ".html"
 	case config.HasKnownAssetExtension(rd.Config.MimeTypes, base):
-		// This is a file that this install serves, for example .js, .css or
-		// .png.
+		// This is a file that this install serves, for example .js, .css or .png.
 	default:
 		base += ".html"
 	}
@@ -312,8 +311,7 @@ func RelPrefix(name string) string {
 }
 
 // EnsureHeaderModified sets the Modified: line of a note to now. A note
-// with no header block gets a new header with the title, the dates and the
-// author.
+// with no header block gets a new header with the title, the dates and the author.
 func EnsureHeaderModified(content, defaultTitle, author string) string {
 	content = strings.ReplaceAll(content, "\r\n", "\n")
 	now := noteheader.Stamp(time.Now())

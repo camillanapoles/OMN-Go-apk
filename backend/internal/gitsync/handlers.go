@@ -153,8 +153,7 @@ func (svc Service) HandleSyncPreview(w http.ResponseWriter, r *http.Request) {
 		if remoteName, rErr := svc.EnsureRemotesAndGetActive(repo); rErr != nil {
 			ahead.Error = rErr.Error()
 		} else if auth, aErr := svc.GetSSHAuth(); aErr != nil {
-			// With no usable key, the local half of the check still finds a
-			// failed push.
+			// With no usable key, the local half of the check still finds a failed push.
 			ahead = svc.AheadOfRemote(repo, remoteName, nil)
 			if !ahead.Verified && ahead.Error == "" {
 				ahead.Error = aErr.Error()

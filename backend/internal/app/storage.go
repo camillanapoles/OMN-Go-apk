@@ -69,8 +69,7 @@ func (a *App) initStorage(overrideDir string) {
 	// The hooks of connectGroups need the index, thus they follow it.
 	a.connectGroups()
 
-	// 3. Extract each embedded starter note at the top of frontend/md that is
-	// absent.
+	// 3. Extract each embedded starter note at the top of frontend/md that is absent.
 	if entries, err := frontend.Static.ReadDir("md"); err == nil {
 		for _, entry := range entries {
 			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".md") {

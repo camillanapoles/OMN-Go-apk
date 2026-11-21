@@ -146,8 +146,7 @@ func SetLANAddresses(list string) {
 //
 // A defaultPort above 0 is the port when config.json has none. The standard
 // and the fdroid flavor can run side by side, thus they need two ports. See
-// DEFAULT_SERVER_PORT in android/app/build.gradle. The desktop passes 0 for
-// 8080.
+// DEFAULT_SERVER_PORT in android/app/build.gradle. The desktop passes 0 for 8080.
 func StartServer(storageDir string, defaultPort int) {
 	startServer(storageDir, defaultPort)
 }
@@ -294,8 +293,7 @@ func (a *App) registerRoutes(mux routeTable) {
 	mux.Handle("/json/", assetTree)
 
 	// /images and each tree of config.UserFileTrees are user content, and
-	// the binary embeds none of it. resolveContentType gives each file its
-	// type.
+	// the binary embeds none of it. resolveContentType gives each file its type.
 	mux.Handle("/images/", a.serveStorageSubdir("images", ""))
 	for _, tree := range config.UserFileTrees {
 		mux.Handle("/"+tree.Dir+"/", a.serveStorageSubdir(tree.Dir, ""))

@@ -14,13 +14,11 @@ import (
 // change of one line.
 const MaxGitServers = 5
 
-// DefaultAdminPassword is the password of a fresh install. It is public,
-// thus the network login refuses it. See
+// DefaultAdminPassword is the public password of a fresh install. See
 // doc/decisions/0030-refuse-the-default-admin-password-on-the-network.md.
 const DefaultAdminPassword = "admin_secret_changeme"
 
-// DefaultAuthor is the sync author of a fresh install. The Config page
-// asks for a real name while it stands.
+// DefaultAuthor is the sync author of a fresh install.
 const DefaultAuthor = "Anonymous"
 
 // These are the theme values of Config.Theme. ThemeAuto follows the dark mode
@@ -268,8 +266,7 @@ type Config struct {
 	SearchKinds []string `json:"search_kinds"`
 	// SearchBundled also indexes the scripts that OMN-Go ships, from the
 	// storage.VersionDependentAssets list. It is off by default, because they are
-	// larger than a typical note collection and rarely the target of a
-	// search.
+	// larger than a typical note collection and rarely the target of a search.
 	SearchBundled bool `json:"search_bundled"`
 	// SearchScope is where a search starts: "all" or "page".
 	SearchScope string `json:"search_scope"`
@@ -334,8 +331,7 @@ func Load(c *Config, configPath string, fallbackPort int, log logx.Logger) {
 			LogDebug: false,
 			LogInfo:  false,
 			LogTags:  append([]string(nil), LogTagsDefault...),
-			// This is the same as Theme.NoTitleBar.Fullscreen in the
-			// manifest.
+			// This is the same as Theme.NoTitleBar.Fullscreen in the manifest.
 			AndroidFullscreen: FullscreenOn,
 
 			// Hostname labels this device in the file names of database
@@ -359,13 +355,11 @@ func Load(c *Config, configPath string, fallbackPort int, log logx.Logger) {
 			log.Errf("loadConfig: failed to read %s: %v", configPath, readErr)
 		} else if err := json.Unmarshal(data, c); err != nil {
 			// A config.json that does not parse leaves c partly zero.
-			// The error line explains why the passwords and settings seem to
-			// reset.
+			// The error line explains why the passwords and settings seem to reset.
 			log.Errf("loadConfig: failed to parse %s (using defaults for any unparsed fields): %v", configPath, err)
 		}
 	}
-	// A config.json with no server_port, or a value below 1, gets the
-	// fallback port.
+	// A config.json with no server_port, or a value below 1, gets the fallback port.
 	if c.ServerPort <= 0 {
 		c.ServerPort = fallbackPort
 	}

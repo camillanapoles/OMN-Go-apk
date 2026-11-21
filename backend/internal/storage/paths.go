@@ -34,8 +34,7 @@ func ContainedName(name string) string {
 //
 // It answers mdPath and htmlPath together, thus no caller builds a path a
 // second time. A name that ends in a known file extension, for example ".js"
-// or ".txt", is a file under html/. isPage is then false, and mdPath is
-// empty.
+// or ".txt", is a file under html/. isPage is then false, and mdPath is empty.
 //
 // config.HasKnownAssetExtension in internal/config/content_types.go is the one
 // authority for that test: the LAST extension decides, and an unknown extension

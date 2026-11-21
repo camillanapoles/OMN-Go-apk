@@ -314,8 +314,7 @@ func sanitizeImportSegment(seg string) string {
 		}
 		out = append(out, r)
 	}
-	// A leading dot hides the file. Windows cannot store a trailing dot or
-	// space.
+	// A leading dot hides the file. Windows cannot store a trailing dot or space.
 	seg = strings.Trim(string(out), " .-")
 	if len([]rune(seg)) > importSegmentMaxRunes {
 		seg = string([]rune(seg)[:importSegmentMaxRunes])
@@ -456,8 +455,7 @@ func incomingFileLabel(p string) string {
 // addIncomingIndexLine puts one line at the top of the list in
 // md/incoming/incoming.md: below the marker, or first in the body. label is
 // the text of the link, already safe for Markdown. target is the escaped
-// target: a path relative to the index directory for a note, and a URL for a
-// file.
+// target: a path relative to the index directory for a note, and a URL for a file.
 func (svc Service) addIncomingIndexLine(label, target string, now time.Time) error {
 	dir := svc.Layout.MD(incomingDirName)
 	if err := os.MkdirAll(dir, 0755); err != nil {

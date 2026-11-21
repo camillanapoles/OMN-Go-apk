@@ -182,8 +182,7 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 	pwd := r.FormValue("password")
 
 	if !a.isLocalConnection(r) && cfg.AdminPassword == config.DefaultAdminPassword {
-		// The default password is public, thus no caller on the network
-		// can log in while it stands. See
+		// The default is public, thus the network gets no login. See
 		// doc/decisions/0030-refuse-the-default-admin-password-on-the-network.md.
 		a.log(logx.Session).Errf("login refused: the admin password is still the default of the fresh install")
 		http.Error(w, "Change the admin password first", http.StatusForbidden)
@@ -200,8 +199,7 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	signed, hint := a.newSessionCookies(roleAdmin)
 	if signed == nil {
-		// The install has no key. See sessionSecret. An unsigned cookie is
-		// not an option.
+		// The install has no key. See sessionSecret. An unsigned cookie is not an option.
 		a.log(logx.Session).Errf("login refused: this install has no session key")
 		http.Error(w, "Login unavailable", http.StatusInternalServerError)
 		return

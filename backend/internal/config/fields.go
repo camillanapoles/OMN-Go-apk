@@ -174,8 +174,7 @@ var configFields = []configField{
 	},
 	{
 		// This is a set of checkboxes. An empty set means "index nothing",
-		// and nil means "no answer recorded". NormalizeSearchKinds keeps the
-		// two apart.
+		// and nil means "no answer recorded". NormalizeSearchKinds keeps the two apart.
 		Key: "search_kinds", Kind: cfList, Status: "search_kinds",
 		List:      func(c *Config) *[]string { return &c.SearchKinds },
 		Options:   SearchKindsAll,
@@ -304,8 +303,7 @@ func applyConfigField(f configField, c *Config, r *http.Request, sent func(strin
 // must thus not replace the real key with an empty one. See
 // doc/decisions/0005-keep-each-secret-out-of-the-config-page.md.
 func ApplyGitServerForm(c *Config, r *http.Request, sent func(string) bool) {
-	// The active slot is an index, and zero is valid, thus it cannot be a
-	// cfInt row.
+	// The active slot is an index, and zero is valid, thus it cannot be a cfInt row.
 	if idxStr := r.FormValue("active_git_index"); idxStr != "" {
 		var idx int
 		fmt.Sscanf(idxStr, "%d", &idx)

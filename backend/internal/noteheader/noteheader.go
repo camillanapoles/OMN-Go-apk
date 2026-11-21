@@ -35,8 +35,7 @@ type Block struct {
 	// Header holds the header lines joined by "\n", WITHOUT the empty line
 	// that ends them. It is empty when HasHeader is false.
 	Header string
-	// Body is the text after the header, or the whole content when there is
-	// no header.
+	// Body is the text after the header, or the whole content when there is no header.
 	Body string
 	// BodyOffset is the byte offset in the ORIGINAL content where Body
 	// starts, or 0 with no header. The caret of the editor uses the same
@@ -86,8 +85,7 @@ func Parse(content string) Block {
 
 	lines := strings.Split(content, "\n")
 
-	// makeResult makes the split from the first body line and the end of the
-	// header.
+	// makeResult makes the split from the first body line and the end of the header.
 	makeResult := func(bodyStart int, headerEndExclusive int) Block {
 		offset := 0
 		for i := 0; i < bodyStart; i++ {
@@ -167,8 +165,7 @@ func SetKey(content, key, value string) string {
 	header, sep, body := SplitRegion(content)
 
 	if header == "" {
-		// With no header block, make one, with the empty line before the
-		// body.
+		// With no header block, make one, with the empty line before the body.
 		if body == "" {
 			return line + "\n"
 		}

@@ -37,8 +37,7 @@ import (
 // ----------------------------------------------------------------------
 //
 // A page that opens after an event never sees its lines on the stream. The
-// ring holds the last HistoryCap lines, and /api/logs/history answers with
-// them.
+// ring holds the last HistoryCap lines, and /api/logs/history answers with them.
 //
 // THE RING DOES NOT REPLAY ON THE STREAM. applySyncLogLine in omn-go-api.js
 // reads the "[sync] (debug)" lines of the stream. A replay would show an old
@@ -160,8 +159,7 @@ func (l Logger) emit(lvl Level, format string, args ...any) {
 	l.hub.Broadcast(line, l.Enabled(lvl))
 }
 
-// Filter is the cached form of Config.LogDebug, Config.LogInfo and
-// Config.LogTags.
+// Filter is the cached form of Config.LogDebug, Config.LogInfo and Config.LogTags.
 type Filter struct {
 	Debug bool
 	Info  bool

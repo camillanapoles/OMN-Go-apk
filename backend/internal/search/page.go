@@ -170,8 +170,7 @@ func renderSearchPage(v searchPageView) string {
 				}
 				// Each snippet line opens the note AT that line. The text of
 				// the line gets percent-encoding in snippetURL and an HTML
-				// escape here, because the text of a note can come from
-				// another person.
+				// escape here, because the text of a note can come from another person.
 				fmt.Fprintf(&groups, "  <a class=\"omn-search-snippet\" href=\"%s\">",
 					render.EscapeHTML(snippetURL(r.URL, v.Highlight, m)))
 				fmt.Fprintf(&groups, "<span class=\"omn-search-snippet-line\">%d</span>", m.Line)

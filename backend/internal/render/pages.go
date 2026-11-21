@@ -82,8 +82,7 @@ func RenderIndexPage(v IndexPageView) string {
 	for _, t := range v.Tags {
 		// Each pill links to OMNGoTags through AssetPrefix, thus it works at
 		// each depth and through file://. The fragment is TagSlug(t), the
-		// same as the section ids of tags.go. AssetPrefix holds only '.' and
-		// '/'.
+		// same as the section ids of tags.go. AssetPrefix holds only '.' and '/'.
 		fmt.Fprintf(&tags, `<a href="%sOMNGoTags.html#%s" class="omn-taglink"><span class="omn-tagmark">%s</span></a>`,
 			v.AssetPrefix, EscapeHTML(TagSlug(t)), EscapeHTML(t))
 	}

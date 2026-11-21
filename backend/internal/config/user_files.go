@@ -25,8 +25,7 @@ var UserFileTrees = []UserFileTree{
 	{Dir: "user_calendars", Upload: "/api/upload_calendars", Label: "Calendars", Exts: []string{".ics", ".vcs"}},
 }
 
-// userFileKinds answers the search kind of each tree, in the order of the
-// table.
+// userFileKinds answers the search kind of each tree, in the order of the table.
 func userFileKinds() []string {
 	kinds := make([]string, 0, len(UserFileTrees))
 	for _, tree := range UserFileTrees {

@@ -6,8 +6,7 @@ import "embed"
 
 // Static holds html/ and md/. The app extracts each file of html/ into
 // StorageDir/html, and a person can edit it there with ?edit=true. md/ holds
-// the bundled notes. test/ is not in Static, thus no test file reaches a
-// device.
+// the bundled notes. test/ is not in Static, thus no test file reaches a device.
 //
 //go:embed html md
 var Static embed.FS

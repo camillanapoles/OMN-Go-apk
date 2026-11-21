@@ -53,8 +53,7 @@ func TagSlug(tag string) string {
 // block. CompilePageWithBody calls it too, thus the two read the same values.
 // The last "Title:" wins. "Tags:" is a list with commas. The function trims
 // each entry and drops an empty one. title is "" when the note has none. tags
-// keeps the order and can hold a duplicate. BuildTagIndex removes the
-// duplicates.
+// keeps the order and can hold a duplicate. BuildTagIndex removes the duplicates.
 func ExtractTitleTags(content string) (title string, tags []string) {
 	hb := noteheader.Parse(content)
 	if !hb.HasHeader {
