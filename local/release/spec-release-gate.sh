@@ -55,7 +55,7 @@ MISSING="$(awk '
 V_GO="$(grep -oP 'APP_VERSION\s*=\s*"\K[^"]+' backend/version.go)" \
   || fail "backend/version.go sem a linha APP_VERSION"
 V_GRADLE="$(grep -oP 'versionName "\K[^"]+' android/app/build.gradle | head -1)"
-V_MAP="$(grep -oP 'State of the tree: version \K[0-9.]+' doc/CODE_MAP.md)"
+V_MAP="$(grep -oP 'State of the tree: version \K[0-9]+\.[0-9]+\.[0-9]+' doc/CODE_MAP.md)"
 [ "$V_GO" = "$V_GRADLE" ] || fail "versão diverge: version.go=$V_GO build.gradle=$V_GRADLE"
 [ "$V_GO" = "$V_MAP" ] || fail "versão diverge: version.go=$V_GO doc/CODE_MAP.md=$V_MAP"
 
