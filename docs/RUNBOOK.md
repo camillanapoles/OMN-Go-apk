@@ -2,14 +2,21 @@
 
 <!-- codemap: refreshed 2026-10-04 · base d9f6c82 · scan: manual -->
 
-## Deploy (Release assinada)
+## Deploy (Release por spec concluída)
+A release sai **somente** quando uma spec está 100% concluída: issue
+fechada com label `spec:done`, zero tarefa pendente na spec, cada tarefa
+com critérios Verificação/Validação, versão igual nos 3 arquivos e
+changelog humanizado da versão (`doc/changelog/<versão>.md`, escrito no
+commit que cria a versão). Regras: `doc/decisions/0031-release-after-a-completed-spec.md`.
+
 ```bash
-git checkout main && git pull
-git tag vYY.MM.S-f.N <sha-em-main> && git push origin vYY.MM.S-f.N
+gh workflow run Release -f issue=<número-da-issue-da-spec>
+gh run watch <run-id>   # gate → tag vYY.MM.S-f.N → Build OMN-Go
 ```
-Tag dispara `android-gomobile-release.yml` → build Dockerfile.ci (gate interno)
-→ Release com 7 assets (universal 69 MB, 4 ABIs, 2 desktop). Verificar:
-`gh release view vYY.MM.S-f.N --json assets` (7 itens) e run success ~6 min.
+O gate falha com a mensagem exata do que falta, e nada é publicado.
+Verificar após o build: `gh release view vYY.MM.S-f.N --json assets`
+(7 itens), as notas em português e run success ~6 min. Rollback: APK da
+release anterior (mesma key).
 
 ## Segredos (Actions)
 
