@@ -115,7 +115,21 @@ func (a *App) serveEmbeddableAsset(w http.ResponseWriter, r *http.Request, urlPa
 	if ct := a.resolveContentType(urlPath); ct != "" {
 		w.Header().Set("Content-Type", ct)
 	}
+	setSandboxHeader(w, urlPath)
 	http.ServeFile(w, r, physPath)
+}
+
+// svgSandbox is the policy of a served .svg file. The file is XML and can
+// run script in the origin of the app. The policy stops that script. The
+// hook is per extension, thus fonts and vendored assets keep no header.
+const svgSandbox = "script-src 'none'"
+
+// setSandboxHeader pins the CSP of a .svg answer. Each other extension
+// keeps no header here.
+func setSandboxHeader(w http.ResponseWriter, name string) {
+	if strings.EqualFold(filepath.Ext(name), ".svg") {
+		w.Header().Set("Content-Security-Policy", svgSandbox)
+	}
 }
 
 // serveStorageSubdir serves /images/ or a tree of config.UserFileTrees from
@@ -139,6 +153,7 @@ func (a *App) serveStorageSubdir(subDir, forcedType string) http.Handler {
 		} else if ct := a.resolveContentType(r.URL.Path); ct != "" {
 			w.Header().Set("Content-Type", ct)
 		}
+		setSandboxHeader(w, r.URL.Path)
 		// FileServer answers a missing file itself. notFoundInterceptor
 		// replaces that answer with serveNotFound.
 		fsHandler.ServeHTTP(&notFoundInterceptor{ResponseWriter: w, app: a, req: r}, r)

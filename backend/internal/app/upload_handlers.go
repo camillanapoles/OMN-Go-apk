@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
@@ -28,16 +29,33 @@ type uploadRejected struct{ msg string }
 
 func (e *uploadRejected) Error() string { return e.msg }
 
+// parseUploadForm parses the multipart form and opens the file of one
+// field. The 10 MB is the part of the form that stays in memory. It is
+// not the size limit.
+func parseUploadForm(r *http.Request, formField string) (multipart.File, *multipart.FileHeader, error) {
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		return nil, nil, fmt.Errorf("parse form: %w", err)
+	}
+	file, header, err := r.FormFile(formField)
+	if err != nil {
+		return nil, nil, fmt.Errorf("read upload: %w", err)
+	}
+	return file, header, nil
+}
+
+// uploadTooLarge makes the uploadRejected of a size over the limit. The
+// message tells both sizes in MB.
+func uploadTooLarge(size, maxBytes int64) error {
+	return &uploadRejected{msg: fmt.Sprintf("file too large (%.2f MB, limit is %.2f MB)", float64(size)/(1<<20), float64(maxBytes)/(1<<20))}
+}
+
 // saveUploadedFile does the work of handleUpload. It checks the file field
 // against allowedExt and maxBytes, and copies it to destDir. It returns each failure, thus a full disk is not a success. An
 // empty allowedExt, or maxBytes <= 0, skips that check, for the tests.
 func (a *App) saveUploadedFile(r *http.Request, formField, destDir string, allowedExt []string, maxBytes int64) (filename string, err error) {
-	if err := r.ParseMultipartForm(10 << 20); err != nil { // 10MB in-memory threshold before spilling to temp files; NOT the size cap (see maxBytes below)
-		return "", fmt.Errorf("parse form: %w", err)
-	}
-	file, header, err := r.FormFile(formField)
+	file, header, err := parseUploadForm(r, formField)
 	if err != nil {
-		return "", fmt.Errorf("read upload: %w", err)
+		return "", err
 	}
 	defer file.Close()
 
@@ -55,7 +73,7 @@ func (a *App) saveUploadedFile(r *http.Request, formField, destDir string, allow
 		}
 	}
 	if maxBytes > 0 && header.Size > maxBytes {
-		return "", &uploadRejected{msg: fmt.Sprintf("file too large (%.2f MB, limit is %.2f MB)", float64(header.Size)/(1<<20), float64(maxBytes)/(1<<20))}
+		return "", uploadTooLarge(header.Size, maxBytes)
 	}
 
 	if err := os.MkdirAll(destDir, 0755); err != nil {
@@ -110,17 +128,13 @@ func readUserFile(r *http.Request, tree config.UserFileTree, maxBytes int64, now
 	var body io.Reader = r.Body
 	name := r.URL.Query().Get("name")
 	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
-		// 10 MB is the part of the form that stays in memory. It is not the size limit.
-		if err := r.ParseMultipartForm(10 << 20); err != nil {
-			return "", nil, fmt.Errorf("parse form: %w", err)
-		}
-		file, header, err := r.FormFile("file")
+		file, header, err := parseUploadForm(r, "file")
 		if err != nil {
-			return "", nil, fmt.Errorf("read upload: %w", err)
+			return "", nil, err
 		}
 		defer file.Close()
 		if header.Size > maxBytes {
-			return "", nil, &uploadRejected{msg: fmt.Sprintf("file too large (%.2f MB, limit is %.2f MB)", float64(header.Size)/(1<<20), float64(maxBytes)/(1<<20))}
+			return "", nil, uploadTooLarge(header.Size, maxBytes)
 		}
 		body, name = file, header.Filename
 	}

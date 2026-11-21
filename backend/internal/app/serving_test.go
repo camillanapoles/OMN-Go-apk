@@ -118,6 +118,47 @@ func TestServeEmbeddableAssetSetsContentType(t *testing.T) {
 	}
 }
 
+// TestServedSVGCarriesTheSandboxPolicy pins the CSP of a served .svg. The
+// file is XML and can run script in the origin of the app. The policy
+// stops that script.
+func TestServedSVGCarriesTheSandboxPolicy(t *testing.T) {
+	a := newTestApp(t)
+	imgDir := filepath.Join(a.StorageDir, "html", "images")
+	if err := os.MkdirAll(imgDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(imgDir, "pic.svg"), []byte("<svg></svg>"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	rec := routeReq(a, http.MethodGet, "/images/pic.svg")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d", rec.Code)
+	}
+	if csp := rec.Header().Get("Content-Security-Policy"); csp != "script-src 'none'" {
+		t.Errorf("Content-Security-Policy = %q, want script-src 'none'", csp)
+	}
+}
+
+// TestServedPNGKeepsNoSandboxPolicy pins that each other extension keeps
+// no CSP at this hook. Fonts and vendored assets stay untouched.
+func TestServedPNGKeepsNoSandboxPolicy(t *testing.T) {
+	a := newTestApp(t)
+	imgDir := filepath.Join(a.StorageDir, "html", "images")
+	if err := os.MkdirAll(imgDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(imgDir, "pic.png"), []byte("png"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	rec := routeReq(a, http.MethodGet, "/images/pic.png")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d", rec.Code)
+	}
+	if csp := rec.Header().Get("Content-Security-Policy"); csp != "" {
+		t.Errorf("Content-Security-Policy = %q, want no header", csp)
+	}
+}
+
 // TestServeEmbeddableAssetMissing pins that an unknown asset is a 404.
 func TestServeEmbeddableAssetMissing(t *testing.T) {
 	a := newTestApp(t)
