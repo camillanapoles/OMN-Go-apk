@@ -337,6 +337,13 @@ fullscreen modes, the intent dispatch and the Termux path each need a
 device or an emulator. An emulator needs a test framework, and a test
 framework is a Gradle dependency.
 
+**The WebView settings need the emulator pair.** A change of the
+`WebSettings` in `WebViewSetup` is verified by hand on an emulator of
+API 23 and an emulator of API 35. The procedure: install the debug APK,
+open one note that holds one image, and open the Config page. Each page
+must load over `http://127.0.0.1` and show its content. No page may read
+a `file://` URL.
+
 **The git remote over SSH.** `backend/internal/gitsync/sync_test.go` drives the
 real sync code against a BARE REPOSITORY ON DISK, which needs no server and no
 network. It cannot test the SSH transport, and it cannot test a network failure.

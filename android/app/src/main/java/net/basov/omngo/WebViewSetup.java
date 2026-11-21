@@ -56,6 +56,11 @@ final class WebViewSetup {
         WebSettings webSettings = a.webView.getSettings();
         webSettings.setJavaScriptEnabled(true);
         webSettings.setDomStorageEnabled(true);
+        // File and content access stay off: the app serves each page over http.
+        webSettings.setAllowFileAccess(false);
+        webSettings.setAllowContentAccess(false);
+        webSettings.setAllowFileAccessFromFileURLs(false);
+        webSettings.setAllowUniversalAccessFromFileURLs(false);
 
         a.webView.setWebChromeClient(new android.webkit.WebChromeClient() {
             @Override

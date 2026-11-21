@@ -416,3 +416,27 @@ func TestNoJavaFileImportsAndroidX(t *testing.T) {
 		}
 	}
 }
+
+// ----------------------------------------------------------------------
+// The size of MainActivity.
+// ----------------------------------------------------------------------
+//
+// MainActivity holds the lifecycle of the app. A ceiling keeps the
+// review of one change possible. Split a concern into a class of its
+// own when the file passes the ceiling.
+
+// mainActivityLineCeiling is the highest line count that MainActivity
+// may hold.
+const mainActivityLineCeiling = 800
+
+func TestMainActivityStaysUnderTheLineCeiling(t *testing.T) {
+	src, err := readRepoFile("android/app/src/main/java/net/basov/omngo/MainActivity.java")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(src, "\n")
+	if len(lines) > mainActivityLineCeiling {
+		t.Errorf("MainActivity.java holds %d lines and the ceiling is %d.\n"+
+			"  Split a concern into a class of its own.", len(lines), mainActivityLineCeiling)
+	}
+}
