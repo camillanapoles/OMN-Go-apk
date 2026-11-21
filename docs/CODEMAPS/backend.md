@@ -1,10 +1,12 @@
 # Backend — Go server (package app)
 
-<!-- codemap: refreshed 2026-10-04 · base d9f6c82 · scan: manual -->
+<!-- codemap: refreshed 2026-11-20 · base 1eef9f8 · scan: manual -->
 
 ## Routes (server.go · registerRoutes · a.route(path, role, kind, handler))
 ```
-POST /login                open   → handleLogin (signed session cookie)
+POST /login                open   → handleLogin (signed session cookie;
+                                     429 + Retry-After after 5 failures
+                                     from one address; local passes)
 GET  /api/note             open   → handleGetNote        (raw file)
 GET  /api/search           open   → handleSearch
 GET  /        (catch-all)  open   → serveFrontend (pages/assets/md)
@@ -41,8 +43,11 @@ GET  /<systemPages>        open|adminPage → pageHandler (page_access.go table)
 
 ## Rules enforced by repocheck tests
 importLayers (pkg layers), fileGroups/layers in app, one writeJSON path,
-no log.Printf, no bare 64-bit atomics, no html/template, route baseline.
+no log.Printf, no bare 64-bit atomics, no html/template, route baseline,
+comment style (STE, banned words, share), version triplet, API.md claims,
+decision records, no default password, HTTP hardening needles,
+no gitnexus section in the contract files.
 
 ## Key files
-backend/internal/app/server.go (~340 ln) · handlers_test.go (newTestApp) ·
+backend/internal/app/server.go (~341 ln) · handlers_test.go (newTestApp) ·
 baseline_test.go (golden route set) · page_access.go (systemPages)

@@ -1,6 +1,6 @@
 # Data — SQLite, config, storage layout
 
-<!-- codemap: refreshed 2026-10-04 · base d9f6c82 · scan: manual -->
+<!-- codemap: refreshed 2026-11-20 · base 1eef9f8 · scan: manual -->
 
 ## Storage layout (storage.Layout; Android: Android/media/<appId>/)
 ```
@@ -27,6 +27,8 @@ asset_backups/<prev>/  old version-dependent assets before replacement
   `a.config.Update(func(*Config))` under Lock.
 - Every field: row in configFields (fields.go) + control in config_page.html
   (KEY / KEY_CHECKED / KEY_OPTION placeholders); NormalizeXxx repairs enums.
+- The store refuses the default admin password: the login shows a
+  BlockLogin page until an admin sets a password.
 - Log switches log_debug/log_info + per-tag checkboxes; errors ignore both.
 
 ## Notes metadata

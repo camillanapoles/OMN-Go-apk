@@ -1,6 +1,6 @@
 # Frontend — embedded plain-JS (no build step)
 
-<!-- codemap: refreshed 2026-10-04 · base d9f6c82 · scan: manual -->
+<!-- codemap: refreshed 2026-11-20 · base 1eef9f8 · scan: manual -->
 
 ## Sources
 - backend/frontend/templates/ → server-side page fragments (never extracted)
@@ -16,7 +16,7 @@
 6. omn-go-share.js (share/copy, clipboard writer, metadata panel)
 7. omn-go-api.js (ALL backend calls; `file:` guard + stubs; lazy loader
    omnLazy/omnLazyActions)
-then vendored (katex.min.js, highlight.min.js, auto-render.min.js),
+then vendored (highlight.min.js, katex.min.js, auto-render.min.js),
 omn-go-custom.js (user, last), omn-go-custom.css.
 
 ## Page scripts (loaded only by their template)

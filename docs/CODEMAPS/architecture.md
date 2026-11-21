@@ -1,6 +1,6 @@
 # OMN-Go-apk — System Architecture
 
-<!-- codemap: refreshed 2026-10-04 · base d9f6c82 · scan: manual -->
+<!-- codemap: refreshed 2026-11-20 · base 1eef9f8 · scan: manual -->
 
 ## Type
 Single app: Go HTTP server + plain-JS embedded frontend, wrapped by an Android
@@ -33,7 +33,9 @@ WebView app (gomobile AAR). Also builds desktop binaries (linux/windows).
 ## Data flow
 note `.md` → noteheader.Parse → goldmark render → html cache on disk →
 WebView/browser. Writes go through /api/save → storage. Sync = gitsync over
-SSH, LAN sharing off by default (binds 127.0.0.1).
+SSH, LAN sharing off by default (binds 127.0.0.1). Security: throttled login
+(429 + Retry-After per address), nosniff on each answer, CSP meta on the
+system pages.
 
 ## GitOps CI/CD (fork layer, added 2026-10-04)
 ```

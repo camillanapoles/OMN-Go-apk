@@ -60,6 +60,18 @@ rm -rf .claude/skills && bash local/agent-setup/install.sh   # repõe o conjunto
   contra `CLAUDE.md` §1 → decisão global/inativa/rejeitada. Uma global sem
   reason ou sem pin derruba o Quality Gate.
 
+## Refresh dos codemaps
+
+- Rotina: após cada tag `v*-f.N` e após cada mudança grande no backend, roda
+  `npx gitnexus analyze --skip-agents-md` na raiz e revisa
+  `docs/CODEMAPS/*.md` contra o tree real (nunca contra o codemap antigo).
+- Cada edit atualiza o header `<!-- codemap: refreshed AAAA-MM-DD · base <sha>
+  · scan: manual -->` com o sha do tree escaneado.
+- Validação: `grep -rn "Dockerfile\.ci" docs/` = 0 hits; cada referência
+  arquivo:linha conferida no tree antes de escrever.
+- O flag `--skip-agents-md` é obrigatório (issue #45): o analyze puro escreve
+  em `CLAUDE.md` e cria `AGENTS.md` na raiz.
+
 ## Problemas conhecidos → fix
 | Sintoma | Causa | Fix |
 |---|---|---|
