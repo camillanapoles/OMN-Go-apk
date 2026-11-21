@@ -7,13 +7,13 @@
 git checkout main && git pull
 git tag vYY.MM.S-f.N <sha-em-main> && git push origin vYY.MM.S-f.N
 ```
-Tag dispara `android-gomobile-release.yml` → build Dockerfile.ci (gate interno)
+Tag dispara `android-gomobile-release.yml` → build Dockerfile (gate interno)
 → Release com 7 assets (universal 69 MB, 4 ABIs, 2 desktop). Verificar:
 `gh release view vYY.MM.S-f.N --json assets` (7 itens) e run success ~6 min.
 
 ## Segredos (Actions)
 
-<!-- generated:source=.github/workflows/*.yml;Dockerfile.ci -->
+<!-- generated:source=.github/workflows/*.yml;Dockerfile -->
 | Secret | Required | Purpose | Rotação |
 |---|---|---|---|
 | `KEYSTORE_BASE64` | Yes | Keystore PKCS12 do fork (b64) | Só se comprometida; queima atualizações |

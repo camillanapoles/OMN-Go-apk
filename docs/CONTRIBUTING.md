@@ -17,12 +17,12 @@ Nada mergeia sem os checks; ninguém aprova no circuito.
 
 ## Commands
 
-<!-- generated:source=local/cicd/*.sh;Dockerfile.ci;.github/workflows -->
+<!-- generated:source=local/cicd/*.sh;Dockerfile;.github/workflows -->
 | Command | Description |
 |---------|-------------|
 | `bash local/build.sh` | Docker build completo (base+ci) → `output-binaries/` |
-| `docker buildx build -f Dockerfile.ci --target test .` | Só o quality gate (go vet+test Go/Java/JS) |
-| `docker buildx build -f Dockerfile.ci --target export --output type=local,dest=artifacts .` | Artefatos (exige os 4 segredos de assinatura via `--secret`) |
+| `docker buildx build -f Dockerfile --target test .` | Só o quality gate (go vet+test Go/Java/JS) |
+| `docker buildx build -f Dockerfile --target export --output type=local,dest=artifacts .` | Artefatos (exige os 4 segredos de assinatura via `--secret`) |
 | `WORKFLOW="Fork CI" bash local/cicd/observa-ci.sh [pr]` | Watcher assíncrono; notifica no Termux |
 | `WORKFLOW="Fork CI" bash local/cicd/acompanha-ci.sh [run\|branch]` | Live view 10s (job/step/tempo) |
 | `bash local/cicd/iniciar-sessao.sh` | Bootstrap de sessão (git+PRs+WAL) |
@@ -39,7 +39,7 @@ Nada mergeia sem os checks; ninguém aprova no circuito.
 
 ## Testes
 - Gate único: `go vet ./backend/... && go test ./backend/...` dentro do stage
-  `test` do Dockerfile.ci (roda também JS `node --test` e o Java de
+  `test` do Dockerfile (roda também JS `node --test` e o Java de
   `android/test/`). O build de artefato copia `/gate-passed`: sem gate, sem APK.
 - O build export ROUDA o gate internamente; falha de teste mata o APK cedo.
 
