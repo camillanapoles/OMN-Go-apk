@@ -2,14 +2,14 @@
 
 ## P0 (gatilho e gate)
 
-- [ ] Trocar o gatilho do Release para `workflow_dispatch` com a issue e
+- [x] Trocar o gatilho do Release para `workflow_dispatch` com a issue e
   rodar o gate antes da tag (CONFLITO::GOVERNANCA::001).
   - **Verificação:** dispatch com o número de uma issue aberta falha no
     passo do gate com a mensagem exata do que falta; após o merge deste PR,
     nenhum push em `main` cria run do Release nem tag.
   - **Validação:** `TestReleaseWorkflowRequiresSpecGate` verde no Fork CI;
     os três checks obrigatórios dos rulesets permanecem os mesmos.
-- [ ] Remover os gatilhos de branch do build de release
+- [x] Remover os gatilhos de branch do build de release
   (`push: [master, DS]` e `pull_request: [master]`)
   (CONFLITO::GOVERNANCA::001).
   - **Verificação:** push em branch de trabalho não enfileira run do
@@ -19,7 +19,7 @@
 
 ## P1 (changelog humanizado)
 
-- [ ] Publicar `doc/changelog/<versão>.md` como corpo da release
+- [x] Publicar `doc/changelog/<versão>.md` como corpo da release
   (GAP::USABILIDADE::002).
   - **Verificação:** a release gerada pela tag traz as notas em português da
     pessoa usuária antes das notas automáticas do GitHub.
@@ -29,7 +29,7 @@
 
 ## P1 (continuidade)
 
-- [ ] Meta-testes do repocheck prendendo as três regras
+- [x] Meta-testes do repocheck prendendo as três regras
   (GAP::GOVERNANCA::003).
   - **Verificação:** num branch de teste, reverter o gatilho do Release para
     push ou mover o gate depois da tag quebra o Fork CI com a mensagem do
