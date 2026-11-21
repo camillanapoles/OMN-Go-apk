@@ -15,7 +15,7 @@ For any task involving code understanding, debugging, impact analysis, or refact
 2. **Match your task to a skill below** and **read that skill file**
 3. **Follow the skill's workflow and checklist**
 
-> If step 1 warns the index is stale, run `node .gitnexus/run.cjs analyze` in the terminal first.
+> If step 1 warns the index is stale, run `node .gitnexus/run.cjs analyze --skip-agents-md` in the terminal first (the flag keeps the tool out of CLAUDE.md and AGENTS.md).
 
 ## Skills
 

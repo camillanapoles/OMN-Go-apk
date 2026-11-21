@@ -45,7 +45,7 @@ checkout and reports nothing changed, which reads as a verified refactor.
 4. Plan update order: interfaces → implementations → callers → tests
 ```
 
-> If "Index is stale" → run `node .gitnexus/run.cjs analyze` in terminal.
+> If "Index is stale" → run `node .gitnexus/run.cjs analyze --skip-agents-md` in terminal (the flag keeps the tool out of CLAUDE.md and AGENTS.md).
 
 ## Checklists
 

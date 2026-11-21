@@ -52,7 +52,7 @@ Repository: <name> (<path>)   Worktree: <path>   Index: <commit>, <n> behind HEA
 4. Assess risk and report to user, echoing repo/worktree/index identity
 ```
 
-> If "Index is stale" → run `node .gitnexus/run.cjs analyze` in terminal.
+> If "Index is stale" → run `node .gitnexus/run.cjs analyze --skip-agents-md` in terminal (the flag keeps the tool out of CLAUDE.md and AGENTS.md).
 > If `.gitnexus/run.cjs` is missing, replace `node .gitnexus/run.cjs` with `npx gitnexus` in the fallback commands.
 
 ## Checklist

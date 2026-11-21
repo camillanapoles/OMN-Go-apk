@@ -41,7 +41,7 @@ diagnosis.
 4. cypher({statement: "MATCH path..."})                 → Custom traces if needed
 ```
 
-> If "Index is stale" → run `node .gitnexus/run.cjs analyze` in terminal.
+> If "Index is stale" → run `node .gitnexus/run.cjs analyze --skip-agents-md` in terminal (the flag keeps the tool out of CLAUDE.md and AGENTS.md).
 
 ## Checklist
 
@@ -129,3 +129,11 @@ When no path exists, `trace` reports the furthest reachable node — exactly whe
 
 With a single indexed repository, step 0 returns `total: 1` and the `repo`
 argument drops out of every call above.
+
+## Reading CI test failures from annotations
+
+When job logs are blocked, the check-runs annotations API carries the tail of
+the build. Grep for `FAIL` with a `file:line:` pattern. Go prints test
+messages as `file.go:123: text` with no column, while `go vet` prints
+`file.go:123:45: text`. A grep that requires a column finds the vet lines and
+misses every `t.Errorf` message.

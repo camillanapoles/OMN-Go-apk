@@ -7,20 +7,21 @@ description: "Use when the user needs to run GitNexus CLI commands like analyze/
 
 Commands below use `node .gitnexus/run.cjs <command>` — the project-local runner `gitnexus analyze` drops next to the index. It auto-selects an available runner at call time (global `gitnexus`, else `pnpm dlx`, else `bunx`, else `npx`), so no package-manager assumption and no global install is required — including on a bun-only machine, which has no npm, npx or pnpm at all.
 
-> **Not analyzed yet, or `node .gitnexus/run.cjs` reports `Cannot find module`** (the gitignored runner is absent — e.g. a fresh clone or `git clean`)? (Re)generate it with `npx gitnexus analyze` from the project root, or `bunx gitnexus@latest analyze` on a bun-only machine. On **npm 11.x**, if `npx` crashes during install (`node.target is null`), install once with `npm i -g gitnexus` (then `gitnexus analyze`), or use `bunx gitnexus@latest analyze`, or `pnpm --allow-build=@ladybugdb/core --allow-build=gitnexus --allow-build=tree-sitter dlx gitnexus@latest analyze`. See [#1939](https://github.com/abhigyanpatwari/GitNexus/issues/1939).
+> **Not analyzed yet, or `node .gitnexus/run.cjs` reports `Cannot find module`** (the gitignored runner is absent — e.g. a fresh clone or `git clean`)? (Re)generate it with `npx gitnexus analyze --skip-agents-md` from the project root, or `bunx gitnexus@latest analyze --skip-agents-md` on a bun-only machine. On **npm 11.x**, if `npx` crashes during install (`node.target is null`), install once with `npm i -g gitnexus` (then `gitnexus analyze --skip-agents-md`), or use `bunx gitnexus@latest analyze --skip-agents-md`, or `pnpm --allow-build=@ladybugdb/core --allow-build=gitnexus --allow-build=tree-sitter dlx gitnexus@latest analyze --skip-agents-md`. See [#1939](https://github.com/abhigyanpatwari/GitNexus/issues/1939).
 
 ## Commands
 
 ### analyze — Build or refresh the index
 
 ```bash
-node .gitnexus/run.cjs analyze
+node .gitnexus/run.cjs analyze --skip-agents-md
 ```
 
-Run from the project root. This parses all source files, builds the knowledge graph, writes it to `.gitnexus/`, and generates CLAUDE.md / AGENTS.md context files.
+Run from the project root. This parses all source files, builds the knowledge graph, and writes it to `.gitnexus/`. Always pass `--skip-agents-md` in this repo: without it, the run writes a `gitnexus:start` section into CLAUDE.md and creates AGENTS.md at the root, and the contract rules make both files off-limits.
 
 | Flag           | Effect                                                           |
 | -------------- | ---------------------------------------------------------------- |
+| `--skip-agents-md` | Skip the AGENTS.md / CLAUDE.md section update. Always pass it in this repo. |
 | `--watch`      | Keep a Git repository index current with serialized refreshes    |
 | `--debounce <ms>` | Watch quiet period before refresh (default: 300 ms)            |
 | `--force`      | Force full re-index even if up to date                           |
@@ -30,7 +31,7 @@ Run from the project root. This parses all source files, builds the knowledge gr
 | `--spring-actuator <path>` | Import opt-in Spring Boot Actuator mappings, beans, conditions, configprops, and env snapshots. Forces a full rebuild; unsupported with `--watch`. |
 | `--asyncapi-spec <path>` | Read opt-in AsyncAPI 3.x documents (directory or single file) and mint `Destination` nodes from their operations. 2.x is refused, not mapped. Unsupported with `--watch`. |
 
-**When to run:** First time in a project, after major code changes, or when `gitnexus://repo/{name}/context` reports the index is stale. In Claude Code, a PostToolUse hook detects staleness after `git commit` and `git merge` and notifies the agent to run `analyze` — the hook does not run analyze itself, to avoid blocking the agent for up to 120s and risking KuzuDB corruption on timeout.
+**When to run:** First time in a project, after major code changes, or when `gitnexus://repo/{name}/context` reports the index is stale. In Claude Code, a PostToolUse hook detects staleness after `git commit` and `git merge` and notifies the agent to run `analyze --skip-agents-md` — the hook does not run analyze itself, to avoid blocking the agent for up to 120s and risking KuzuDB corruption on timeout.
 
 For Spring runtime enrichment, pass a JSON bundle, one endpoint JSON file, or a directory containing endpoint files. Route evidence is authoritative only when `runtimeConfirmed === true`; `runtimeSource` records provenance and may also accompany `handler-conflict`. Env/configprops values are never persisted.
 
