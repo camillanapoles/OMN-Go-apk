@@ -126,3 +126,34 @@ func TestNoBundledNoteTakesASystemPagePath(t *testing.T) {
 		}
 	}
 }
+
+// Each page that the server makes carries a CSP meta tag, and the tag
+// works only as http-equiv. A compiled note carries no such tag: a note
+// runs its own scripts, and the policy of a system page would stop them.
+// See doc/decisions/0031-throttle-the-network-login.md.
+func TestSystemPagesCarryTheCSPMeta(t *testing.T) {
+	a := newTestApp(t)
+	for _, p := range a.systemPages() {
+		rec := routeReq(a, http.MethodGet, p.path)
+		if rec.Code != http.StatusOK {
+			t.Errorf("%s gave %d, want a page", p.path, rec.Code)
+			continue
+		}
+		if !strings.Contains(rec.Body.String(), `http-equiv="Content-Security-Policy"`) {
+			t.Errorf("%s carries no CSP meta tag", p.path)
+		}
+	}
+
+	// A compiled note holds no CSP meta tag.
+	p := filepath.Join(a.StorageDir, "md", "PlainNote.md")
+	if err := os.WriteFile(p, []byte("Title: Plain\n\nhello\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	rec := routeReq(a, http.MethodGet, "/PlainNote.html")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("the note page gave %d, want 200", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), "Content-Security-Policy") {
+		t.Error("a compiled note carries the CSP meta tag")
+	}
+}

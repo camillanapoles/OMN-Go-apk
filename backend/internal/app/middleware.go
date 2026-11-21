@@ -8,12 +8,20 @@ import (
 	"net.basov.omngo/backend/internal/logx"
 )
 
-func (a *App) isLocalConnection(r *http.Request) bool {
+// remoteHost answers the IP part of r.RemoteAddr. A value with no port
+// answers itself.
+func remoteHost(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		host = r.RemoteAddr
+		return r.RemoteAddr
 	}
-	return host == "127.0.0.1" || host == "::1" || host == "localhost"
+	return host
+}
+
+func (a *App) isLocalConnection(r *http.Request) bool {
+	// A TCP RemoteAddr is always an IP and a port, never a host name.
+	host := remoteHost(r)
+	return host == "127.0.0.1" || host == "::1"
 }
 
 func (a *App) connectionMiddleware(next http.Handler) http.Handler {
@@ -35,6 +43,9 @@ func (a *App) connectionMiddleware(next http.Handler) http.Handler {
 		// writes its own Cache-Control later wins, for example the log
 		// stream.
 		w.Header().Set("Cache-Control", "no-cache")
+		// A browser must not guess a type that this answer does not
+		// announce. See doc/decisions/0031-throttle-the-network-login.md.
+		w.Header().Set("X-Content-Type-Options", "nosniff")
 
 		next.ServeHTTP(&pageCacheWriter{ResponseWriter: w}, r)
 	})

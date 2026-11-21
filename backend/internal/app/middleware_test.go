@@ -122,3 +122,39 @@ func TestActiveConnsIsAnAtomicInt64(t *testing.T) {
 			"atomic.AddInt64 panics on every 32-bit build", field.Type)
 	}
 }
+
+// Each response carries X-Content-Type-Options: nosniff. The header stops
+// a browser from guessing a type that the server did not announce. The
+// pageCacheWriter changes the cache header only, and the nosniff header
+// survives it. See doc/decisions/0031-throttle-the-network-login.md.
+func TestConnectionMiddlewareSetsNoSniff(t *testing.T) {
+	a := &App{}
+	h := a.connectionMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		render.WriteHTMLHeader(w)
+		w.Write([]byte("<html></html>"))
+	}))
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "http://localhost/Welcome.html", nil))
+
+	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Errorf("X-Content-Type-Options = %q, want %q", got, "nosniff")
+	}
+	// The same answer went through the pageCacheWriter.
+	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+		t.Errorf("Cache-Control = %q, want %q", got, "no-store")
+	}
+}
+
+// A TCP connection carries an IP and a port in RemoteAddr. The string
+// "localhost" never appears there, and a client that writes it into a
+// header controls that header. The comparison is dead code, and it
+// invites a future check on a name that the client owns.
+func TestAHostNameIsNotLocal(t *testing.T) {
+	a := &App{}
+	r := httptest.NewRequest(http.MethodGet, "/api/status", nil)
+	r.RemoteAddr = "localhost:1"
+	if a.isLocalConnection(r) {
+		t.Error(`a RemoteAddr of "localhost:1" counted as local`)
+	}
+}

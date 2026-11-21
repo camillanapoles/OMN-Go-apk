@@ -120,6 +120,24 @@ days after an update of the application.
 A handler that writes `Cache-Control` later replaces this value.
 `/api/logs` does this.
 
+**Security headers.** Each response carries `X-Content-Type-Options:
+nosniff`. A browser then keeps the type that the answer announces and
+does not guess one. `connectionMiddleware` sets the header beside
+`Cache-Control`.
+
+Each page that the server makes also carries a
+`Content-Security-Policy` meta tag. The tag renders as `http-equiv`. The
+policy allows the assets of the server and the one inline script of the
+page, and it loads no external origin. A compiled note carries no
+policy, because a note runs its own scripts. `render.PageHeader` in
+`backend/internal/render/pages.go` writes the line.
+
+**Login throttle.** The `/login` endpoint counts the wrong passwords of
+each IP. After five failures the answer is `429` with a `Retry-After`
+header, and the value grows with each further attempt. A success resets
+the counter, a counter idle for fifteen minutes resets itself, and the
+device itself is never blocked.
+
 ---
 
 ## 2. Authentication and authorization
@@ -320,6 +338,7 @@ endpoint.
 | `200` | `text/plain` | `OK` | Sets the signed `session_role` cookie and the `session_role_hint` cookie, for the `admin` role. See §2.2. |
 | `401` | `text/plain` | `Invalid` | No cookie set |
 | `403` | `text/plain` | `Change the admin password first` | The configured password is the default of the fresh install and the caller is not local. See ADR 0030. |
+| `429` | `text/plain` | `Too many attempts` | Five wrong passwords from this IP. The `Retry-After` header names the wait in seconds. See §1.4. |
 | `500` | `text/plain` | `Login unavailable` | This install has no session key and could not make one. See `sessionSecret` in `backend/internal/app/session.go`. |
 
 ```bash

@@ -10,13 +10,23 @@ import (
 	"net.basov.omngo/backend/internal/config"
 )
 
-// PageHeader is the header block of a page that the server makes.
+// SystemPageCSP is the Content-Security-Policy of a page that the server
+// makes. A note runs its own scripts and gets no policy from the server.
+// The page carries one inline script (the runtime values of InjectRuntimeVars),
+// thus script-src allows inline. Each external origin stays out.
+const SystemPageCSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; " +
+	"style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; " +
+	"object-src 'none'; base-uri 'self'"
+
+// PageHeader is the header block of a page that the server makes. It also
+// carries the CSP line, and a note header carries none. See
+// doc/decisions/0031-throttle-the-network-login.md.
 func PageHeader(title, category string, stylesheets ...string) []byte {
 	h := "Title: " + title + "\nCategory: " + category + "\n"
 	for _, s := range stylesheets {
 		h += "Stylesheet: " + s + "\n"
 	}
-	return []byte(h + "\n")
+	return []byte(h + "Content-Security-Policy: " + SystemPageCSP + "\n\n")
 }
 
 // --- The page shell (index.html) ---
@@ -57,6 +67,13 @@ type IndexPageView struct {
 func RenderIndexPage(v IndexPageView) string {
 	var metaTags strings.Builder
 	for _, m := range v.MetaTags {
+		if strings.EqualFold(m.Name, "content-security-policy") {
+			// A CSP meta tag works only as http-equiv. A name tag would
+			// carry the text and no policy.
+			fmt.Fprintf(&metaTags, "    <meta http-equiv=\"Content-Security-Policy\" content=\"%s\" />\n",
+				EscapeHTML(m.Value))
+			continue
+		}
 		fmt.Fprintf(&metaTags, "    <meta name=\"%s\" content=\"%s\" />\n",
 			EscapeHTML(m.Name), EscapeHTML(m.Value))
 	}

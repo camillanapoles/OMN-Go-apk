@@ -359,6 +359,69 @@ func TestNetworkLoginWithDefaultPasswordIsRefused(t *testing.T) {
 	}
 }
 
+// The login of the network is throttled. Five wrong passwords of one IP
+// block the next attempt of that IP with a 429 and a Retry-After header.
+// A success resets the counter, another IP keeps its own, and the device
+// itself is never blocked. See
+// doc/decisions/0031-throttle-the-network-login.md.
+func TestLoginThrottleRefusesTheSixthFailure(t *testing.T) {
+	a := newTestApp(t)
+	a.config.Update(func(c *config.Config) {
+		c.AdminPassword = "the-admin-password"
+	})
+	attempt := func(remote, password string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/login?password="+password, nil)
+		r.RemoteAddr = remote
+		a.handleLogin(rec, r)
+		return rec
+	}
+
+	// The device itself is never blocked, past the limit.
+	for i := 0; i < 8; i++ {
+		if rec := attempt("127.0.0.1:7777", "wrong"); rec.Code != http.StatusUnauthorized {
+			t.Fatalf("local attempt %d gave %d, want 401", i+1, rec.Code)
+		}
+	}
+
+	// Five wrong passwords block the sixth attempt of the same IP. The
+	// right password behind the block still answers 429.
+	for i := 0; i < 5; i++ {
+		if rec := attempt("203.0.113.77:1000", "wrong"); rec.Code != http.StatusUnauthorized {
+			t.Errorf("network attempt %d gave %d, want 401", i+1, rec.Code)
+		}
+	}
+	rec := attempt("203.0.113.77:1000", "the-admin-password")
+	if rec.Code != http.StatusTooManyRequests {
+		t.Errorf("the sixth attempt gave %d, want 429", rec.Code)
+	}
+	if rec.Header().Get("Retry-After") == "" {
+		t.Error("the 429 carries no Retry-After header")
+	}
+
+	// A different IP does not inherit the block.
+	if rec := attempt("203.0.113.78:1000", "the-admin-password"); rec.Code != http.StatusOK {
+		t.Errorf("another IP gave %d, want 200", rec.Code)
+	}
+
+	// A success resets the counter. The five failures below land on a
+	// clean count, thus each one answers 401.
+	for i := 0; i < 3; i++ {
+		attempt("203.0.113.79:1000", "wrong")
+	}
+	if rec := attempt("203.0.113.79:1000", "the-admin-password"); rec.Code != http.StatusOK {
+		t.Fatalf("the login after three failures gave %d, want 200", rec.Code)
+	}
+	for i := 0; i < 5; i++ {
+		if rec := attempt("203.0.113.79:1000", "wrong"); rec.Code != http.StatusUnauthorized {
+			t.Errorf("post-reset attempt %d gave %d, want 401", i+1, rec.Code)
+		}
+	}
+	if rec := attempt("203.0.113.79:1000", "the-admin-password"); rec.Code != http.StatusTooManyRequests {
+		t.Errorf("the sixth post-reset attempt gave %d, want 429", rec.Code)
+	}
+}
+
 // An empty configured password grants nothing. A person who clears
 // admin_password asks for no admin password. The old code read the empty
 // value as a match for an empty submission.

@@ -34,6 +34,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"net.basov.omngo/backend/internal/config"
@@ -174,12 +175,97 @@ func (a *App) readSessionRole(r *http.Request) string {
 	return role
 }
 
+// loginFailLimit is the count of wrong passwords that one IP sends before
+// the login refuses it with a 429.
+const loginFailLimit = 5
+
+// loginFailWindow is the time after which an idle counter resets itself.
+const loginFailWindow = 15 * time.Minute
+
+// loginRetryBase is the first Retry-After of a blocked IP. Each further
+// attempt doubles it, up to the window.
+const loginRetryBase = 30 * time.Second
+
+// loginFailState is the throttle of one IP.
+type loginFailState struct {
+	fails int
+	last  time.Time
+}
+
+// loginThrottle counts the wrong passwords of each IP. The device itself
+// never reaches it: a local connection is always the owner. See
+// doc/decisions/0031-throttle-the-network-login.md.
+type loginThrottle struct {
+	mu    sync.Mutex
+	state map[string]*loginFailState
+}
+
+var loginFails loginThrottle
+
+// gate answers the Retry-After of a blocked IP, or 0 when the IP may try.
+// A refused attempt raises the counter, thus the backoff grows. A counter
+// that is older than the window resets itself here.
+func (t *loginThrottle) gate(ip string, now time.Time) time.Duration {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	s := t.state[ip]
+	if s == nil || now.Sub(s.last) > loginFailWindow {
+		return 0
+	}
+	if s.fails < loginFailLimit {
+		return 0
+	}
+	s.fails++
+	s.last = now
+	shift := s.fails - loginFailLimit - 1
+	if shift > 5 {
+		shift = 5
+	}
+	return loginRetryBase << shift
+}
+
+// failed records one wrong password.
+func (t *loginThrottle) failed(ip string, now time.Time) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.state == nil {
+		t.state = make(map[string]*loginFailState)
+	}
+	s := t.state[ip]
+	if s == nil || now.Sub(s.last) > loginFailWindow {
+		s = &loginFailState{}
+		t.state[ip] = s
+	}
+	s.fails++
+	s.last = now
+}
+
+// reset clears the counter of one IP after a success.
+func (t *loginThrottle) reset(ip string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	delete(t.state, ip)
+}
+
 // handleLogin changes a password into the two session cookies. Only a caller
 // on the network needs it. The comparison is constant-time, and an EMPTY
 // configured password matches nothing.
 func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 	cfg := a.config.Get()
 	pwd := r.FormValue("password")
+
+	// Five wrong passwords of one IP block its next attempts behind a
+	// growing Retry-After. The device itself is never blocked. See
+	// doc/decisions/0031-throttle-the-network-login.md.
+	if !a.isLocalConnection(r) {
+		ip := remoteHost(r)
+		if after := loginFails.gate(ip, time.Now()); after > 0 {
+			a.log(logx.Session).Errf("login refused: too many attempts from %s", ip)
+			w.Header().Set("Retry-After", strconv.Itoa(int(after.Seconds())))
+			http.Error(w, "Too many attempts", http.StatusTooManyRequests)
+			return
+		}
+	}
 
 	if !a.isLocalConnection(r) && cfg.AdminPassword == config.DefaultAdminPassword {
 		// The default is public, thus the network gets no login. See
@@ -190,6 +276,9 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !passwordMatches(pwd, cfg.AdminPassword) {
+		if !a.isLocalConnection(r) {
+			loginFails.failed(remoteHost(r), time.Now())
+		}
 		if cfg.AdminPassword == "" {
 			a.log(logx.Session).Errf("login refused: config.json holds no admin password, thus no caller on the network can log in")
 		}
@@ -197,6 +286,9 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !a.isLocalConnection(r) {
+		loginFails.reset(remoteHost(r))
+	}
 	signed, hint := a.newSessionCookies(roleAdmin)
 	if signed == nil {
 		// The install has no key. See sessionSecret. An unsigned cookie is not an option.

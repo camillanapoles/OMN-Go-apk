@@ -102,3 +102,4 @@ the status of the old record to `replaced by NNNN`.
 | [0028](0028-record-the-commit-of-the-build.md) | Record the commit of the build. | `version.go`, `android/build_aar.sh`, `Dockerfile`, `internal/status/collect.go` |
 | [0029](0029-keep-the-ignore-patterns-of-the-app-in-git-info-exclude.md) | Keep the ignore patterns of the app in .git/info/exclude. | `internal/gitsync/repo.go` |
 | [0030](0030-refuse-the-default-admin-password-on-the-network.md) | Refuse the default admin password on the network. | `internal/config/config.go`, `internal/app/session.go`, `internal/repocheck/default_password_test.go` |
+| [0031](0031-throttle-the-network-login.md) | Throttle the network login. | `internal/app/session.go`, `internal/app/middleware.go`, `internal/render/pages.go`, `internal/repocheck/http_headers_test.go` |
