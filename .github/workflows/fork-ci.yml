@@ -105,13 +105,22 @@ jobs:
           if [ "$GITHUB_REF" = "refs/heads/dev" ] || [ "$GITHUB_REF" = "refs/heads/merge/sync-cnmfs" ]; then
             CACHE_TO="--cache-to type=gha,mode=max,scope=omngo-test"
           fi
+          set +e
           docker buildx build \
             --target test \
             --progress plain \
             --cache-from type=gha,scope=omngo-test \
             --cache-from type=gha,scope=omngo \
             $CACHE_TO \
-            .
+            . > build.log 2>&1
+          RC=$?
+          set -e
+          tail -80 build.log
+          while IFS= read -r l; do
+            m="${l//'%'/'%25'}"; m="${m//$'\r'/'%0D'}"; m="${m//$'\n'/'%0A'}"
+            echo "::error::${m}"
+          done < <(grep -E "FAIL|panic:|undefined|cannot |\.go:[0-9]+:[0-9]+:|--- FAIL|# [a-z]|vet:|Error" build.log | tail -35)
+          exit $RC
 
   apk:
     name: APK Build
