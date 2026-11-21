@@ -14,7 +14,7 @@ auto-gera 6 skills em `.claude/skills/gitnexus-*/SKILL.md` a cada `analyze`
 (--skip-agents-md não evita as skills), mas o diretório está no `.gitignore`
 — cada máquina/worktree regenera ou fica sem; não há install replicável, não
 há catálogo, não há gate de auditoria, e o `AGENTS.md` de cada spec não
-declara quais skills a spec usa. As 4 fontes externas desejadas foram
+declara quais skills a spec usa. As 5 fontes externas desejadas foram
 **validadas nesta auditoria** (ver `specs/skills-harness/spec.md` para
 evidência): todas reais, ativas e no formato aberto SKILL.md/frontmatter com
 plugins multi-agente — mas o `chrisbanes/skills` recomenda Kotlin/Compose,

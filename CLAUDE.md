@@ -830,12 +830,15 @@ capability to a session. Read it before you install or activate any skill. The
 full spec is `doc/decisions/0030-adopt-the-agent-skill-program.md`.
 
 The repository holds no skill files. Each skill comes from a source outside
-the tree. The four sources of the program are:
+the tree. The five sources of the program are:
 
 * `multica-ai/andrej-karpathy-skills`: generic guidelines for an agent session.
 * `mattpocock/skills`: skills for software engineering work.
 * `chrisbanes/skills`: skills for Kotlin, Jetpack Compose and Android.
 * `affaan-m/ECC`: skills and instincts for the agent harness.
+* `jev-ai/jev-agent-skill`: typed decisions of the harness. It calls a service
+  outside the tree with a key of the local environment. It stays inactive
+  until a stage selects it.
 
 Follow the three stages of the spec.
 

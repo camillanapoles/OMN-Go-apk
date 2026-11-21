@@ -9,9 +9,11 @@ FUSE/Android). Domínios `render-search`, `sync-git` e `db` foram descartados
 por não terem achados defensáveis.
 
 **Prioridade máxima: `audit-skills-harness`** — governança de skills dos
-agentes (fontes validadas: karpathy-skills, mattpocock/skills, chrisbanes/skills,
-affaan-m/ECC). Execute esta issue ANTES das demais: ela otimiza os agentes que
-executarão as outras 7 (ver `docs/AUDIT_PROMPT.md` FASE S).
+agentes (fontes validadas: multica-ai/andrej-karpathy-skills, mattpocock/skills,
+chrisbanes/skills, affaan-m/ECC, jev-ai/jev-agent-skill — esta última com
+gate de serviço externo: `JEV_API_KEY` fora do tree e ativação opt-in por
+estágio). Execute esta issue ANTES das demais: ela otimiza os agentes que
+executarão as outras 7 (ver `docs/AUDIT_PROMPT.md` FASE S e CLAUDE.md §12).
 
 ## Mapa Topológico Geral
 

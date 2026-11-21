@@ -52,7 +52,7 @@
 ## [SKILLS-HARNESS::MELHORIA::INTEROPERABILIDADE::003] Formato universal e fontes validadas
 
 - **What (O quê):** adotar SKILL.md (frontmatter `name`/`description`) +
-  `AGENTS.md` como formatos, e as 4 fontes externas auditadas nesta sessão:
+  `AGENTS.md` como formatos, e as 5 fontes externas auditadas nesta sessão:
   - `multica-ai/andrej-karpathy-skills` — guidelines gerais (Think Before
     Coding, Simplicity First, Surgical Changes, Goal-Driven Execution);
     estrutura `skills/karpathy-guidelines/` + `.claude-plugin/` +
@@ -68,6 +68,18 @@
   - `affaan-m/ECC` — harness de agentes (skills, instincts, memory, security,
     research-first; commit `4adeee6`, 2026-11-20) — instalar seletivas
     (ecc-conventions, ecc-guardrails, ecc-research-playbook), não o repo.
+  - `jev-ai/jev-agent-skill` — decisões tipadas do harness (pin `8702f43`,
+    2026-09-21; SKILL.md universal instalável com `npx skills add` ou cópia
+    para `.agents/skills/jev-agent/SKILL.md`). Validação: repo alcançável,
+    formato universal, last change recente. **Condições do gate**: serviço
+    externo + `JEV_API_KEY` — a chave vive no ambiente local e NUNCA entra no
+    tree (padrão `doc/gitops/SECRETS.md`); status default `inactive` no
+    manifest, selecionada por estágio só quando um julgamento do estágio
+    precisar (envia estado da sessão a serviço de terceiros e consome
+    créditos); endpoint `POST https://thejevai.com/v1/systemone`. Usos no
+    fork: guard de tool call destrutivo (`noul`), triagem de itens da
+    auditoria (`choice`), verificação de evidência antes de publicar spec
+    (`noul`).
 - **Why (Por quê):** formato aberto = zero lock-in; seleção por skill evita
   importar conflito; pin = replicabilidade byte-a-byte entre worktrees.
 - **Where (Onde):** `local/skills/manifest.yml`; `local/agent-setup/install.sh`
