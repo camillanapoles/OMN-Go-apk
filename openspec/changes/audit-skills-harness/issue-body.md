@@ -17,6 +17,7 @@ Spec OpenSpec: [`openspec/changes/audit-skills-harness/`](../../openspec/changes
 - ✅ `mattpocock/skills` — eng. software (commit `abeeaf9`, 2026-11-18; CI valida frontmatter; 9 agentes)
 - ✅ `chrisbanes/skills` — Android (commit `edd18ff`, 2026-11-20; **triagem obrigatória**: Kotlin/Compose proibidos §1)
 - ✅ `affaan-m/ECC` — harness (commit `4adeee6`, 2026-11-20; instalar seletivas, não o repo)
+- ✅ `jev-ai/jev-agent-skill` — decisões tipadas do harness (pin `8702f43`; **gate**: serviço externo + `JEV_API_KEY` fora do tree, status `inactive`, opt-in por estágio; docs: thejevai.com/docs)
 
 ## Checklist macro (P0 → P2)
 

@@ -148,6 +148,14 @@ auditoria.
     — só workflow/build/review genéricos podem virar global.
   - `affaan-m/ECC` — harness de agentes (skills, instincts, memory, security,
     research-first); instalar seletivas, nunca o repo.
+  - `jev-ai/jev-agent-skill` — decisões tipadas do harness (choice/score/noul
+    via `POST https://thejevai.com/v1/systemone`, pin `8702f43`, SKILL.md
+    universal instalável com `npx skills add` ou `.agents/skills/jev-agent/`).
+    **Gate**: serviço externo + API key — a chave vive fora do tree (padrão
+    `doc/gitops/SECRETS.md`, nunca commitada); status default `inactive`,
+    opt-in por spec/estágio (envia estado da sessão a um serviço de terceiros
+    e consome créditos). Usos: guard de tool call (`noul`), triagem/roteamento
+    (`choice`), verificação de evidência de spec.
 - Critério de validade: formato aberto SKILL.md (frontmatter `name`/
   `description`), atividade recente ou versão pinada estável, e ZERO conflito
   com `CLAUDE.md` §1. Falhou o critério → entra no pool como `inactive` com
@@ -192,7 +200,7 @@ auditoria.
   afins, ou não entra.
 - Resultado esperado: cada projeto/workspace/spec com `AGENTS.md` próprio
   (como instruído na FASE 3) **+ otimizado** pelas skills globais e pela
-  seleção por-spec das 4 fontes acima.
+  seleção por-spec das 5 fontes acima.
 
 ---
 

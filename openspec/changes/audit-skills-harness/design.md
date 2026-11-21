@@ -9,7 +9,7 @@
   teste de convenção textual, padrão `repocheck`).
 - Formato universal: SKILL.md (frontmatter `name`/`description`) + `AGENTS.md`
   — interoperável com Claude Code, Codex, Cursor, OpenCode, Antigravity e
-  skills.sh. **Nenhum lock-in de vendor**: as 4 fontes todas publicam os dois
+  skills.sh. **Nenhum lock-in de vendor**: as 5 fontes todas publicam os dois
   formatos ou equivalentes mapeáveis.
 
 ## Construção (build/test/lint)

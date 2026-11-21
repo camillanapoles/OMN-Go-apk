@@ -24,10 +24,18 @@ Four repositories outside this tree hold skills for the layers of this project:
 4. `affaan-m/ECC` holds the harness layer: skills, instincts and memory for the
    agent runtime.
 
-Each of the four is active and maintained, and each targets one layer. The four
-cover the layers of this project without overlap. The maintainer asked for one
-standing process that adds skills in a controlled way, gives each workspace one
-`AGENTS.md`, and keeps the whole program reproducible.
+A fifth source serves the harness only. `jev-ai/jev-agent-skill` holds one
+skill for typed decisions. It sends a state and typed questions to the Jev AI
+service outside the tree, and it gets a probability-backed answer that the
+session can branch on. It calls the service with an API key of the person who
+runs the session. The key stays in the local environment and never enters the
+repository. This skill stays inactive by default, and a stage selects it only
+when a judgment of the stage needs it.
+
+Each of the five is active and maintained, and each targets one layer. The
+first four cover the layers of this project without overlap. The maintainer
+asked for one standing process that adds skills in a controlled way, gives
+each workspace one `AGENTS.md`, and keeps the whole program reproducible.
 
 ## Decision
 
@@ -80,7 +88,7 @@ The program keeps each layer independent.
 
 1. A skill from one source must not change the behavior of another source.
 2. A skill must use the file formats and the hooks of the tool that runs it.
-3. The skills of the four sources keep their own names and their own files.
+3. The skills of the five sources keep their own names and their own files.
    The project copies or adapts a skill only when a copy is necessary, and it
    names the source of the copy.
 4. `AGENTS.md` holds the rules of the project and of the workspace. It carries
@@ -118,5 +126,5 @@ that spec.
   appendix of the karpathy guidelines.
 * A new skill enters the session through a script or a note of the current
   process, never through the initial instructions.
-* The four skill sources stay independent. A change in one source does not
+* The five skill sources stay independent. A change in one source does not
   change the behavior of the others.
