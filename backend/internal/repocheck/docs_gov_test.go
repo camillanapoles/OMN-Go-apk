@@ -36,6 +36,11 @@ func TestNoDeadDockerfileName(t *testing.T) {
 		return nil
 	})
 	if err != nil {
+		if os.IsNotExist(err) {
+			// The Docker gate copies no docs/ into the image. The scan
+			// of a missing tree proves nothing.
+			t.Skip("docs/ is not in this tree")
+		}
 		t.Fatal(err)
 	}
 }

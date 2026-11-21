@@ -1,0 +1,8 @@
+# Dependabot keeps the SHA pins of the GitHub Actions current.
+# One PR per week at most. The pins live in .github/workflows/*.yml.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
