@@ -20,7 +20,7 @@ merge/sync-cnmfs   STAGING: sempre o merge do original (update) + nosso dev
                      │ PR (nosso build staging)
                      ▼
 main               PRODUÇÃO: só recebe merge/sync-cnmfs (nosso build produção)
-  │ tag v<versão>-f.N automática → GitHub Release com o APK para instalar
+  │ release por spec concluída: dispatch do workflow Release → gate → tag → APK+changelog
   └── depois: os arena/* que já chegaram em main são deletados (sem acumular)
 ```
 
@@ -63,9 +63,13 @@ pode aprovar o próprio PR).
 ## A governança dos builds
 
 - **Produção (`main`)**: recebe apenas `merge/sync-cnmfs`, com os três
-  checks verdes e a aprovação. Um push de tag `v*` a partir de `main`
+  checks verdes e a aprovação. Nenhum push publica release: o workflow
+  **Release** é disparado à mão (`gh workflow run Release -f issue=<n>`)
+  somente com uma spec concluída, e o gate de spec
+  (`local/release/spec-release-gate.sh`) roda antes da tag. A tag `v*`
   dispara o release build (`android-gomobile-release.yml`). Nunca
-  force-push; nunca delete.
+  force-push; nunca delete. Ver
+  `doc/decisions/0031-release-after-a-completed-spec.md`.
 - **Staging (`merge/sync-cnmfs`)**: recebe merges do original
   (`omn-go/sync`, pelo Fork Sync automático) e do nosso dev (`cnmfs/*`,
   `arena/*`). Os mesmos checks obrigatórios; o build do staging é o

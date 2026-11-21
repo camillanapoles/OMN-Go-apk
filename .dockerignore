@@ -1,11 +1,14 @@
 .git/
 .github/
+!.github/workflows/
 .gitignore
 .env
 **/*.keystore
 doc/
 !doc/decisions/
+!doc/changelog/
 local/
+!local/release/
 output-binaries/
 README.md
 CLAUDE.md
