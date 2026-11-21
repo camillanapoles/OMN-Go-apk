@@ -35,3 +35,14 @@
     push ou mover o gate depois da tag quebra o Fork CI com a mensagem do
     meta-teste; apagar o changelog da versão vigente quebra o Fork CI.
   - **Validação:** `go vet` verde; nenhum outro meta-teste afetado.
+
+## Correção do primeiro uso do gate
+
+- [x] O gate localiza a proposal da issue nos dois formatos da casa (bold
+  `> **Issue:** #N` e plano `Issue: #N`) e exige uma spec única por issue.
+  - **Verificação:** o padrão tolerante do gate casa com a linha de issue de
+    cada uma das nove proposals do tree; duas proposals citando a mesma
+    issue fazem o gate falhar por ambiguidade.
+  - **Validação:** a execução do gate antes do dispatch mostra a spec certa
+    na mensagem de OK, e o primeiro dispatch real (issue #42) atravessa os
+    cinco passos do gate sem falha.
