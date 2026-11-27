@@ -49,3 +49,13 @@ oculta segredos da página (ADR 0005). Ler antes: `CLAUDE.md` §1 (regra 7),
   a verificação de "senha default" vive lá.
 - Nenhum `log.Printf` direto (usar `a.log(logx.Session)`); nenhum bare 64-bit
   atomic; nenhum `log.Printf` além das 2 exceções documentadas.
+
+## Skills ativas
+
+Globais:
+- `karpathy-guidelines` — `multica-ai/andrej-karpathy-skills` @ `2c606141936f1eeef17fa3043a72095b4765b9c2`.
+- `gitnexus-exploring`, `gitnexus-impact-analysis`, `gitnexus-debugging`, `gitnexus-refactoring`, `gitnexus-guide`, `gitnexus-cli` — `abhigyanpatwari/GitNexus` @ `c4ecf398de637cf779ab2238e69958cfd5d601ce`.
+
+Seleção por spec: `security-review`.
+
+Ative durante a revisão de autenticação e segredos; as regras do repositório têm precedência.

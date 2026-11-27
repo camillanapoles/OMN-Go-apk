@@ -45,3 +45,13 @@ antes: `CLAUDE.md` §1 regras 10-11, §3 (Routes/JSON/Logging), ADR 0001, 0002,
   (§1 regra 7).
 - Não adicionar dependência de rate limit (stdlib apenas).
 - Nenhum `log.Printf` direto; usar `a.log(logx.Session)` / `logx.Server`.
+
+## Skills ativas
+
+Globais:
+- `karpathy-guidelines` — `multica-ai/andrej-karpathy-skills` @ `2c606141936f1eeef17fa3043a72095b4765b9c2`.
+- `gitnexus-exploring`, `gitnexus-impact-analysis`, `gitnexus-debugging`, `gitnexus-refactoring`, `gitnexus-guide`, `gitnexus-cli` — `abhigyanpatwari/GitNexus` @ `c4ecf398de637cf779ab2238e69958cfd5d601ce`.
+
+Seleção por spec: `security-review`.
+
+Ative durante a revisão de login e headers; as regras do repositório têm precedência.

@@ -44,3 +44,13 @@ ordem fixa + vendored + custom por último). O arquivo central é
   `RenamedAssets`).
 - Nada de `alert/confirm/prompt` (`TestNoBrowserDialog`) nem handler inline em
   template (`TestTemplatesHoldNoInlineHandler`).
+
+## Skills ativas
+
+Globais:
+- `karpathy-guidelines` — `multica-ai/andrej-karpathy-skills` @ `2c606141936f1eeef17fa3043a72095b4765b9c2`.
+- `gitnexus-exploring`, `gitnexus-impact-analysis`, `gitnexus-debugging`, `gitnexus-refactoring`, `gitnexus-guide`, `gitnexus-cli` — `abhigyanpatwari/GitNexus` @ `c4ecf398de637cf779ab2238e69958cfd5d601ce`.
+
+Seleção por spec: nenhuma adicional.
+
+`tdd` permanece inativa porque depende de arquivos auxiliares e aprovação explícita de seams; a spec já define o escopo dos testes.
