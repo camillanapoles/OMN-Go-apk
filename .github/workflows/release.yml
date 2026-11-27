@@ -1,30 +1,36 @@
-# Release: after production lands, tag the release so the build makes
-# the installable APK.
+# Release: the maintainer ships one completed spec with one release.
 #
-#   main -> tag v<APP_VERSION>-f.N -> Build OMN-Go (GitHub Release + APK)
+#   completed spec -> gh workflow run Release -f issue=<n> ->
+#   spec gate -> tag v<APP_VERSION>-f.N -> Build OMN-Go ->
+#   GitHub Release with the humanized changelog
 #
-# A push to main creates the next tag of the version in
-# backend/version.go and pushes it. The push of a v* tag triggers the
-# "Build OMN-Go" workflow (android-gomobile-release.yml), which builds
-# the signed APK through the Dockerfile and publishes the GitHub Release
-# with the APK attached — the artifact to install.
-#
-# The tag is pushed with the PAT secret FORK_SYNC_TOKEN: a push of
-# GITHUB_TOKEN starts no workflow run and the build would never follow.
-# See doc/gitops/SECRETS.md.
+# A push to main makes no release. The old trigger tagged at each push,
+# and the fork then made one small release per pull request, with notes
+# that speak to the reviewer of a commit and not to the person who uses
+# the app. The gate proves that the issue of the spec is closed with the
+# spec:done label, that the tasks file of the spec holds no open task,
+# that each task carries its verification and validation criteria, that
+# the three version files agree, and that the humanized changelog of the
+# version exists. A red gate publishes nothing.
+# See doc/decisions/0031-release-after-a-completed-spec.md and
+# local/release/spec-release-gate.sh.
 name: Release
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      issue:
+        description: 'The issue of the completed spec that this release ships'
+        required: true
+        type: string
 
 permissions:
   contents: write
+  issues: read
 
 jobs:
-  tag:
-    name: Tag the release
+  release:
+    name: Spec gate and tag
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -43,6 +49,12 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
           token: ${{ secrets.FORK_SYNC_TOKEN }}
+
+      - name: Run the spec gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ inputs.issue }}
+        run: bash local/release/spec-release-gate.sh "$ISSUE"
 
       - name: Compute the next tag
         id: tag
@@ -77,6 +89,6 @@ jobs:
           {
             echo "## 🏷️ Release $TAG"
             echo ""
-            echo "A tag dispara o workflow **Build OMN-Go**, que compila o APK assinado"
-            echo "e publica a GitHub Release com o `.apk` para instalação."
+            echo "O gate da spec passou. A tag dispara o workflow **Build OMN-Go**, que compila"
+            echo "o APK assinado e publica a GitHub Release com o changelog humanizado como notas."
           } >> "$GITHUB_STEP_SUMMARY"

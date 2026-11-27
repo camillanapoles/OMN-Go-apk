@@ -2,14 +2,66 @@
 
 <!-- codemap: refreshed 2026-10-04 · base d9f6c82 · scan: manual -->
 
-## Deploy (Release assinada)
+## Agent skills
+
+As skills ficam fora do build em `local/skills/manifest.yml`. O instalador usa
+commits completos, mantém skills instaladas somente em `.claude/skills/` (que o
+Git ignora) e apaga o diretório temporário de downloads ao sair.
+
+Instale as skills globais em uma máquina ou worktree novo:
+
 ```bash
-git checkout main && git pull
-git tag vYY.MM.S-f.N <sha-em-main> && git push origin vYY.MM.S-f.N
+bash local/agent-setup/install.sh
 ```
-Tag dispara `android-gomobile-release.yml` → build Dockerfile.ci (gate interno)
-→ Release com 7 assets (universal 69 MB, 4 ABIs, 2 desktop). Verificar:
-`gh release view vYY.MM.S-f.N --json assets` (7 itens) e run success ~6 min.
+
+Ao iniciar uma spec, confira a linha `Seleção por spec:` em seu `AGENTS.md`
+e instale apenas o conjunto aprovado para ela. O instalador exige que essa
+seleção coincida com `applies_to` no manifest e falha fechado se houver
+qualquer divergência:
+
+```bash
+bash local/agent-setup/install.sh --spec audit-backend-core
+```
+
+Troque o slug pelo diretório da spec. O comando baixa somente arquivos
+`SKILL.md` nos commits declarados no manifest. Ele não instala plugins, hooks
+ou skills inativas sem seleção. Ao terminar a spec, rode o comando sem `--spec`
+para remover as skills de estágio que não foram alteradas. Um arquivo não
+gerenciado só é aceito se já tiver conteúdo idêntico ao pin; alterações humanas
+são preservadas e geram erro com o caminho em conflito.
+
+O pacote GitNexus declara a licença `PolyForm-Noncommercial-1.0.0`. Revise a
+licença antes de usar essas skills em trabalho comercial.
+
+`chrisbanes` permanece inativo enquanto a regra 1 de `CLAUDE.md` proibir Kotlin
+e Compose. `jev-agent` permanece inativo porque envia estado a um serviço externo
+e exige `JEV_API_KEY`, que nunca entra no repositório.
+
+Se precisar atualizar o índice GitNexus, use o pin e evite a injeção de arquivos
+de contrato:
+
+```bash
+npx -y gitnexus@1.6.12 analyze --skip-agents-md
+```
+
+A opção evita alterações em `CLAUDE.md` e `AGENTS.md`, mas não evita a instalação
+de skills padrão. Confira `git status --short` depois da análise.
+
+## Deploy (Release por spec concluída)
+A release sai **somente** quando uma spec está 100% concluída: issue
+fechada com label `spec:done`, zero tarefa pendente na spec, cada tarefa
+com critérios Verificação/Validação, versão igual nos 3 arquivos e
+changelog humanizado da versão (`doc/changelog/<versão>.md`, escrito no
+commit que cria a versão). Regras: `doc/decisions/0031-release-after-a-completed-spec.md`.
+
+```bash
+gh workflow run Release -f issue=<número-da-issue-da-spec>
+gh run watch <run-id>   # gate → tag vYY.MM.S-f.N → Build OMN-Go
+```
+O gate falha com a mensagem exata do que falta, e nada é publicado.
+Verificar após o build: `gh release view vYY.MM.S-f.N --json assets`
+(7 itens), as notas em português e run success ~6 min. Rollback: APK da
+release anterior (mesma key).
 
 ## Segredos (Actions)
 

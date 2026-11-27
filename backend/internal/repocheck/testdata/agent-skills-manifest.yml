@@ -1,0 +1,107 @@
+version: 1
+skills:
+  - id: karpathy-guidelines
+    source: https://github.com/multica-ai/andrej-karpathy-skills.git
+    pin: 2c606141936f1eeef17fa3043a72095b4765b9c2
+    path: skills/karpathy-guidelines/SKILL.md
+    status: global
+    reason: General behavior accepted by CLAUDE.md section 12; no plugin hooks.
+    applies_to: all
+  - id: gitnexus-exploring
+    source: https://github.com/abhigyanpatwari/GitNexus.git
+    pin: c4ecf398de637cf779ab2238e69958cfd5d601ce
+    path: gitnexus/skills/gitnexus-exploring.md
+    status: global
+    reason: Pinned code-graph workflow; review the upstream non-commercial license before commercial use.
+    applies_to: all
+  - id: gitnexus-impact-analysis
+    source: https://github.com/abhigyanpatwari/GitNexus.git
+    pin: c4ecf398de637cf779ab2238e69958cfd5d601ce
+    path: gitnexus/skills/gitnexus-impact-analysis.md
+    status: global
+    reason: Pinned code-graph workflow; review the upstream non-commercial license before commercial use.
+    applies_to: all
+  - id: gitnexus-debugging
+    source: https://github.com/abhigyanpatwari/GitNexus.git
+    pin: c4ecf398de637cf779ab2238e69958cfd5d601ce
+    path: gitnexus/skills/gitnexus-debugging.md
+    status: global
+    reason: Pinned code-graph workflow; review the upstream non-commercial license before commercial use.
+    applies_to: all
+  - id: gitnexus-refactoring
+    source: https://github.com/abhigyanpatwari/GitNexus.git
+    pin: c4ecf398de637cf779ab2238e69958cfd5d601ce
+    path: gitnexus/skills/gitnexus-refactoring.md
+    status: global
+    reason: Pinned code-graph workflow; review the upstream non-commercial license before commercial use.
+    applies_to: all
+  - id: gitnexus-guide
+    source: https://github.com/abhigyanpatwari/GitNexus.git
+    pin: c4ecf398de637cf779ab2238e69958cfd5d601ce
+    path: gitnexus/skills/gitnexus-guide.md
+    status: global
+    reason: Pinned reference for GitNexus tools; review the upstream non-commercial license before commercial use.
+    applies_to: all
+  - id: gitnexus-cli
+    source: https://github.com/abhigyanpatwari/GitNexus.git
+    pin: c4ecf398de637cf779ab2238e69958cfd5d601ce
+    path: gitnexus/skills/gitnexus-cli.md
+    status: global
+    reason: Pinned CLI reference; review the upstream non-commercial license before commercial use.
+    applies_to: all
+  - id: code-review
+    source: https://github.com/mattpocock/skills.git
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/engineering/code-review/SKILL.md
+    status: inactive
+    reason: Requires parallel sub-agents and external issue-tracker setup; not a safe default.
+    applies_to: none
+  - id: tdd
+    source: https://github.com/mattpocock/skills.git
+    pin: abeeaf95660ba9e8b7c753eb38f441ca707a8823
+    path: skills/engineering/tdd/SKILL.md
+    status: inactive
+    reason: Requires companion files, confirmed test seams, and a coverage target outside this repository contract.
+    applies_to: none
+  - id: kotlin-api-design
+    source: https://github.com/chrisbanes/skills.git
+    pin: edd18ff74aef5c49485dc376c043043f1e767f5a
+    path: skills/kotlin-api-design/SKILL.md
+    status: inactive
+    reason: conflito §1 regra 1; Kotlin and Compose conflict with the Java-only Android constraint.
+    applies_to: none
+  - id: security-review
+    source: https://github.com/affaan-m/ECC.git
+    pin: 4adeee6732a12d1540f49a4d50a38ce8c97f9a53
+    path: skills/security-review/SKILL.md
+    status: inactive
+    reason: Security review stays inactive by default and is selected only by security-focused specs.
+    applies_to: audit-backend-core|audit-config|audit-storage-exchange
+  - id: docs-governance
+    source: https://github.com/affaan-m/ECC.git
+    pin: 4adeee6732a12d1540f49a4d50a38ce8c97f9a53
+    path: skills/docs-governance/SKILL.md
+    status: inactive
+    reason: Depends on companion references and scripts that are not installed as a complete skill tree.
+    applies_to: none
+  - id: deep-research
+    source: https://github.com/affaan-m/ECC.git
+    pin: 4adeee6732a12d1540f49a4d50a38ce8c97f9a53
+    path: skills/deep-research/SKILL.md
+    status: inactive
+    reason: Keep inactive until a research stage approves its external search assumptions.
+    applies_to: none
+  - id: ecc-conventions
+    source: https://github.com/affaan-m/ECC.git
+    pin: 4adeee6732a12d1540f49a4d50a38ce8c97f9a53
+    path: .agents/skills/ecc-conventions/SKILL.md
+    status: rejected
+    reason: The skill describes ECC JavaScript and commit conventions that conflict with this repository.
+    applies_to: none
+  - id: jev-agent
+    source: https://github.com/jev-ai/jev-agent-skill.git
+    pin: 8702f435249b3b0bed22ec23ef78eb1e0d7c05f6
+    path: SKILL.md
+    status: inactive
+    reason: serviço externo + API key — opt-in por estágio; it sends session state to a third-party service.
+    applies_to: none
