@@ -44,3 +44,13 @@ desta change.
 - Proibido importar AndroidX (§1 regra 1); proibido adicionar dependência
   Gradle.
 - Não mover método entre classes do pacote sem reler o ADR 0022.
+
+## Skills ativas
+
+Globais:
+- `karpathy-guidelines` — `multica-ai/andrej-karpathy-skills` @ `2c606141936f1eeef17fa3043a72095b4765b9c2`.
+- `gitnexus-exploring`, `gitnexus-impact-analysis`, `gitnexus-debugging`, `gitnexus-refactoring`, `gitnexus-guide`, `gitnexus-cli` — `abhigyanpatwari/GitNexus` @ `c4ecf398de637cf779ab2238e69958cfd5d601ce`.
+
+Seleção por spec: nenhuma adicional.
+
+As skills Kotlin/Compose de chrisbanes permanecem inativas por conflito com CLAUDE.md §1 regra 1.

@@ -40,3 +40,13 @@ Ler antes: `docs/CONTRIBUTING.md`, `docs/RUNBOOK.md`, `doc/gitops/README.md`,
   real antes de qualquer referência arquivo:linha nova.
 - Nenhum número de versão em comentários de código novo (se o meta-teste
   entrar, `TestNoVersionNumberInComments` aplica).
+
+## Skills ativas
+
+Globais:
+- `karpathy-guidelines` — `multica-ai/andrej-karpathy-skills` @ `2c606141936f1eeef17fa3043a72095b4765b9c2`.
+- `gitnexus-exploring`, `gitnexus-impact-analysis`, `gitnexus-debugging`, `gitnexus-refactoring`, `gitnexus-guide`, `gitnexus-cli` — `abhigyanpatwari/GitNexus` @ `c4ecf398de637cf779ab2238e69958cfd5d601ce`.
+
+Seleção por spec: nenhuma adicional.
+
+`docs-governance` depende de arquivos auxiliares e não deve ser instalada como um SKILL.md isolado.

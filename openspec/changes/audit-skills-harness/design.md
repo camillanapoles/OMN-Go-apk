@@ -2,38 +2,48 @@
 
 ## Stack envolvida
 
-- **Zero impacto no produto**: tudo em `local/` (excluído do Docker context
-  por `.dockerignore:7`, nunca embarcado — CLAUDE.md §2).
-- bash + git + curl (instalável em Termux — CONTRIBUTING); YAML do manifest
-  validado por meta-teste Go (sem dependência: parser mínimo por linha ou
-  teste de convenção textual, padrão `repocheck`).
-- Formato universal: SKILL.md (frontmatter `name`/`description`) + `AGENTS.md`
-  — interoperável com Claude Code, Codex, Cursor, OpenCode, Antigravity e
-  skills.sh. **Nenhum lock-in de vendor**: as 5 fontes todas publicam os dois
-  formatos ou equivalentes mapeáveis.
+- **Sem mudança no produto.** O instalador e o manifest são ferramentas do
+  mantenedor. `local/` continua fora do Docker context e do APK.
+- `local/skills/manifest.yml` é um link para
+  `backend/internal/repocheck/testdata/agent-skills-manifest.yml`. Assim, o
+  Gate valida o mesmo conteúdo que o instalador lê, sem incluir `local/` no
+  contexto Docker.
+- Bash 4+, Git e ferramentas POSIX. O instalador não usa `yq`, npm, Python ou
+  dependências de runtime. O meta-teste Go valida um subconjunto YAML fechado.
+- `SKILL.md` com frontmatter `name`/`description` e `AGENTS.md` são formatos
+  abertos. O instalador atual materializa as skills em `.claude/skills/`;
+  adaptadores para outros agentes ficam fora desta entrega.
 
 ## Construção (build/test/lint)
 
-- Quality Gate continua sendo o Fork CI; o novo meta-teste
-  `repocheck/agent_skills_test.go` entra no `go test ./backend/...` normal.
-- install.sh idempotente: reexecutar não duplica (checagem por hash); nunca
-  escreve fora de `.claude/skills/` e `AGENTS.md` (bloco marcado
-  `<!-- agent-skills -->`); nunca edita `CLAUDE.md` (contrato vigente é
-  intocável por scripts).
-- Skills do projeto: versionadas em `local/skills/<id>/SKILL.md`; externas:
-  baixadas no pin do manifest (clone raso + checkout do pin) — o repo NÃO
-  vendora conteúdo terceiro.
-- Commits: `tool(skills): ...` com bump nos 3 arquivos (toca Go no meta-teste).
+- O Quality Gate continua no Fork CI. `repocheck/agent_skills_test.go` valida
+  os pins, caminhos, estados e decisões conhecidas sem acessar a rede.
+- O instalador baixa cada repositório uma vez por origem e pin, valida o SHA
+  do commit, o caminho e o frontmatter. Uma skill externa ausente falha com
+  origem, pin e caminho.
+- `install.sh` instala o conjunto global por padrão. `--spec <id>` lê a linha
+  `Seleção por spec:` do `AGENTS.md` da change e exige que ela coincida com as
+  entradas inativas cujo `applies_to` inclui o ID. Qualquer divergência falha
+  antes de baixar ou alterar arquivos; só então instala a seleção declarada.
+  Sem `--spec`, as skills de estágio inalteradas retornam ao estado global.
+- Um marcador local registra origem, pin e checksum. O instalador recusa
+  sobrescrever arquivos não gerenciados ou alterados por uma pessoa. As skills
+  persistentes ficam em `.claude/skills/`; downloads temporários são removidos
+  ao sair. O instalador não edita `CLAUDE.md` nem `AGENTS.md`.
+- O manifest aponta para arquivos externos por commit; o repositório não
+  armazena cópias de skills de terceiros.
 
 ## Governança
 
-- Merge: 3 checks obrigatórios verdes; PR `cnmfs/*`/`arena/*` →
-  `merge/sync-cnmfs`.
-- Ordem de execução: **esta issue primeiro** (otimiza os agentes das demais).
-- Restrições: nenhuma skill global sem `reason` + pin (meta-teste); skills
-  Android do `chrisbanes/skills` entram inativas até triagem contra §1 regra
-  1 (Kotlin/Compose proibidos); `CLAUDE.md` e `doc/**` intocáveis; o pool
-  nunca é ativado por inteiro (ativar tudo derrota o propósito).
-- Princípios de interoperabilidade aplicados: formatos abertos, um tree fonte,
-  instalação replicável de qualquer máquina, seleção declarada (auditorável),
-  fonte terceira sempre pinada e citada.
+- Nenhuma skill global sem origem, pin completo, estado e motivo.
+- `karpathy-guidelines` e as seis skills GitNexus são globais. O pacote
+  GitNexus declara licença PolyForm-Noncommercial-1.0.0; revisar antes de uso
+  comercial.
+- `chrisbanes/skills` permanece inativo por conflito com
+  `CLAUDE.md` §1 regra 1. `jev-agent` permanece inativo por usar serviço
+  externo e exigir `JEV_API_KEY`.
+- As specs declaram a seleção de estágio em seus `AGENTS.md`. A seleção não
+  ativa o pool inteiro. `security-review` só é selecionada para as specs de
+  backend-core, config e storage-exchange.
+- A instalação usa formatos abertos e pins completos. Não instala plugins nem
+  hooks de terceiros.
