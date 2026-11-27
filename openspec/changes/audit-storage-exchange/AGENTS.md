@@ -43,3 +43,13 @@ arquivo), ADR 0006/0007/0008, e a spec desta change.
 - Não criar segundo resolvedor de nome (`userFileName` único) nem segundo
   teste de contenção (`RelInside` único).
 - Não adicionar extensão à lista sem o meta-teste de 001 verde.
+
+## Skills ativas
+
+Globais:
+- `karpathy-guidelines` — `multica-ai/andrej-karpathy-skills` @ `2c606141936f1eeef17fa3043a72095b4765b9c2`.
+- `gitnexus-exploring`, `gitnexus-impact-analysis`, `gitnexus-debugging`, `gitnexus-refactoring`, `gitnexus-guide`, `gitnexus-cli` — `abhigyanpatwari/GitNexus` @ `c4ecf398de637cf779ab2238e69958cfd5d601ce`.
+
+Seleção por spec: `security-review`.
+
+Ative durante a revisão de uploads e SVG; as regras do repositório têm precedência.

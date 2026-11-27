@@ -42,3 +42,13 @@ em `export`), Fork CI (um build por commit, checks obrigatórios), Fork Sync
   nesta change.
 - Nenhuma action nova; nenhum workflow novo (o fork padronizou os existentes).
 - Nunca usar `pull_request_target` nem elevar `permissions` ao pinar.
+
+## Skills ativas
+
+Globais:
+- `karpathy-guidelines` — `multica-ai/andrej-karpathy-skills` @ `2c606141936f1eeef17fa3043a72095b4765b9c2`.
+- `gitnexus-exploring`, `gitnexus-impact-analysis`, `gitnexus-debugging`, `gitnexus-refactoring`, `gitnexus-guide`, `gitnexus-cli` — `abhigyanpatwari/GitNexus` @ `c4ecf398de637cf779ab2238e69958cfd5d601ce`.
+
+Seleção por spec: nenhuma adicional.
+
+`code-review` permanece inativa porque requer subagentes paralelos e configuração externa do issue tracker.
