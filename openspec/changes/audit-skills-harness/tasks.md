@@ -14,9 +14,9 @@
 - [x] Adicionar `repocheck/agent_skills_test.go` para validar o manifest e as seleções declaradas sem rede.
   - **Verificação:** entry sem motivo, pin completo, origem ou caminho aprovado falha; os oito `AGENTS.md` coincidem com `applies_to` e a mensagem identifica a divergência.
   - **Validação:** `go vet` e `go test` dos arquivos do meta-teste passaram isoladamente; origem, pin e caminho remoto são conferidos no instalador.
-- [ ] Executar `go vet ./backend/...` e `go test ./backend/...` no Quality Gate.
+- [x] Executar `go vet ./backend/...` e `go test ./backend/...` no Quality Gate.
   - **Verificação:** ambos os comandos concluem sem erros.
-  - **Validação:** PR do branch atual recebe o check `Quality Gate` verde; localmente, sem `go.sum` ou cache dos módulos, o modo offline falha antes de compilar o backend.
+  - **Validação:** `Quality Gate`, `APK Build` e `GitOps Guard` passaram na PR draft #51; o auto-merge foi ignorado.
 - [x] Triar as skills externas contra `CLAUDE.md` §1 e os requisitos do harness.
   - **Verificação:** Kotlin/Compose permanece `inactive` por conflito com §1 regra 1; `jev-agent` permanece `inactive` por serviço externo e API key; opções de build/review ficam registradas.
   - **Validação:** cada entry tem decisão, motivo e pin; nenhuma skill é ativada sem seleção.
@@ -30,4 +30,4 @@
   - **Verificação:** a seção "Agent skills" fornece comandos exatos para instalar globais, selecionar uma spec e retornar ao conjunto global.
   - **Validação:** a rotina mantém `local/` fora do build e pede revisão de licença para uso comercial das skills GitNexus.
 
-**Validação pendente:** os testes isolados do meta-teste passam com Go 1.26.0, mas o gate completo ainda não compilou: faltam `go.sum` e o cache dos módulos de `go.mod`, e `GOPROXY=off` impede resolução externa. A issue não está pronta para merge até `go vet ./backend/...` e `go test ./backend/...` passarem no Quality Gate.
+**Evidência final:** a PR draft #51 passou `Quality Gate`, `APK Build` e `GitOps Guard`; o job de auto-merge foi ignorado. A PR permanece aberta e a issue #30 não foi fechada.
