@@ -239,6 +239,13 @@ type Config struct {
 	UseInternalEd    bool   `json:"use_internal_editor"`
 	DesktopExtCmd    string `json:"desktop_ext_cmd"`
 	Theme            string `json:"theme"` // "auto" | "light" | "dark", see NormalizeTheme
+
+	// StorageDir is the directory that holds the notes on the desktop. The
+	// value waits unused on Android, where the wrapper owns the directory.
+	// initStorage follows it at the next start. See
+	// doc/decisions/0033-the-config-chooses-the-storage-directory.md.
+	StorageDir string `json:"storage_dir"`
+
 	// ShareLAN sets the listen address. False, the default, binds 127.0.0.1,
 	// and only this device can connect. True binds 0.0.0.0, and each write
 	// needs the admin password. The socket binds one time, thus

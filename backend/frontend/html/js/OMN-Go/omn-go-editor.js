@@ -62,12 +62,188 @@
     //   - id     is an optional element id, for a toggle button
     // ------------------------------------------------------------------
     var TOOLS = [
+        { icon: 'format_bold', title: 'Bold (**text**)', action: function () { wrapSelection('**', '**'); } },
+        { icon: 'format_italic', title: 'Italic (*text*)', action: function () { wrapSelection('*', '*'); } },
+        { icon: 'looks_one', title: 'Heading 1 (# at each line)', action: function () { toggleLinePrefix('# '); } },
+        { icon: 'looks_two', title: 'Heading 2 (## at each line)', action: function () { toggleLinePrefix('## '); } },
+        { icon: 'format_list_bulleted', title: 'Bullet list (- at each line)', action: function () { toggleLinePrefix('- '); } },
+        { icon: 'format_list_numbered', title: 'Numbered list (1. at each line)', action: function () { toggleLinePrefix('1. '); } },
+        { icon: 'check_box', title: 'Task box (- [ ] at each line)', action: function () { toggleLinePrefix('- [ ] '); } },
+        { icon: 'format_quote', title: 'Quote (> at each line)', action: function () { toggleLinePrefix('> '); } },
+        { icon: 'data_object', title: 'Inline code (`text`)', action: function () { wrapSelection('`', '`'); } },
+        { icon: 'link', title: 'Link ([text](address))', action: function () { wrapLink(); } },
+        { icon: 'note_add', title: 'Insert a template', action: function () { openTemplateBox(); } },
         { icon: 'code', title: 'Expand an abbreviation, Markdown or Emmet (Tab)', action: function () { expandAtCursor(); } },
         { icon: 'format_line_spacing', title: 'Cycle selection (line, line end, line start, to file end, to header, body, whole note)', action: function () { cycleSelection(); } },
         { id: 'omn-tool-wrap', icon: 'wrap_text', title: 'Toggle word wrap', action: function () { toggleWrap(); } },
         { id: 'omn-tool-ln', icon: 'format_list_numbered', title: 'Toggle line numbers (off while wrapping)', action: function () { toggleLineNumbers(); } },
         { id: 'omn-tool-find', icon: 'search', title: 'Find / replace (Ctrl+F, Ctrl+H)', action: function () { openFind(false); } }
     ];
+
+    // ------------------------------------------------------------------
+    // Text design tools. Each one edits the selection in place.
+    // ------------------------------------------------------------------
+
+    // wrapSelection puts before and after around the selection, and it
+    // takes them away when the selection holds them already.
+    function wrapSelection(before, after) {
+        var s = ta.selectionStart, e = ta.selectionEnd;
+        var v = ta.value;
+        var sel = v.slice(s, e);
+        if (sel.length >= before.length + after.length &&
+            sel.slice(0, before.length) === before &&
+            sel.slice(-after.length) === after) {
+            sel = sel.slice(before.length, sel.length - after.length);
+            ta.value = v.slice(0, s) + sel + v.slice(e);
+            ta.setSelectionRange(s, s + sel.length);
+        } else {
+            ta.value = v.slice(0, s) + before + sel + after + v.slice(e);
+            ta.setSelectionRange(s + before.length, s + before.length + sel.length);
+        }
+        markDirty();
+        ta.focus();
+    }
+
+    // wrapLink turns the selection into the text of a Markdown link, and
+    // it puts the caret inside the empty address. No dialog blocks the
+    // WebView. An empty selection takes the word "text".
+    function wrapLink() {
+        var s = ta.selectionStart, e = ta.selectionEnd;
+        var v = ta.value;
+        var sel = v.slice(s, e);
+        if (sel === '') { sel = 'text'; }
+        ta.value = v.slice(0, s) + '[' + sel + ']()' + v.slice(e);
+        var caret = s + sel.length + 3;
+        ta.setSelectionRange(caret, caret);
+        markDirty();
+        ta.focus();
+    }
+
+    // toggleLinePrefix adds prefix at the start of each line under the
+    // selection, and it takes it away when each non-empty line holds it.
+    // An empty line stays empty, and the selection covers the block.
+    function toggleLinePrefix(prefix) {
+        var s = ta.selectionStart, e = ta.selectionEnd;
+        var v = ta.value;
+        var ls = v.lastIndexOf('\n', s - 1) + 1;
+        var le = v.indexOf('\n', e);
+        if (le < 0) { le = v.length; }
+        var lines = v.slice(ls, le).split('\n');
+        var all = lines.every(function (l) { return l === '' || l.indexOf(prefix) === 0; });
+        var out = lines.map(function (l) {
+            if (l === '') { return l; }
+            return all ? l.slice(prefix.length) : prefix + l;
+        }).join('\n');
+        ta.value = v.slice(0, ls) + out + v.slice(le);
+        ta.setSelectionRange(ls, ls + out.length);
+        markDirty();
+        ta.focus();
+    }
+
+    // ------------------------------------------------------------------
+    // Template box. One press fills the note with a template. The
+    // templates live in the templates directory of the storage, and the
+    // server answers them at /api/templates. See
+    // doc/decisions/0032-open-note-templates.md.
+    // ------------------------------------------------------------------
+
+    var tplBox = null, tplItems = null, tplLoaded = false;
+
+    // openTemplateBox shows the box, and it asks the server for the
+    // templates once. The next open reuses the answer.
+    function openTemplateBox() {
+        if (!tplBox) { buildTemplateBox(); }
+        tplBox.hidden = false;
+        if (!tplLoaded) { loadTemplates(); }
+    }
+
+    // buildTemplateBox makes the box one time and docks it before the
+    // text, the place the find bar takes. Escape and the close button
+    // each put it away.
+    function buildTemplateBox() {
+        tplBox = document.createElement('div');
+        tplBox.id = 'omn-template-box';
+        tplBox.hidden = true;
+        var head = document.createElement('div');
+        head.className = 'omn-template-head';
+        var title = document.createElement('span');
+        title.textContent = 'Templates';
+        var close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'omn-template-close';
+        close.title = 'Close';
+        close.setAttribute('aria-label', 'Close the templates');
+        close.innerHTML = '<i class="material-icons">close</i>';
+        close.addEventListener('click', function () { tplBox.hidden = true; });
+        head.appendChild(title);
+        head.appendChild(close);
+        tplItems = document.createElement('div');
+        tplItems.className = 'omn-template-list';
+        tplBox.appendChild(head);
+        tplBox.appendChild(tplItems);
+        ta.parentElement.insertBefore(tplBox, ta);
+        document.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Escape' && tplBox && !tplBox.hidden) { tplBox.hidden = true; }
+        });
+    }
+
+    // loadTemplates fills the list from /api/templates. A failure puts a
+    // short line in the list, and the next open asks again.
+    function loadTemplates() {
+        fetch('/api/templates').then(function (r) { return r.json(); }).then(function (data) {
+            tplLoaded = true;
+            tplItems.textContent = '';
+            var list = (data && data.templates) || [];
+            list.forEach(function (t) {
+                var item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'omn-template-item';
+                var name = document.createElement('span');
+                name.className = 'omn-template-name';
+                name.textContent = t.name;
+                var kind = document.createElement('span');
+                kind.className = 'omn-template-kind';
+                kind.textContent = t.builtin ? 'built in' : 'your file';
+                item.appendChild(name);
+                item.appendChild(kind);
+                item.addEventListener('click', function () { insertTemplate(t.content); });
+                tplItems.appendChild(item);
+            });
+            if (!list.length) {
+                addTemplateNote('No template answered.');
+            }
+        }).catch(function () {
+            tplLoaded = false;
+            tplItems.textContent = '';
+            addTemplateNote('The templates did not load. Open the box again.');
+        });
+    }
+
+    // addTemplateNote puts one plain line into the list of the box.
+    function addTemplateNote(text) {
+        var note = document.createElement('span');
+        note.className = 'omn-template-empty';
+        note.textContent = text;
+        tplItems.appendChild(note);
+    }
+
+    // insertTemplate writes the text of one template into the note. An
+    // empty note takes the whole text at the start, and a note with text
+    // takes it at the cursor. The box closes after the insert.
+    function insertTemplate(content) {
+        var s = ta.selectionStart, e = ta.selectionEnd;
+        if (ta.value.trim() === '') {
+            ta.value = content;
+            ta.setSelectionRange(content.length, content.length);
+        } else {
+            var v = ta.value;
+            ta.value = v.slice(0, s) + content + v.slice(e);
+            ta.setSelectionRange(s + content.length, s + content.length);
+        }
+        markDirty();
+        tplBox.hidden = true;
+        ta.focus();
+    }
 
     // ==================================================================
     // Emmet-style abbreviation expander (self-contained, offline).

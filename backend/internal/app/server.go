@@ -314,6 +314,7 @@ func (a *App) registerRoutes(mux routeTable) {
 	a.route(mux, "/api/search", open, "JSON", get(a.handleSearch))
 	a.route(mux, "/api/save", admin, "text", post(a.handleSaveNote))
 	a.route(mux, "/api/newpage", admin, "text", post(a.handleNewPage))
+	a.route(mux, "/api/templates", admin, "JSON", get(a.handleTemplates))
 	a.route(mux, "/api/config", admin, "JSON / text", get(a.handleConfigGet), post(a.handleConfigPost))
 	a.route(mux, "/api/restart", admin, "text", post(a.handleRestart))
 	a.route(mux, "/api/sql", admin, "JSON", post(a.handleSQL))

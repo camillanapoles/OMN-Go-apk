@@ -41,6 +41,14 @@
                 </span>
                 <i class="material-icons omn-card-menu-chevron">chevron_right</i>
             </button>
+            <button type="button" class="omn-card-menu-item" data-goto="storage">
+                <i class="material-icons omn-card-menu-icon">folder_open</i>
+                <span class="omn-card-menu-text">
+                    <span class="omn-card-menu-name">Storage</span>
+                    <span class="omn-card-menu-desc">Directory, note templates</span>
+                </span>
+                <i class="material-icons omn-card-menu-chevron">chevron_right</i>
+            </button>
             <button type="button" class="omn-card-menu-item" data-goto="android">
                 <i class="material-icons omn-card-menu-icon">android</i>
                 <span class="omn-card-menu-text">
@@ -123,6 +131,26 @@
             <div class="omn-card-field">
                 <label class="omn-config-label">Desktop External Cmd</label>
                 <input type="text" id="omn-cfg-desktop-ext-cmd" name="desktop_ext_cmd" value="%%DESKTOP_EXT_CMD%%" class="omn-config-input" />
+            </div>
+            <div class="omn-card-field omn-config-save-row">
+                <span class="omn-config-dirty-indicator"><span class="omn-config-dirty-dot omn-clean"></span><span class="omn-config-dirty-label"></span></span>
+                <button type="button" class="omn-config-save-btn" data-action="config-save">Save Configuration</button>
+            </div>
+        </div>
+
+        <div class="omn-config-screen" data-screen="storage">
+            <div class="omn-config-subhead">
+                <button type="button" class="omn-config-back" data-back aria-label="Back to settings"><i class="material-icons">arrow_back</i></button>
+                <h2 class="omn-config-subtitle">Storage</h2>
+            </div>
+            <div class="omn-card-field">
+                <label class="omn-config-label">Storage Directory (desktop)</label>
+                <input type="text" id="omn-cfg-storage-dir" name="storage_dir" value="%%STORAGE_DIR%%" class="omn-config-input" />
+                <span class="omn-card-hint">Absolute path to the folder that holds your notes on the computer. Empty keeps the default. The change applies at the next start of the app. Android keeps the folder of its flavor, and this value waits unused there.</span>
+            </div>
+            <div class="omn-card-field">
+                <label class="omn-config-label">Note Templates</label>
+                <span class="omn-card-hint">Each .md file inside the templates folder of the storage is one template of the editor. Drop files from anywhere: the folder is an open format with no lock-in, and a file with the name of a built-in template replaces its text.</span>
             </div>
             <div class="omn-card-field omn-config-save-row">
                 <span class="omn-config-dirty-indicator"><span class="omn-config-dirty-dot omn-clean"></span><span class="omn-config-dirty-label"></span></span>
