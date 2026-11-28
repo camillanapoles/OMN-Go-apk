@@ -8,12 +8,26 @@ import (
 	"net.basov.omngo/backend/internal/logx"
 )
 
+const contentSecurityPolicy = "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+
 func (a *App) isLocalConnection(r *http.Request) bool {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		host = r.RemoteAddr
 	}
-	return host == "127.0.0.1" || host == "::1" || host == "localhost"
+	return host == "127.0.0.1" || host == "::1"
+}
+
+// isSystemPage reads the registry of the system pages. Only a system page
+// carries the CSP header, because the shell of a note page stays as it is.
+// See doc/decisions/0035.
+func (a *App) isSystemPage(r *http.Request) bool {
+	for _, p := range a.systemPages() {
+		if r.URL.Path == p.path {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *App) connectionMiddleware(next http.Handler) http.Handler {
@@ -35,6 +49,10 @@ func (a *App) connectionMiddleware(next http.Handler) http.Handler {
 		// writes its own Cache-Control later wins, for example the log
 		// stream.
 		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		if a.isSystemPage(r) {
+			w.Header().Set("Content-Security-Policy", contentSecurityPolicy)
+		}
 
 		next.ServeHTTP(&pageCacheWriter{ResponseWriter: w}, r)
 	})
