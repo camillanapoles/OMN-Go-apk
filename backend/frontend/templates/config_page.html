@@ -106,7 +106,7 @@
           this list with no edit here. A text field or a select needs no
           entry: the browser always sends those, empty or not.
         -->
-        <input type="hidden" name="config_fields" value="%%CONFIG_FIELDS%%" />
+                <input type="hidden" name="config_fields" value="%%CONFIG_FIELDS%%" data-default-password="%%DEFAULT_PASSWORD_MARK%%" data-author-default="%%AUTHOR_DEFAULT%%" />
         <div class="omn-config-screen" data-screen="general">
             <div class="omn-config-subhead">
                 <button type="button" class="omn-config-back" data-back aria-label="Back to settings"><i class="material-icons">arrow_back</i></button>
@@ -167,6 +167,7 @@
                 <label class="omn-config-label">Server Port</label>
                 <input type="number" id="omn-cfg-port" name="server_port" value="%%SERVER_PORT%%" class="omn-config-input" required />
             </div>
+                %%FIRST_RUN_WARNING%%
             <!-- The password box is EMPTY on purpose, and it carries
                  no value attribute. The page source thus holds no password.
                  data-secret marks the box for omn-go-config.js: an empty box

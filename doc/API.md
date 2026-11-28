@@ -1983,7 +1983,7 @@ and the Android WebView paints nothing else.
 | Section | Cost | Fields |
 | --- | --- | --- |
 | `server` | none | `app_version`, `started`, `uptime_s`, `bind_port`, `share_lan`, `lan_urls[]`, `active_conns`, `hostname`, `goos`, `goarch` |
-| `config` | none | `author`, `internal_editor`, `theme`, `hostname`, `backup_prune_depth`, `max_upload_mb`, `intent_uri`, `termux_intent`, `android_fullscreen`, `search_enabled`, `search_bundled`, `search_kinds`, `search_scope`, `log_debug`, `log_info`, `log_tags` |
+| `config` | none | `author`, `internal_editor`, `theme`, `hostname`, `backup_prune_depth`, `max_upload_mb`, `intent_uri`, `termux_intent`, `android_fullscreen`, `search_enabled`, `search_bundled`, `search_kinds`, `search_scope`, `log_debug`, `log_info`, `log_tags`, `admin_password_default` |
 | `git` | two object reads | `repo_exists`, `configured`, `branch`, `head{hash,short,subject,author,date}`, `remote{name,url}`, `remote_ref`, `remote_head{…}` |
 | `search` | one pass over the index | `enabled`, `docs`, `lines`, `bytes`, `index_bytes_estimate`, `built`, `checked`, `dirty`, `kinds`, `scope` |
 | `runtime` | none | `go_version`, `goroutines`, `heap_alloc`, `sys`, `assets_version`, `assets_refreshed` |

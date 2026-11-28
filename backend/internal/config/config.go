@@ -305,6 +305,12 @@ type Config struct {
 	LogTags []string `json:"log_tags"`
 }
 
+// DefaultAdminPassword is the admin password of a fresh install. See doc/decisions/0034.
+const DefaultAdminPassword = "admin_secret_changeme"
+
+// DefaultAuthor is the sync author of a fresh install. See doc/decisions/0034.
+const DefaultAuthor = "Anonymous"
+
 // Load fills c from the config.json at configPath. The caller holds the write
 // lock. fallbackPort is the port for a config.json with none.
 func Load(c *Config, configPath string, fallbackPort int, log logx.Logger) {
@@ -314,8 +320,8 @@ func Load(c *Config, configPath string, fallbackPort int, log logx.Logger) {
 			// 8081, because the two flavors can run side by side. The loader
 			// writes the port to config.json, thus each later reader sees it.
 			ServerPort:      fallbackPort,
-			AdminPassword:   "admin_secret_changeme",
-			Author:          "Anonymous",
+			AdminPassword:   DefaultAdminPassword,
+			Author:          DefaultAuthor,
 			UseInternalEd:   true,
 			DesktopExtCmd:   "subl",
 			Theme:           ThemeAuto,

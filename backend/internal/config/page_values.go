@@ -53,6 +53,13 @@ func PageValues(c Config) []PageValue {
 			out = append(out, PageValue{Name: name, Value: *f.String(&c), Text: true})
 		}
 	}
+	pwdDefault := c.AdminPassword == DefaultAdminPassword
+	authorDefault := c.Author == DefaultAuthor
+	out = append(out,
+		PageValue{Name: "DEFAULT_PASSWORD_MARK", Value: boolMark(pwdDefault)},
+		PageValue{Name: "AUTHOR_DEFAULT", Value: boolMark(authorDefault)},
+	)
+	out = append(out, PageValue{Name: "FIRST_RUN_WARNING", Value: firstRunWarning(pwdDefault, authorDefault)})
 	return out
 }
 
@@ -67,6 +74,29 @@ func PlaceholderName(s string) string {
 		}
 		return '_'
 	}, s)
+}
+
+func boolMark(set bool) string {
+	if set {
+		return "true"
+	}
+	return ""
+}
+
+func firstRunWarning(pwdDefault, authorDefault bool) string {
+	if !pwdDefault && !authorDefault {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString(`<p class="omn-card-hint">`)
+	if pwdDefault {
+		b.WriteString("This device still holds the default admin password, and the fork publishes that password. Set a new password in the password box before another device connects. ")
+	}
+	if authorDefault {
+		b.WriteString("The author of the sync commits is still the default one. Write the name you publish with in the author box. ")
+	}
+	b.WriteString("</p>")
+	return b.String()
 }
 
 // logTagNames answers the tags of logx.AllTags as strings, in their order.
@@ -105,5 +135,6 @@ func StatusValues(c Config) []StatusValue {
 		}
 		out = append(out, StatusValue{Key: f.Status, Value: v})
 	}
+	out = append(out, StatusValue{Key: "admin_password_default", Value: c.AdminPassword == DefaultAdminPassword})
 	return out
 }
