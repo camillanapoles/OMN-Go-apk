@@ -36,6 +36,7 @@ import (
 	"strings"
 	"time"
 
+	"net.basov.omngo/backend/internal/config"
 	"net.basov.omngo/backend/internal/logx"
 )
 
@@ -185,6 +186,13 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 			a.log(logx.Session).Errf("login refused: config.json holds no admin password, thus no caller on the network can log in")
 		}
 		http.Error(w, "Invalid", http.StatusUnauthorized)
+		return
+	}
+
+	// The network may not use the default password. See doc/decisions/0034.
+	if cfg.AdminPassword == config.DefaultAdminPassword && !a.isLocalConnection(r) {
+		a.log(logx.Session).Errf("login refused: the admin password is still the default one, and the caller is not local")
+		http.Error(w, "Set a new password on the device first", http.StatusForbidden)
 		return
 	}
 
