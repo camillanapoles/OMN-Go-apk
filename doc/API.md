@@ -320,7 +320,8 @@ endpoint.
 | --- | --- | --- | --- |
 | `200` | `text/plain` | `OK` | Sets the signed `session_role` cookie and the `session_role_hint` cookie, for the `admin` role. See §2.2. |
 | `401` | `text/plain` | `Invalid` | No cookie set |
-| `500` | `text/plain` | `Login unavailable` | This install has no session key and could not make one. See `sessionSecret` in `backend/internal/app/session.go`. |
+| `403` | `text/plain` | `Set a new password on the device first` | The submitted password is still the default one of a fresh install, and the caller is not on the device. See `doc/decisions/0034-the-network-never-uses-the-default-password.md`. |
+| `429` | `text/plain` | `Too many attempts` | The address failed five logins and owes the wait. `Retry-After` names the seconds. See `doc/decisions/0035-a-slow-door-for-the-network-logins.md`. |
 
 ```bash
 curl -i -c jar.txt -d 'password=admin_secret_changeme' http://host:8080/login

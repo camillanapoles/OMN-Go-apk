@@ -30,10 +30,12 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"net.basov.omngo/backend/internal/config"
@@ -180,22 +182,41 @@ func (a *App) readSessionRole(r *http.Request) string {
 func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 	cfg := a.config.Get()
 	pwd := r.FormValue("password")
+	local := a.isLocalConnection(r)
+
+	// An address on the network owes the wait that its failed logins made.
+	// The device itself never waits, and the guard speaks before the
+	// password is read. See doc/decisions/0035.
+	addr := loginAddress(r)
+	if !local {
+		if wait := a.loginWait(addr); wait > 0 {
+			w.Header().Set("Retry-After", strconv.Itoa(int(wait.Seconds())+1))
+			http.Error(w, "Too many attempts", http.StatusTooManyRequests)
+			return
+		}
+	}
 
 	if !passwordMatches(pwd, cfg.AdminPassword) {
 		if cfg.AdminPassword == "" {
 			a.log(logx.Session).Errf("login refused: config.json holds no admin password, thus no caller on the network can log in")
+		}
+		if !local {
+			a.loginNoteFailure(addr)
 		}
 		http.Error(w, "Invalid", http.StatusUnauthorized)
 		return
 	}
 
 	// The network may not use the default password. See doc/decisions/0034.
-	if cfg.AdminPassword == config.DefaultAdminPassword && !a.isLocalConnection(r) {
+	if cfg.AdminPassword == config.DefaultAdminPassword && !local {
 		a.log(logx.Session).Errf("login refused: the admin password is still the default one, and the caller is not local")
 		http.Error(w, "Set a new password on the device first", http.StatusForbidden)
 		return
 	}
 
+	if !local {
+		a.loginNoteSuccess(addr)
+	}
 	signed, hint := a.newSessionCookies(roleAdmin)
 	if signed == nil {
 		// The install has no key. See sessionSecret. An unsigned cookie is
@@ -214,4 +235,74 @@ func passwordMatches(submitted, configured string) bool {
 		return false
 	}
 	return subtle.ConstantTimeCompare([]byte(submitted), []byte(configured)) == 1
+}
+
+// The login throttle. Five failed logins of one address close the door for
+// a while, and each further failure doubles the wait. The state is memory
+// alone, keyed by the app and by the address, and the device itself never
+// enters it. See doc/decisions/0035.
+type loginAttempt struct {
+	failures     int
+	blockedUntil time.Time
+}
+
+var loginThrottle = struct {
+	sync.Mutex
+	perApp map[*App]map[string]*loginAttempt
+}{perApp: map[*App]map[string]*loginAttempt{}}
+
+const loginTryLimit = 5
+const loginBackoffCap = 15 * time.Minute
+
+func loginAddress(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
+}
+
+// loginWait answers the wait that the address still owes, or zero.
+func (a *App) loginWait(addr string) time.Duration {
+	loginThrottle.Lock()
+	defer loginThrottle.Unlock()
+	if at := loginThrottle.perApp[a][addr]; at != nil {
+		if wait := time.Until(at.blockedUntil); wait > 0 {
+			return wait
+		}
+	}
+	return 0
+}
+
+// loginNoteFailure remembers one failed login and grows the wait.
+func (a *App) loginNoteFailure(addr string) {
+	loginThrottle.Lock()
+	defer loginThrottle.Unlock()
+	m := loginThrottle.perApp[a]
+	if m == nil {
+		m = map[string]*loginAttempt{}
+		loginThrottle.perApp[a] = m
+	}
+	at := m[addr]
+	if at == nil {
+		at = &loginAttempt{}
+		m[addr] = at
+	}
+	at.failures++
+	if at.failures >= loginTryLimit {
+		wait := 30 * time.Second << (at.failures - loginTryLimit)
+		if wait > loginBackoffCap || wait <= 0 {
+			wait = loginBackoffCap
+		}
+		at.blockedUntil = time.Now().Add(wait)
+	}
+}
+
+// loginNoteSuccess clears the address, and the count starts over.
+func (a *App) loginNoteSuccess(addr string) {
+	loginThrottle.Lock()
+	defer loginThrottle.Unlock()
+	if m := loginThrottle.perApp[a]; m != nil {
+		delete(m, addr)
+	}
 }
