@@ -71,7 +71,12 @@ jobs:
               echo "An open pull request covers this push. The pull request run is the one build of $HEAD_SHA."
             fi
           fi
-          if [ "$run" = "true" ]; then
+          # The dedup is a push-run concern only. A push that an open pull
+          # request covers ends as a skipped run that still concludes
+          # success, and that answer would cover the pull request run too.
+          # The pull request run is the one real build of the SHA, so it
+          # never consults this list.
+          if [ "$run" = "true" ] && [ "$EVENT" = "push" ]; then
             DONE=$(gh run list --repo camillanapoles/OMN-Go-apk --commit "$HEAD_SHA" --workflow "Fork CI" --json conclusion --jq '[.[] | select(.conclusion == "success")] | length')
             if [ "$DONE" != "0" ]; then
               run=false
@@ -154,7 +159,12 @@ jobs:
               echo "An open pull request covers this push. The pull request run is the one build of $HEAD_SHA."
             fi
           fi
-          if [ "$run" = "true" ]; then
+          # The dedup is a push-run concern only. A push that an open pull
+          # request covers ends as a skipped run that still concludes
+          # success, and that answer would cover the pull request run too.
+          # The pull request run is the one real build of the SHA, so it
+          # never consults this list.
+          if [ "$run" = "true" ] && [ "$EVENT" = "push" ]; then
             DONE=$(gh run list --repo camillanapoles/OMN-Go-apk --commit "$HEAD_SHA" --workflow "Fork CI" --json conclusion --jq '[.[] | select(.conclusion == "success")] | length')
             if [ "$DONE" != "0" ]; then
               run=false
