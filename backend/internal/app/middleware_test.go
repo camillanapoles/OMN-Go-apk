@@ -122,3 +122,49 @@ func TestActiveConnsIsAnAtomicInt64(t *testing.T) {
 			"atomic.AddInt64 panics on every 32-bit build", field.Type)
 	}
 }
+
+// Every answer of the server carries nosniff, whatever the route answers.
+// See doc/decisions/0035.
+func TestConnectionMiddlewareSetsNosniff(t *testing.T) {
+	a := &App{}
+	h := a.connectionMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/status", nil))
+	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Errorf("X-Content-Type-Options = %q, want nosniff", got)
+	}
+}
+
+// A system page carries the CSP header, and a note page and an API answer
+// carry none. The shell of the note pages stays as it is.
+func TestConnectionMiddlewareSetsCSPOnSystemPages(t *testing.T) {
+	a := &App{}
+	h := a.connectionMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "http://localhost/Config.html", nil))
+	if got := rec.Header().Get("Content-Security-Policy"); got == "" {
+		t.Error("a system page carries no CSP header")
+	}
+	for _, path := range []string{"/Welcome.html", "/api/status", "/js/OMN-Go/omn-go-core.js"} {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "http://localhost"+path, nil))
+		if got := rec.Header().Get("Content-Security-Policy"); got != "" {
+			t.Errorf("%s carries a CSP header, want none", path)
+		}
+	}
+}
+
+// SplitHostPort answers an address, never the word localhost, thus the
+// branch was dead. An address that is not an IP is not the device.
+func TestLocalConnectionKnowsNoLocalhostName(t *testing.T) {
+	a := &App{}
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.RemoteAddr = "localhost:1"
+	if a.isLocalConnection(r) {
+		t.Error("the name localhost passed isLocalConnection")
+	}
+}

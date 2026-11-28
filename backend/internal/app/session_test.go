@@ -384,3 +384,48 @@ func TestLoginRefusesTheDefaultPasswordFromTheNetwork(t *testing.T) {
 		t.Errorf("a real login set %d cookies, want the signed one and the hint", len(cookies))
 	}
 }
+
+// Five failed logins of one address close the door, and the answer carries
+// the wait. Another address keeps its own count, the device never waits,
+// and one success clears the count. See doc/decisions/0035.
+func TestLoginThrottlesTheNetwork(t *testing.T) {
+	a := newTestApp(t)
+	asking := func(addr, password string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		a.handleLogin(rec, loginReq(t, addr, password))
+		return rec
+	}
+
+	for i := 0; i < 5; i++ {
+		if rec := asking("192.0.2.10:5555", "wrong"); rec.Code != http.StatusUnauthorized {
+			t.Fatalf("failure %d answered %d, want 401", i+1, rec.Code)
+		}
+	}
+	rec := asking("192.0.2.10:5555", "wrong")
+	if rec.Code != http.StatusTooManyRequests {
+		t.Errorf("the sixth attempt answered %d, want 429", rec.Code)
+	}
+	if rec.Header().Get("Retry-After") == "" {
+		t.Error("the 429 answer carries no Retry-After")
+	}
+
+	// Another address keeps its own count, and the device never waits.
+	if rec := asking("192.0.2.11:5555", "wrong"); rec.Code != http.StatusUnauthorized {
+		t.Errorf("another address answered %d, want 401", rec.Code)
+	}
+	a.config.Update(func(c *config.Config) { c.AdminPassword = "own long password" })
+	if rec := asking("127.0.0.1:5555", "own long password"); rec.Code != http.StatusOK {
+		t.Errorf("the device answered %d, want 200", rec.Code)
+	}
+
+	// After the wait, one success clears the count of the address.
+	loginThrottle.Lock()
+	loginThrottle.perApp[a]["192.0.2.10"].blockedUntil = time.Now().Add(-time.Second)
+	loginThrottle.Unlock()
+	if rec := asking("192.0.2.10:5555", "own long password"); rec.Code != http.StatusOK {
+		t.Errorf("the address after the wait answered %d, want 200", rec.Code)
+	}
+	if rec := asking("192.0.2.10:5555", "wrong"); rec.Code != http.StatusUnauthorized {
+		t.Errorf("the cleared address answered %d, want 401", rec.Code)
+	}
+}
