@@ -103,3 +103,5 @@ the status of the old record to `replaced by NNNN`.
 | [0029](0029-keep-the-ignore-patterns-of-the-app-in-git-info-exclude.md) | Keep the ignore patterns of the app in .git/info/exclude. | `internal/gitsync/repo.go` |
 | [0030](0030-adopt-the-agent-skill-program.md) | Adopt the agent skill program. | `CLAUDE.md` |
 | [0031](0031-release-after-a-completed-spec.md) | Release after a completed spec. | `.github/workflows/release.yml`, `local/release/spec-release-gate.sh`, `backend/internal/repocheck/release_gate_test.go` |
+| [0032](0032-open-note-templates.md) | Open note templates. | `backend/internal/storage/templates.go`, `backend/internal/app/templates_app.go`, `backend/frontend/html/js/OMN-Go/omn-go-editor.js` |
+| [0033](0033-the-config-chooses-the-storage-directory.md) | The config chooses the storage directory. | `backend/internal/app/storage_dir.go`, `backend/internal/app/storage.go`, `backend/internal/config/fields.go` |

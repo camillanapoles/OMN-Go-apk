@@ -344,6 +344,10 @@ func TestBaseline_RouteSet(t *testing.T) {
 		// This route stores a changed git server key. It is admin only.
 		// See internal/gitsync/host_keys.go.
 		"/api/sync/trust-host-key",
+		// The note templates of the editor. One exact pattern, admin only.
+		// The answer names the templates directory, and a drop-in .md file
+		// joins the list. See doc/decisions/0032-open-note-templates.md.
+		"/api/templates",
 		"/api/upload",
 		// One upload route and one tree for each row of config.UserFileTrees.
 		// A contact and a calendar have a tree of their own, the same as a
@@ -386,6 +390,7 @@ func TestBaseline_RouteSet(t *testing.T) {
 		"GET /api/search",
 		"GET /api/status",
 		"GET /api/sync/preview",
+		"GET /api/templates",
 		"GET /db_backups",
 		"POST /api/bookmark",
 		"POST /api/config",

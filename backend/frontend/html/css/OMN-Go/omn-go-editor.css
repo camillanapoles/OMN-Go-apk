@@ -171,3 +171,42 @@ body.omn-ln-on .omn-editor-gutter { display: block; }
 .omn-editor-dot.omn-dirty   { background: var(--omn-state-alert); }
 .omn-editor-dot.omn-loading { background: var(--omn-text-dim); }
 .omn-editor-dot.omn-error   { background: var(--omn-state-alert); }
+/* The tools of the bar can outgrow one phone row, and the row then
+   scrolls sideways instead of hiding its tail. */
+.omn-editor-tools {
+    overflow-x: auto; white-space: nowrap; scrollbar-width: none;
+}
+.omn-editor-tools::-webkit-scrollbar { display: none; }
+/* The template box. It docks between the toolbar and the text, the place
+   the find bar takes, and it moves the note down. */
+#omn-template-box {
+    display: flex; flex-direction: column;
+    padding: 6px 8px;
+    background: var(--omn-bg-band);
+    border-bottom: 1px solid var(--omn-border);
+}
+#omn-template-box[hidden] { display: none; }
+.omn-template-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 4px;
+    font-size: 13px; color: var(--omn-text-faint);
+}
+.omn-template-close {
+    border: none; background: none; padding: 2px;
+    cursor: pointer; color: var(--omn-text-faint);
+}
+.omn-template-list {
+    display: flex; flex-direction: column; gap: 4px;
+    max-height: 40vh; overflow-y: auto;
+}
+.omn-template-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 10px;
+    border: 1px solid var(--omn-border); border-radius: 4px;
+    background: var(--omn-bg-surface);
+    cursor: pointer; text-align: left;
+    color: var(--omn-text);
+}
+.omn-template-name { font-size: 14px; }
+.omn-template-kind { font-size: 11px; color: var(--omn-text-faint); }
+.omn-template-empty { font-size: 12px; color: var(--omn-text-faint); }

@@ -265,6 +265,7 @@ gets a refusal page with the code `200`.
 | GET | `/api/search` | none | JSON |
 | POST | `/api/save` | admin | text |
 | POST | `/api/newpage` | admin | text |
+| GET | `/api/templates` | admin | JSON |
 | GET, POST | `/api/config` | admin | JSON / text |
 | POST | `/api/restart` | admin | text |
 | POST | `/api/sql` | admin | JSON |

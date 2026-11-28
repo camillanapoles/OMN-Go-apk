@@ -108,6 +108,15 @@ var configFields = []configField{
 		String: func(c *Config) *string { return &c.DesktopExtCmd },
 	},
 	{
+		// The desktop moves its storage to this directory at the next
+		// start. Android keeps the directory of its flavor, and the value
+		// waits there unused. See
+		// doc/decisions/0033-the-config-chooses-the-storage-directory.md.
+		Key: "storage_dir", Kind: cfString,
+		String:    func(c *Config) *string { return &c.StorageDir },
+		Normalize: func(c *Config) { c.StorageDir = strings.TrimSpace(c.StorageDir) },
+	},
+	{
 		// This is an enumeration. NormalizeTheme changes each value other
 		// than light or dark to auto.
 		Key: "theme", Kind: cfString, Status: "theme",

@@ -12,6 +12,7 @@ import (
 //	html/           Each file that the server sends.
 //	db/             The SQLite files.
 //	asset_backups/  The old copies of the application files.
+//	templates/      The note templates that the editor offers.
 //	.git/           The repository of the sync.
 //
 // The files at the top, for example config.json, use File.
@@ -39,6 +40,7 @@ func (l Layout) HTML(elem ...string) string         { return l.under("html", ele
 func (l Layout) DB(elem ...string) string           { return l.under("db", elem) }
 func (l Layout) Git(elem ...string) string          { return l.under(".git", elem) }
 func (l Layout) AssetBackups(elem ...string) string { return l.under("asset_backups", elem) }
+func (l Layout) Templates(elem ...string) string    { return l.under("templates", elem) }
 
 // File answers a path below the top of the storage directory.
 func (l Layout) File(elem ...string) string { return l.under("", elem) }

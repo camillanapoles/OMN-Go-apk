@@ -27,6 +27,15 @@ func (a *App) initStorage(overrideDir string) {
 		a.StorageDir = "./data"
 	}
 
+	// The desktop follows the directory that config.json names. Android
+	// keeps the directory of its flavor, because the wrapper owns it. The
+	// walk runs before any write, thus a fresh install stays a fresh
+	// install. See
+	// doc/decisions/0033-the-config-chooses-the-storage-directory.md.
+	if overrideDir == "" && runtime.GOOS != "android" {
+		a.followStorageChain()
+	}
+
 	// 1. Make the storage directory.
 	if err := os.MkdirAll(a.StorageDir, 0755); err != nil {
 		a.log(logx.Storage).Errf("Failed to create storage: %v", err)

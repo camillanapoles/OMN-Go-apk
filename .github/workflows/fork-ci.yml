@@ -111,7 +111,24 @@ jobs:
             --cache-from type=gha,scope=omngo-test \
             --cache-from type=gha,scope=omngo \
             $CACHE_TO \
-            .
+            . > /tmp/gate.log 2>&1
+          code=$?
+          tail -60 /tmp/gate.log
+          exit $code
+
+      # The job log of a failed gate is hard to reach after the run. Each
+      # failing line of the gate becomes one error annotation, and the
+      # check-run API answers the annotations without a login.
+      - name: Show the gate failures as annotations
+        if: always()
+        run: |
+          touch /tmp/gate.log
+          grep -E -- "--- FAIL|^FAIL|panic:|not gofmt clean|does not parse|\.go:[0-9]+:[0-9]+:|_test\.go:[0-9]+:|^ERROR" /tmp/gate.log | head -14 | while IFS= read -r line; do
+            echo "::error title=gate::$line"
+          done
+          tail -6 /tmp/gate.log | while IFS= read -r line; do
+            echo "::error title=gate-tail::$line"
+          done
 
   apk:
     name: APK Build
