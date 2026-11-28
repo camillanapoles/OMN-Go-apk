@@ -3,6 +3,7 @@ package app
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -338,4 +339,48 @@ func TestEmptyPasswordGrantsNothing(t *testing.T) {
 // one check there rather than fail on a platform difference.
 func runtimeSupportsFileMode() bool {
 	return os.PathSeparator == '/'
+}
+
+// loginReq builds the POST of the login form. addr decides whether the
+// caller sits on the device or somewhere on the network.
+func loginReq(t *testing.T, addr, password string) *http.Request {
+	t.Helper()
+	form := url.Values{"password": {password}}
+	r := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(form.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	r.RemoteAddr = addr
+	return r
+}
+
+// The default password is a public constant of the fork. The network may
+// not use it, and the device keeps it to set the first real password. See
+// doc/decisions/0034.
+func TestLoginRefusesTheDefaultPasswordFromTheNetwork(t *testing.T) {
+	a := newTestApp(t)
+
+	rec := httptest.NewRecorder()
+	a.handleLogin(rec, loginReq(t, "192.0.2.10:5555", config.DefaultAdminPassword))
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("network login with the default password gave %d, want 403", rec.Code)
+	}
+
+	// The device itself keeps the access, because the person on it needs
+	// the default password to reach the Config page.
+	rec = httptest.NewRecorder()
+	a.handleLogin(rec, loginReq(t, "127.0.0.1:5555", config.DefaultAdminPassword))
+	if rec.Code != http.StatusOK {
+		t.Errorf("local login with the default password gave %d, want 200", rec.Code)
+	}
+
+	// A real password works from the network the same way it always did.
+	a.config.Update(func(c *config.Config) { c.AdminPassword = "own long password" })
+	rec = httptest.NewRecorder()
+	a.handleLogin(rec, loginReq(t, "192.0.2.10:5555", "own long password"))
+	if rec.Code != http.StatusOK {
+		t.Errorf("network login with a real password gave %d, want 200", rec.Code)
+	}
+	cookies := rec.Result().Cookies()
+	if len(cookies) < 2 {
+		t.Errorf("a real login set %d cookies, want the signed one and the hint", len(cookies))
+	}
 }
